@@ -3,7 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
-import { generatedSectionsFor } from "@/lib/sites/page-generate";
+import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
 import {
   BRAND_TONES, FAMILY_THEME, RESERVED_SUBDOMAINS, SUBDOMAIN_BASE, TONE_DEFAULT_COLOR,
   normalizeSubdomain, normalizeCountry, audienceSuggestionsFor,
@@ -454,14 +454,36 @@ export async function generateWizardPages(
 
   let chosen: any[];
   if (plannedTitles.length) {
-    // Build EXACTLY the user's planned pages. Reuse AI sections where a title matches; deterministic otherwise.
-    chosen = plannedTitles.map((title, i) => {
-      const ai = aiPages.find((p: any) => norm(p.title || "") === norm(title))
-        ?? (i === 0 ? (aiPages.find((p: any) => p.isHome) ?? aiPages[0]) : undefined);
-      if (ai) return { ...ai, title, isHome: i === 0 };
-      const secs = generatedSectionsFor(guessPageType(title), profile).map((content) => ({ content }));
-      return { title, slug: slugifyTitle(title), isHome: i === 0, sections: secs };
-    });
+    // Build EXACTLY the user's planned pages. Priority per page:
+    //   1) CLONE the owner's existing site (faithful copy of their real content/images),
+    //   2) reuse AI sections where a title matches, 3) deterministic template.
+    const baseUrl = wizard.existingUrl ? (/^https?:\/\//i.test(wizard.existingUrl) ? wizard.existingUrl : `https://${wizard.existingUrl}`) : "";
+    const homeHtml = (wizard.hasWebsite && wizard.existingUrl) ? await fetchHtml(wizard.existingUrl) : null;
+    const htmlCache = new Map<string, string | null>();
+    chosen = [];
+    for (let i = 0; i < plannedTitles.length; i++) {
+      const title = plannedTitles[i];
+      const isHome = i === 0;
+      const ptype = guessPageType(title);
+      // 1) Faithful clone from their existing site.
+      if (homeHtml) {
+        let srcHtml: string | null = null;
+        if (isHome || ptype === "home") srcHtml = homeHtml;
+        else {
+          const link = findPageUrl(homeHtml, baseUrl, ptype);
+          if (link) { if (!htmlCache.has(link)) htmlCache.set(link, await fetchHtml(link)); srcHtml = htmlCache.get(link) ?? null; }
+        }
+        if (srcHtml) {
+          const secs = cloneSectionsFromHtml(srcHtml, baseUrl);
+          if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: secs.map((content) => ({ content })) }); continue; }
+        }
+      }
+      // 2) AI sections where a title matches.
+      const ai = aiPages.find((p: any) => norm(p.title || "") === norm(title)) ?? (isHome ? (aiPages.find((p: any) => p.isHome) ?? aiPages[0]) : undefined);
+      if (ai) { chosen.push({ ...ai, title, isHome }); continue; }
+      // 3) Deterministic fallback.
+      chosen.push({ title, slug: slugifyTitle(title), isHome, sections: generatedSectionsFor(ptype, profile).map((content) => ({ content })) });
+    }
   } else if (aiPages.length) {
     // Legacy lean path: Home + Contact now, stash the rest as suggestions.
     const homePage = aiPages.find((p: any) => p.isHome) ?? aiPages[0];
@@ -499,8 +521,8 @@ export async function generateWizardPages(
         page = await createPage(tenantId, { title: pg.title || "Untitled", slug: `${slug}-${websiteId.slice(0, 8)}`, isHome, websiteId });
       }
       let sections = (pg.sections ?? []).map((s: any) => s.content).filter(Boolean);
-      // Reuse the existing site's own images (Ali's choice B — no AI spend).
-      if (learnedImages.length && sections.length) {
+      // Reuse the existing site's own images for TEMPLATE pages; cloned pages already carry real images.
+      if (learnedImages.length && sections.length && !pg._cloned) {
         try { sections = applyTemplateImages(sections as any, learnedImages) as any[]; } catch { /* keep originals */ }
       }
       const draft_seo = geoSeoForPage(pg.title || "", wizard);
@@ -748,6 +770,53 @@ function guessPageType(title: string): string {
 
 function slugifyTitle(title: string): string {
   return (title || "page").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "page";
+}
+
+/** Fetch raw HTML for a URL (best-effort, capped). */
+async function fetchHtml(url: string): Promise<string | null> {
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    const res = await fetch(u.toString(), { headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" }, signal: AbortSignal.timeout(12000), redirect: "follow" });
+    if (!res.ok) return null;
+    return (await res.text()).slice(0, 500_000);
+  } catch { return null; }
+}
+
+/** Find a same-origin internal link on the homepage matching a target page type. */
+function findPageUrl(homeHtml: string, baseUrl: string, pageType: string): string | undefined {
+  const want: Record<string, RegExp> = {
+    about: /about|team|story|who-we-are|our-/i,
+    services: /service|product|solution|offer|what-we-do|portfolio|work/i,
+    pricing: /pric|plan|package|rates?/i,
+    testimonials: /testimonial|review|client|case-stud/i,
+    contact: /contact|get-in-touch|quote|book|appointment/i,
+    faq: /faq|questions|help/i,
+    blog_index: /blog|news|articles|insights|resources/i,
+  };
+  const re = want[pageType];
+  if (!re) return undefined;
+  let origin = "";
+  try { origin = new URL(baseUrl).origin; } catch { return undefined; }
+  const aRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = aRe.exec(homeHtml))) {
+    const href = m[1];
+    const text = m[2].replace(/<[^>]+>/g, " ");
+    if (!re.test(href) && !re.test(text)) continue;
+    try {
+      const abs = new URL(href, baseUrl);
+      if (abs.origin === origin && !/^(mailto:|tel:|#)/i.test(href)) return abs.toString();
+    } catch { /* skip */ }
+  }
+  return undefined;
+}
+
+/** Faithfully turn an existing page's HTML into render-ready sections (a real copy, no invented facts). */
+function cloneSectionsFromHtml(html: string, baseUrl: string): Record<string, unknown>[] {
+  try {
+    const ex = extractPageContent(html, baseUrl);
+    return contentToBlocks(ex).map((b) => b.content);
+  } catch { return []; }
 }
 
 /** Turn the wizard intake (+ learned existing-site content) into a brief for the planner. */
