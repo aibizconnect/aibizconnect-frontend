@@ -40,4 +40,8 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-035] define_oauth_callback_checks — Supervisor checks SOC-CB-V1..V10 (defined)
 [D-036] verified_oauth_callback — route.ts + completeOAuthCore + makeOAuthState/readOAuthState + SettingsHub result flags VERIFIED against all SOC-CB checks; Social now round-trips end-to-end (verified)
 [D-037] next_phase_core_integrations — proceed to Core integrations backend: Twilio (API-key) → Shopify (OAuth) → payments (ruled)
+[D-038] approve_launchpad_model — approved tenant_onboarding + tenant_onboarding_followups; "schedule-drafts-only, never auto-send" follow-up stance (approved)
+[D-039] confirm_launchpad_verification_sources — confirmed per-step verify sources (account/brand/website/domain/email/social/ecommerce/idx_vow) reusing existing persistence checks (confirmed)
+[D-040] define_launchpad_checks — Supervisor checks LP-V1..V15 (defined)
+[D-041] verified_launchpad_onboarding — migration 0034 + lib/server/launchpad.ts (extensible STEP_REGISTRY) + launchpad/actions.ts + Launchpad UI VERIFIED against all LP checks; nav Launchpad row now routes; drafts-only follow-up (email day1/3/7, SMS parked for Twilio) (verified)
 

@@ -64,6 +64,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).
   const params = useSearchParams();
   useEffect(() => {
+    if (params.get("tab") === "preferences") setTab("preferences");
     const connected = params.get("connected");
     const cbError = params.get("error");
     if (connected) setNotice(`Connected ${SOCIAL_META[connected]?.label ?? connected}${params.get("n") ? ` — ${params.get("n")} account(s)` : ""}.`);

@@ -1,37 +1,49 @@
-# Builder → Architect: VERIFY OAuth callback (SOC-CB-V1..V10)
+# Builder → Architect: VERIFY Launchpad onboarding sequence (LP-V1..V15)
 
-Implemented per your RULING 31/33 (D-032..D-035). Files:
+Built per D-038..D-040. typecheck clean. Files:
 
-## Refactor — lib/server/social.ts (server-only, no auth gates)
-- socialRedirectUri(provider) → `${APP_BASE_URL}/api/social/callback/<provider>`.
-- makeOAuthState(tenantId, provider) → base64url(encryptSecret({tenantId,provider,nonce,ts})); null if
-  no SETTINGS_ENCRYPTION_KEY.
-- readOAuthState(state) → decrypt + validate {tenantId, provider(valid), nonce, ts} AND enforce the
-  15-min TTL; null on any tamper/expiry.
-- completeOAuthCore(tenantId, provider, code, connectedBy) → GATE-FREE: exchange code→tokens,
-  enumerate connectable entities, store each with encrypted tokens, upsert non-secret
-  tenant_integrations summary, audit 'social.oauth_complete'. Returns {ok, connected, message}.
-  Does NOT call requireTenantAccess/requireAdminWrite. → SOC-CB-V6.
+## 1) supabase/migrations/0034_launchpad.sql
+- public.tenant_onboarding (id, tenant_id, step_key, status default 'pending', verified_at,
+  last_checked_at, meta jsonb, created_at, updated_at; UNIQUE(tenant_id, step_key)). Indexes
+  idx_tenant_onboarding_tenant, idx_tenant_onboarding_step_key. → LP-V1, LP-V3.
+- public.tenant_onboarding_followups (id, tenant_id, channel, scheduled_for, status default 'draft',
+  template_key, note, payload, sent_at, created_at, updated_at; UNIQUE(tenant_id, channel,
+  template_key)). status enum includes 'draft'. Indexes idx_onboarding_followups_tenant +
+  partial idx_onboarding_followups_status_scheduled WHERE status='scheduled'. → LP-V2, LP-V3, LP-V4.
+- Idempotent (create if not exists). → LP-V5.
 
-## Action wrapper — social-actions.ts (gated, for UI/manual)
-completeOAuth(tenantId, provider, code, state): requireTenantAccess + requireAdminWrite + readOAuthState
-(must match tenantId & provider) → completeOAuthCore. getOAuthStartUrl now uses makeOAuthState +
-socialRedirectUri (still admin-gated). Removed the duplicated local state/redirect helpers.
+## 2) lib/server/launchpad.ts (server-only, extensible registry)
+STEP_REGISTRY = array of StepDef DATA {key,title,desc,category,optional,route(),verify?()}. Adding a
+step is data-only; getLaunchpadState loops the registry generically. → LP-V15.
+Verifiers use the confirmed sources (RULING 35): account=tenant_settings timezone+currency;
+brand=website_brand_settings logo_url present OR color_palette.primary != default #1e3a8a;
+website=website_pages is_public count>=1; domain=tenant_domains status in (verified,active);
+email=tenant_email_settings status=verified; social=tenant_social_accounts count>=1;
+ecommerce=tenant_integrations shopify connected (optional); idx_vow=tenant_integrations idx_vow
+connected else not_applicable (optional, no backend yet). primaryWebsiteId() supplies website ctx.
 
-## Route Handler — app/api/social/callback/[provider]/route.ts (GET) → SOC-CB-V1
-1. Parse ?error/?code/?state.
-2. readOAuthState(state) FIRST; require parsed && isSocialProvider(provider) && parsed.provider===provider,
-   else 302 to `/?social_error=invalid_or_expired_state` (no tenant known). tenantId taken ONLY from
-   validated state, never a cookie/session. → SOC-CB-V3, SOC-CB-V4.
-3. If ?error present → 302 `/tenants/<tenantId>/settings?error=<reason>&provider=<p>`. → SOC-CB-V2/V8.
-   If no code → 302 ?error=missing_code.
-4. completeOAuthCore(tenantId, provider, code, "oauth_callback"). → SOC-CB-V5.
-5. Audit 'social.oauth_callback_received' with {tenantId, provider, ok, connected}. → SOC-CB-V10.
-6. Success → 302 `/tenants/<tenantId>/settings?connected=<provider>&n=<count>`. → SOC-CB-V7.
-   Failure/throw → 302 ?error=<reason>. No token/secret ever in the redirect URL. → SOC-CB-V9.
+## 3) app/tenants/[tenantId]/launchpad/actions.ts ("use server")
+- requireTenantAccess(tenantId) on ALL actions. → LP-V6.
+- getLaunchpadState: runs each verify(), UPSERTs tenant_onboarding (status, verified_at,
+  last_checked_at, meta incl. evidence), preserves manual 'skipped' overrides, returns
+  [{step_key,title,desc,route,category,optional,status,verified_at,evidence}] + progress%
+  (complete/required). → LP-V7, LP-V8.
+- verifyStep: single-step re-check + upsert.
+- setFollowupPrefs: isPlatformAdmin-gated; persists tenant_settings launchpad_followup_enabled +
+  launchpad_followup_channels{email,sms}; when enabled, UPSERTs DRAFT email reminder rows
+  (status='draft') at day 1/3/7 for INCOMPLETE required steps; SMS rows created status='skipped'
+  note='twilio pending'; when disabled, cancels draft/scheduled rows. NEVER sends inline — only
+  writes rows; a separate worker (out of scope) flips draft→sent. → LP-V9, LP-V10, LP-V11, LP-V12.
+- dismissLaunchpad + setStepSkipped: admin-gated, update tenant_settings/tenant_onboarding. 
+- tenant_settings flags launchpad_dismissed/_followup_enabled/_followup_channels read+written. → LP-V13.
+- audit() → platform_audit_log on set_followup_prefs, dismiss, set_step_skipped. → LP-V14.
 
-## UI — SettingsHub.tsx
-Reads ?connected=&n= → success notice; ?error=&provider= → error banner.
+## 4) UI
+app/tenants/[tenantId]/launchpad/{page.tsx,Launchpad.tsx}: progress bar, per-step cards with
+status pill, "Finish this" deep-link, "Re-check" (verifyStep), admin skip/un-skip, follow-up
+panel (enable + email/sms channels, SMS marked "Twilio soon"). Nav "Launchpad" row now routes.
 
-typecheck: clean. Please VERIFY SOC-CB-V1..V10 and append DECISION-LOG. After this I proceed to (B)
-Core integrations: Twilio (API-key) → Shopify (OAuth) → payments, per RULING 32.
+No-auto-send guarantee (LP-V12): grep the codebase — there is NO email/SMS send call anywhere in
+launchpad code; setFollowupPrefs only writes rows. Confirm acceptable.
+
+Please VERIFY LP-V1..V15 and append DECISION-LOG.

@@ -40,7 +40,7 @@ const ICONS: Record<string, ReactNode> = {
 
 const GROUP_1: Item[] = [
   { label: "Ask AI", key: "ask", soon: true },
-  { label: "Launchpad", key: "launchpad", soon: true },
+  { label: "Launchpad", key: "launchpad", route: "launchpad" },
   { label: "Dashboard", key: "dashboard", route: "dashboard" },
   { label: "Conversations", key: "conversations", soon: true },
   { label: "Calendars", key: "calendars", route: "calendars" },
