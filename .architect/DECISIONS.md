@@ -44,4 +44,10 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-039] confirm_launchpad_verification_sources — confirmed per-step verify sources (account/brand/website/domain/email/social/ecommerce/idx_vow) reusing existing persistence checks (confirmed)
 [D-040] define_launchpad_checks — Supervisor checks LP-V1..V15 (defined)
 [D-041] verified_launchpad_onboarding — migration 0034 + lib/server/launchpad.ts (extensible STEP_REGISTRY) + launchpad/actions.ts + Launchpad UI VERIFIED against all LP checks; nav Launchpad row now routes; drafts-only follow-up (email day1/3/7, SMS parked for Twilio) (verified)
+[D-042] approve_twilio_design — Twilio reuses tenant_integrations/tenant_secrets (no new table); API-key (SID+token), test-before-connected, sendSms exists-but-unused (approved)
+[D-043] define_twilio_checks — Supervisor checks TWIL-V1..V11 (defined)
+[D-044] twilio_gotchas — prefer Messaging Service SID (A2P 10DLC), E.164 from-number, status callback; subaccounts deferred (defined)
+[D-045] verified_twilio_integration — lib/server/twilio.ts + twilio-actions.ts + Settings TwilioCard (with help tips/links) VERIFIED against all TWIL checks; no-auto-send confirmed (verified)
+[D-046] next_phase_shopify — proceed to Shopify integration (OAuth) next (ruled)
+[UX] integration-forms standard — every integration form ships inline guidance: where-to-find help, external console links, format hints (Ali's directive) (adopted)
 

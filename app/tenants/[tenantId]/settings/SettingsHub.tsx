@@ -7,6 +7,7 @@ import {
   type SocialProviderStatus, type SocialAccountView,
 } from "./social-actions";
 import { listIntegrations, getTenantSettings, setTenantSetting, type IntegrationView } from "./integrations-actions";
+import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -180,8 +181,9 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
           <section>
             <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Messaging &amp; commerce</h2>
             <p className="mb-3 text-xs text-slate-400">Twilio, Shopify, and payment gateways.</p>
+            <div className="mb-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {CORE_PROVIDERS.map((c) => {
+              {CORE_PROVIDERS.filter((c) => c.provider !== "twilio").map((c) => {
                 const existing = core.find((i) => i.provider === c.provider);
                 const status = existing?.status ?? "disconnected";
                 return (
@@ -203,6 +205,102 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       )}
 
       {tab === "preferences" && <Preferences tenantId={tenantId} isAdmin={isAdmin} />}
+    </div>
+  );
+}
+
+/** Small inline helper-text with an optional external link — our standard for integration forms. */
+function Tip({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] leading-relaxed text-slate-400">{children}</p>;
+}
+function Ext({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-[#1e3a8a] hover:underline">{children} ↗</a>;
+}
+
+function TwilioCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [s, setS] = useState<TwilioSettingsView | null>(null);
+  const [open, setOpen] = useState(false);
+  const [sid, setSid] = useState("");
+  const [token, setToken] = useState("");
+  const [msSid, setMsSid] = useState("");
+  const [from, setFrom] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const v = await getTwilioSettings(tenantId);
+    setS(v); setSid(v.account_sid); setMsSid(v.messaging_service_sid); setFrom(v.from_number);
+  }, [tenantId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  const save = async () => {
+    setBusy("save"); setMsg(null);
+    const r = await saveTwilioSettings(tenantId, { account_sid: sid, auth_token: token || undefined, messaging_service_sid: msSid, from_number: from });
+    setBusy(null);
+    setMsg({ ok: r.ok, text: r.ok ? "Connected ✓ — credentials verified with Twilio." : (r.message ?? "Could not save.") });
+    setToken("");
+    await load();
+  };
+  const test = async () => { setBusy("test"); const r = await testTwilio(tenantId); setBusy(null); setMsg({ ok: r.ok, text: r.message ?? (r.ok ? "Connected." : "Failed.") }); await load(); };
+  const disconnect = async () => { setBusy("disc"); const r = await disconnectTwilio(tenantId); setBusy(null); if (r.ok) { setMsg({ ok: true, text: "Disconnected." }); setToken(""); await load(); } };
+
+  const status = s?.status ?? "disconnected";
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "#F22F46" }}>T</span>
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">Twilio<StatusPill status={status} /></div>
+            <div className="text-xs text-slate-400">SMS &amp; voice — texts, calls, and follow-up reminders.</div>
+          </div>
+        </div>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">
+          {open ? "Close" : s?.hasSecret ? "Manage" : "Connect"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+          <div className="rounded-lg bg-sky-50 p-3">
+            <Tip>
+              <b className="text-slate-600">Where to find these:</b> open your <Ext href="https://console.twilio.com">Twilio Console</Ext>. The <b>Account SID</b> and <b>Auth Token</b> are on the dashboard home. A <b>Messaging Service SID</b> (recommended) is under Messaging → Services.
+            </Tip>
+          </div>
+
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Account SID</span>
+            <input className={inp} disabled={!isAdmin} value={sid} onChange={(e) => setSid(e.target.value.trim())} placeholder="AC…" />
+            <Tip>Starts with <code>AC</code>, ~34 characters.</Tip>
+          </label>
+
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Auth Token {s?.hasSecret && <span className="text-emerald-600">· stored ✓</span>}</span>
+            <input className={inp} type="password" disabled={!isAdmin} value={token} onChange={(e) => setToken(e.target.value)} placeholder={s?.hasSecret ? "•••••••• (leave blank to keep)" : "your auth token"} />
+            <Tip>Stored encrypted — never shown again. Rotate it anytime in the <Ext href="https://console.twilio.com">console</Ext>.</Tip>
+          </label>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Messaging Service SID <span className="font-normal text-slate-400">(recommended)</span></span>
+              <input className={inp} disabled={!isAdmin} value={msSid} onChange={(e) => setMsSid(e.target.value.trim())} placeholder="MG…" />
+            </label>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">From number <span className="font-normal text-slate-400">(if no service)</span></span>
+              <input className={inp} disabled={!isAdmin} value={from} onChange={(e) => setFrom(e.target.value.trim())} placeholder="+14165551234" />
+            </label>
+          </div>
+          <Tip>
+            Prefer a <b>Messaging Service</b> — it handles sender rotation and is required for <Ext href="https://www.twilio.com/docs/messaging/compliance/a2p-10dlc">A2P 10DLC</Ext> when texting US numbers. Otherwise we&apos;ll send from your number (must be E.164, e.g. <code>+14165551234</code>).
+          </Tip>
+
+          {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+
+          {isAdmin ? (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={!sid || busy === "save"} onClick={save} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy === "save" ? "Verifying…" : "Save & verify"}</button>
+              {s?.hasSecret && <button type="button" disabled={busy === "test"} onClick={test} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">{busy === "test" ? "Testing…" : "Test connection"}</button>}
+              {s?.hasSecret && <button type="button" disabled={busy === "disc"} onClick={disconnect} className="rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
+            </div>
+          ) : <Tip>Admin required to change Twilio credentials.</Tip>}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,30 +1,31 @@
 ### CONTROL RULING: VERIFIED
 
-The Builder has successfully implemented the Launchpad onboarding sequence, fully addressing all specified Supervisor checks and architectural requirements.
+The Builder has successfully implemented the Twilio integration, fully addressing all specified Supervisor checks and architectural requirements.
 
 **Verification Details:**
 
-**For Migration `0034_launchpad.sql`:**
-*   **LP-V1:** Verified. `public.tenant_onboarding` table created with correct columns, types, defaults, and `UNIQUE(tenant_id, step_key)`.
-*   **LP-V2:** Verified. `public.tenant_onboarding_followups` table created with correct columns, types, defaults, and `UNIQUE(tenant_id, channel, template_key)`. The `note` column is an acceptable addition for internal tracking.
-*   **LP-V3:** Verified. All specified indexes (`idx_tenant_onboarding_tenant`, `idx_tenant_onboarding_step_key`, `idx_onboarding_followups_tenant`, `idx_onboarding_followups_status_scheduled`) are present.
-*   **LP-V4:** Verified. The `status` enum for `tenant_onboarding_followups` explicitly includes `'draft'` as the default state for unsent scheduled items.
-*   **LP-V5:** Verified. The migration script is idempotent.
+**For Twilio Integration Backend:**
+*   **TWIL-V1:** Verified. `getTwilioCreds` decrypts `account_sid` and `auth_token` from `tenant_secrets` (provider 'twilio'), confirming correct secret storage.
+*   **TWIL-V2:** Verified. `getTwilioSettings` returns `account_sid`, `messaging_service_sid`, `from_number`, `status_callback_url` from `tenant_integrations.config`.
+*   **TWIL-V3:** Verified. `getTwilioSettings` explicitly returns `hasSecret` and never the raw `auth_token` or `account_sid` from `tenant_secrets`.
+*   **TWIL-V4:** Verified. `saveTwilioSettings`, `testTwilio`, and `disconnectTwilio` are correctly gated by `requireAdminWrite()` (`isPlatformAdmin()`).
+*   **TWIL-V5:** Verified. All Twilio-related server actions are gated by `requireTenantAccess(tenantId)`, ensuring strict tenant-scoping.
+*   **TWIL-V6:** Verified. `saveTwilioSettings` encrypts credentials via `setIntegrationSecret`, updates `tenant_integrations.config`, and sets `status` based on `testTwilioConnection` results.
+*   **TWIL-V7:** Verified. `testTwilioConnection` makes a real Twilio API call to `/Accounts/{SID}.json` to verify credentials without sending an SMS.
+*   **TWIL-V8:** Verified. `disconnectTwilio` correctly deletes the secret via `deleteIntegrationSecret` and sets `tenant_integrations.status` to 'disconnected'.
+*   **TWIL-V9:** Verified. The `sendSms` function exists in `lib/server/twilio.ts` but is confirmed *not* to be called anywhere in the current codebase, adhering to the no-auto-send rule.
+*   **TWIL-V10:** Verified. Audit logs are correctly generated for `saveTwilioSettings`, `testTwilio`, and `disconnectTwilio` actions.
+*   **TWIL-V11:** Verified. `twilioReady(tenantId)` correctly implements graceful degradation when credentials are absent or invalid.
 
-**For Launchpad Application Logic (`lib/server/launchpad.ts` and `app/tenants/[tenantId]/launchpad/actions.ts`):**
-*   **LP-V6:** Verified. All server actions (`getLaunchpadState`, `verifyStep`, `setFollowupPrefs`, `dismissLaunchpad`, `setStepSkipped`) are correctly gated by `requireTenantAccess(tenantId)`.
-*   **LP-V7:** Verified. `getLaunchpadState` (and `verifyStep`) correctly runs each step's `verifyFn`, UPSERTs `tenant_onboarding` rows, updates `status`, `verified_at`, `last_checked_at`, and `meta` (including evidence and preserving manual `skipped` overrides). The use of `primaryWebsiteId()` for website context is appropriate.
-*   **LP-V8:** Verified. `getLaunchpadState` returns the expected structured array of step data and `progress%`.
-*   **LP-V9:** Verified. `setFollowupPrefs` is correctly gated by `isPlatformAdmin()`.
-*   **LP-V10:** Verified. When follow-ups are enabled, `setFollowupPrefs` UPSERTs DRAFT email reminder rows for incomplete required steps, setting `status='draft'` and scheduling for day 1/3/7.
-*   **LP-V11:** Verified. SMS rows are created with `status='skipped'` and `note='twilio pending'`, correctly deferring actual SMS functionality.
-*   **LP-V12:** Verified. The codebase has been confirmed to contain *no* direct email/SMS send calls within the launchpad logic, ensuring the "schedule-drafts-only, never auto-send" guarantee.
-*   **LP-V13:** Verified. The `tenant_settings` flags (`launchpad_dismissed`, `launchpad_followup_enabled`, `launchpad_followup_channels`) are correctly read and written by the relevant server actions.
-*   **LP-V14:** Verified. Audit logs are correctly generated for `set_followup_prefs`, `dismiss`, and `set_step_skipped` actions.
-*   **LP-V15:** Verified. The `STEP_REGISTRY` as an array of `StepDef` DATA allows for extensible step definitions without modifying core `getLaunchpadState` logic, fulfilling the extensibility requirement.
+**Twilio Gotchas (RULING 38) Implementation:**
+*   **Messaging Service vs. From Number:** `sendSms` correctly prioritizes `MessagingServiceSid` over `From` number.
+*   **A2P 10DLC:** The UI includes helpful links and hints, and `sendSms` supports `MessagingServiceSid`. `status_callback_url` is included in `tenant_integrations.config`.
+*   **Subaccounts:** Not implemented, as deferred.
+*   **Error Handling:** `testTwilioConnection` returns detailed error information.
 
 The `tsc-clean` status is noted.
 
 ---
 DECISION-LOG
-[D-041] verified_launchpad_onboarding — Launchpad onboarding sequence (data model and application logic) verified against all LP checks (status: verified)
+[D-045] verified_twilio_integration — Twilio integration backend and UI verified against all TWIL checks (status: verified)
+[D-046] next_phase_shopify — Builder to proceed with Shopify integration (OAuth) as the next phase (status: ruled)
