@@ -3,6 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { validateIntakeUrl, runStep0Checks, type Check, type InputType } from "@/lib/sites/intake-validation";
+import { classifyMainPages, verifyPageContent } from "@/lib/sites/page-classify";
 import { enrichFromPresence } from "./wizard-actions";
 import { recordAiUsage } from "./actions";
 
@@ -175,4 +176,87 @@ export async function analyzeBusiness(tenantId: string, websiteId: string, urlOv
   } catch { /* tables not migrated yet — verdict still returned */ }
 
   return { status: blocked ? "blocked" : "passed", websiteId, analysisId, profile: analysis_data, checks, errors: failed, aiUsed: true, persisted };
+}
+
+/**
+ * STEP 1b — count & verify ONLY the real main pages of the existing site (Home, About,
+ * Services, Pricing, Contact, …), ignoring product/listing/blog-post/category/cart/account/
+ * system pages. Deterministic (no AI spend): fetch -> classify -> seed website_page_extractions
+ * (status 'pending') -> advance wizard_pipeline_state.step1_ai_analysis. Gated on Step 1a.
+ */
+export interface ClassifiedPage { title: string; url: string; verified_content_present: boolean }
+export interface ClassifyMainPagesResult {
+  status: "passed" | "blocked" | "invalid";
+  websiteId: string;
+  mainPages: ClassifiedPage[];
+  count: number;
+  checks: Check[];
+  errors: { id: string; assertion: string }[];
+  persisted: boolean;
+  aiUsed: false;
+}
+
+export async function classifyMainPagesStep(tenantId: string, websiteId: string, urlOverride?: string): Promise<ClassifyMainPagesResult> {
+  await requireTenantAccess(tenantId);
+  const supabase = createSupabaseServiceClient();
+
+  let state: Record<string, any> = {};
+  try {
+    const { data } = await supabase.from("websites").select("wizard_pipeline_state").eq("id", websiteId).eq("tenant_id", tenantId).single();
+    state = (data?.wizard_pipeline_state ?? {}) as Record<string, any>;
+  } catch { /* migration not applied — rely on urlOverride */ }
+
+  const url = (urlOverride || state.step1_ai_analysis?.data?.source_url || state.step0_intake?.data?.input_url || "").trim();
+  if (!url) return { status: "invalid", websiteId, mainPages: [], count: 0, checks: [], errors: [{ id: "S1B_URL", assertion: "No source URL available." }], persisted: false, aiUsed: false };
+
+  const fetched = await fetchPage(url);
+  if (!fetched.ok || !fetched.html) {
+    return { status: "blocked", websiteId, mainPages: [], count: 0, checks: [], errors: [{ id: "S1B_FETCH", assertion: "Could not fetch the site to classify pages." }], persisted: false, aiUsed: false };
+  }
+
+  const { main_pages } = classifyMainPages(fetched.html, url);
+
+  // S1_V10: VERIFY each candidate's content (hero + >=2 sections + >=1 CTA). Fetch each page
+  // in parallel; the homepage we already have. Keep only pages whose content verifies.
+  const verifiedAll: ClassifiedPage[] = await Promise.all(main_pages.map(async (p) => {
+    const html = p.path === "/" ? fetched.html : (await fetchPage(p.url)).html;
+    const ok = !!html && verifyPageContent(html).verified;
+    return { title: p.title, url: p.url, verified_content_present: ok };
+  }));
+  const kept = verifiedAll.filter((p) => p.verified_content_present);
+  const count = kept.length;
+
+  const noJunk = kept.every((p) => !/\/(products?|shop|cart|checkout|account|categor|tags?|listing|search)(\/|$)/i.test(p.url));
+  const checks: Check[] = [
+    { id: "S1_V9", assertion: "Counted only real main pages (no shop/listing/blog-post/system)", severity: "block", pass: count >= 1 && noJunk, detail: `${count} pages` },
+    { id: "S1_V10", assertion: "Each kept page has verified content (hero + >=2 sections + >=1 CTA)", severity: "block", pass: kept.length >= 1 && kept.every((p) => p.verified_content_present) },
+    { id: "S1B_HOME", assertion: "Home page present", severity: "warn", pass: kept.some((p) => { try { return new URL(p.url).pathname.replace(/\/+$/, "") === "" || new URL(p.url).pathname === "/"; } catch { return false; } }) },
+  ];
+  const blocked = checks.some((c) => c.severity === "block" && !c.pass);
+  const failed = checks.filter((c) => c.severity === "block" && !c.pass).map((c) => ({ id: c.id, assertion: c.assertion }));
+
+  // Persist: seed one website_page_extractions row per VERIFIED main page (idempotent).
+  let persisted = false;
+  const ids: string[] = [];
+  try {
+    for (const p of kept) {
+      const { data } = await supabase.from("website_page_extractions").upsert(
+        { tenant_id: tenantId, website_id: websiteId, original_url: p.url, page_title: p.title, extraction_status: "pending" },
+        { onConflict: "website_id,original_url" }
+      ).select("id").single();
+      if (data?.id) ids.push(data.id);
+    }
+    state.version = state.version ?? "1.0";
+    state.step1_ai_analysis = {
+      ...(state.step1_ai_analysis ?? { data: {} }),
+      status: blocked ? "failed" : "pages_classified",
+      data: { ...(state.step1_ai_analysis?.data ?? {}), main_pages_detected: kept, page_extractions_ids: ids },
+      verifiedAt: new Date().toISOString(),
+      errors: failed,
+    };
+    await supabase.from("websites").update({ wizard_pipeline_state: state }).eq("id", websiteId).eq("tenant_id", tenantId);
+    persisted = true;
+  } catch { /* tables not migrated — verdict still returned */ }
+
+  return { status: blocked ? "blocked" : "passed", websiteId, mainPages: kept, count, checks, errors: failed, persisted, aiUsed: false };
 }

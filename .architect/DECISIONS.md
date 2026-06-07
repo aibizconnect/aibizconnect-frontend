@@ -19,4 +19,7 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-014] step1_checks — S1 acceptance checks defined per sub-step (S1_V1..S1_V15); metering via ai_usage_events using existing kind+meta (usage_type/source columns deferred) (defined)
 [D-015] secure_media_plan — architect APPROVED a phased "full private storage" plan (.architect/SECURE-MEDIA-PLAN.md): Phase0 data model (private+public buckets, is_private/public_url cols), Phase1 private uploads + signed URLs, Phase2 publish promotes used media to public, Phase3 RLS (approved)
 [D-016] secure_media_reconcile — Builder reconciliations vs architect draft: media_folders already exists (0023); next migration is 0031 not 0030; EXISTING media stays is_private=FALSE + public_url=current url (live sites keep working); Phase3 RLS auth.uid() does NOT fit this app (tenant_id != Supabase uid) — rework or keep in-code+requireTenantAccess (decided by Builder)
+[D-017] build_step1b — Built Step 1b: lib/sites/page-classify.ts (classifyMainPages) + classifyMainPagesStep server action (deterministic, no AI) (built)
+[D-018] rejected_step1b — architect REJECTED 1b: URL classification only, missing per-page CONTENT verification (S1_V10) (rejected)
+[D-019] verified_step1b — added verifyPageContent (hero + >=2 sections + >=1 CTA), fetch+verify each candidate, keep only verified; architect VERIFIED (verified)
 
