@@ -14,6 +14,7 @@ export default function SuggestedPagesPanel({ tenantId, websiteId }: { tenantId:
   const [pages, setPages] = useState<string[]>([]);
   const [audience, setAudience] = useState("");
   const [services, setServices] = useState("");
+  const [benchmarks, setBenchmarks] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [refineOpen, setRefineOpen] = useState(false);
@@ -22,7 +23,7 @@ export default function SuggestedPagesPanel({ tenantId, websiteId }: { tenantId:
 
   useEffect(() => {
     listWebsiteSuggestions(tenantId, websiteId).then((s) => {
-      setPages(s.suggestedPages); setAudience(s.audience); setServices(s.services); setLoaded(true);
+      setPages(s.suggestedPages); setAudience(s.audience); setServices(s.services); setBenchmarks(s.benchmarkedSites ?? []); setLoaded(true);
     }).catch(() => setLoaded(true));
   }, [tenantId, websiteId]);
 
@@ -46,8 +47,11 @@ export default function SuggestedPagesPanel({ tenantId, websiteId }: { tenantId:
     // Still offer the refine toggle even when no suggestions remain.
     if (loaded && pages.length === 0) {
       return (
-        <div className="mb-4 text-right">
-          <button onClick={() => setRefineOpen(true)} className="text-xs font-medium text-[#1e3a8a] hover:underline">Refine what the AI knows ✎</button>
+        <div className="mb-4">
+          {benchmarks.length > 0 && <BenchmarkNote sites={benchmarks} />}
+          <div className="text-right">
+            <button onClick={() => setRefineOpen(true)} className="text-xs font-medium text-[#1e3a8a] hover:underline">Refine what the AI knows ✎</button>
+          </div>
         </div>
       );
     }
@@ -56,6 +60,7 @@ export default function SuggestedPagesPanel({ tenantId, websiteId }: { tenantId:
 
   return (
     <div className="mb-5 rounded-xl border border-[#1e3a8a]/20 bg-[#1e3a8a]/[0.03] p-4">
+      {benchmarks.length > 0 && <BenchmarkNote sites={benchmarks} />}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">✨ Add more pages the AI suggested</h3>
@@ -91,6 +96,20 @@ export default function SuggestedPagesPanel({ tenantId, websiteId }: { tenantId:
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Shows the competitor sites we benchmarked against for a no-website build. */
+function BenchmarkNote({ sites }: { sites: string[] }) {
+  const domain = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+  return (
+    <div className="mb-3 rounded-lg bg-white/70 p-2 text-xs text-slate-600">
+      <span className="font-medium text-slate-700">Benchmarked against:</span>{" "}
+      {sites.map((s, i) => (
+        <span key={s}>{i > 0 ? ", " : ""}<a href={s} target="_blank" rel="noopener noreferrer" className="text-[#1e3a8a] hover:underline">{domain(s)}</a></span>
+      ))}
+      <span className="ml-1 text-slate-400">— studied to build a stronger site (no content copied).</span>
     </div>
   );
 }

@@ -311,6 +311,15 @@ export async function createWebsiteFromWizard(
     makePublicNowRequested: !!payload.makePublicNow,
   };
 
+  // No existing site → research similar businesses so the AI builds a similar-but-better one.
+  // Stash the brief + the benchmarked URLs so the build uses them and we can show who we studied.
+  if (!wizardJson.hasWebsite) {
+    try {
+      const ins = await researchCompetitors(wizardJson.industry, wizardJson.city ?? undefined, wizardJson.services ?? undefined);
+      if (ins) { (wizardJson as Record<string, unknown>).competitorBrief = ins.brief; (wizardJson as Record<string, unknown>).benchmarkedSites = ins.urls; }
+    } catch { /* best-effort */ }
+  }
+
   // ---- 1. Insert the website row (draft). Failure here = no record. ----
   // Try the full payload; if the 0026 columns don't exist yet, retry without them.
   let websiteId: string;
@@ -391,7 +400,7 @@ export async function createWebsiteFromWizard(
     pagesCreated = await scaffoldSkeleton(tenantId, websiteId, payload.aiConsent, wizardJson);
   }
 
-  return { ok: true, websiteId, subdomain, host: check.host, pagesCreated, aiUsed };
+  return { ok: true, websiteId, subdomain, host: check.host, pagesCreated, aiUsed, benchmarkedSites: (wizardJson as Record<string, any>).benchmarkedSites };
 }
 
 /** Minimal hand-built skeleton when AI is off or generation failed. Still GEO-seeded. */
@@ -432,12 +441,8 @@ export async function generateWizardPages(
 ): Promise<number> {
   // Learn from the tenant's existing site once: text → brief, images → fill section slots.
   const ctx = wizard.hasWebsite ? await fetchSiteContext(wizard.existingUrl) : null;
-  // No existing site → research similar businesses so the AI builds a similar-but-better site.
-  let competitorBrief: string | null = null;
-  if (!wizard.hasWebsite) {
-    try { const ins = await researchCompetitors(wizard.industry, wizard.city, wizard.services); competitorBrief = ins?.brief ?? null; } catch { /* best-effort */ }
-  }
-  const brief = buildBrief(wizard, ctx?.text ?? null, competitorBrief);
+  // Competitor research (for no-website builds) is done up-front in createWebsiteFromWizard and stashed.
+  const brief = buildBrief(wizard, ctx?.text ?? null, wizard.competitorBrief ?? null);
   const learnedImages = ctx?.images ?? [];
   const { applyTemplateImages } = await import("@/lib/sections/prebuilt-templates");
   const { generatePlan } = await import("@/lib/agent/builder");
@@ -558,6 +563,7 @@ export interface WebsiteSuggestions {
   suggestedPages: string[];
   audience: string;
   services: string;
+  benchmarkedSites: string[];
 }
 
 /** Read the stashed AI suggestions + the context the build used, for the refine panel. */
@@ -570,8 +576,9 @@ export async function listWebsiteSuggestions(tenantId: string, websiteId: string
       suggestedPages: Array.isArray(w.suggestedPages) ? w.suggestedPages : [],
       audience: typeof w.audience === "string" ? w.audience : "",
       services: typeof w.services === "string" ? w.services : "",
+      benchmarkedSites: Array.isArray(w.benchmarkedSites) ? w.benchmarkedSites : [],
     };
-  } catch { return { suggestedPages: [], audience: "", services: "" }; }
+  } catch { return { suggestedPages: [], audience: "", services: "", benchmarkedSites: [] }; }
 }
 
 /** Update the audience/services the AI uses, and refresh the stored brief. */

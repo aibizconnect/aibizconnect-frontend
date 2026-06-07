@@ -262,5 +262,6 @@ export interface CreateWizardResult {
   host?: string;
   pagesCreated?: number;
   aiUsed?: boolean;
+  benchmarkedSites?: string[];   // competitor sites we studied (no-website builds)
   error?: string;
 }

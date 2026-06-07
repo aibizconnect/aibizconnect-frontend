@@ -22,15 +22,11 @@ async function fetchText(url: string, maxBytes = 500_000, timeout = 10000): Prom
   } catch { return null; }
 }
 
-/** Find a few real competitor homepage URLs via DuckDuckGo's HTML endpoint (deduped by domain). */
-export async function findCompetitorUrls(query: string, limit = 3): Promise<string[]> {
-  const html = await fetchText(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, 600_000, 10000);
-  if (!html) return [];
+/** Filter raw result URLs → real competitor homepages (drop junk, dedupe by domain, cap). */
+function filterResultUrls(raw: string[], limit: number): string[] {
   const urls: string[] = [];
   const domains = new Set<string>();
-  for (const m of html.matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/gi)) {
-    let href = m[1];
-    // DDG wraps targets as /l/?uddg=<encoded>.
+  for (let href of raw) {
     const uddg = href.match(/[?&]uddg=([^&]+)/);
     if (uddg) { try { href = decodeURIComponent(uddg[1]); } catch { /* keep */ } }
     if (!/^https?:\/\//i.test(href)) continue;
@@ -45,6 +41,53 @@ export async function findCompetitorUrls(query: string, limit = 3): Promise<stri
     } catch { /* skip */ }
   }
   return urls;
+}
+
+/** Real search API when configured (Serper → Brave → Bing). Returns raw result URLs or null. */
+async function apiSearch(query: string): Promise<string[] | null> {
+  const q = encodeURIComponent(query);
+  if (process.env.SERPER_API_KEY) {
+    try {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST", headers: { "X-API-KEY": process.env.SERPER_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ q: query, num: 12 }), signal: AbortSignal.timeout(9000),
+      });
+      if (res.ok) { const j: any = await res.json(); const urls = (j?.organic ?? []).map((o: any) => o?.link).filter(Boolean); if (urls.length) return urls; }
+    } catch { /* fall through */ }
+  }
+  if (process.env.BRAVE_SEARCH_API_KEY) {
+    try {
+      const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${q}&count=12`, {
+        headers: { "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY, Accept: "application/json" }, signal: AbortSignal.timeout(9000),
+      });
+      if (res.ok) { const j: any = await res.json(); const urls = (j?.web?.results ?? []).map((r: any) => r?.url).filter(Boolean); if (urls.length) return urls; }
+    } catch { /* fall through */ }
+  }
+  if (process.env.BING_SEARCH_API_KEY) {
+    try {
+      const res = await fetch(`https://api.bing.microsoft.com/v7.0/search?q=${q}&count=12&mkt=en-US`, {
+        headers: { "Ocp-Apim-Subscription-Key": process.env.BING_SEARCH_API_KEY }, signal: AbortSignal.timeout(9000),
+      });
+      if (res.ok) { const j: any = await res.json(); const urls = (j?.webPages?.value ?? []).map((v: any) => v?.url).filter(Boolean); if (urls.length) return urls; }
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+/** Scrape DuckDuckGo's HTML endpoint as a no-key fallback. */
+async function ddgSearch(query: string): Promise<string[]> {
+  const html = await fetchText(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, 600_000, 10000);
+  if (!html) return [];
+  return Array.from(html.matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/gi)).map((m) => m[1]);
+}
+
+/**
+ * Find a few real competitor homepage URLs. Uses a configured search API (Serper/Brave/Bing) when an
+ * env key is present, else falls back to DuckDuckGo HTML scraping. Deduped by domain.
+ */
+export async function findCompetitorUrls(query: string, limit = 3): Promise<string[]> {
+  const raw = (await apiSearch(query)) ?? (await ddgSearch(query));
+  return filterResultUrls(raw, limit);
 }
 
 export interface CompetitorInsights {
