@@ -6,6 +6,7 @@ import { getPlatformAudit, getAllAiUsage } from "@/app/tenants/[tenantId]/websit
 import { resolveDefaultTenantId } from "@/lib/tenant-resolve";
 import TeamConsole from "@/components/team/TeamConsole";
 import PlatformApps from "@/components/platform/PlatformApps";
+import KycReview from "@/components/platform/KycReview";
 import { listPlatformApps } from "./platform-apps-actions";
 
 /**
@@ -73,6 +74,12 @@ export default async function PlatformPanel() {
             <PlatformApps apps={platformApps} baseUrl={appBase} />
           </section>
         )}
+
+        <section>
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Identity verification (KYC)</h2>
+          <p className="mb-3 text-sm text-slate-500">Review provider-hosted identity checks and approve / reject / override. No documents or PII are stored — only status and a non-PII summary.</p>
+          <KycReview />
+        </section>
 
         <section>
           <h2 className="mb-3 text-lg font-semibold text-slate-900">AI usage by workspace</h2>

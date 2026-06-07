@@ -10,6 +10,7 @@ import { getTenantSettings, setTenantSetting } from "./integrations-actions";
 import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
 import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type ShopifyStoreView } from "./shopify-actions";
 import { getPaymentsSettings, saveStripe, savePaypal, testPayments, disconnectPayment, type PaymentsView } from "./payments-actions";
+import { getKycView, startKycVerification, type KycView } from "./kyc-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -23,7 +24,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "integrations" | "preferences";
+type Tab = "integrations" | "verification" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -58,7 +59,9 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).
   const params = useSearchParams();
   useEffect(() => {
-    if (params.get("tab") === "preferences") setTab("preferences");
+    const t = params.get("tab");
+    if (t === "preferences" || t === "verification") setTab(t);
+    if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
     if (connected === "shopify") setNotice(`Connected Shopify${params.get("shop") ? ` — ${params.get("shop")}` : ""}.`);
@@ -98,7 +101,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
       <div className="mb-6 flex gap-1 border-b border-slate-200">
-        {([["integrations", "Integrations"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+        {([["integrations", "Integrations"], ["verification", "Verification"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -186,6 +189,8 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
           </section>
         </div>
       )}
+
+      {tab === "verification" && <VerificationCard tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "preferences" && <Preferences tenantId={tenantId} isAdmin={isAdmin} />}
     </div>
@@ -455,6 +460,77 @@ function PaymentsCards({ tenantId, isAdmin }: { tenantId: string; isAdmin: boole
               </div>
             )}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const KYC_UI: Record<string, { label: string; cls: string; note: string }> = {
+  none: { label: "Not started", cls: "bg-slate-100 text-slate-500", note: "Verify your business identity to unlock payouts and high-trust features." },
+  pending_start: { label: "Not started", cls: "bg-slate-100 text-slate-500", note: "Verify your business identity to unlock payouts and high-trust features." },
+  provider_initiated: { label: "In progress", cls: "bg-amber-100 text-amber-700", note: "You started verification but haven't finished. Resume to complete it." },
+  provider_in_progress: { label: "Processing", cls: "bg-sky-100 text-sky-700", note: "We're processing your submission. This usually takes a few minutes." },
+  provider_verified: { label: "Under review", cls: "bg-amber-100 text-amber-700", note: "Verified by the provider — pending a final review by our team." },
+  provider_rejected: { label: "Needs attention", cls: "bg-red-100 text-red-700", note: "The provider couldn't verify your identity. Please try again." },
+  provider_failed: { label: "Failed", cls: "bg-red-100 text-red-700", note: "Verification could not be completed. Please try again." },
+  platform_approved: { label: "Approved ✓", cls: "bg-emerald-100 text-emerald-700", note: "Your identity is verified and approved. You're all set." },
+  platform_rejected: { label: "Declined", cls: "bg-red-100 text-red-700", note: "Verification was declined. Contact support if you believe this is a mistake." },
+  platform_overridden: { label: "Reviewed", cls: "bg-violet-100 text-violet-700", note: "Your verification was manually reviewed by our team." },
+};
+
+function VerificationCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [v, setV] = useState<KycView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => { setV(await getKycView(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  const start = async () => {
+    setBusy(true); setMsg(null);
+    const r = await startKycVerification(tenantId);
+    setBusy(false);
+    if (!r.ok || !r.url) { setMsg({ ok: false, text: r.message ?? "Could not start verification." }); return; }
+    window.open(r.url, "_blank", "noopener,noreferrer");
+    setMsg({ ok: true, text: "Opened the secure verification in a new tab. Complete it there, then return here." });
+  };
+
+  if (!v) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  const ui = KYC_UI[v.status] ?? KYC_UI.none;
+  const canStart = v.status === "none" || v.status === "pending_start" || v.status === "provider_initiated" || v.status === "provider_rejected" || v.status === "provider_failed";
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800">Business identity verification (KYC)</h2>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${ui.cls}`}>{ui.label}</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">{ui.note}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg bg-sky-50 p-3">
+          <Tip>
+            <b className="text-slate-600">Your privacy is protected.</b> Verification is handled entirely by our secure provider (<Ext href="https://stripe.com/identity">Stripe Identity</Ext>) on their own hosted pages. We <b>never</b> see or store your ID, passport, or personal documents — only a pass/fail status.
+          </Tip>
+        </div>
+
+        {msg && <div className={`mt-4 rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+
+        {!v.providerReady ? (
+          <p className="mt-4 text-xs text-slate-400">Verification isn&apos;t available yet — the platform team is finishing setup.</p>
+        ) : !isAdmin ? (
+          <p className="mt-4 text-xs text-slate-400">Admin required to start verification.</p>
+        ) : canStart ? (
+          <button type="button" disabled={busy} onClick={start} className="mt-4 rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+            {busy ? "Starting…" : v.status === "provider_rejected" || v.status === "provider_failed" ? "Try again" : v.status === "provider_initiated" ? "Resume verification" : "Start verification"}
+          </button>
+        ) : (
+          <p className="mt-4 text-xs text-slate-400">No action needed right now{v.updatedAt ? ` · last updated ${new Date(v.updatedAt).toLocaleString()}` : ""}.</p>
         )}
       </div>
     </div>

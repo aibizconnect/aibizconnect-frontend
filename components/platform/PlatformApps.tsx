@@ -22,7 +22,12 @@ const DOCS: Record<string, string> = {
   tiktok_platform_app: "https://developers.tiktok.com",
   x_platform_app: "https://developer.x.com",
   shopify_platform_app: "https://partners.shopify.com",
+  stripe_identity_platform_app: "https://dashboard.stripe.com/identity",
   cloudflare_platform: "https://dash.cloudflare.com/profile/api-tokens",
+};
+// Webhook (not OAuth callback) endpoints to register in the provider's dashboard.
+const WEBHOOK: Record<string, string> = {
+  stripe_identity_platform_app: "/api/kyc/webhook/stripe",
 };
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
@@ -60,6 +65,12 @@ function AppCard({ app, base }: { app: PlatformAppView; base: string }) {
             <div className="rounded-lg bg-sky-50 p-2 text-[11px] text-slate-500">
               <b className="text-slate-600">Redirect / callback URL</b> to register in the provider app:<br />
               <code className="break-all text-slate-700">{base}{CALLBACK[app.key]}</code>
+            </div>
+          )}
+          {WEBHOOK[app.key] && (
+            <div className="rounded-lg bg-amber-50 p-2 text-[11px] text-slate-500">
+              <b className="text-slate-600">Webhook endpoint</b> to register (send identity events here):<br />
+              <code className="break-all text-slate-700">{base}{WEBHOOK[app.key]}</code>
             </div>
           )}
           {app.fields.map((f) => (
