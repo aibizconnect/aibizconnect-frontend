@@ -1,5 +1,10 @@
 import { db } from '@/lib/db'
 
+// Rendered on-demand (never prerendered at build): it queries the database, which has no
+// service-role key during Vercel's build step. Without this the build fails with
+// "supabaseKey is required" while prerendering. See lib/supabase.ts (lazy client).
+export const dynamic = 'force-dynamic'
+
 export default async function ClientsPage() {
   const { data: clients } = await db.clients.all()
 
