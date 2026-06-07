@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Business Profile (tenant-level identity). Optimized parity with GoHighLevel's Business Profile:
+ * Business Profile (tenant-level identity). Optimized parity with the market-leading platform's Business Profile:
  * general info + physical address + locale. Stored as key/value rows in tenant_settings (the same
  * store Preferences + the Launchpad "account" step already read), so `currency` and
  * `default_timezone` stay in sync across the app. Admin-gated writes; tenant-scoped reads.

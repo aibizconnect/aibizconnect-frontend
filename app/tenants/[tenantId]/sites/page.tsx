@@ -5,7 +5,7 @@ import { funnelsEnabled } from "@/lib/flags";
 
 /**
  * Sites HUB (Copilot ruling): the canonical entry for the Sites module. A trimmed,
- * GHL-style tab row (Websites · Funnels · Blogs · Forms · Client Portal) — only the
+ * polished tab row (Websites · Funnels · Blogs · Forms · Client Portal) — only the
  * tabs we actually support. The Websites tab lists the tenant's WEBSITES (not pages);
  * clicking a website opens its editor at /tenants/{id}/website/{websiteId}.
  */
@@ -26,7 +26,7 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sites</h1>
       <p className="mb-5 text-sm text-slate-500">Your websites, funnels and more — all in one place.</p>
 
-      {/* Trimmed GHL-style tab row */}
+      {/* Trimmed polished tab row */}
       <div className="mb-6 flex gap-6 border-b border-slate-200 text-sm">
         {TABS.map((t) =>
           t.key === "websites" ? (

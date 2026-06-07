@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Tenant CRM Tags (GoHighLevel parity). Tenant-scoped; admin-gated writes. Names are unique per
+ * Tenant CRM Tags (the market-leading platform parity). Tenant-scoped; admin-gated writes. Names are unique per
  * tenant (case-insensitive, enforced by the DB index). Reusable labels for contacts/opportunities.
  */
 

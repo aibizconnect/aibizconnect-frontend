@@ -7,7 +7,7 @@ import type {
   DividerContent, VideoContent, SpacerContent, HtmlContent,
 } from "@/lib/sections/schemas";
 
-/** Lightweight element renderers for the GHL-style Quick Add primitives
+/** Lightweight element renderers for the polished Quick Add primitives
  * (Heading / Sub-Headline / Text / Image / Button / Divider / Video / Spacer / Custom HTML).
  * Each honors its General typography props; the universal _style wrapper is applied
  * one level up in SectionView. */

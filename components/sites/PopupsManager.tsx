@@ -5,7 +5,7 @@ import Link from "next/link";
 import { savePopupAction, deletePopupAction } from "@/app/tenants/[tenantId]/sites/popup-actions";
 import { DEFAULT_POPUP, type Popup, type PopupContent } from "@/lib/popups";
 
-/** GHL-style Popups manager. Create/edit exit-intent, timed, or on-load popups. */
+/** polished Popups manager. Create/edit exit-intent, timed, or on-load popups. */
 export default function PopupsManager({ tenantId, initial }: { tenantId: string; initial: Popup[] }) {
   const [popups, setPopups] = useState<Popup[]>(initial);
   const [editing, setEditing] = useState<{ id?: string; name: string; content: PopupContent } | null>(null);

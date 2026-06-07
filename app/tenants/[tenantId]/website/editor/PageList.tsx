@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { listSitePages, createPage, duplicatePage, deletePage, renamePageDraft, canDeletePages, type SitePage } from "../actions";
 
 /**
- * GHL-style Pages panel (editor left column). Clean list: drag handle · file icon ·
+ * polished Pages panel (editor left column). Clean list: drag handle · file icon ·
  * page name · search · "+ Add new page". No scary inline Delete — Rename / Duplicate /
  * Delete live in a subtle ⋯ menu. All CRUD goes through SERVER ACTIONS (service-role)
  * so writes actually persist (the old version wrote via the RLS-blocked browser client).

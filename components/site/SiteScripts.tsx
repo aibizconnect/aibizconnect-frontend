@@ -11,7 +11,7 @@ import { useEffect, useRef } from "react";
  * head/footer boxes inject anything custom. Runs once per mount, after hydration.
  *
  * Trust model: these are the TENANT's own scripts for the TENANT's own published site
- * (standard website-builder behavior, like GHL/Wix). They are not third-party/user content.
+ * (standard website-builder behavior, like the leading builder/Wix). They are not third-party/user content.
  */
 export interface SiteScriptsProps {
   ga4Id?: string;

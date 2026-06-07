@@ -3,7 +3,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Sites → Websites page-management actions (GHL-style). Service-role writes (the tenant
+ * Sites → Websites page-management actions (polished). Service-role writes (the tenant
  * workspace carries no Postgres RLS claim in this context). Data-only — no DDL, no
  * publish/charge. New pages start as private drafts (is_public=false).
  */

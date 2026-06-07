@@ -5,7 +5,7 @@ import WebsiteWorkspace from "./WebsiteWorkspace";
 
 /**
  * Website editor view, SCOPED BY websiteId (Copilot ruling: /website/{websiteId} is
- * the page editor for one website). Shows that website's pages + the GHL-style tab row.
+ * the page editor for one website). Shows that website's pages + the polished tab row.
  * The Pages and Settings tabs are live (Settings wires the site-wide SiteSettings store);
  * the rest are "soon". (Page rows are still tenant-scoped until the 0016 migration adds
  * website_id filtering — this route is the canonical entry now and stays correct after.)

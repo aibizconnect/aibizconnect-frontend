@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Lead Scoring rules (GoHighLevel parity). Define point awards for trigger events; a tenant-level
+ * Lead Scoring rules (the market-leading platform parity). Define point awards for trigger events; a tenant-level
  * "hot lead" threshold lives in tenant_settings. The evaluation engine (applying points to contacts)
  * is a later step — this manages the RULES + threshold. Tenant-scoped; admin-gated writes.
  */

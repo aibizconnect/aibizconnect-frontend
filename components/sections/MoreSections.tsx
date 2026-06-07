@@ -7,7 +7,7 @@ import type {
 import Countdown from "./Countdown";
 import InlineText from "./InlineText";
 
-/** Extended GHL-parity element renderers (functional, no external paid keys). */
+/** Extended best-in-class element renderers (functional, no external paid keys). */
 
 const primary = (t?: ThemeTokens) => t?.colors.primary ?? "#1e3a8a";
 

@@ -1,5 +1,5 @@
 /**
- * Layers tree (GHL/Webflow-style) builder.
+ * Layers tree (Webflow-style) builder.
  *
  * Turns the page's flat `draft_sections` (legacy SectionContent[]) into the
  * hierarchical Section → Row → Column → Element tree the user sees in the Layers
@@ -220,7 +220,7 @@ export function buildLayers(sections: SectionContent[], globals: GlobalBlockInpu
   const sectionNodes = sections.map((content: any, si) =>
     sectionNode(content, si, sectionLabel(content, si, sections.length), `${si}`)
   );
-  // GHL convention: the page's first section is the Header and its last is the
+  // the leading builder convention: the page's first section is the Header and its last is the
   // Footer. Only apply this positionally when there is NO separate global Header/
   // Footer block (otherwise we'd end up with two) and the section wasn't already
   // recognised as a Header/Footer by role/type/name above.

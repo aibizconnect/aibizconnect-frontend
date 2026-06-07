@@ -5,16 +5,16 @@ import ColorField from "@/components/design/ColorField";
 import { DEFAULT_ELEMENT_STYLE, ENTRANCE_OPTIONS, HOVER_OPTIONS, type ElementStyle, type ElementAnimation } from "@/lib/design/element-style";
 
 /**
- * Element inspector panels (GHL-style) — the Styles + Animations tabs. Edit a section's
+ * Element inspector panels (polished) — the Styles + Animations tabs. Edit a section's
  * presentational meta (content._style / content._anim). Token-aware, brand-consistent.
  *
- * The Styles tab mirrors GHL's right column: stacked collapsible accordion groups —
+ * The Styles tab mirrors the leading builder's right column: stacked collapsible accordion groups —
  * Background, Spacing (visual box-model), Border & corners, Shadow, Size & alignment.
  */
 
 const sel = "rounded border border-gray-300 px-2 py-1 text-sm";
 
-/** Collapsible accordion group (GHL-style), default open. */
+/** Collapsible accordion group (polished), default open. */
 function Group({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -43,7 +43,7 @@ function MiniNum({ value, onChange, title }: { value?: number; onChange: (n: num
   );
 }
 
-/** Visual margin→padding box model (GHL-style). Edits per-side mt/mr/mb/ml + pt/pr/pb/pl. */
+/** Visual margin→padding box model (polished). Edits per-side mt/mr/mb/ml + pt/pr/pb/pl. */
 function BoxModel({ s, set }: { s: ElementStyle; set: (p: Partial<ElementStyle>) => void }) {
   const p = (k: keyof ElementStyle, fb?: number) => (s[k] as number) ?? fb ?? 0;
   return (
@@ -113,7 +113,7 @@ export function BackgroundControls({ s, set, onPickImage }: { s: ElementStyle; s
         {onPickImage && <button type="button" onClick={() => onPickImage((url) => set({ bgImage: url }))} className="shrink-0 rounded bg-[#1e3a8a] px-2 py-1 text-xs font-medium text-white hover:bg-[#1e3a8a]/90" title="Choose from Media Storage (upload · AI · free stock · Canva)">Media</button>}
         {s.bgImage && <button type="button" onClick={() => set({ bgImage: "" })} className="shrink-0 text-xs text-gray-400 hover:text-gray-700" title="Clear">✕</button>}
       </Row>
-      {/* Image preview + the GHL-style image controls — only once an image is set. */}
+      {/* Image preview + the polished image controls — only once an image is set. */}
       {s.bgImage && (
         <>
           <div

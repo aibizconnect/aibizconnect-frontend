@@ -6,7 +6,7 @@ import { PREBUILT_TEMPLATES, PREBUILT_CATEGORIES, applyTemplateImages, type Preb
 import { listMedia } from "@/app/tenants/[tenantId]/website/actions";
 
 /**
- * GHL-style Add-Elements panel rendered as the LEFT column. A functional left sub-nav
+ * polished Add-Elements panel rendered as the LEFT column. A functional left sub-nav
  * (Quick Add · Sections · Rows · Elements · Prebuilt Sections · Saved Assets · …) where
  * each tab shows its own content. `onPick(type, cols?)` inserts a real element.
  */

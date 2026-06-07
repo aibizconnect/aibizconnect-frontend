@@ -5,7 +5,7 @@ import { resolveTheme, mergeBrandRows } from "@/lib/sections/theme";
 import { collectPageFonts } from "@/lib/fonts";
 
 /**
- * Page builder route (GHL "Edit"). Opens the section editor for a specific page.
+ * Page builder route (the leading builder's "Edit"). Opens the section editor for a specific page.
  * Reached from the Website → Pages grid via each card's Edit button.
  *
  * Fonts are PRELOADED here (server side): we resolve the tenant's theme + the page's

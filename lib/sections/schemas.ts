@@ -89,7 +89,7 @@ export const ctaSchema = z.object({
   cta: linkSchema,
 });
 
-// ---- Simple element types (GHL-style Quick Add: Text / Media / Layout) ----
+// ---- Simple element types (polished Quick Add: Text / Media / Layout) ----
 const alignEnum = z.enum(["left", "center", "right"]);
 
 const textTransformEnum = z.enum(["none", "uppercase", "capitalize", "lowercase"]);
@@ -197,7 +197,7 @@ export const spacerSchema = z.object({
 });
 export const htmlSchema = z.object({ type: z.literal("html"), code: z.string() });
 
-// ---- Extended GHL-parity elements (functional, no external paid keys) ----
+// ---- Extended best-in-class elements (functional, no external paid keys) ----
 export const bulletListSchema = z.object({ type: z.literal("bullet-list"), items: z.array(z.object({ text: z.string() })).default([]), bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number"]).optional(), color: z.string().optional(), direction: z.enum(["ltr", "rtl"]).optional() });
 export const numberCounterSchema = z.object({ type: z.literal("number-counter"), value: z.string(), label: z.string().optional(), prefix: z.string().optional(), suffix: z.string().optional() });
 export const progressBarSchema = z.object({ type: z.literal("progress-bar"), label: z.string().optional(), percent: z.number().min(0).max(100).default(50) });

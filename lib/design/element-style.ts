@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 /**
- * Element style + animation model for the GHL-style element inspector (Styles +
+ * Element style + animation model for the polished element inspector (Styles +
  * Animations tabs). Presentational meta stored ON the section content (content._style /
  * content._anim) — no schema change. Brand-token-aware: spacing/radius reference --abc-*
  * where sensible. Converts to inline CSS + animation classes for the renderer.
@@ -13,7 +13,7 @@ export interface ElementStyle {
   width?: "full" | "wide" | "normal" | "narrow";
   bg?: "transparent" | "surface" | "primary" | "accent" | string; // token or hex
   bgImage?: string;    // background image URL (overlays bg color)
-  // How the background image is laid out (GHL "Image Options").
+  // How the background image is laid out (the leading builder's "Image Options").
   bgImageMode?:
     | "full-center-parallax"  // cover, centered, fixed attachment (parallax)
     | "full-center"           // cover, centered
@@ -44,7 +44,7 @@ export interface ElementStyle {
   heightPx?: number;   // explicit min-height in px
   zIndex?: number;
   overflow?: "visible" | "hidden" | "auto" | "scroll";
-  // Per-breakpoint visibility (GHL parity, Copilot-ratified). Used for columns + elements.
+  // Per-breakpoint visibility (best-in-class, Copilot-ratified). Used for columns + elements.
   hiddenDesktop?: boolean;
   hiddenTablet?: boolean;
   hiddenMobile?: boolean;

@@ -1281,7 +1281,7 @@ export async function createPage(
 }
 
 // ---------------------------------------------------------------------------
-// GHL-style Website → Pages grid (Cycle 3). Server-action page CRUD so writes
+// polished Website → Pages grid (Cycle 3). Server-action page CRUD so writes
 // actually persist (service-role), replacing the old client-side PageList that
 // wrote via the anon browser client and was silently blocked by RLS.
 // ---------------------------------------------------------------------------
@@ -1835,7 +1835,7 @@ export async function uploadMedia(
   websiteId?: string | null
 ): Promise<MediaItem> {
   await requireTenantAccess(tenantId);
-  // GHL parity: accept any file type (images, fonts, PDFs, JSON, etc.).
+  // best-in-class: accept any file type (images, fonts, PDFs, JSON, etc.).
   const folder: MediaSource = MEDIA_SOURCES.includes(source) ? source : "upload";
   const supabase = createSupabaseServiceClient();
   await ensureMediaBucket();
@@ -2354,7 +2354,7 @@ export async function deleteSystemMedia(mediaId: string): Promise<void> {
   await logPlatformEvent({ action: "system.delete", actorEmail: await getCurrentUserEmail(), meta: { mediaId } });
 }
 
-// ---- Media folders (GHL-style; nested via parent_id, file → exactly one folder) ----
+// ---- Media folders (polished; nested via parent_id, file → exactly one folder) ----
 export interface MediaFolder { id: string; tenant_id: string; website_id: string | null; name: string; parent_id: string | null; created_at?: string; is_system?: boolean; }
 
 /**

@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Tenant Custom Fields (GoHighLevel parity). Tenant-defined fields on CRM objects (contact /
+ * Tenant Custom Fields (the market-leading platform parity). Tenant-defined fields on CRM objects (contact /
  * opportunity). Tenant-scoped; admin-gated writes. field_key is a machine slug, unique per object.
  */
 

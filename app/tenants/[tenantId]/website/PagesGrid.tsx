@@ -95,7 +95,7 @@ function PageThumb({ src, grad, title }: { src: string; grad: string; title: str
 }
 
 /**
- * GHL-style Pages grid. Each page is a card with a live thumbnail (scaled iframe of
+ * polished Pages grid. Each page is a card with a live thumbnail (scaled iframe of
  * the page preview), an Edit button (opens the builder), an open-in-new preview, and
  * a ⋮ menu (Rename · Duplicate · Set as home · Delete). "+ Add new page" creates one.
  * All CRUD goes through SERVER ACTIONS (service-role) so writes actually persist.

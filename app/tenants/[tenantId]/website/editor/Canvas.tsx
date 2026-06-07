@@ -116,7 +116,7 @@ export default function Canvas({
   const [savedSigs, setSavedSigs] = useState<Map<string, string>>(new Map());
   const [saveAssetIdx, setSaveAssetIdx] = useState<number | null>(null);
   const assetSig = (content: unknown) => { try { return JSON.stringify(content); } catch { return ""; } };
-  // Nested in-column selection / add-targeting (GHL-parity nested editing).
+  // Nested in-column selection / add-targeting (best-in-class nested editing).
   const [childSel, setChildSel] = useState<ChildSel | null>(null);
   const [colSel, setColSel] = useState<ColSel | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null); // innermost hovered element (single)
@@ -919,7 +919,7 @@ export default function Canvas({
     commit(next);
   }
 
-  // Save a section as a reusable Saved Asset — opens the GHL-style modal (no native prompt).
+  // Save a section as a reusable Saved Asset — opens the polished modal (no native prompt).
   function saveAsAsset(index: number) { setSaveAssetIdx(index); }
 
   // Load existing saved-asset signatures so we can flag already-saved elements + warn on re-save.
@@ -1229,7 +1229,7 @@ export default function Canvas({
 
         {/* Right column = per-node inspector. Shows ONLY the selected node's own
             properties (never mixed): a nested child element, a column, or the
-            top-level section/row — exactly one at a time (GHL parity). */}
+            top-level section/row — exactly one at a time (best-in-class). */}
         {inspectorOpen && (
           <div className="editor-compact sticky top-3 flex max-h-[calc(100vh-5rem)] w-80 shrink-0 flex-col self-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">

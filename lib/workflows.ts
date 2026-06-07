@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Automation / Workflows — our take on GHL workflows, built "similar but better":
+ * Automation / Workflows — our take on the leading builder workflows, built "similar but better":
  * AI-generated nurture AND lead-scoring workflows out of the box, on our safety rails.
  *
  * SAFETY (core doctrine): a workflow is a DEFINITION only. Nothing here sends, charges,

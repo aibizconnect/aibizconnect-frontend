@@ -6,7 +6,7 @@ import { addStepAction, deleteStepAction, reorderStepAction, generateFunnelActio
 import { STEP_TYPES, STEP_LABEL, type Funnel, type FunnelStep, type StepType } from "@/lib/funnels";
 
 /**
- * Funnel v2 — GHL-style: step list (left) + step-detail pane (right) with
+ * Funnel v2 — polished: step list (left) + step-detail pane (right) with
  * Overview / Products / Publishing sub-tabs. Edit opens the step in the real builder
  * (?pageId deep-link); per-step Publish runs the O-3 critic gate; Clone/Delete; one-shot
  * AI generation. Drafts only; checkout never auto-charges.

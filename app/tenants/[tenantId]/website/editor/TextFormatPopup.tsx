@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import FontPicker from "@/components/design/FontPicker";
 
 /**
- * Floating text-format popup (GHL-style). Appears anchored to the currently-selected text
+ * Floating text-format popup (polished). Appears anchored to the currently-selected text
  * element (the one tagged with data-abc-selected="1"), floating ABOVE it — or flipping BELOW
  * when there isn't room — so it never crowds the element. Holds the high-frequency text
  * controls (Font, Size, Style, Colour, Align, Link) so the sticky side panel stays short.

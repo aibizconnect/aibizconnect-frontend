@@ -91,7 +91,7 @@ export default function ColumnInspector({ style, onChange, widthPct, onWidthPct,
         </div>
       </div>
 
-      {/* Per-breakpoint visibility (GHL parity) — hide this column on a given device. */}
+      {/* Per-breakpoint visibility (best-in-class) — hide this column on a given device. */}
       <div className="border-b border-gray-100 pb-3">
         <label className="mb-1 block text-xs font-medium text-slate-500">Visibility</label>
         <div className="flex flex-col gap-1.5">

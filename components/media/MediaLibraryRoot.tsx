@@ -19,7 +19,7 @@ const fmtBytes = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024
 type Tab = "all" | "upload" | "stock" | "ai" | "canva" | "drive" | "url" | "system";
 const SOURCE_FOR: Partial<Record<Tab, MediaSource>> = { upload: "upload", stock: "stock", ai: "ai", canva: "canva" };
 
-// GHL-style source picker entries (dropdown). Each has a unique id; provider entries
+// polished source picker entries (dropdown). Each has a unique id; provider entries
 // share tab "stock" but pre-select a provider. Icons are simple emoji marks.
 interface SourceOpt { id: string; label: string; icon: string; tab: Tab; provider?: StockProvider; sub?: string; children?: SourceOpt[]; }
 // Top level: All · My Media · Unsplash · Pixabay. Everything the tenant brings in (uploads,
@@ -550,7 +550,7 @@ export default function MediaLibraryRoot({
           {!insert && !m.is_system && <button onClick={() => remove(m.id)} className="rounded-md bg-white/90 px-1.5 py-0.5 text-xs text-red-600 shadow" title="Delete">🗑</button>}
           {canDeleteSystem(m) && <button onClick={() => removeSystem(m.id)} className="rounded-md bg-white/90 px-1.5 py-0.5 text-xs text-red-600 shadow" title="Remove from System (admin/staff)">🗑</button>}
         </div>
-        {/* Caption only on hover (GHL-style clean grid). */}
+        {/* Caption only on hover (polished clean grid). */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/55 to-transparent px-2 pb-1.5 pt-5 text-[11px] text-white opacity-0 transition group-hover:opacity-100">{m.filename ?? "untitled"}</div>
       </div>
     );
@@ -736,7 +736,7 @@ export default function MediaLibraryRoot({
         </div>
       )}
 
-      {/* Top bar (GHL-style): title · storage pill · AI · view toggle. */}
+      {/* Top bar (polished): title · storage pill · AI · view toggle. */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {!insert
           ? <div className="flex items-center gap-3">
@@ -771,7 +771,7 @@ export default function MediaLibraryRoot({
 
       {/* Controls row: source dropdown · search · sort · website filter. */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        {/* Source picker (GHL dropdown) */}
+        {/* Source picker (the leading builder dropdown) */}
         <div className="relative">
           <button onClick={() => setSourceOpen((o) => !o)}
             className="flex w-56 items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:border-slate-400">
@@ -823,7 +823,7 @@ export default function MediaLibraryRoot({
       {/* (legacy tab row removed — replaced by the source dropdown above) */}
 
       <div className="flex gap-5">
-      {/* Folder rail (GHL-style). Applies to My Uploads; "All files" = root view. */}
+      {/* Folder rail (polished). Applies to My Uploads; "All files" = root view. */}
       {tab === "upload" && (
         <FolderTreeRail
           folders={folders} current={folderId} onSelect={setFolderId}
@@ -1263,7 +1263,7 @@ function FolderTreeRail({
   onDropFile: (folderId: string | null, e: React.DragEvent) => void;
 }) {
   const childrenOf = (pid: string | null) => folders.filter((f) => (f.parent_id ?? null) === pid);
-  // GHL-style drop-target: highlight while a FILE or a FOLDER hovers over a folder/root.
+  // polished drop-target: highlight while a FILE or a FOLDER hovers over a folder/root.
   const dropProps = (target: string | null) => ({
     onDragOver: (e: React.DragEvent) => {
       const t = e.dataTransfer.types;

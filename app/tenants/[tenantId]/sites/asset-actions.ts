@@ -38,7 +38,7 @@ export async function createStarterBlockAction(tenantId: string, tier: "global" 
   return { ok: res.ok, error: res.error, assets: await listSavedAssets(tenantId) };
 }
 
-/** Save a page's first section as a reusable asset (the GHL "save this section" flow). */
+/** Save a page's first section as a reusable asset (the the leading builder's "save this section" flow). */
 export async function saveSectionAsAssetAction(tenantId: string, pageId: string, tier: AssetTier, name: string): Promise<{ ok: boolean; error?: string }> {
   const sb = service();
   const { data: page } = await sb.from("website_pages").select("draft_sections").eq("tenant_id", tenantId).eq("id", pageId).single();

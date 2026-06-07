@@ -90,7 +90,7 @@ interface AudiencePack { match: RegExp; audiences: string[] }
 const AUDIENCE_PACKS: AudiencePack[] = [
   { match: /real\s?estate|realtor|broker(age)?|property|properties|homes?|listing|mortgage|mls/i,
     audiences: ["First-time home buyers", "Luxury buyers", "Sellers & downsizers", "Real-estate investors", "Renters", "Relocating families", "Local families", "Property developers"] },
-  { match: /\bai\b|artificial intelligence|automation|machine learning|saas|software|tech\b|consult|agency|marketing|crm|gohighlevel|ghl|no[- ]?code|workflow/i,
+  { match: /\bai\b|artificial intelligence|automation|machine learning|saas|software|tech\b|consult|agency|marketing|crm|no[- ]?code|workflow/i,
     audiences: ["Small business owners", "Agencies & consultants", "Coaches & course creators", "SaaS & startup founders", "Marketing teams", "Operations managers", "Solopreneurs & freelancers", "Local service businesses"] },
   { match: /dental|dentist|orthodont|medical|clinic|health|therap|chiro|physio|optometr|derma/i,
     audiences: ["New patients", "Families", "Busy professionals", "Seniors", "Parents of young children", "Cosmetic patients", "Insurance patients", "Referring providers"] },
@@ -131,6 +131,7 @@ export interface WizardPayload {
   services?: string;
   businessDescription?: string;   // a couple of sentences the owner provides up-front
   logoUrl?: string;               // logo (from existing site or pasted) — important for brand
+  pages?: string[];               // the (editable) page titles to build, from the plan step
   tone: BrandTone;
   hasWebsite?: boolean;
   existingUrl?: string;

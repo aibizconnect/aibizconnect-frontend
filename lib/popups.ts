@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Popups (exit-intent / timed / on-load lead capture) — GHL parity. Stored in the
+ * Popups (exit-intent / timed / on-load lead capture) — best-in-class. Stored in the
  * existing website_global_blocks table (type='popup', kind='element') so NO new schema is
  * needed. Rendered on the public site by a client overlay with trigger logic. Popups are
  * display-only lead capture; submitting a form is a separate (gated) action — popups here

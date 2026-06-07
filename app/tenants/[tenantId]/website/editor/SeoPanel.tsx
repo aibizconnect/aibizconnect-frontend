@@ -42,7 +42,7 @@ function ScoreRing({ value }: { value: number }) {
   );
 }
 
-/** Small "write with AI" sparkle button used inline on a field (GHL style). */
+/** Small "write with AI" sparkle button used inline on a field (polished). */
 function AiButton({ onClick, busy, label = "AI" }: { onClick: () => void; busy: boolean; label?: string }) {
   return (
     <button type="button" onClick={onClick} disabled={busy}
@@ -141,7 +141,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
         </button>
       </div>
 
-      {/* search preview + score (GHL shows a Google preview; we add a score ring) */}
+      {/* search preview + score (the leading builder shows a Google preview; we add a score ring) */}
       <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
         <ScoreRing value={report.overall} />
         <div className="min-w-0">
@@ -151,7 +151,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
         </div>
       </div>
 
-      {/* === SEO Meta Data (GHL-parity card) === */}
+      {/* === SEO Meta Data (best-in-class card) === */}
       <div className={cardCls}>
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-gray-800">SEO Meta Data</h3>
@@ -188,7 +188,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
             onChange={(e) => setSeo((s) => ({ ...s, keywords: e.target.value }))} onBlur={() => commit(seo)} />
         </label>
 
-        {/* Share image (Open Graph) — GHL "Page Share Image" */}
+        {/* Share image (Open Graph) — the leading builder's "Page Share Image" */}
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-gray-700">Share Image</span>
           {seo.seo_image_url ? (
@@ -211,7 +211,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
         </div>
       </div>
 
-      {/* === Custom meta tags (GHL "custom meta tags") === */}
+      {/* === Custom meta tags (the leading builder's "custom meta tags") === */}
       <div className={cardCls}>
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -267,7 +267,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
         </div>
       </div>
 
-      {/* === Schema markup (GHL multi-schema, "rich results & AI citations") === */}
+      {/* === Schema markup (the leading builder multi-schema, "rich results & AI citations") === */}
       <div className={cardCls}>
         <div className="mb-1 flex items-start justify-between gap-2">
           <div>

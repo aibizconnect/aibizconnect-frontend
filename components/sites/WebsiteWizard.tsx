@@ -9,7 +9,7 @@ import {
   type WizardPayload, type SubdomainCheck, type EnrichedProfile,
 } from "@/lib/sites/wizard-shared";
 
-/** GHL-style onboarding wizard. DRAFT-ONLY — creates a website, no publish/DNS/charge. */
+/** polished onboarding wizard. DRAFT-ONLY — creates a website, no publish/DNS/charge. */
 
 const STEPS = ["Start", "Basics", "Design & Plan", "Subdomain", "Review"] as const;
 
@@ -44,6 +44,18 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
   const [businessDescription, setBusinessDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const audienceSuggestions = audienceSuggestionsFor(industry, businessDescription, services);
+
+  // Editable build plan (add / rename / remove pages) — seeded from the default sitemap.
+  const [planPages, setPlanPages] = useState(() => plannedPages());
+  const [newPageTitle, setNewPageTitle] = useState("");
+  const renamePage = (i: number, title: string) => setPlanPages((ps) => ps.map((p, j) => (j === i ? { ...p, title } : p)));
+  const removePage = (i: number) => setPlanPages((ps) => ps.filter((_, j) => j !== i));
+  const addPage = () => {
+    const t = newPageTitle.trim();
+    if (!t) return;
+    setPlanPages((ps) => (ps.some((p) => p.title.toLowerCase() === t.toLowerCase()) ? ps : [...ps, { title: t, kind: "core" as const }]));
+    setNewPageTitle("");
+  };
 
   const [existingUrl, setExistingUrl] = useState("");
   const [existingBlog, setExistingBlog] = useState("");
@@ -117,6 +129,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
       businessName, industry, country, city, audience, services,
       businessDescription: businessDescription.trim() || undefined,
       logoUrl: logoUrl.trim() || undefined,
+      pages: planPages.map((p) => p.title.trim()).filter(Boolean),
       tone: tone as WizardPayload["tone"],
       hasWebsite: !!existingUrl.trim(), existingUrl, existingBlog,
       socialLinks: socialLinks.filter((s) => s.trim()),
@@ -131,8 +144,6 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
       router.push(`/tenants/${tenantId}/website/${res.websiteId}`);
     });
   };
-
-  const plan = plannedPages();
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -177,7 +188,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
             <div className="border-t border-slate-100 pt-4">
               <label className={label}>What does your business do? *</label>
               <textarea className={input} rows={3} value={businessDescription} onChange={(e) => setBusinessDescription(e.target.value)}
-                placeholder="e.g. We help small businesses automate operations and capture leads with AI and done-for-you GoHighLevel systems." />
+                placeholder="e.g. We help small businesses automate operations and capture leads with AI and done-for-you marketing systems." />
               <p className="mt-1 text-xs text-slate-400">{enrich?.description ? "✨ Pre-filled from your site — edit anything." : "We use this to tailor your industry, audience suggestions, and AI copy."}</p>
             </div>
 
@@ -314,18 +325,30 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
               </div>
             </div>
 
-            {/* The plan */}
+            {/* The plan — editable pages (add / rename / remove) */}
             <div className="rounded-xl border border-[#1e3a8a]/20 bg-[#1e3a8a]/[0.03] p-4">
               <p className="text-sm text-slate-700">
-                Building <strong>{businessName || "your business"}</strong>{industry ? <> — a <strong>{industry}</strong> site</> : null} with <strong>{plan.length} pages</strong>
-                {enrich?.imageCount ? <>, reusing <strong>{enrich.imageCount} images</strong> found on your site</> : null}.
+                Building <strong>{businessName || "your business"}</strong>{industry ? <> — a <strong>{industry}</strong> site</> : null} with <strong>{planPages.length} page{planPages.length === 1 ? "" : "s"}</strong>
+                {enrich?.imageCount ? <>, reusing <strong>{enrich.imageCount} images</strong> found on your site</> : null}. Add, rename, or remove pages below.
               </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {plan.map((p) => (
-                  <span key={p.title} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${PLAN_KIND_CLS[p.kind]}`}>
-                    {p.title}<span className="opacity-60">· {PLAN_KIND_LABEL[p.kind]}</span>
-                  </span>
+              <div className="mt-3 space-y-1.5">
+                {planPages.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={`w-14 flex-none rounded-full px-2 py-0.5 text-center text-[10px] font-semibold uppercase ${PLAN_KIND_CLS[p.kind]}`}>{PLAN_KIND_LABEL[p.kind]}</span>
+                    <input value={p.title} onChange={(e) => renamePage(i, e.target.value)}
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#1e3a8a] focus:outline-none" />
+                    <button type="button" onClick={() => removePage(i)} title="Remove page"
+                      className="flex-none rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-400 hover:border-rose-300 hover:text-rose-500">×</button>
+                  </div>
                 ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input value={newPageTitle} onChange={(e) => setNewPageTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPage(); } }}
+                  placeholder="Add a page (e.g. Portfolio)…"
+                  className="flex-1 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-1.5 text-sm focus:border-[#1e3a8a] focus:outline-none" />
+                <button type="button" onClick={addPage} disabled={!newPageTitle.trim()}
+                  className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">＋ Add</button>
               </div>
               <p className="mt-3 text-xs text-slate-500">Colors: <span className="font-medium" style={{ color: primaryColor }}>{primaryColor}</span> · {fam.secondary} · {fam.accent}. Fonts: {fam.headingFont} / {fam.bodyFont}. You can refine every page, image, and color in the editor after this.</p>
             </div>
@@ -378,7 +401,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
                 ["Tone", TONE_LABEL[tone]],
                 ["Address", `${normalized}.${SUBDOMAIN_BASE}`],
                 ["Template", FAMILY_LABEL[templateFamily]],
-                ["Pages planned", String(plan.length)],
+                ["Pages planned", String(planPages.length)],
                 ["AI drafting", aiConsent ? "On" : "Off"],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between px-3 py-2">

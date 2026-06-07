@@ -6,10 +6,10 @@ import { createPortal } from "react-dom";
 export type SaveMode = "template" | "global";
 
 /**
- * GHL-style "Save This Section" dialog (portal). Name + two save modes:
+ * polished "Save This Section" dialog (portal). Name + two save modes:
  *  - Section Template: saves a COPY reusable anywhere (website_section_templates).
  *  - Global Section: saves at WEBSITE level (website_global_blocks); edits to one instance
- *    sync across the whole site. (GHL's account-level "Universal Sections" is intentionally
+ *    sync across the whole site. (the leading builder's account-level "Universal Sections" is intentionally
  *    omitted per Ali.)
  */
 export default function SaveAssetModal({

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import type { CSSProperties, ElementType } from "react";
 
 /**
- * In-place editable text node for the editor canvas (GHL-style direct editing).
+ * In-place editable text node for the editor canvas (polished direct editing).
  *
  * Rendered ONLY when an `onChange` is passed (i.e. inside the editor) — published
  * pages render plain text, so this never affects the live site. The text is

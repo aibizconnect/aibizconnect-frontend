@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createPageAction, duplicatePageAction, deletePageAction, type SitePage } from "@/app/tenants/[tenantId]/sites/actions";
 
 /**
- * GHL-style Sites → Websites page-management grid. Cards per page (thumbnail, status,
+ * polished Sites → Websites page-management grid. Cards per page (thumbnail, status,
  * Edit → builder, Preview, ⋮ Duplicate/Delete) + "Add new page". Data-only; new pages are
  * private drafts. Publishing still runs the O-3 critic gate in the editor.
  */
@@ -35,7 +35,7 @@ export default function SitesGrid({ tenantId, initialPages }: { tenantId: string
         </div>
       </div>
 
-      {/* sub-tabs (GHL parity) */}
+      {/* sub-tabs (best-in-class) */}
       <div className="mb-6 flex gap-6 border-b border-slate-200 text-sm">
         <span className="-mb-px border-b-2 border-[#1e3a8a] pb-2 font-medium text-[#1e3a8a]">Pages</span>
         {["Stats", "Sales", "Security", "Events", "Settings"].map((t) => (

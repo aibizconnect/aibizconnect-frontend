@@ -2,9 +2,9 @@ import Link from "next/link";
 import { getLaunchpadState, type LaunchpadState } from "../launchpad/actions";
 
 /**
- * GHL-style tenant dashboard overview (Ali's direction). KPI cards + a live Launchpad
+ * polished tenant dashboard overview (Ali's direction). KPI cards + a live Launchpad
  * "Resume setup" card + quick links to the built tools. Data points show as zero/“—” until
- * wired to live sources (honest placeholders), matching the GoHighLevel home feel.
+ * wired to live sources (honest placeholders), matching the the market-leading platform home feel.
  */
 
 const KPIS = [

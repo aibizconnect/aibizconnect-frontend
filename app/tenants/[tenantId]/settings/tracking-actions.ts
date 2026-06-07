@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Tenant-level External Tracking (GoHighLevel parity). These are DEFAULTS applied across ALL of the
+ * Tenant-level External Tracking (the market-leading platform parity). These are DEFAULTS applied across ALL of the
  * tenant's published sites — a per-website override (set in the website editor's Site Settings, stored
  * in theme.site) always wins. Stored as key/value in tenant_settings. Admin-gated writes.
  */

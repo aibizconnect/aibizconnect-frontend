@@ -6,9 +6,9 @@ import { useState, type ReactNode } from "react";
 import { startImpersonation } from "@/app/tenants/[tenantId]/website/actions";
 
 /**
- * GHL-style tenant sidebar (Ali's direction: "I want the tenant dashboard to look like
- * GoHighLevel"). Dark navy rail, brand wordmark, tenant chip, search, and two grouped
- * nav clusters mirroring GHL. Items that map to a built route link through; not-yet-built
+ * polished tenant sidebar (Ali's direction: "I want the tenant dashboard to look like
+ * the market-leading platform"). Dark navy rail, brand wordmark, tenant chip, search, and two grouped
+ * nav clusters mirroring the leading builder. Items that map to a built route link through; not-yet-built
  * items render as dimmed "soon" rows (honest — never 404s).
  */
 

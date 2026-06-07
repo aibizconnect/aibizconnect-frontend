@@ -91,7 +91,7 @@ function FieldRenderer({
         </label>
       );
     }
-    // Alignment → segmented icon control (GHL-style).
+    // Alignment → segmented icon control (polished).
     if (spec.key === "align" && spec.options.join() === "left,center,right") {
       const cur = value ?? "left";
       const ICONS: Record<string, string> = { left: "M3 5h18M3 10h12M3 15h18M3 20h12", center: "M3 5h18M6 10h12M3 15h18M6 20h12", right: "M3 5h18M9 10h12M3 15h18M9 20h12" };
@@ -466,7 +466,7 @@ export default function SectionEditor({
   }
   const hasBpOverride = !isBase && Object.keys(bpOverride).length > 0;
 
-  // Friendly element name (GHL "Element name"). Stored as content._name; used as
+  // Friendly element name (the leading builder's "Element name"). Stored as content._name; used as
   // the Layers-tree label. Defaults to the element type's label.
   const defaultName = sectionLabels[type] ?? "Element";
   function setName(v: string) {
@@ -474,7 +474,7 @@ export default function SectionEditor({
     setValue(next);
     onUpdate(next as SectionContent);
   }
-  // Text role (GHL-style): choose Title/Subtitle/Heading… so the element inherits
+  // Text role (polished): choose Title/Subtitle/Heading… so the element inherits
   // that role's font from the global Typography panel. "" = auto (by type/level).
   function setRole(v: string) {
     const next = { ...value } as any;
@@ -493,7 +493,7 @@ export default function SectionEditor({
     <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold">{value._name || defaultName} <span className="text-xs font-normal text-gray-400">· {type}</span></h2>
 
-      {/* GHL-style inspector tabs */}
+      {/* polished inspector tabs */}
       <div className="flex gap-4 border-b border-gray-200 text-sm">
         {([["content", "General"], ["styles", "Styles"], ["animations", "Animations"]] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)}

@@ -3,6 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
+import { generatedSectionsFor } from "@/lib/sites/page-generate";
 import {
   BRAND_TONES, FAMILY_THEME, RESERVED_SUBDOMAINS, SUBDOMAIN_BASE, TONE_DEFAULT_COLOR,
   normalizeSubdomain, normalizeCountry,
@@ -288,6 +289,7 @@ export async function createWebsiteFromWizard(
     templateFamily: payload.templateFamily,
     primaryColor,
     logoUrl: payload.logoUrl?.trim() || null,
+    plannedPages: (payload.pages || []).map((t) => String(t || "").trim()).filter(Boolean),
     // makePublicNow is intentionally NOT acted on here — DRAFT only.
     makePublicNowRequested: !!payload.makePublicNow,
   };
@@ -350,10 +352,12 @@ export async function createWebsiteFromWizard(
   // Consent OFF → minimal skeleton (Home / About / Contact), NO AI calls (Copilot ruling).
   let pagesCreated = 0;
   let aiUsed = false;
-  if (payload.aiConsent) {
+  const hasPlan = (wizardJson.plannedPages?.length ?? 0) > 0;
+  if (payload.aiConsent || hasPlan) {
     try {
+      // Builds exactly the user's planned pages (deterministic sections, AI-enriched when consent is on).
       pagesCreated = await generateWizardPages(tenantId, websiteId, wizardJson);
-      aiUsed = pagesCreated > 0;
+      aiUsed = payload.aiConsent && pagesCreated > 0;
     } catch { /* fall through to skeleton */ }
   }
   if (pagesCreated === 0) {
@@ -407,29 +411,49 @@ export async function generateWizardPages(
   const { generatePlan } = await import("@/lib/agent/builder");
   const { planToSitePreview, sanitizeForDraft } = await import("@/lib/agent/website-generator");
 
-  const r = await generatePlan({ tenantId, role: "website.editor", goal: brief });
-  if (!r.plan) return 0;
-  const preview = planToSitePreview(r.plan);
-  const { pages } = sanitizeForDraft({ pages: preview.pages ?? [], warnings: [] });
-  if (!pages.length) return 0;
+  // AI plan only when consent is on (and a key exists); otherwise we build deterministically.
+  let aiPages: any[] = [];
+  if (wizard.aiConsent) {
+    try {
+      const r = await generatePlan({ tenantId, role: "website.editor", goal: brief });
+      if (r.plan) {
+        const preview = planToSitePreview(r.plan);
+        aiPages = sanitizeForDraft({ pages: preview.pages ?? [], warnings: [] }).pages ?? [];
+      }
+    } catch { /* deterministic fallback below */ }
+  }
 
-  // Start LEAN (Ali): build only Home + Contact now; stash the rest of the AI's
-  // suggested pages on the website so the user can add/refine them later.
-  const homePage = pages.find((p: any) => p.isHome) ?? pages[0];
-  const contactPage = pages.find((p: any) => p !== homePage && /contact|get in touch|reach|enquir|inquir/i.test(p.title))
-    ?? pages.find((p: any) => p !== homePage);
-  const chosen = [homePage, contactPage].filter(Boolean) as any[];
-  const suggestedPages = pages.filter((p: any) => !chosen.includes(p)).map((p: any) => p.title).filter(Boolean);
-  // Stash suggestions + the build context so the editor can add/refine pages later
-  // WITHOUT re-fetching the source site.
-  try {
-    const sb = createSupabaseServiceClient();
-    const { data: row } = await sb.from("websites").select("wizard").eq("id", websiteId).maybeSingle();
-    const w = (row?.wizard && typeof row.wizard === "object") ? row.wizard : {};
-    await sb.from("websites").update({
-      wizard: { ...w, suggestedPages, learnedBrief: brief.slice(0, 6000), learnedImages },
-    }).eq("id", websiteId);
-  } catch { /* non-fatal — suggestions are a nicety */ }
+  const profile = profileFromWizard(wizard);
+  const plannedTitles: string[] = Array.isArray(wizard.plannedPages)
+    ? wizard.plannedPages.map((t: any) => String(t || "").trim()).filter(Boolean) : [];
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  let chosen: any[];
+  if (plannedTitles.length) {
+    // Build EXACTLY the user's planned pages. Reuse AI sections where a title matches; deterministic otherwise.
+    chosen = plannedTitles.map((title, i) => {
+      const ai = aiPages.find((p: any) => norm(p.title || "") === norm(title))
+        ?? (i === 0 ? (aiPages.find((p: any) => p.isHome) ?? aiPages[0]) : undefined);
+      if (ai) return { ...ai, title, isHome: i === 0 };
+      const secs = generatedSectionsFor(guessPageType(title), profile).map((content) => ({ content }));
+      return { title, slug: slugifyTitle(title), isHome: i === 0, sections: secs };
+    });
+  } else if (aiPages.length) {
+    // Legacy lean path: Home + Contact now, stash the rest as suggestions.
+    const homePage = aiPages.find((p: any) => p.isHome) ?? aiPages[0];
+    const contactPage = aiPages.find((p: any) => p !== homePage && /contact|get in touch|reach|enquir|inquir/i.test(p.title))
+      ?? aiPages.find((p: any) => p !== homePage);
+    chosen = [homePage, contactPage].filter(Boolean) as any[];
+    const suggestedPages = aiPages.filter((p: any) => !chosen.includes(p)).map((p: any) => p.title).filter(Boolean);
+    try {
+      const sb = createSupabaseServiceClient();
+      const { data: row } = await sb.from("websites").select("wizard").eq("id", websiteId).maybeSingle();
+      const w = (row?.wizard && typeof row.wizard === "object") ? row.wizard : {};
+      await sb.from("websites").update({ wizard: { ...w, suggestedPages, learnedBrief: brief.slice(0, 6000), learnedImages } }).eq("id", websiteId);
+    } catch { /* non-fatal — suggestions are a nicety */ }
+  } else {
+    return 0; // nothing to build → caller scaffolds a skeleton
+  }
 
   let created = 0;
   const usedSlugs = new Set<string>();
@@ -666,6 +690,40 @@ async function fetchSiteContext(rawUrl?: string | null): Promise<SiteContext | n
     if (text.length < 40 && !uniqImages.length) return null;
     return { text, images: uniqImages };
   } catch { return null; }
+}
+
+/** Map the wizard intake to a BusinessProfile for deterministic section generation. */
+function profileFromWizard(w: Record<string, any>): import("@/lib/sites/page-generate").BusinessProfile {
+  return {
+    business_name: w.businessName || undefined,
+    industry: w.industry || undefined,
+    services_products: typeof w.services === "string" && w.services ? w.services.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean) : [],
+    tone: w.tone || undefined,
+    audience: w.audience || undefined,
+    location: [w.city, w.country].filter(Boolean).join(", ") || undefined,
+    logo_url: w.logoUrl || null,
+    brand_colors: w.primaryColor ? [w.primaryColor] : undefined,
+  };
+}
+
+/** Guess a page_type from a free-text page title (for deterministic section templates). */
+function guessPageType(title: string): string {
+  const t = (title || "").toLowerCase();
+  if (/home/.test(t)) return "home";
+  if (/about|story|team/.test(t)) return "about";
+  if (/service|product|solution|offer/.test(t)) return "services";
+  if (/pric|plan|package/.test(t)) return "pricing";
+  if (/testimonial|review/.test(t)) return "testimonials";
+  if (/faq|question/.test(t)) return "faq";
+  if (/blog|news|article/.test(t)) return "blog_index";
+  if (/free|guide|download|magnet|lead/.test(t)) return "lead_magnet";
+  if (/thank/.test(t)) return "thank_you";
+  if (/get started|^start|landing|book|quote/.test(t)) return "ad_landing";
+  return "generic";
+}
+
+function slugifyTitle(title: string): string {
+  return (title || "page").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "page";
 }
 
 /** Turn the wizard intake (+ learned existing-site content) into a brief for the planner. */

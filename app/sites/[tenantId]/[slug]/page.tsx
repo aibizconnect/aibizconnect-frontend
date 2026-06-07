@@ -166,7 +166,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         occasions?: import("@/lib/occasions").OccasionsConfig } | null;
   const cookie = siteSettings?.cookieConsent;
   // Tenant-level External Tracking defaults (Settings → External Tracking) apply across ALL sites;
-  // a per-website value (theme.site) always wins. Set-once-for-everything, GHL location-level parity.
+  // a per-website value (theme.site) always wins. Set-once-for-everything, the leading builder location-level parity.
   const { getTenantTrackingDefaults } = await import("../../../tenants/[tenantId]/settings/tracking-actions");
   const trackDefaults = await getTenantTrackingDefaults(tenantId).catch(() => ({} as Record<string, string | undefined>));
   const tracking = {

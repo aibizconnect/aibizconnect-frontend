@@ -5,7 +5,7 @@ import { GOOGLE_FONTS, ensureAllGoogleFonts, ensureGoogleFont, fontStack } from 
 
 /**
  * Google-Fonts picker: a button showing the current font, opening a scrollable
- * list where each family is rendered in its own typeface (Canva/GHL style).
+ * list where each family is rendered in its own typeface (Canva/polished).
  * Size & weight are set elsewhere (the right-column typography fields).
  */
 export default function FontPicker({ value, onChange, customFonts = [] }: { value?: string; onChange: (v: string) => void; customFonts?: string[] }) {

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Memberships — reimagined as a clean "Courses & Member Hub" (better than GHL's noisy
+ * Memberships — reimagined as a clean "Courses & Member Hub" (better than the leading builder's noisy
  * community): AI-generated course outlines + lessons, a polished public viewer, drafts +
  * publish gate. Members are sourced from Contacts (no separate forum). Data-only.
  */

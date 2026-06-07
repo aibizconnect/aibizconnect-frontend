@@ -7,7 +7,7 @@ import { styleToCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, backgroundOnlyCss
 import type { ThemeTokens } from "@/lib/sections/theme";
 
 /**
- * Editable Row container for the editor canvas (GHL-parity nested editing).
+ * Editable Row container for the editor canvas (best-in-class nested editing).
  *
  * A row has 1–6 columns; each column stacks children top→bottom. A child is
  * either an ELEMENT (selectable/editable/draggable) or a NESTED ROW (rendered by
@@ -193,7 +193,7 @@ export default function RowEditor(props: RowEditorProps) {
       {rowLayer && <div aria-hidden style={rowLayer} />}
       {rowOverlay && <div aria-hidden style={rowOverlay} />}
       <div className="relative z-[1] flex w-full" style={rowInnerStyle}>
-      {/* Pink resize-snap guide line (GHL-style) — shown while a divider snaps. */}
+      {/* Pink resize-snap guide line (polished) — shown while a divider snaps. */}
       {guideX != null && (
         <div className="pointer-events-none absolute top-0 bottom-0 z-30" style={{ left: guideX, width: 2, background: "#ec4899", boxShadow: "0 0 0 0.5px rgba(236,72,153,0.4)" }} />
       )}
@@ -272,7 +272,7 @@ export default function RowEditor(props: RowEditorProps) {
                     >
                       {active && <AddDot where="top" ci={ci} idx={idx} />}
                       {active && (
-                        // Controls distributed around the element's perimeter (GHL-style) so they
+                        // Controls distributed around the element's perimeter (polished) so they
                         // never crowd small elements: drag + move at top-left, duplicate + delete at
                         // top-right, and the element type as a small tag at the bottom-left corner.
                         <>

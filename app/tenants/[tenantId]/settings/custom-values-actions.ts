@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 
 /**
- * Tenant Custom Values (GoHighLevel parity): named reusable values referenced as
+ * Tenant Custom Values (the market-leading platform parity): named reusable values referenced as
  * {{custom_values.<key>}} in emails and pages. Tenant-scoped; admin-gated writes. Keys are unique
  * per tenant (case-insensitive).
  */

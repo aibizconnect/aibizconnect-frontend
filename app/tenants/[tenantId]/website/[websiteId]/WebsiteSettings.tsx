@@ -11,7 +11,7 @@ import DomainEmailSettings from "./DomainEmailSettings";
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 const ta = inp + " font-mono text-xs";
 
-/** GHL-style toggle switch. */
+/** polished toggle switch. */
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
@@ -48,7 +48,7 @@ function ToggleLine({ title, desc, on, onChange, badge }: { title: string; desc:
 }
 
 /**
- * Website-level Settings tab — mirrors GoHighLevel's layout. Website identity/URL lives on
+ * Website-level Settings tab — mirrors the market-leading platform's layout. Website identity/URL lives on
  * the websites row (name/domain); everything else is the SiteSettings store
  * (website_brand_settings.theme.site), autosaved and applied on the published site.
  */
@@ -81,7 +81,7 @@ export default function WebsiteSettings({ tenantId, websiteId, websiteName, subd
 
   useEffect(() => {
     getSiteSettings(tenantId, websiteId).then((v) => {
-      // Defaults: optimization on (matches GHL's defaults) unless explicitly disabled.
+      // Defaults: optimization on (matches the leading builder's defaults) unless explicitly disabled.
       setS({ imageOptimization: true, optimizeJs: true, ...v });
       setLoaded(true);
     }).catch(() => setLoaded(true));

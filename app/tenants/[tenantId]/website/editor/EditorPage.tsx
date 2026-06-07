@@ -178,7 +178,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
   }
 
   // Toolbar click: open the left column to that panel, or toggle it closed if it's
-  // already showing that panel (exactly like GHL — panels come and go).
+  // already showing that panel (exactly like the leading builder — panels come and go).
   function pickTool(m: Mode) {
     if (leftOpen && mode === m) { setLeftOpen(false); return; }
     setMode(m);
@@ -237,10 +237,10 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top toolbar (GHL-style): left tools · device/title · right controls */}
+      {/* Top toolbar (polished): left tools · device/title · right controls */}
       <div className="editor-compact mb-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
         <div className="flex items-center gap-1">
-          {/* Add Element — first toolbar item (GHL parity). Opens the left Add panel. */}
+          {/* Add Element — first toolbar item (best-in-class). Opens the left Add panel. */}
           {(() => {
             const active = leftOpen && mode === "add";
             return (
@@ -280,7 +280,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
               </button>
             </div>
           )}
-          {/* Save — red dot when the current page has unsaved changes (GHL pattern). */}
+          {/* Save — red dot when the current page has unsaved changes (the leading builder pattern). */}
           {selectedPageId && (
             <button onClick={() => setSaveSignal((n) => n + 1)} title={dirty ? "Unsaved changes — click to save" : "All changes saved"}
               className={`relative flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-sm transition ${dirty ? "border-[#1e3a8a] bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
