@@ -1,0 +1,21 @@
+-- ============================================================================
+-- STEP 24 — OPTIONAL cleanup: retire the STEP 18 "Kits" template tables.
+--
+-- ⚠️  REVIEW REQUIRED BY ALI BEFORE APPLYING ⚠️
+--
+-- This migration is INTENTIONALLY LEFT UNAPPLIED. The DROP statements below are
+-- COMMENTED OUT so that running this file is a safe no-op. The STEP 18 "Kits"
+-- template system was retired from the UI in Step 24, but its tables and data
+-- are preserved for backward compatibility.
+--
+-- These tables are DESTRUCTIVE to remove and may contain seeded template data.
+-- Only Ali should decide whether to drop them. To apply: review, confirm there
+-- is no data worth keeping, then uncomment the statements below and run.
+--
+-- Dependency order matters (children first, parent last).
+-- ============================================================================
+
+-- DROP TABLE IF EXISTS public.website_template_sections;
+-- DROP TABLE IF EXISTS public.website_template_pages;
+-- DROP TABLE IF EXISTS public.website_template_brand_settings;
+-- DROP TABLE IF EXISTS public.website_templates;

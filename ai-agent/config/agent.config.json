@@ -1,0 +1,16 @@
+{
+  "agentName": "AliDevOpsAgent",
+  "version": "1.0.0",
+  "defaultCwd": "./",
+  "logRetentionDays": 30,
+  "httpPort": 4545,
+  "security": {
+    "enableDailyCheck": true,
+    "criticalFiles": [
+      "ai-agent/agent.ts",
+      "ai-agent/approve.ts",
+      "ai-agent/security-check.ts",
+      "ai-agent/server.ts"
+    ]
+  }
+}

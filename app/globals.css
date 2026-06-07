@@ -1,4 +1,78 @@
 @import "tailwindcss";
+/* brand fonts wired below */
+
+/* ── AIBizConnect brand fonts ──────────────────────────────────────────────
+   Headline = Montserrat-Alt1 (the brand display face, per Canva + the live site).
+   Body = Poppins (content font, per the live aibizconnect.ca site). Poppins is
+   loaded via a <link> in app/layout.tsx. */
+
+@font-face {
+  font-family: "MontserratAlt1";
+  src: url("/fonts/MontserratAlt1-SemiBold.woff2") format("woff2"),
+       url("/fonts/MontserratAlt1-SemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "MontserratAlt1";
+  src: url("/fonts/MontserratAlt1-Bold.woff2") format("woff2"),
+       url("/fonts/MontserratAlt1-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "MontserratAlt1";
+  src: url("/fonts/MontserratAlt1-Black.woff2") format("woff2"),
+       url("/fonts/MontserratAlt1-Black.woff") format("woff");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Back-compat alias for the older wordmark family name. */
+@font-face {
+  font-family: "MontserratAlt1 SemiBold";
+  src: url("/fonts/MontserratAlt1-SemiBold.woff2") format("woff2"),
+       url("/fonts/MontserratAlt1-SemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+.abc-wordmark {
+  font-family: "MontserratAlt1", "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+/* Brand utility classes (opt-in). */
+.abc-display { font-family: "MontserratAlt1", "Inter", sans-serif; font-weight: 900; }
+.abc-body { font-family: "Poppins", "Inter", system-ui, sans-serif; }
+
+/* ── Element inspector animations (entrance + hover) ─────────────────────── */
+@keyframes abc-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes abc-fade-up { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: none } }
+@keyframes abc-fade-down { from { opacity: 0; transform: translateY(-24px) } to { opacity: 1; transform: none } }
+@keyframes abc-fade-left { from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none } }
+@keyframes abc-fade-right { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes abc-slide-up { from { transform: translateY(40px) } to { transform: none } }
+@keyframes abc-slide-down { from { transform: translateY(-40px) } to { transform: none } }
+@keyframes abc-bounce { 0% { transform: scale(0.9); opacity: 0 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }
+.abc-anim-fade-in { animation: abc-fade-in .6s ease both }
+.abc-anim-fade-up { animation: abc-fade-up .6s ease both }
+.abc-anim-fade-down { animation: abc-fade-down .6s ease both }
+.abc-anim-fade-left { animation: abc-fade-left .6s ease both }
+.abc-anim-fade-right { animation: abc-fade-right .6s ease both }
+.abc-anim-slide-up { animation: abc-slide-up .5s ease both }
+.abc-anim-slide-down { animation: abc-slide-down .5s ease both }
+.abc-anim-bounce { animation: abc-bounce .6s cubic-bezier(.22,1.2,.36,1) both }
+.abc-hover-elevate { transition: transform .2s ease, box-shadow .2s ease }
+.abc-hover-elevate:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,.18) }
+.abc-hover-wobble { transition: transform .2s ease }
+.abc-hover-wobble:hover { animation: abc-bounce .5s ease }
+@media (prefers-reduced-motion: reduce) {
+  [class*="abc-anim-"], [class*="abc-hover-"] { animation: none !important; transition: none !important }
+}
 
 :root {
   --background: #ffffff;
@@ -22,5 +96,53 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* App/dashboard UI font: Roboto (via --font-sans), with safe fallbacks. */
+  font-family: var(--font-sans), Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ── Editor chrome (toolbar + left/right panels, NOT the canvas) ──
+   Roboto 12px throughout; labels & section headings bold; inputs/selects/options
+   regular. Tailwind v4 reads its text-* utilities from these CSS vars, so we pin
+   them all to 12px to override per-component sizes. */
+.editor-compact {
+  font-family: var(--font-sans), Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  --text-xs: 12px;
+  --text-sm: 12px;
+  --text-base: 12px;
+  --text-lg: 13px;
+}
+/* Inherit Roboto everywhere in the panels — but NOT via !important, so the font
+   picker's per-option preview (inline font-family) still renders in its own face. */
+.editor-compact * { font-family: inherit; }
+/* Labels and section headings → bold (beats Tailwind's font-medium utility). */
+.editor-compact label,
+.editor-compact label > span,
+.editor-compact legend,
+.editor-compact h2,
+.editor-compact h3,
+.editor-compact h4 { font-weight: 700 !important; }
+/* Inputs, selects, textareas, options → regular weight, 12px. */
+.editor-compact input,
+.editor-compact select,
+.editor-compact textarea,
+.editor-compact option { font-weight: 400 !important; font-size: 12px; }
+
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --card: #fafafa;
+  --border: #e5e7eb;
+}
+
+.dark {
+  --bg: #0d0d0d;
+  --text: #f5f5f5;
+  --card: #1a1a1a;
+  --border: #333333;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
 }

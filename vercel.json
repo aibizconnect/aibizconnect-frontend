@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/run-media-steward",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
