@@ -1,31 +1,46 @@
-# Builder → Architect: VERIFY Twilio integration (TWIL-V1..V11)
+# Builder → Architect: VERIFY Shopify integration (SHOP-V1..V15, SHOP-CB-V1..V10)
 
-Built per D-042..D-044. typecheck clean. Files:
+Built per D-047..D-049. typecheck clean. Files:
 
-## lib/server/twilio.ts (server-only, NOT "use server")
-- getTwilioCreds(tenantId) → decrypt {account_sid, auth_token} from tenant_secrets provider 'twilio'
-  (via getIntegrationSecret which uses lib/server/encryption). → TWIL-V1.
-- twilioReady(tenantId) → bool (graceful degrade). → TWIL-V11.
-- isE164() E.164 validator.
-- testTwilioConnection(tenantId) → GET /Accounts/{SID}.json with Basic auth; verifies WITHOUT
-  sending. Returns {ok, friendlyName, status, error}. → TWIL-V7.
-- sendSms(tenantId,{to,body,from}) → prefers MessagingServiceSid (A2P 10DLC) else From number, adds
-  StatusCallback if configured. EXISTS but is NOT called anywhere (no-auto-send). → TWIL-V9, D-044.
+## migration 0035_shopify_stores.sql
+public.tenant_shopify_stores (id, tenant_id, shop_domain, shop_name, email, plan_name, scopes text[]
+NOT NULL DEFAULT '{}', status default 'connected', encrypted_tokens text NOT NULL, connected_by,
+config jsonb, created_at, updated_at; UNIQUE(tenant_id, shop_domain)). Index idx_tss_tenant.
+Idempotent. → SHOP-V1..V4.
 
-## app/tenants/[tenantId]/settings/twilio-actions.ts ("use server")
-- getTwilioSettings → returns status + non-secret config (account_sid, messaging_service_sid,
-  from_number, status_callback_url) + hasSecret. NEVER the auth token. → TWIL-V2, TWIL-V3.
-- saveTwilioSettings → requireTenantAccess + requireAdminWrite; validates SID (^AC…) + from E.164;
-  encrypts {account_sid, auth_token} via setIntegrationSecret (keeps existing token if blank); upserts
-  tenant_integrations.config; runs testTwilioConnection → sets status connected/error; audited.
-  → TWIL-V4/V5/V6/V10.
-- testTwilio → admin-gated wrapper over testTwilioConnection; updates status; audited. → TWIL-V7/V10.
-- disconnectTwilio → deleteIntegrationSecret + status disconnected; audited. → TWIL-V8/V10.
+## lib/server/shopify.ts (server-only)
+- SHOPIFY_API_VERSION '2024-01' pinned; SCOPES read_products/read_orders/read_shop. → D-049.
+- normalizeShopDomain/isShopDomain (canonical *.myshopify.com).
+- shopifyAppCreds(): env SHOPIFY_API_KEY/SECRET else encrypted SYSTEM_TENANT_ID 'shopify_platform_app'.
+  shopifyReady() graceful degrade. → SHOP-V9, SHOP-V15.
+- makeShopifyState/readShopifyState: encrypted {tenantId, shop, nonce, ts}, 15-min TTL.
+- buildShopifyAuthorizeUrl(shop, state): client_id, scope, redirect_uri, state; NO grant_options[]=
+  per-user → OFFLINE token. → SHOP-V8.
+- verifyShopifyHmac(params): HMAC-SHA256 over sorted querystring excluding hmac/signature, app secret,
+  timing-safe compare. → SHOP-CB-V2.
+- completeShopifyCore(tenantId, shop, code, connectedBy): GATE-FREE. POST /admin/oauth/access_token →
+  offline token; fetch /admin/api/2024-01/shop.json metadata; encryptSecret(tokens) → encrypted_tokens;
+  upsert tenant_shopify_stores (shop_domain/name/email/plan/scopes/status); upsert non-secret
+  tenant_integrations 'shopify' summary; audit shopify.oauth_complete. → SHOP-V11/V12/V13, SHOP-V14.
+- getShopifyTokens(): SERVER-ONLY decrypt.
 
-## UI — SettingsHub TwilioCard
-Real connect/manage form (SID + token[password] + Messaging Service SID + from number), Save&verify /
-Test / Disconnect, status pill, hasSecret "stored ✓". HELPFUL TIPS + LINKS added (Ali's ask): where to
-find SID/Auth Token (Twilio Console link), Messaging Service location, A2P 10DLC link, E.164 format hint.
-No secret rendered. Admin-gated controls. Other core providers (Shopify/Stripe/PayPal) stay "soon".
+## app/tenants/[tenantId]/settings/shopify-actions.ts ("use server")
+- listShopifyStores: non-secret rows + hasTokens (never blob) + ready. → SHOP-V6.
+- getShopifyStartUrl: requireTenantAccess + requireAdminWrite; validates shop; builds state+url; audit
+  shopify.oauth_start. → SHOP-V5, SHOP-V7, SHOP-V8, SHOP-V14.
+- disconnectShopifyStore: admin-gated; delete row; flip tenant_integrations summary; audit. → SHOP-V10/V14.
 
-Please VERIFY TWIL-V1..V11 and append DECISION-LOG. Next after this: Shopify (OAuth).
+## app/api/shopify/callback/route.ts (GET) → SHOP-CB-V1
+Order: (1) verifyShopifyHmac FIRST → fallback ?shopify_error=hmac_failed on fail. (2) isShopDomain(shop).
+(3) readShopifyState; require parsed && parsed.shop===shop (tenantId ONLY from state). → SHOP-CB-V2/V3/
+V4/V5. ?error / missing code → settings ?error=. completeShopifyCore(tenantId, shop, code). Audit
+shopify.oauth_callback_received. Success → 302 settings?connected=shopify&shop=<shop>. No token in URL.
+→ SHOP-CB-V6/V7/V8/V9/V10.
+
+## UI
+SettingsHub ShopifyCard: guided (shop-domain input, where-to-find link, "no auto-sync" tip), connect
+opens OAuth in new tab, multi-store list with disconnect, status pill, hasTokens only. Result banner
+reads ?connected=shopify&shop=. Other providers (Stripe/PayPal) stay "soon".
+
+Deferred per D-049: webhooks, Billing API, GDPR mandatory webhooks, write scopes/re-auth, product/order
+sync. Please VERIFY all SHOP + SHOP-CB checks and append DECISION-LOG. Next: payments.

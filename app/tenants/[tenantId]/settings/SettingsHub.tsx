@@ -8,6 +8,7 @@ import {
 } from "./social-actions";
 import { listIntegrations, getTenantSettings, setTenantSetting, type IntegrationView } from "./integrations-actions";
 import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
+import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type ShopifyStoreView } from "./shopify-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -68,7 +69,8 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
     if (params.get("tab") === "preferences") setTab("preferences");
     const connected = params.get("connected");
     const cbError = params.get("error");
-    if (connected) setNotice(`Connected ${SOCIAL_META[connected]?.label ?? connected}${params.get("n") ? ` — ${params.get("n")} account(s)` : ""}.`);
+    if (connected === "shopify") setNotice(`Connected Shopify${params.get("shop") ? ` — ${params.get("shop")}` : ""}.`);
+    else if (connected) setNotice(`Connected ${SOCIAL_META[connected]?.label ?? connected}${params.get("n") ? ` — ${params.get("n")} account(s)` : ""}.`);
     else if (cbError) setError(`Couldn't connect ${params.get("provider") ?? ""}: ${cbError.replace(/_/g, " ")}`);
   }, [params]);
 
@@ -181,9 +183,9 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
           <section>
             <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Messaging &amp; commerce</h2>
             <p className="mb-3 text-xs text-slate-400">Twilio, Shopify, and payment gateways.</p>
-            <div className="mb-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /></div>
+            <div className="mb-3 space-y-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /><ShopifyCard tenantId={tenantId} isAdmin={isAdmin} /></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {CORE_PROVIDERS.filter((c) => c.provider !== "twilio").map((c) => {
+              {CORE_PROVIDERS.filter((c) => c.provider !== "twilio" && c.provider !== "shopify").map((c) => {
                 const existing = core.find((i) => i.provider === c.provider);
                 const status = existing?.status ?? "disconnected";
                 return (
@@ -299,6 +301,86 @@ function TwilioCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean 
               {s?.hasSecret && <button type="button" disabled={busy === "disc"} onClick={disconnect} className="rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
             </div>
           ) : <Tip>Admin required to change Twilio credentials.</Tip>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShopifyCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [stores, setStores] = useState<ShopifyStoreView[] | null>(null);
+  const [ready, setReady] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [shop, setShop] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await listShopifyStores(tenantId);
+    setStores(r.stores); setReady(r.ready);
+  }, [tenantId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  const connect = async () => {
+    setBusy("connect"); setMsg(null);
+    const r = await getShopifyStartUrl(tenantId, shop);
+    setBusy(null);
+    if (!r.ok || !r.url) { setMsg({ ok: false, text: r.message ?? "Could not start." }); return; }
+    window.open(r.url, "_blank", "noopener,noreferrer");
+    setMsg({ ok: true, text: "Opened Shopify authorization in a new tab. Approve there, then refresh this page." });
+  };
+  const disconnect = async (id: string) => {
+    setBusy(id);
+    const r = await disconnectShopifyStore(tenantId, id);
+    setBusy(null);
+    if (!r.ok) setMsg({ ok: false, text: r.message ?? "Could not disconnect." });
+    await load();
+  };
+
+  const count = stores?.length ?? 0;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "#95BF47" }}>S</span>
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">Shopify<StatusPill status={count ? "connected" : "disconnected"} /></div>
+            <div className="text-xs text-slate-400">{count ? `${count} store(s) connected` : ready ? "Sync products & orders from your store(s)." : "Not configured yet"}</div>
+          </div>
+        </div>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">{open ? "Close" : count ? "Manage" : "Connect"}</button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+          <div className="rounded-lg bg-emerald-50 p-3">
+            <Tip><b className="text-slate-600">Connect a store:</b> enter your shop&apos;s <code>.myshopify.com</code> address (find it in your <Ext href="https://www.shopify.com/login">Shopify admin</Ext> under Settings → Domains). You approve permissions on Shopify — we only store a secure access token. You can connect several stores.</Tip>
+          </div>
+
+          {count > 0 && (
+            <div className="space-y-2">
+              {stores!.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700"><span className="truncate">{s.shop_name ?? s.shop_domain}</span><StatusPill status={s.status} /></div>
+                    <div className="text-[11px] text-slate-400">{s.shop_domain}{s.plan_name ? ` · ${s.plan_name}` : ""}</div>
+                  </div>
+                  {isAdmin && <button type="button" disabled={busy === s.id} onClick={() => disconnect(s.id)} className="flex-none rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isAdmin ? (
+            <div className="flex items-stretch gap-2">
+              <input className={inp} value={shop} onChange={(e) => setShop(e.target.value.trim())} placeholder="mystore.myshopify.com" />
+              <button type="button" disabled={!shop || !ready || busy === "connect"} onClick={connect} title={!ready ? "Add the Shopify app API key + secret to enable" : undefined}
+                className="flex-none rounded-lg bg-[#1e3a8a] px-4 text-sm font-medium text-white disabled:opacity-40">{busy === "connect" ? "…" : count ? "Add store" : "Connect"}</button>
+            </div>
+          ) : <Tip>Admin required to connect a store.</Tip>}
+          <Tip>We request read access to products, orders, and shop info. No data is synced or imported automatically — that&apos;s a later, opt-in step.</Tip>
+
+          {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
         </div>
       )}
     </div>

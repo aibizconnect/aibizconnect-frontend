@@ -50,4 +50,9 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-045] verified_twilio_integration — lib/server/twilio.ts + twilio-actions.ts + Settings TwilioCard (with help tips/links) VERIFIED against all TWIL checks; no-auto-send confirmed (verified)
 [D-046] next_phase_shopify — proceed to Shopify integration (OAuth) next (ruled)
 [UX] integration-forms standard — every integration form ships inline guidance: where-to-find help, external console links, format hints (Ali's directive) (adopted)
+[D-047] approve_shopify_design — tenant_shopify_stores (multi-store), offline OAuth token, HMAC-verified callback reusing the Social callback pattern (approved)
+[D-048] define_shopify_checks — Supervisor checks SHOP-V1..V15 + SHOP-CB-V1..V10 (defined)
+[D-049] shopify_gotchas — API version pinned 2024-01, offline token (no per-user grant), shop-domain normalization, minimal read scopes; webhooks/Billing/GDPR/write-scopes deferred (defined)
+[D-050] verified_shopify_integration — migration 0035 + lib/server/shopify.ts + shopify-actions.ts + /api/shopify/callback (HMAC-first) + Settings ShopifyCard VERIFIED against all SHOP/SHOP-CB checks; e-commerce Launchpad step now satisfiable (verified)
+[D-051] next_phase_payments — proceed to Payments integration (Stripe/PayPal) next (ruled)
 
