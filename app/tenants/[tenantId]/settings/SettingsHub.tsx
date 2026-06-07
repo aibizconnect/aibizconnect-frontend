@@ -15,6 +15,9 @@ import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from ".
 import { getTracking, saveTracking, type TrackingSettings } from "./tracking-actions";
 import { listTags, createTag, updateTag, deleteTag, type TagView } from "./tags-actions";
 import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, FIELD_TYPES, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
+import { listCustomValues, createCustomValue, updateCustomValue, deleteCustomValue, type CustomValueView } from "./custom-values-actions";
+import { getScoring, createScoringRule, updateScoringRule, deleteScoringRule, setHotThreshold, TRIGGER_TYPES, TRIGGER_LABELS, type ScoringView, type ScoringRuleView, type TriggerType } from "./scoring-actions";
+import { listTenantAudit, type TenantAuditEntry } from "./audit-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -28,7 +31,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "business" | "integrations" | "verification" | "tracking" | "tags" | "fields" | "preferences";
+type Tab = "business" | "integrations" | "verification" | "tracking" | "tags" | "fields" | "values" | "scoring" | "audit" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -64,7 +67,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   const params = useSearchParams();
   useEffect(() => {
     const t = params.get("tab") as Tab | null;
-    if (t && ["business", "integrations", "verification", "tracking", "tags", "fields", "preferences"].includes(t)) setTab(t);
+    if (t && ["business", "integrations", "verification", "tracking", "tags", "fields", "values", "scoring", "audit", "preferences"].includes(t)) setTab(t);
     if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
@@ -105,7 +108,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
       <div className="mb-6 flex flex-wrap gap-1 border-b border-slate-200">
-        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["tracking", "External Tracking"], ["tags", "Tags"], ["fields", "Custom Fields"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["tracking", "External Tracking"], ["tags", "Tags"], ["fields", "Custom Fields"], ["values", "Custom Values"], ["scoring", "Lead Scoring"], ["audit", "Audit Log"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -203,6 +206,12 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       {tab === "tags" && <TagsSection tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "fields" && <CustomFieldsSection tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "values" && <CustomValuesSection tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "scoring" && <LeadScoringSection tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "audit" && <AuditLogSection tenantId={tenantId} />}
 
       {tab === "preferences" && <Preferences tenantId={tenantId} isAdmin={isAdmin} />}
     </div>
@@ -783,6 +792,144 @@ function CustomFieldsSection({ tenantId, isAdmin }: { tenantId: string; isAdmin:
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function CustomValuesSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [vals, setVals] = useState<CustomValueView[] | null>(null);
+  const [name, setName] = useState(""); const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => { setVals(await listCustomValues(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => setVals([])); }, [load]);
+
+  const add = async () => { setBusy(true); setMsg(null); const r = await createCustomValue(tenantId, name, value); setBusy(false); if (!r.ok) { setMsg(r.message ?? "Could not add."); return; } setName(""); setValue(""); await load(); };
+  const saveVal = async (id: string, v: string) => { await updateCustomValue(tenantId, id, { value: v }); await load(); };
+  const remove = async (id: string) => { const r = await deleteCustomValue(tenantId, id); if (!r.ok) setMsg(r.message ?? "Could not delete."); await load(); };
+
+  if (!vals) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  return (
+    <div className="max-w-2xl space-y-4">
+      <p className="text-sm text-slate-500">Reusable values you can drop into emails, SMS, and pages as merge tags — update once and it changes everywhere. Reference as <code className="rounded bg-slate-100 px-1 text-[11px]">{`{{custom_values.key}}`}</code>.</p>
+      {isAdmin && (
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Name</span>
+            <input className={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Office phone" /></label>
+          <label className="flex flex-1 flex-col gap-1"><span className="text-xs font-medium text-slate-600">Value</span>
+            <input className={inp} value={value} onChange={(e) => setValue(e.target.value)} placeholder="+1 416 555 1234" /></label>
+          <button type="button" disabled={!name || busy} onClick={add} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "…" : "Add"}</button>
+        </div>
+      )}
+      {msg && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{msg}</div>}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+            <tr><th className="px-4 py-2">Name</th><th className="px-4 py-2">Merge tag</th><th className="px-4 py-2">Value</th><th className="px-4 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {vals.length === 0 ? <tr><td colSpan={4} className="px-4 py-4 text-center text-slate-400">No custom values yet.</td></tr>
+              : vals.map((v) => (
+                <tr key={v.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2 text-slate-700">{v.name}</td>
+                  <td className="px-4 py-2 font-mono text-[11px] text-slate-400">{`{{custom_values.${v.value_key}}}`}</td>
+                  <td className="px-4 py-2">{isAdmin ? <input defaultValue={v.value} onBlur={(e) => saveVal(v.id, e.target.value)} className="w-full rounded border border-slate-200 px-2 py-1 text-sm" /> : <span className="text-slate-600">{v.value}</span>}</td>
+                  <td className="px-4 py-2 text-right">{isAdmin && <button onClick={() => remove(v.id)} className="text-xs text-red-500 hover:underline">Delete</button>}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function LeadScoringSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [v, setV] = useState<ScoringView | null>(null);
+  const [name, setName] = useState(""); const [trigger, setTrigger] = useState<TriggerType>("form_submitted"); const [points, setPoints] = useState("10");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => { setV(await getScoring(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => setV({ rules: [], hotThreshold: 50 })); }, [load]);
+
+  const add = async () => { setBusy(true); setMsg(null); const r = await createScoringRule(tenantId, { name, trigger_type: trigger, points: Number(points) }); setBusy(false); if (!r.ok) { setMsg(r.message ?? "Could not add."); return; } setName(""); await load(); };
+  const toggle = async (id: string, enabled: boolean) => { await updateScoringRule(tenantId, id, { enabled }); await load(); };
+  const remove = async (id: string) => { const r = await deleteScoringRule(tenantId, id); if (!r.ok) setMsg(r.message ?? "Could not delete."); await load(); };
+  const saveThreshold = async (n: number) => { await setHotThreshold(tenantId, n); await load(); };
+
+  if (!v) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  return (
+    <div className="max-w-2xl space-y-5">
+      <p className="text-sm text-slate-500">Award points when a lead takes an action. When a contact crosses your &quot;hot&quot; threshold, you can prioritize follow-up. (Scoring is applied to contacts in a later step — this defines the rules.)</p>
+
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <span className="text-sm font-medium text-slate-700">Hot-lead threshold</span>
+        <input type="number" disabled={!isAdmin} defaultValue={v.hotThreshold} onBlur={(e) => saveThreshold(Number(e.target.value))} className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <span className="text-xs text-slate-400">points</span>
+      </div>
+
+      {isAdmin && (
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+          <label className="flex flex-1 flex-col gap-1"><span className="text-xs font-medium text-slate-600">Rule name</span>
+            <input className={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Filled out contact form" /></label>
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Trigger</span>
+            <select className={inp} value={trigger} onChange={(e) => setTrigger(e.target.value as TriggerType)}>{TRIGGER_TYPES.map((t) => <option key={t} value={t}>{TRIGGER_LABELS[t]}</option>)}</select></label>
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Points</span>
+            <input type="number" className={`${inp} w-24`} value={points} onChange={(e) => setPoints(e.target.value)} /></label>
+          <button type="button" disabled={!name || busy} onClick={add} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "…" : "Add rule"}</button>
+        </div>
+      )}
+      {msg && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{msg}</div>}
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+            <tr><th className="px-4 py-2">Rule</th><th className="px-4 py-2">Trigger</th><th className="px-4 py-2 text-right">Points</th><th className="px-4 py-2">On</th><th className="px-4 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {v.rules.length === 0 ? <tr><td colSpan={5} className="px-4 py-4 text-center text-slate-400">No scoring rules yet.</td></tr>
+              : v.rules.map((r: ScoringRuleView) => (
+                <tr key={r.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2 text-slate-700">{r.name}</td>
+                  <td className="px-4 py-2 text-slate-500">{TRIGGER_LABELS[r.trigger_type]}</td>
+                  <td className={`px-4 py-2 text-right font-medium ${r.points < 0 ? "text-red-600" : "text-emerald-600"}`}>{r.points > 0 ? `+${r.points}` : r.points}</td>
+                  <td className="px-4 py-2">{isAdmin ? <input type="checkbox" checked={r.enabled} onChange={(e) => toggle(r.id, e.target.checked)} className="h-4 w-4 accent-[#1e3a8a]" /> : (r.enabled ? "✓" : "—")}</td>
+                  <td className="px-4 py-2 text-right">{isAdmin && <button onClick={() => remove(r.id)} className="text-xs text-red-500 hover:underline">Delete</button>}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AuditLogSection({ tenantId }: { tenantId: string }) {
+  const [rows, setRows] = useState<TenantAuditEntry[] | null>(null);
+  useEffect(() => { listTenantAudit(tenantId).then(setRows).catch(() => setRows([])); }, [tenantId]);
+  if (!rows) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  return (
+    <div className="max-w-3xl space-y-3">
+      <p className="text-sm text-slate-500">Recent changes in your workspace — connections, settings, and verifications. Read-only.</p>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+            <tr><th className="px-4 py-2">When</th><th className="px-4 py-2">Action</th><th className="px-4 py-2">By</th></tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">No activity yet.</td></tr>
+              : rows.map((a) => (
+                <tr key={a.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2 text-slate-400">{new Date(a.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-2 text-slate-700">{a.action.replace(/[._]/g, " ")}</td>
+                  <td className="px-4 py-2 text-slate-600">{a.actor_email ?? "—"}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
