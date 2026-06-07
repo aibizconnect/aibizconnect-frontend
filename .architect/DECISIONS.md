@@ -55,4 +55,9 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-049] shopify_gotchas — API version pinned 2024-01, offline token (no per-user grant), shop-domain normalization, minimal read scopes; webhooks/Billing/GDPR/write-scopes deferred (defined)
 [D-050] verified_shopify_integration — migration 0035 + lib/server/shopify.ts + shopify-actions.ts + /api/shopify/callback (HMAC-first) + Settings ShopifyCard VERIFIED against all SHOP/SHOP-CB checks; e-commerce Launchpad step now satisfiable (verified)
 [D-051] next_phase_payments — proceed to Payments integration (Stripe/PayPal) next (ruled)
+[D-052] approve_payments_design — Stripe (API keys, Connect later) + PayPal (client creds); VERIFY-ONLY, no charge/transfer functions exist; reuse tenant_integrations/tenant_secrets (approved)
+[D-053] define_payments_checks — Supervisor checks PAY-V1..V16, incl. PAY-V14 no-charge guarantee (defined)
+[D-054] payments_gotchas — livemode auto-detect (sk_live_), restricted-key hint, PayPal sandbox/live base URL, key-rotation hint; Stripe Connect + webhooks deferred (defined)
+[D-055] verified_payments_integration — lib/server/payments.ts + payments-actions.ts + Settings PaymentsCards (Stripe/PayPal, guided) VERIFIED against all PAY checks incl. no-charge guarantee (verified)
+[D-056] core_integrations_complete — Core Integrations phase (Twilio → Shopify → Payments) COMPLETE (complete)
 

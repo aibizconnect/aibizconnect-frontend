@@ -6,9 +6,10 @@ import {
   listSocialAccounts, getOAuthStartUrl, disconnectSocialAccount, refreshSocialToken,
   type SocialProviderStatus, type SocialAccountView,
 } from "./social-actions";
-import { listIntegrations, getTenantSettings, setTenantSetting, type IntegrationView } from "./integrations-actions";
+import { getTenantSettings, setTenantSetting } from "./integrations-actions";
 import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
 import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type ShopifyStoreView } from "./shopify-actions";
+import { getPaymentsSettings, saveStripe, savePaypal, testPayments, disconnectPayment, type PaymentsView } from "./payments-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -21,13 +22,6 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   youtube: { label: "YouTube", accent: "#FF0000", glyph: "▶" },
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
-
-const CORE_PROVIDERS = [
-  { provider: "twilio", label: "Twilio", desc: "SMS / voice — texts, calls, and notifications.", accent: "#F22F46" },
-  { provider: "shopify", label: "Shopify", desc: "Sync products and orders from your store.", accent: "#95BF47" },
-  { provider: "stripe", label: "Stripe", desc: "Accept card payments and subscriptions.", accent: "#635BFF" },
-  { provider: "paypal", label: "PayPal", desc: "Accept PayPal and card payments.", accent: "#003087" },
-];
 
 type Tab = "integrations" | "preferences";
 
@@ -51,14 +45,12 @@ function Initial({ name, accent }: { name?: string | null; accent: string }) {
 export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
   const [tab, setTab] = useState<Tab>("integrations");
   const [social, setSocial] = useState<SocialProviderStatus[] | null>(null);
-  const [core, setCore] = useState<IntegrationView[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [s, ints] = await Promise.all([listSocialAccounts(tenantId), listIntegrations(tenantId)]);
-    setSocial(s); setCore(ints);
+    setSocial(await listSocialAccounts(tenantId));
   }, [tenantId]);
 
   useEffect(() => { load().catch((e) => setError(e?.message ?? "Could not load settings.")); }, [load]);
@@ -183,25 +175,14 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
           <section>
             <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Messaging &amp; commerce</h2>
             <p className="mb-3 text-xs text-slate-400">Twilio, Shopify, and payment gateways.</p>
-            <div className="mb-3 space-y-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /><ShopifyCard tenantId={tenantId} isAdmin={isAdmin} /></div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {CORE_PROVIDERS.filter((c) => c.provider !== "twilio" && c.provider !== "shopify").map((c) => {
-                const existing = core.find((i) => i.provider === c.provider);
-                const status = existing?.status ?? "disconnected";
-                return (
-                  <div key={c.provider} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: c.accent }}>{c.label[0]}</span>
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">{c.label}<StatusPill status={status} /></div>
-                        <div className="text-xs text-slate-400">{c.desc}</div>
-                      </div>
-                    </div>
-                    <span className="flex-none rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-400">soon</span>
-                  </div>
-                );
-              })}
-            </div>
+            <div className="space-y-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /><ShopifyCard tenantId={tenantId} isAdmin={isAdmin} /></div>
+          </section>
+
+          {/* Payments */}
+          <section>
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Payments</h2>
+            <p className="mb-3 text-xs text-slate-400">Connect a gateway to accept payments. We only verify your keys here — no charges are ever made from this screen.</p>
+            <PaymentsCards tenantId={tenantId} isAdmin={isAdmin} />
           </section>
         </div>
       )}
@@ -383,6 +364,99 @@ function ShopifyCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean
           {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+function PaymentsCards({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [v, setV] = useState<PaymentsView | null>(null);
+  const [open, setOpen] = useState<"stripe" | "paypal" | null>(null);
+  const [sk, setSk] = useState(""); const [pk, setPk] = useState("");
+  const [ppId, setPpId] = useState(""); const [ppSecret, setPpSecret] = useState(""); const [ppEnv, setPpEnv] = useState<"live" | "sandbox">("sandbox");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await getPaymentsSettings(tenantId);
+    setV(r); setPk(r.stripe.config.publishable_key ?? ""); setPpEnv(r.paypal.config.environment === "live" ? "live" : "sandbox");
+  }, [tenantId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  const doStripe = async () => { setBusy("stripe"); setMsg(null); const r = await saveStripe(tenantId, { secret_key: sk || undefined, publishable_key: pk }); setBusy(null); setMsg({ ok: r.ok, text: r.ok ? `Verified ✓ ${r.livemode ? "(LIVE mode)" : "(test mode)"}` : (r.message ?? "Failed.") }); setSk(""); await load(); };
+  const doPaypal = async () => { setBusy("paypal"); setMsg(null); const r = await savePaypal(tenantId, { client_id: ppId || (v?.paypal.config.client_id ?? ""), client_secret: ppSecret || undefined, environment: ppEnv }); setBusy(null); setMsg({ ok: r.ok, text: r.ok ? "Verified ✓" : (r.message ?? "Failed.") }); setPpSecret(""); await load(); };
+  const test = async (p: "stripe" | "paypal") => { setBusy(p); const r = await testPayments(tenantId, p); setBusy(null); setMsg({ ok: r.ok, text: r.message ?? "" }); await load(); };
+  const disc = async (p: "stripe" | "paypal") => { setBusy(p); const r = await disconnectPayment(tenantId, p); setBusy(null); if (r.ok) { setMsg({ ok: true, text: "Disconnected." }); if (p === "stripe") setSk(""); else setPpSecret(""); await load(); } };
+
+  if (!v) return <div className="py-4 text-center text-sm text-slate-400">Loading…</div>;
+  const live = v.stripe.config.livemode;
+
+  return (
+    <div className="space-y-3">
+      {/* Stripe */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "#635BFF" }}>S</span>
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">Stripe<StatusPill status={v.stripe.status} />{v.stripe.hasSecret && <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${live ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"}`}>{live ? "live" : "test"}</span>}</div>
+              <div className="text-xs text-slate-400">Cards &amp; subscriptions. We only verify your keys here.</div>
+            </div>
+          </div>
+          <button type="button" onClick={() => setOpen(open === "stripe" ? null : "stripe")} className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">{open === "stripe" ? "Close" : v.stripe.hasSecret ? "Manage" : "Connect"}</button>
+        </div>
+        {open === "stripe" && (
+          <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+            <div className="rounded-lg bg-indigo-50 p-3"><Tip><b className="text-slate-600">Where to find these:</b> in your <Ext href="https://dashboard.stripe.com/apikeys">Stripe Dashboard → Developers → API keys</Ext>. Tip: create a <b>restricted key</b> with read access only — safest for verification.</Tip></div>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Secret key {v.stripe.hasSecret && <span className="text-emerald-600">· stored ✓</span>}</span>
+              <input className={inp} type="password" disabled={!isAdmin} value={sk} onChange={(e) => setSk(e.target.value.trim())} placeholder={v.stripe.hasSecret ? "•••••••• (leave blank to keep)" : "sk_live_… / sk_test_… / rk_…"} />
+              <Tip>Encrypted at rest. <code>sk_live_</code> = real charges later; <code>sk_test_</code> = test mode. We never charge from this screen.</Tip>
+            </label>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Publishable key</span>
+              <input className={inp} disabled={!isAdmin} value={pk} onChange={(e) => setPk(e.target.value.trim())} placeholder="pk_live_… / pk_test_…" /></label>
+            {msg && open === "stripe" && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+            {isAdmin && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy === "stripe"} onClick={doStripe} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy === "stripe" ? "Verifying…" : "Save & verify"}</button>
+                {v.stripe.hasSecret && <button type="button" disabled={busy === "stripe"} onClick={() => test("stripe")} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">Test</button>}
+                {v.stripe.hasSecret && <button type="button" disabled={busy === "stripe"} onClick={() => disc("stripe")} className="rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* PayPal */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "#003087" }}>P</span>
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">PayPal<StatusPill status={v.paypal.status} />{v.paypal.hasSecret && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{v.paypal.config.environment ?? "sandbox"}</span>}</div>
+              <div className="text-xs text-slate-400">PayPal &amp; card payments. Verify-only here.</div>
+            </div>
+          </div>
+          <button type="button" onClick={() => setOpen(open === "paypal" ? null : "paypal")} className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">{open === "paypal" ? "Close" : v.paypal.hasSecret ? "Manage" : "Connect"}</button>
+        </div>
+        {open === "paypal" && (
+          <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+            <div className="rounded-lg bg-sky-50 p-3"><Tip><b className="text-slate-600">Where to find these:</b> create an app in the <Ext href="https://developer.paypal.com/dashboard/applications">PayPal Developer Dashboard</Ext> to get a Client ID + Secret. Choose Sandbox for testing, Live for production.</Tip></div>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Environment</span>
+              <select className={inp} disabled={!isAdmin} value={ppEnv} onChange={(e) => setPpEnv(e.target.value as "live" | "sandbox")}><option value="sandbox">Sandbox (testing)</option><option value="live">Live</option></select></label>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Client ID</span>
+              <input className={inp} disabled={!isAdmin} value={ppId || (v.paypal.config.client_id ?? "")} onChange={(e) => setPpId(e.target.value.trim())} placeholder="Axxxx…" /></label>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Secret {v.paypal.hasSecret && <span className="text-emerald-600">· stored ✓</span>}</span>
+              <input className={inp} type="password" disabled={!isAdmin} value={ppSecret} onChange={(e) => setPpSecret(e.target.value)} placeholder={v.paypal.hasSecret ? "•••••••• (leave blank to keep)" : "your client secret"} /></label>
+            {msg && open === "paypal" && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+            {isAdmin && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy === "paypal"} onClick={doPaypal} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy === "paypal" ? "Verifying…" : "Save & verify"}</button>
+                {v.paypal.hasSecret && <button type="button" disabled={busy === "paypal"} onClick={() => test("paypal")} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">Test</button>}
+                {v.paypal.hasSecret && <button type="button" disabled={busy === "paypal"} onClick={() => disc("paypal")} className="rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

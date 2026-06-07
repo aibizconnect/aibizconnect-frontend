@@ -1,46 +1,38 @@
-# Builder → Architect: VERIFY Shopify integration (SHOP-V1..V15, SHOP-CB-V1..V10)
+# Builder → Architect: VERIFY Payments integration (PAY-V1..V16)
 
-Built per D-047..D-049. typecheck clean. Files:
+Built per D-052..D-054. No migration (reuses tenant_integrations + encrypted tenant_secrets).
+typecheck clean. Files:
 
-## migration 0035_shopify_stores.sql
-public.tenant_shopify_stores (id, tenant_id, shop_domain, shop_name, email, plan_name, scopes text[]
-NOT NULL DEFAULT '{}', status default 'connected', encrypted_tokens text NOT NULL, connected_by,
-config jsonb, created_at, updated_at; UNIQUE(tenant_id, shop_domain)). Index idx_tss_tenant.
-Idempotent. → SHOP-V1..V4.
+## lib/server/payments.ts (server-only, NOT "use server") — VERIFY-ONLY
+- Stripe: getStripeCreds (decrypt {secret_key}), stripeReady, stripeIsLiveKey (sk_live_ prefix),
+  testStripe → GET https://api.stripe.com/v1/account (Bearer) → {accountId, displayName,
+  chargesEnabled}. NON-charging. → PAY-V1, PAY-V10, PAY-V16.
+- PayPal: getPaypalCreds (decrypt {client_id, client_secret}), paypalReady, paypalEnvironment (from
+  config), paypalBaseUrl (live vs sandbox), testPaypal → POST /v1/oauth2/token client_credentials
+  (Basic) → access_token presence. NON-charging. → PAY-V3, PAY-V12, PAY-V16.
+- CRITICAL: there are NO functions for charge/payout/refund/transfer/createOrder anywhere in this
+  module or the actions — they are simply ABSENT. → PAY-V14.
 
-## lib/server/shopify.ts (server-only)
-- SHOPIFY_API_VERSION '2024-01' pinned; SCOPES read_products/read_orders/read_shop. → D-049.
-- normalizeShopDomain/isShopDomain (canonical *.myshopify.com).
-- shopifyAppCreds(): env SHOPIFY_API_KEY/SECRET else encrypted SYSTEM_TENANT_ID 'shopify_platform_app'.
-  shopifyReady() graceful degrade. → SHOP-V9, SHOP-V15.
-- makeShopifyState/readShopifyState: encrypted {tenantId, shop, nonce, ts}, 15-min TTL.
-- buildShopifyAuthorizeUrl(shop, state): client_id, scope, redirect_uri, state; NO grant_options[]=
-  per-user → OFFLINE token. → SHOP-V8.
-- verifyShopifyHmac(params): HMAC-SHA256 over sorted querystring excluding hmac/signature, app secret,
-  timing-safe compare. → SHOP-CB-V2.
-- completeShopifyCore(tenantId, shop, code, connectedBy): GATE-FREE. POST /admin/oauth/access_token →
-  offline token; fetch /admin/api/2024-01/shop.json metadata; encryptSecret(tokens) → encrypted_tokens;
-  upsert tenant_shopify_stores (shop_domain/name/email/plan/scopes/status); upsert non-secret
-  tenant_integrations 'shopify' summary; audit shopify.oauth_complete. → SHOP-V11/V12/V13, SHOP-V14.
-- getShopifyTokens(): SERVER-ONLY decrypt.
+## app/tenants/[tenantId]/settings/payments-actions.ts ("use server")
+- getPaymentsSettings → per-provider {status, non-secret config, hasSecret}. NEVER secret_key /
+  client_secret / client_id-as-secret. → PAY-V5.
+- saveStripe → requireTenantAccess + requireAdminWrite; validate pk_/sk_/rk_ prefixes; encrypt
+  {secret_key}; detect livemode from sk_live_; upsert tenant_integrations config {publishable_key,
+  livemode, account_id, display_name, charges_enabled}; testStripe → status connected/error; audited.
+  → PAY-V2, PAY-V6, PAY-V7, PAY-V8, PAY-V9, PAY-V15.
+- savePaypal → admin-gated; encrypt {client_id, client_secret}; config {environment}; testPaypal →
+  status; audited. → PAY-V4, PAY-V11, PAY-V15.
+- testPayments(provider) / disconnectPayment(provider) → admin-gated; disconnect deletes secret +
+  status disconnected; audited. → PAY-V13, PAY-V15.
 
-## app/tenants/[tenantId]/settings/shopify-actions.ts ("use server")
-- listShopifyStores: non-secret rows + hasTokens (never blob) + ready. → SHOP-V6.
-- getShopifyStartUrl: requireTenantAccess + requireAdminWrite; validates shop; builds state+url; audit
-  shopify.oauth_start. → SHOP-V5, SHOP-V7, SHOP-V8, SHOP-V14.
-- disconnectShopifyStore: admin-gated; delete row; flip tenant_integrations summary; audit. → SHOP-V10/V14.
+## UI — SettingsHub PaymentsCards (Stripe + PayPal)
+Guided forms with where-to-find LINKS (Stripe API keys dashboard, PayPal developer apps), restricted-
+key recommendation, test/live badge (from livemode), PayPal Sandbox/Live selector, and a "we only
+verify — no charges are ever made from this screen" note. No secret rendered (hasSecret/"stored ✓").
+Stripe/PayPal cards moved out of the "soon" list into a dedicated Payments section.
 
-## app/api/shopify/callback/route.ts (GET) → SHOP-CB-V1
-Order: (1) verifyShopifyHmac FIRST → fallback ?shopify_error=hmac_failed on fail. (2) isShopDomain(shop).
-(3) readShopifyState; require parsed && parsed.shop===shop (tenantId ONLY from state). → SHOP-CB-V2/V3/
-V4/V5. ?error / missing code → settings ?error=. completeShopifyCore(tenantId, shop, code). Audit
-shopify.oauth_callback_received. Success → 302 settings?connected=shopify&shop=<shop>. No token in URL.
-→ SHOP-CB-V6/V7/V8/V9/V10.
+Gotchas (D-054): livemode auto-detected from sk_live_; restricted-key UI hint; PayPal base URL by
+environment; key rotation = UI hint only. Deferred: Stripe Connect OAuth, webhooks.
 
-## UI
-SettingsHub ShopifyCard: guided (shop-domain input, where-to-find link, "no auto-sync" tip), connect
-opens OAuth in new tab, multi-store list with disconnect, status pill, hasTokens only. Result banner
-reads ?connected=shopify&shop=. Other providers (Stripe/PayPal) stay "soon".
-
-Deferred per D-049: webhooks, Billing API, GDPR mandatory webhooks, write scopes/re-auth, product/order
-sync. Please VERIFY all SHOP + SHOP-CB checks and append DECISION-LOG. Next: payments.
+Please VERIFY PAY-V1..V16 — especially PAY-V14 (no charge/transfer code exists) — and append
+DECISION-LOG. This completes the Core integrations phase (Twilio → Shopify → payments).
