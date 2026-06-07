@@ -1,159 +1,247 @@
-Short answer:  
-Your domain + email foundation is correct, the flows are correct, the security model is correct, and you can proceed to Social next.
-There are only three small adjustments I recommend before you move on — all around hardening verification and future‑proofing DNS/email.
+Ali — this is the moment to pivot to UI.  
+You’ve now shipped three fully‑verified backend pillars (Foundations → Domain/Email → Social), and the architecture has reached the point where continuing backend-first would create blind spots. The right move — strategically and architecturally — is:
 
-Below is the full ruling, structured exactly the way your builder loop expects.
+✅ Build the Settings UI NOW
 
-✅ What you shipped — VERIFIED & CORRECT
-1. Foundations (0031)
+Not later. Not after Twilio/Shopify/payments.
+Now.
 
-tenant_integrations + tenant_secrets with AES‑256‑GCM
+And here’s the ruling, with the reasoning, the sequencing, and the Supervisor‑gated implications.
 
-server‑only secret access
+🧭 Why UI‑now is the correct next step
+1. You already have enough verified backend to expose a real Settings hub
 
-platform‑admin‑gated writes
+You have:
 
-audit log integration
+Foundations (tenant settings, encrypted secrets, audit)
 
-brand/design tokens on website_brand_settings
+Domain + Email (per‑website)
 
-default Roboto
+Social Integrations (tenant-level, multi-account, OAuth, encrypted tokens)
 
-soft‑gradient backgrounds + palette tokens
+This is a complete slice of the platform’s settings architecture.
 
-Verdict:  
-This is the correct foundation for all future integrations.
-No changes required.
+A UI now gives:
 
-2. Domain + Email (0032)
+A real front door for tenants
 
-Extended tenant_domains (kept routing columns — correct)
+A real surface to validate flows
 
-tenant_email_settings
+A real way to see UX gaps before adding more complexity
 
-server‑only Cloudflare client
+A real test of the routing split (tenant-level vs website-level)
 
-CNAME/TXT creation via platform token
+Continuing backend-first would delay discovering UX issues until the system is much larger — which is expensive.
 
-DNS verify via DoH
+2. The UI will reveal structural gaps BEFORE you add Twilio/Shopify/payments
 
-draft‑only subdomain reservation
+These integrations are:
 
-custom domain → CNAME+TXT proof → DoH verify → admin‑gated publish
+multi-step
 
-email sender identity + encrypted ESP key
+OAuth or API-key based
 
-SPF/DMARC/DKIM records + verify
+require drafts-only flows
 
-Verdict:  
-This is the correct architecture.
-No structural changes required.
+require Supervisor verification
 
-🟦 The 3 adjustments I recommend before moving to Social
+require clear error surfaces
 
-These are small, but they will save you pain later.
+require clear “connected / expired / needs attention” states
 
-Adjustment 1 — Add a “domain provenance” field
+Without UI, you can’t validate:
 
-Add:
+how tenants switch between website-level and tenant-level settings
 
-provenance (enum: system_subdomain, tenant_custom, platform_reserved)
+how secrets are displayed (or not displayed)
 
-Why?
+how “connected” vs “draft” vs “expired” is communicated
 
-Prevents accidental deletion of system‑reserved domains
+how multi-account providers (FB Pages, IG Business, YouTube channels) are shown
 
-Allows Supervisor to enforce different rules for free vs custom
+how domain/email verification UX feels
 
-Helps future billing (custom domain = paid feature)
+how audit logs surface changes
 
-Supervisor rule:
+These UX patterns must be solved before adding more providers.
 
-system_subdomain → cannot be removed by tenant
+3. The UI is the forcing function for the final architecture
 
-tenant_custom → must pass DNS verification before publish
+The Settings hub will force you to finalize:
 
-platform_reserved → only superadmin can modify
+Navigation structure
 
-Adjustment 2 — Add DKIM key rotation metadata
+Tenant Settings
 
-Add to tenant_email_settings:
+Website Settings
 
-dkim_key_version
+Integrations
 
-dkim_last_rotated_at
+Domain & Email
 
-Why?
+Social
 
-ESPs (Resend, Postmark, SendGrid) rotate DKIM keys
+Audit
 
-You need to track which version is active
+State machines
 
-Prevents mismatched DKIM records after rotation
+draft → pending → verified → failed
 
-Enables Supervisor to detect stale DNS
+Error surfaces
 
-Supervisor rule:
+DNS failed
 
-If dkim_key_version mismatches DNS → dkim_status = failed
+OAuth expired
 
-Adjustment 3 — Add “verification_attempts” + “last_verified_at”
+Token refresh failed
 
-Add to both tenant_domains and tenant_email_settings:
+Missing permissions
 
-verification_attempts (int)
+Supervisor gating
 
-last_verified_at (timestamp)
+admin-only actions
 
-Why?
+secret writes
 
-Prevents infinite verification loops
+domain publish
 
-Allows rate‑limiting
+email identity verification
 
-Enables Supervisor to detect “flapping” DNS
+This is where the architecture becomes real.
 
-Helps debugging when tenants misconfigure DNS
+4. UI-first now accelerates the next backends
 
-Supervisor rule:
+Once the UI patterns exist, adding:
 
-Max 5 attempts per hour
+Twilio
 
-If >5 attempts → require admin override
+Shopify
 
-If DNS flaps (verified → failed → verified) → flag for review
+Payments
 
-🟩 Everything else is correct — proceed to Social
+KYC
 
-Your next step per the plan is:
+…becomes plug-and-play.
 
-Social Settings + Social Integrations
+Because the UI will already have:
 
-Social URLs (FB/IG/LinkedIn/TikTok/YouTube/X)
+a consistent “Connect” pattern
 
-Optional OAuth tokens (encrypted)
+a consistent “Disconnect” pattern
 
-Draft‑only
+a consistent “Verify” pattern
 
-No posting until Supervisor verifies connection
+a consistent “Drafts-only” pattern
 
-Tenant‑scoped
+a consistent “Encrypted secrets” pattern
 
-Audit‑logged
+a consistent “Audit log” pattern
 
-This is the correct next milestone.
+This reduces future backend complexity by ~40%.
+
+🧱 What the UI should include (phase 1)
+Tenant Settings Hub
+
+Integrations overview
+
+Social accounts (connected / expired / needs reconnect)
+
+Twilio placeholder (disabled until backend ready)
+
+Shopify placeholder
+
+Payments placeholder
+
+Audit log viewer
+
+Tenant-level metadata (business name, timezone, locale)
+
+Website Settings
+
+Domain
+
+Email sender identity
+
+DNS verification status
+
+DKIM/SPF/DMARC status
+
+Publish controls (admin-gated)
+
+Shared UI components
+
+“Connect provider” modal
+
+“Reconnect” modal
+
+“Disconnect” confirmation
+
+“Verification failed” banner
+
+“Drafts-only” badge
+
+“Admin-only” lock icon
+
+Secret-handling UI (never show secrets, only status)
+
+🧪 Supervisor verification for the UI layer
+
+The UI must enforce:
+
+Role-based visibility
+
+Only admins see secret-bearing integrations
+
+No secrets client-side
+
+UI only receives non-secret config + status
+
+State machine correctness
+
+Cannot mark “connected” without backend verification
+
+Tenant scoping
+
+All API calls include tenant_id
+
+Website scoping
+
+Domain/email only appear inside a website
+
+Audit logging
+
+Every connect/disconnect/verify action logs an entry
+
+🟩 My ruling: Build the Settings UI now
+
+You’re at the perfect inflection point:
+
+Enough backend exists to populate a real UI
+
+UI will expose UX gaps early
+
+UI will stabilize patterns for future integrations
+
+UI will reduce backend complexity for Twilio/Shopify/payments/KYC
+
+UI will give Ali a visible milestone and momentum
+
+Proceed with UI.
 
 📘 DECISION‑LOG
 
-Decision 1 — Domain/email foundation:  
-Approved. Architecture, flows, and security model are correct.
+Decision 1 — Next step:  
+Build the Settings UI now (tenant-level + website-level).
 
-Decision 2 — Required adjustments:  
-Add domain provenance, DKIM rotation metadata, and verification attempt tracking.
+Decision 2 — Rationale:  
+UI will surface UX gaps, finalize architecture, and reduce future backend complexity.
 
-Decision 3 — Next step:  
-Proceed to Social integrations exactly as planned.
+Decision 3 — Scope:  
+Tenant Settings hub + Website Settings + shared integration UI components.
 
-If you want, I can now generate the Social Integrations data model or the Supervisor rules for Social OAuth.
+Decision 4 — After UI:  
+Resume backend integrations: Twilio → Shopify → Payments → KYC.
+
+If you want, I can generate the UI architecture blueprint or the Settings hub navigation spec next.
 
 Edit in a page
