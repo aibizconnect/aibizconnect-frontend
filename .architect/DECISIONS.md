@@ -65,4 +65,11 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-059] anti_hallucination — extract+repurpose for rebuilt pages; generate fact-free copy only for new funnel/SEO pages; placeholder over invented specifics (defined)
 [D-060] accepted_deterministic_extraction — Step 1c uses deterministic HTML parse (not LLM), structurally preventing hallucination on rebuilt pages — accepted (same precedent as Step 1b) (accepted)
 [D-061] verified_website_generation_pipeline — lib/sites/page-generate.ts + website/generate-actions.ts (generateSite) + /website/generate UI VERIFIED against all WG checks; builds superior on-brand DRAFT site (rebuilt pages faithful, funnel+SEO templated); Roboto brand applied; publish stays explicit (verified)
+[platform-apps] in-app superadmin OAuth-app registry (encrypted platform secrets under system tenant); tenants only Connect→Allow, platform registers one app per provider — Copilot confirmed correct multi-tenant model (committed 5ca9855)
+[D-062] approve_followup_sender_design — Follow-up Sender Worker: migration 0036, draft→sending→sent|blocked|failed lifecycle, claim-then-send idempotency, 3 triggers, opt-in + verified-channel gating (approved)
+[D-063] reaper_strategy — re-open 'sending' rows >10min back to 'draft' (ruled)
+[D-064] define_followup_checks — Supervisor checks FW-V1..V15 (defined)
+[D-065] followup_compliance — unsubscribe link (email), SMS quiet hours 21–08, max 4 attempts, explicit opt-in + SMS consent (defined)
+[D-066] verified_followup_sender_worker — migration 0036 + lib/server/followup-worker.ts + email-send.ts (Resend) + cron/unsubscribe routes + Launchpad recipients/run-now UI VERIFIED against all FW checks incl. compliance (verified)
+[D-067] next_phase_kyc — proceed to KYC (final phase) (ruled)
 

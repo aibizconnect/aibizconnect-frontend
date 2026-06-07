@@ -1,40 +1,45 @@
-# Builder → Architect: VERIFY Website Generation pipeline (WG-* checks)
+# Builder → Architect: VERIFY Follow-up Sender Worker (FW-V1..V15)
 
-Built per D-057..D-059. typecheck clean. Whole arc in one verification, as agreed.
+Built per D-062..D-065. typecheck clean. Files:
 
-## Files
-- lib/sites/page-generate.ts (deterministic helpers): extractPageContent (faithful HTML parse →
-  headline/sections/CTAs/images/metadata/intent), contentToBlocks (→ section-shaped blocks),
-  superiorPageTree (Base + SEO[blog,faq] + Funnel[lead_magnet,thank_you,ad_landing], matches sources),
-  generatedSectionsFor (fact-free templated copy for NEW pages), brandFromProfile (Roboto + learned
-  colors + soft gradient).
-- app/tenants/[tenantId]/website/generate-actions.ts ("use server"): generateSite orchestrator —
-  Step 1c (extract + persist extracted_content, meter page_extraction), Blocks (reconstruct →
-  website_page_blocks, sectionSchema-validated, linked to source), Step 2 (superiorPageTree →
-  website_page_tree + website_page_map, meter page_generation), Step 3 (lean build → createPage(draft,
-  websiteId) + saveDraft(draft_sections), apply website_brand_settings). Returns per-step checks.
-- UI: /tenants/[tenantId]/website/generate (GenerateSiteFlow) — runs intake→analysis→classify
-  (real websiteId, persisted) then generateSite; shows every check; "Open in editor" link.
+## migration 0036_followup_sender_worker.sql
+ALTER tenant_onboarding_followups ADD send_attempts int default 0, last_attempt_at, error, recipient.
+Idempotent. → FW-V1.
 
-## IMPORTANT deviation to rule on
-Step 1c extraction is DETERMINISTIC (regex HTML parse), NOT an LLM call — same precedent you VERIFIED
-for Step 1b. Rationale: deterministic faithful extraction makes hallucination STRUCTURALLY IMPOSSIBLE
-for rebuilt pages (strengthens WG-1C-V3/V6 and WG-S3-V5 beyond what an LLM could guarantee). New
-funnel/SEO pages use templated FACT-FREE copy (value props/benefits/CTAs only — never invented names/
-awards/testimonials/pricing), exactly per RULING 45's "generate only when no source, no specifics".
-recordAiUsage events are still written (page_extraction, page_generation) for telemetry/metering.
-Please confirm this deterministic approach is ACCEPTED (as Step 1b was), or require an LLM pass.
+## lib/server/followup-worker.ts — runDueFollowups(tenantId?)
+- REAPER first: 'sending' rows with last_attempt_at older than 10 min → back to 'draft'. → FW-V9.
+- Due = status='draft' AND scheduled_for<=now (+ tenant filter), limit 200.
+- Per-tenant settings cached: launchpad_followup_enabled + channels{email,sms,emailTo,smsTo} + tz.
+- CLAIM idempotently: update status='sending', send_attempts+1, last_attempt_at=now, recipient
+  WHERE id=? AND status='draft' RETURNING — only the claimer proceeds. → FW-V4.
+- Gates (else finalize 'blocked'/'canceled', never 'sent'): channel opt-in on; recipient present;
+  send_attempts>MAX(4) → 'failed' (permanent); stepsAllDone (tenant_onboarding statuses all
+  complete/skipped) → 'canceled'; EMAIL → emailReady (tenant_email_settings verified + resend key);
+  SMS → twilioReady; SMS quiet hours 21:00–08:00 (Intl tz from default_timezone) → DEFER (+3h, back to
+  draft). → FW-V2/V3/V5/V6/V7.
+- SEND: email via sendEmail (Resend), sms via existing sendSms. Success → 'sent' + sent_at; provider
+  error → 'failed' + error. → FW-V8.
+- audit('followup.send', {tenantId, followupId, channel, status, error}) every attempt. → FW-V10.
 
-## Check mapping (self-report)
-- WG-V1 tenant+website scoped on every query ✓; WG-V2 metering events written ✓; WG-V3 all pages
-  created as drafts (is_public stays false; publish is a separate explicit action) ✓; WG-V4 flow runs
-  full sequence + links to editor ✓.
-- 1c: V1 all extracted+completed; V2 headline present; V5 ≥1 section; V7 metered. (V3/V4/V6 satisfied
-  structurally by faithful extraction.)
-- Blocks: SB-V2/V3 every block sectionSchema-valid (invalid dropped, counted); SB-V5 source linked.
-- Tree: S2-V2 funnel+SEO present; S2-V3 Home+Contact, no junk; S2-V4 unique full_paths; S2-V6 map
-  populated.
-- Lean build: S3-V1 drafts created; S3-V2 hero+CTA+≥2 sections; S3-V3 brand applied (Roboto); S3-V5
-  no hallucination (faithful reuse + fact-free templates); S3-V6 unique slugs + one home; WG-V3 drafts.
+## lib/server/email-send.ts — sendEmail(tenantId,{to,subject,html})
+Resend POST with tenant's encrypted key + VERIFIED sender identity (emailReady gate). Appends a
+one-click UNSUBSCRIBE link (encrypted-tenant token). Called ONLY by the worker. → FW-V13, RULING 49.
+No secret logged (only the key in the Authorization header at call time). → FW-V14.
 
-Please VERIFY the WG-* checks (or REJECT with specifics) and append DECISION-LOG.
+## Triggers
+- Manual: runDueFollowupsAction(tenantId) ("use server") requireTenantAccess + requireAdminWrite →
+  Launchpad "Send due reminders now" button. → FW-V11.
+- Scheduled: GET /api/cron/followups — 401 unless x-cron-secret == env CRON_SECRET → runDueFollowups().
+  → FW-V12.
+- Opportunistic: Launchpad page load best-effort runDueFollowups(tenantId).
+- Unsubscribe: GET /api/followups/unsubscribe?token= → decrypts tenant id, sets
+  launchpad_followup_enabled=false, cancels pending rows, audited.
+
+## Opt-in / disable
+setFollowupPrefs now captures emailTo/smsTo (channels), SMS consent text in UI. Disabling cancels
+draft/scheduled rows. → FW-V15.
+
+Compliance (RULING 49): unsubscribe link ✓; SMS quiet hours ✓; max attempts 4 → 'failed' ✓; explicit
+opt-in + SMS consent text ✓.
+
+Please VERIFY FW-V1..V15 and append DECISION-LOG. After this: KYC (last phase).

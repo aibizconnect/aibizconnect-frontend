@@ -10,5 +10,7 @@ export default async function LaunchpadPage({ params }: { params: Promise<{ tena
   const { tenantId } = await params;
   const imp = await getImpersonation();
   const isAdmin = imp.realRole === "superadmin" || imp.realRole === "admin";
+  // Opportunistic trigger: best-effort send of any due follow-ups (no-op unless opted in + due).
+  try { const { runDueFollowups } = await import("@/lib/server/followup-worker"); await runDueFollowups(tenantId); } catch { /* best effort */ }
   return <Launchpad tenantId={tenantId} isAdmin={isAdmin} />;
 }

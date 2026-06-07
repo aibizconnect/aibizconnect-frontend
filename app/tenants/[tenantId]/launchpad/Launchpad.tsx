@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  getLaunchpadState, verifyStep, setStepSkipped, setFollowupPrefs, dismissLaunchpad,
+  getLaunchpadState, verifyStep, setStepSkipped, setFollowupPrefs, dismissLaunchpad, runDueFollowupsAction,
   type LaunchpadState, type LaunchpadStep,
 } from "./actions";
 
@@ -28,6 +28,7 @@ export default function Launchpad({ tenantId, isAdmin }: { tenantId: string; isA
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [runMsg, setRunMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const s = await getLaunchpadState(tenantId);
@@ -56,6 +57,12 @@ export default function Launchpad({ tenantId, isAdmin }: { tenantId: string; isA
     const r = await setFollowupPrefs(tenantId, next);
     if (!r.ok) setError(r.message ?? "Could not save follow-up settings.");
     else setNotice(next.enabled ? `Follow-up reminders scheduled${r.scheduled ? ` (${r.scheduled} drafts)` : ""}. Nothing sends until a send is enabled.` : "Follow-up reminders turned off.");
+  };
+
+  const runNow = async () => {
+    setRunMsg("…");
+    const r = await runDueFollowupsAction(tenantId);
+    setRunMsg(r.ok ? `Done — ${r.sent ?? 0} sent, ${r.blocked ?? 0} blocked, ${r.failed ?? 0} failed.` : (r.message ?? "Could not run."));
   };
 
   if (!state) return <div className="py-16 text-center text-sm text-slate-400">Loading your Launchpad…</div>;
@@ -130,14 +137,36 @@ export default function Launchpad({ tenantId, isAdmin }: { tenantId: string; isA
           </label>
         </div>
         {state.followup.enabled && (
-          <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-100 pt-3">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" disabled={!isAdmin} checked={state.followup.email} onChange={(e) => saveFollowup({ email: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> Email
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" disabled={!isAdmin} checked={state.followup.sms} onChange={(e) => saveFollowup({ sms: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> SMS
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">Twilio soon</span>
-            </label>
+          <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex-1">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" disabled={!isAdmin} checked={state.followup.email} onChange={(e) => saveFollowup({ email: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> Email reminders
+                </label>
+                {state.followup.email && (
+                  <input disabled={!isAdmin} value={state.followup.emailTo} onChange={(e) => setState({ ...state, followup: { ...state.followup, emailTo: e.target.value } })} onBlur={() => saveFollowup({})}
+                    placeholder="where to send (your email)" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                )}
+              </div>
+              <div className="flex-1">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" disabled={!isAdmin} checked={state.followup.sms} onChange={(e) => saveFollowup({ sms: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> SMS reminders
+                </label>
+                {state.followup.sms && (
+                  <>
+                    <input disabled={!isAdmin} value={state.followup.smsTo} onChange={(e) => setState({ ...state, followup: { ...state.followup, smsTo: e.target.value } })} onBlur={() => saveFollowup({})}
+                      placeholder="+1 415 555 1234 (E.164)" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                    <p className="mt-1 text-[11px] text-slate-400">By enabling SMS you consent to receive text reminders. Quiet hours (9pm–8am) are respected. Requires Twilio connected.</p>
+                  </>
+                )}
+              </div>
+            </div>
+            {isAdmin && (
+              <button disabled={!!runMsg && runMsg === "…"} onClick={runNow} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+                {runMsg === "…" ? "Running…" : "Send due reminders now"}
+              </button>
+            )}
+            {runMsg && runMsg !== "…" && <span className="ml-2 text-xs text-slate-500">{runMsg}</span>}
           </div>
         )}
         {!isAdmin && <p className="mt-2 text-[11px] text-slate-400">Admin required to change follow-up settings.</p>}

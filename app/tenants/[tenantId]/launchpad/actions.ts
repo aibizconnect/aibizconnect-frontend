@@ -23,7 +23,7 @@ export interface LaunchpadStep {
 }
 export interface LaunchpadState {
   steps: LaunchpadStep[]; progress: number; dismissed: boolean;
-  followup: { enabled: boolean; email: boolean; sms: boolean };
+  followup: { enabled: boolean; email: boolean; sms: boolean; emailTo: string; smsTo: string };
 }
 
 /** Run every step's verify(), upsert tenant_onboarding, return the full state + progress%. */
@@ -71,7 +71,7 @@ export async function getLaunchpadState(tenantId: string): Promise<LaunchpadStat
   return {
     steps, progress,
     dismissed: sv.get("launchpad_dismissed") === true || sv.get("launchpad_dismissed") === "true",
-    followup: { enabled: sv.get("launchpad_followup_enabled") === true || sv.get("launchpad_followup_enabled") === "true", email: !!channels.email, sms: !!channels.sms },
+    followup: { enabled: sv.get("launchpad_followup_enabled") === true || sv.get("launchpad_followup_enabled") === "true", email: !!channels.email, sms: !!channels.sms, emailTo: channels.emailTo ?? "", smsTo: channels.smsTo ?? "" },
   };
 }
 
@@ -125,7 +125,7 @@ export async function dismissLaunchpad(tenantId: string, dismissed: boolean): Pr
  * until the Twilio backend lands. Admin-gated, audited.
  */
 export async function setFollowupPrefs(
-  tenantId: string, prefs: { enabled: boolean; email: boolean; sms: boolean }
+  tenantId: string, prefs: { enabled: boolean; email: boolean; sms: boolean; emailTo?: string; smsTo?: string }
 ): Promise<{ ok: boolean; scheduled?: number; message?: string }> {
   await requireTenantAccess(tenantId);
   try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
@@ -135,7 +135,7 @@ export async function setFollowupPrefs(
 
   await supabase.from("tenant_settings").upsert([
     { tenant_id: tenantId, setting_key: "launchpad_followup_enabled", setting_value: prefs.enabled, updated_at: nowIso },
-    { tenant_id: tenantId, setting_key: "launchpad_followup_channels", setting_value: { email: prefs.email, sms: prefs.sms }, updated_at: nowIso },
+    { tenant_id: tenantId, setting_key: "launchpad_followup_channels", setting_value: { email: prefs.email, sms: prefs.sms, emailTo: (prefs.emailTo ?? "").trim(), smsTo: (prefs.smsTo ?? "").trim() }, updated_at: nowIso },
   ], { onConflict: "tenant_id,setting_key" });
 
   let scheduled = 0;
@@ -161,6 +161,15 @@ export async function setFollowupPrefs(
     // Disabling cancels any pending drafts/scheduled rows (never deletes history of sent).
     await supabase.from("tenant_onboarding_followups").update({ status: "canceled", updated_at: nowIso }).eq("tenant_id", tenantId).in("status", ["draft", "scheduled"]);
   }
-  await audit("launchpad.set_followup_prefs", { tenantId, ...prefs, scheduled });
+  await audit("launchpad.set_followup_prefs", { tenantId, enabled: prefs.enabled, email: prefs.email, sms: prefs.sms, scheduled });
   return { ok: true, scheduled };
+}
+
+/** Manual trigger (admin): run this tenant's due follow-ups now. Idempotent + gated by the worker. */
+export async function runDueFollowupsAction(tenantId: string): Promise<{ ok: boolean; sent?: number; blocked?: number; failed?: number; message?: string }> {
+  await requireTenantAccess(tenantId);
+  try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
+  const { runDueFollowups } = await import("@/lib/server/followup-worker");
+  const r = await runDueFollowups(tenantId);
+  return { ok: true, sent: r.sent, blocked: r.blocked, failed: r.failed };
 }
