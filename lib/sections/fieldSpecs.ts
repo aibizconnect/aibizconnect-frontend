@@ -78,6 +78,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
         { kind: "text", key: "avatarUrl", label: "Avatar URL (optional)" },
       ],
     },
+    { kind: "select", key: "layout", label: "Layout", options: ["grid", "carousel"] },
   ],
   listings: [
     { kind: "text", key: "heading", label: "Heading" },
@@ -229,8 +230,16 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "text", key: "ctaLabel", label: "Button label" }, { kind: "text", key: "ctaHref", label: "Button link" },
   ] }],
   faq: [{ kind: "array", key: "items", label: "Questions", itemLabel: "Q&A", itemFields: [{ kind: "text", key: "q", label: "Question" }, { kind: "text", key: "a", label: "Answer", multiline: true }] }],
-  gallery: [{ kind: "array", key: "images", label: "Images", itemLabel: "Image", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] }],
-  logos: [{ kind: "array", key: "images", label: "Logos", itemLabel: "Logo", itemFields: [{ kind: "text", key: "url", label: "Logo URL" }] }],
+  gallery: [
+    { kind: "array", key: "images", label: "Images", itemLabel: "Image", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] },
+    { kind: "number", key: "columns", label: "Columns", min: 2, max: 6 },
+    { kind: "boolean", key: "lightbox", label: "Click to enlarge (lightbox)" },
+  ],
+  logos: [
+    { kind: "array", key: "images", label: "Logos", itemLabel: "Logo", itemFields: [{ kind: "text", key: "url", label: "Logo URL" }] },
+    { kind: "boolean", key: "scroll", label: "Auto-scroll (marquee)" },
+    { kind: "boolean", key: "grayscale", label: "Grayscale" },
+  ],
   social: [{ kind: "array", key: "links", label: "Links", itemLabel: "Link", itemFields: [{ kind: "text", key: "platform", label: "Platform" }, { kind: "text", key: "url", label: "URL" }] }],
   slider: [
     { kind: "array", key: "images", label: "Slides", itemLabel: "Slide", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] },

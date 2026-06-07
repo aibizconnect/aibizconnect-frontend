@@ -1,5 +1,6 @@
 import type { TestimonialsContent } from "@/lib/sections/schemas";
 import { DEFAULT_THEME, type ThemeTokens } from "@/lib/sections/theme";
+import TestimonialsCarousel from "./TestimonialsCarousel";
 
 export default function TestimonialsSection({
   content,
@@ -26,6 +27,11 @@ export default function TestimonialsSection({
             {content.heading}
           </h2>
         )}
+        {content.layout === "carousel" ? (
+          <div className="mt-10">
+            <TestimonialsCarousel items={content.items} accent={theme.colors.primary} />
+          </div>
+        ) : (
         <div
           className="mt-10 grid sm:grid-cols-2"
           style={{ gap: theme.spacing.md }}
@@ -54,6 +60,7 @@ export default function TestimonialsSection({
             </figure>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

@@ -51,6 +51,7 @@ export const testimonialsSchema = z.object({
       avatarUrl: z.string().optional(),
     })
   ),
+  layout: z.enum(["grid", "carousel"]).optional(),
 });
 
 export const listingsSchema = z.object({
@@ -203,8 +204,18 @@ export const numberCounterSchema = z.object({ type: z.literal("number-counter"),
 export const progressBarSchema = z.object({ type: z.literal("progress-bar"), label: z.string().optional(), percent: z.number().min(0).max(100).default(50) });
 export const pricingSchema = z.object({ type: z.literal("pricing"), plans: z.array(z.object({ name: z.string(), price: z.string(), period: z.string().optional(), features: z.array(z.object({ text: z.string() })).default([]), ctaLabel: z.string().optional(), ctaHref: z.string().optional() })).default([]) });
 export const faqSchema = z.object({ type: z.literal("faq"), items: z.array(z.object({ q: z.string(), a: z.string() })).default([]) });
-export const gallerySchema = z.object({ type: z.literal("gallery"), images: z.array(z.object({ url: z.string() })).default([]) });
-export const logosSchema = z.object({ type: z.literal("logos"), images: z.array(z.object({ url: z.string() })).default([]) });
+export const gallerySchema = z.object({
+  type: z.literal("gallery"),
+  images: z.array(z.object({ url: z.string() })).default([]),
+  columns: z.coerce.number().optional(),     // 2..6
+  lightbox: z.boolean().optional(),          // click to open full-size
+});
+export const logosSchema = z.object({
+  type: z.literal("logos"),
+  images: z.array(z.object({ url: z.string() })).default([]),
+  scroll: z.boolean().optional(),            // auto-scrolling marquee
+  grayscale: z.boolean().optional(),         // default true
+});
 export const socialSchema = z.object({ type: z.literal("social"), links: z.array(z.object({ platform: z.string(), url: z.string() })).default([]) });
 export const sliderSchema = z.object({
   type: z.literal("slider"),

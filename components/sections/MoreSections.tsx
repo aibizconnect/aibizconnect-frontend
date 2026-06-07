@@ -8,6 +8,7 @@ import Countdown from "./Countdown";
 import Tabs from "./Tabs";
 import Slideshow from "./Slideshow";
 import Ticker from "./Ticker";
+import Gallery from "./Gallery";
 import InlineText from "./InlineText";
 
 /** Extended best-in-class element renderers (functional, no external paid keys). */
@@ -116,21 +117,35 @@ export function FaqSection({ content }: { content: FaqContent; theme?: ThemeToke
 }
 
 export function GallerySection({ content }: { content: GalleryContent; theme?: ThemeTokens }) {
-  if (!content.images.length) return <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-400">Add gallery images</div>;
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {content.images.map((im, i) => <img key={i} src={im.url} alt="" className="aspect-square w-full rounded-lg object-cover" />)}
-    </div>
-  );
+  return <Gallery images={content.images ?? []} columns={content.columns ?? 3} lightbox={content.lightbox ?? true} />;
 }
 
 export function LogosSection({ content }: { content: LogosContent; theme?: ThemeTokens }) {
-  if (!content.images.length) return <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-400">Add logo images</div>;
+  const imgs = content.images ?? [];
+  if (!imgs.length) return <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-400">Add logo images</div>;
+  const gray = content.grayscale !== false;
+  const cls = `h-10 w-auto object-contain${gray ? " grayscale" : ""}`;
+  if (content.scroll) {
+    const doubled = [...imgs, ...imgs];
+    return (
+      <div className="abc-logos-wrap">
+        <div className="abc-logos-track">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {doubled.map((im, i) => <img key={i} src={im.url} alt="" className={cls} />)}
+        </div>
+        <style>{`
+          .abc-logos-wrap{overflow:hidden}
+          .abc-logos-track{display:inline-flex;align-items:center;gap:48px;white-space:nowrap;animation:abc-logos 24s linear infinite;will-change:transform;opacity:.8}
+          .abc-logos-wrap:hover .abc-logos-track{animation-play-state:paused}
+          @keyframes abc-logos{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        `}</style>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center justify-center gap-8 opacity-80">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {content.images.map((im, i) => <img key={i} src={im.url} alt="" className="h-10 w-auto object-contain grayscale" />)}
+      {imgs.map((im, i) => <img key={i} src={im.url} alt="" className={cls} />)}
     </div>
   );
 }
