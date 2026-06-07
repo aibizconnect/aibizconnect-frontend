@@ -232,7 +232,15 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   gallery: [{ kind: "array", key: "images", label: "Images", itemLabel: "Image", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] }],
   logos: [{ kind: "array", key: "images", label: "Logos", itemLabel: "Logo", itemFields: [{ kind: "text", key: "url", label: "Logo URL" }] }],
   social: [{ kind: "array", key: "links", label: "Links", itemLabel: "Link", itemFields: [{ kind: "text", key: "platform", label: "Platform" }, { kind: "text", key: "url", label: "URL" }] }],
-  slider: [{ kind: "array", key: "images", label: "Slides", itemLabel: "Slide", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] }],
+  slider: [
+    { kind: "array", key: "images", label: "Slides", itemLabel: "Slide", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] },
+    { kind: "boolean", key: "autoplay", label: "Autoplay" },
+    { kind: "number", key: "interval", label: "Seconds per slide", min: 1, max: 30 },
+    { kind: "boolean", key: "arrows", label: "Show arrows" },
+    { kind: "boolean", key: "dots", label: "Show dots" },
+    { kind: "number", key: "height", label: "Height", min: 120, max: 800, unit: "px" },
+    { kind: "select", key: "fit", label: "Image fit", options: ["cover", "contain"] },
+  ],
   countdown: [{ kind: "text", key: "label", label: "Label" }, { kind: "text", key: "target", label: "Target date (ISO)" }],
   map: [{ kind: "text", key: "query", label: "Location / address" }],
   qr: [{ kind: "text", key: "data", label: "QR content (URL/text)" }],
@@ -253,6 +261,14 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
       { kind: "text", key: "label", label: "Tab label" },
       { kind: "text", key: "content", label: "Tab content", multiline: true },
     ] },
+  ],
+  ticker: [
+    { kind: "array", key: "items", label: "Items", itemLabel: "Item", itemFields: [{ kind: "text", key: "text", label: "Text" }] },
+    { kind: "number", key: "speed", label: "Speed", min: 5, max: 100 },
+    { kind: "select", key: "direction", label: "Direction", options: ["left", "right"] },
+    { kind: "color", key: "bg", label: "Background" },
+    { kind: "color", key: "color", label: "Text color" },
+    { kind: "text", key: "separator", label: "Separator" },
   ],
   // Menu items + submenus are edited by the dedicated MenuItemsEditor in the right
   // panel; these specs cover only presentational options.

@@ -2,10 +2,12 @@ import type { ThemeTokens } from "@/lib/sections/theme";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
   FaqContent, GalleryContent, LogosContent, SocialContent, SliderContent,
-  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent,
+  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent, TickerContent,
 } from "@/lib/sections/schemas";
 import Countdown from "./Countdown";
 import Tabs from "./Tabs";
+import Slideshow from "./Slideshow";
+import Ticker from "./Ticker";
 import InlineText from "./InlineText";
 
 /** Extended best-in-class element renderers (functional, no external paid keys). */
@@ -146,14 +148,23 @@ export function SocialSection({ content }: { content: SocialContent; theme?: The
   );
 }
 
-export function SliderSection({ content }: { content: SliderContent; theme?: ThemeTokens }) {
-  if (!content.images.length) return <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-400">Add slider images</div>;
+export function SliderSection({ content, theme }: { content: SliderContent; theme?: ThemeTokens }) {
   return (
-    <div className="flex snap-x gap-3 overflow-x-auto rounded-lg pb-2">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {content.images.map((im, i) => <img key={i} src={im.url} alt="" className="h-56 w-auto shrink-0 snap-center rounded-lg object-cover" />)}
-    </div>
+    <Slideshow
+      images={content.images ?? []}
+      autoplay={content.autoplay ?? true}
+      interval={content.interval ?? 4}
+      arrows={content.arrows ?? true}
+      dots={content.dots ?? true}
+      height={content.height ?? 360}
+      fit={content.fit ?? "cover"}
+      accent={primary(theme)}
+    />
   );
+}
+
+export function TickerSection({ content }: { content: TickerContent; theme?: ThemeTokens }) {
+  return <Ticker items={content.items ?? []} speed={content.speed ?? 30} bg={content.bg} color={content.color} separator={content.separator} direction={content.direction} />;
 }
 
 export function CountdownSection({ content, theme }: { content: CountdownContent; theme?: ThemeTokens }) {

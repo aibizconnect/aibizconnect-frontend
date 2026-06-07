@@ -39,7 +39,7 @@ const ELEMENT_GROUPS: Group[] = [
   { group: "Icon", items: [{ label: "Icon", icon: I.star, type: "icon" }] },
   { group: "Images", items: [
     { label: "Image", icon: I.img, type: "image" }, { label: "Photo Gallery", icon: I.img, type: "gallery" },
-    { label: "Image Slider", icon: I.img, type: "slider" }, { label: "Logo Showcase", icon: I.img, type: "logos" },
+    { label: "Slideshow", icon: I.img, type: "slider" }, { label: "Logo Showcase", icon: I.img, type: "logos" },
   ]},
   { group: "Media", items: [
     { label: "Video", icon: I.video, type: "video" }, { label: "Audio", icon: I.video, type: "audio" }, { label: "Map", icon: I.map, type: "map" }, { label: "QR Code", icon: I.qr, type: "qr" },
@@ -52,6 +52,7 @@ const ELEMENT_GROUPS: Group[] = [
   ]},
   { group: "Forms & Surveys", items: [{ label: "Contact Form", icon: I.form, type: "contact-form" }, { label: "Survey", icon: I.form, soon: true }] },
   { group: "Social Media Icons", items: [{ label: "Social Icons", icon: I.social, type: "social" }] },
+  { group: "Ticker", items: [{ label: "Ticker", icon: I.clock, type: "ticker" }] },
   { group: "Countdown Timers", items: [
     { label: "Countdown", icon: I.clock, type: "countdown" }, { label: "Minute Timer", icon: I.clock, type: "countdown" }, { label: "Day Timer", icon: I.clock, type: "countdown" },
   ]},

@@ -206,7 +206,16 @@ export const faqSchema = z.object({ type: z.literal("faq"), items: z.array(z.obj
 export const gallerySchema = z.object({ type: z.literal("gallery"), images: z.array(z.object({ url: z.string() })).default([]) });
 export const logosSchema = z.object({ type: z.literal("logos"), images: z.array(z.object({ url: z.string() })).default([]) });
 export const socialSchema = z.object({ type: z.literal("social"), links: z.array(z.object({ platform: z.string(), url: z.string() })).default([]) });
-export const sliderSchema = z.object({ type: z.literal("slider"), images: z.array(z.object({ url: z.string() })).default([]) });
+export const sliderSchema = z.object({
+  type: z.literal("slider"),
+  images: z.array(z.object({ url: z.string() })).default([]),
+  autoplay: z.boolean().optional(),
+  interval: z.coerce.number().optional(),   // seconds per slide
+  arrows: z.boolean().optional(),
+  dots: z.boolean().optional(),
+  height: z.coerce.number().optional(),     // px
+  fit: z.enum(["cover", "contain"]).optional(),
+});
 export const countdownSchema = z.object({ type: z.literal("countdown"), target: z.string(), label: z.string().optional() });
 export const mapSchema = z.object({ type: z.literal("map"), query: z.string() });
 export const qrSchema = z.object({ type: z.literal("qr"), data: z.string(), size: z.number().optional() });
@@ -230,6 +239,16 @@ export const audioSchema = z.object({
 export const tabsSchema = z.object({
   type: z.literal("tabs"),
   tabs: z.array(z.object({ label: z.string(), content: z.string() })).default([]),
+});
+// Ticker / scrolling marquee (stock-ticker / news-ticker / announcement).
+export const tickerSchema = z.object({
+  type: z.literal("ticker"),
+  items: z.array(z.object({ text: z.string() })).default([]),
+  speed: z.coerce.number().optional(),
+  bg: z.string().optional(),
+  color: z.string().optional(),
+  separator: z.string().optional(),
+  direction: z.enum(["left", "right"]).optional(),
 });
 
 // Navigation menu element. Each top-level item may carry a submenu (children).
@@ -312,6 +331,7 @@ export const sectionSchema = z.discriminatedUnion("type", [
   iconSchema,
   audioSchema,
   tabsSchema,
+  tickerSchema,
 ]);
 
 // Inferred TypeScript types (structurally compatible with SectionContent)
@@ -347,6 +367,7 @@ export type MenuContent = z.infer<typeof menuSchema>;
 export type IconContent = z.infer<typeof iconSchema>;
 export type AudioContent = z.infer<typeof audioSchema>;
 export type TabsContent = z.infer<typeof tabsSchema>;
+export type TickerContent = z.infer<typeof tickerSchema>;
 export type SectionContent = z.infer<typeof sectionSchema>;
 
 export type SectionType = SectionContent["type"];
@@ -385,6 +406,7 @@ export const sectionSchemas = {
   icon: iconSchema,
   audio: audioSchema,
   tabs: tabsSchema,
+  ticker: tickerSchema,
 } as const;
 
 /** Ordered list of section types (for the "add section" picker). */
@@ -421,6 +443,7 @@ export const sectionTypes: SectionType[] = [
   "icon",
   "audio",
   "tabs",
+  "ticker",
 ];
 
 /** Human-friendly labels for the editor UI. */
@@ -457,6 +480,7 @@ export const sectionLabels: Record<SectionType, string> = {
   icon: "Icon",
   audio: "Audio",
   tabs: "Tabs",
+  ticker: "Ticker",
 };
 
 /** Sensible default content when a new section is added. */
@@ -548,6 +572,10 @@ export function defaultContentFor(type: SectionType): SectionContent {
       return { type: "tabs", tabs: [
         { label: "Tab 1", content: "Content for the first tab." },
         { label: "Tab 2", content: "Content for the second tab." },
+      ] };
+    case "ticker":
+      return { type: "ticker", direction: "left", speed: 30, bg: "#0f172a", color: "#e2e8f0", separator: "•", items: [
+        { text: "Welcome to our store" }, { text: "Free shipping over $50" }, { text: "New arrivals weekly" },
       ] };
   }
 }
