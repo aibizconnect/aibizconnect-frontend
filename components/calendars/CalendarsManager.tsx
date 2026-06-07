@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getGoogleConnectUrl, getGoogleStatus, disconnectGoogleAction } from "@/app/tenants/[tenantId]/calendars/actions";
+import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getCalendarConnections, getCalendarConnectUrl, connectIcalAction, disconnectProviderAction } from "@/app/tenants/[tenantId]/calendars/actions";
 import type { Calendar, Appointment } from "@/lib/calendars";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -83,17 +83,15 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
 }
 
 function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: Calendar; onSave: (patch: { name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number; timezone?: string; assignedToEmail?: string; assignedToName?: string }) => void; pending: boolean }) {
-  const [gcal, setGcal] = useState<{ ready: boolean; connected: boolean; accountEmail: string | null } | null>(null);
-  const [gbusy, setGbusy] = useState(false);
-  useEffect(() => { getGoogleStatus(tenantId, cal.id).then(setGcal).catch(() => setGcal({ ready: false, connected: false, accountEmail: null })); }, [tenantId, cal.id]);
-  const connectGoogle = async () => {
-    setGbusy(true);
-    const r = await getGoogleConnectUrl(tenantId, cal.id);
-    setGbusy(false);
-    if (r.ok && r.url) { window.open(r.url, "_blank", "noopener,noreferrer"); }
-    else alert(r.error || "Could not start Google connection.");
-  };
-  const disconnectGoogle = async () => { setGbusy(true); await disconnectGoogleAction(tenantId, cal.id); setGbusy(false); setGcal((s) => s ? { ...s, connected: false, accountEmail: null } : s); };
+  const [conns, setConns] = useState<{ googleReady: boolean; microsoftReady: boolean; connections: { provider: string; accountEmail: string | null; status: string }[] } | null>(null);
+  const [busyP, setBusyP] = useState<string | null>(null);
+  const [ical, setIcal] = useState("");
+  const reloadConns = () => getCalendarConnections(tenantId, cal.id).then(setConns).catch(() => setConns({ googleReady: false, microsoftReady: false, connections: [] }));
+  useEffect(() => { reloadConns(); /* eslint-disable-next-line */ }, [tenantId, cal.id]);
+  const connectOAuth = async (provider: "google" | "microsoft") => { setBusyP(provider); const r = await getCalendarConnectUrl(tenantId, cal.id, provider); setBusyP(null); if (r.ok && r.url) window.open(r.url, "_blank", "noopener,noreferrer"); else alert(r.error || "Could not start connection."); };
+  const connectIcal = async () => { setBusyP("ical"); const r = await connectIcalAction(tenantId, cal.id, ical); setBusyP(null); if (r.ok) { setIcal(""); reloadConns(); } else alert(r.error || "Could not add iCal feed."); };
+  const disc = async (provider: string) => { setBusyP(provider); await disconnectProviderAction(tenantId, cal.id, provider); setBusyP(null); reloadConns(); };
+  const conn = (p: string) => conns?.connections.find((c) => c.provider === p);
 
   const [name, setName] = useState(cal.name);
   const [agent, setAgent] = useState(cal.assignedToEmail ?? "");
@@ -133,15 +131,41 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
         <label className="flex flex-col gap-1 text-xs text-slate-600">Buffer<select className={inp} value={buffer} onChange={(e) => setBuffer(+e.target.value)}>{[0, 5, 10, 15, 30].map((d) => <option key={d} value={d}>{d} min</option>)}</select></label>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <div className="text-xs">
-          {!gcal ? <span className="text-slate-400">Checking Google…</span>
-            : gcal.connected ? (
-              <span className="text-emerald-700">✓ Google Calendar connected{gcal.accountEmail ? ` (${gcal.accountEmail})` : ""} — busy times block bookings. <button onClick={disconnectGoogle} disabled={gbusy} className="ml-1 text-red-500 hover:underline disabled:opacity-40">Disconnect</button></span>
-            ) : gcal.ready ? (
-              <button onClick={connectGoogle} disabled={gbusy} className="rounded-lg border border-[#1e3a8a] px-3 py-1.5 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">{gbusy ? "…" : "🔗 Connect Google Calendar"}</button>
-            ) : <span className="text-slate-400" title="A platform admin must add the Google Calendar app credentials in Platform → Connected apps.">Google Calendar not configured yet</span>}
-        </div>
+      {/* Connect external calendars (free/busy → no conflicts). Booked times are mirrored back. */}
+      <div className="space-y-2 border-t border-slate-100 pt-3">
+        <div className="text-xs font-medium text-slate-600">Connect this agent&apos;s calendars (their busy times block bookings)</div>
+        {!conns ? <div className="text-xs text-slate-400">Checking…</div> : (
+          <div className="space-y-1.5 text-xs">
+            {/* Google */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-600">📅 Google {conn("google") && <span className="text-emerald-700">· connected{conn("google")?.accountEmail ? ` (${conn("google")?.accountEmail})` : ""}</span>}</span>
+              {conn("google") ? <button onClick={() => disc("google")} disabled={busyP === "google"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button>
+                : conns.googleReady ? <button onClick={() => connectOAuth("google")} disabled={busyP === "google"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Connect</button>
+                : <span className="text-slate-400">not configured</span>}
+            </div>
+            {/* Outlook */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-600">📨 Outlook {conn("microsoft") && <span className="text-emerald-700">· connected{conn("microsoft")?.accountEmail ? ` (${conn("microsoft")?.accountEmail})` : ""}</span>}</span>
+              {conn("microsoft") ? <button onClick={() => disc("microsoft")} disabled={busyP === "microsoft"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button>
+                : conns.microsoftReady ? <button onClick={() => connectOAuth("microsoft")} disabled={busyP === "microsoft"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Connect</button>
+                : <span className="text-slate-400">not configured</span>}
+            </div>
+            {/* iCal */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-600">🔗 iCal feed {conn("ical") && <span className="text-emerald-700">· connected</span>}</span>
+              {conn("ical") ? <button onClick={() => disc("ical")} disabled={busyP === "ical"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button> : null}
+            </div>
+            {!conn("ical") && (
+              <div className="flex items-center gap-2">
+                <input value={ical} onChange={(e) => setIcal(e.target.value)} placeholder="https://…/calendar.ics (read-only feed)" className="flex-1 rounded border border-slate-300 px-2 py-1" />
+                <button onClick={connectIcal} disabled={!ical.trim() || busyP === "ical"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Add</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end border-t border-slate-100 pt-3">
         <button onClick={() => onSave({ name, durationMin: dur, bufferMin: buffer, weekdays: days, startHour: startH, endHour: endH, timezone: tz || undefined, assignedToEmail: agent, assignedToName: agentName })} disabled={pending}
           className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50">Save</button>
       </div>

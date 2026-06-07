@@ -29,28 +29,41 @@ async function requireAdmin(): Promise<void> {
   if (!(await isPlatformAdmin())) throw new Error("Not authorized — admin only.");
 }
 
-export async function getGoogleConnectUrl(tenantId: string, calendarId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+export async function getCalendarConnectUrl(tenantId: string, calendarId: string, provider: "google" | "microsoft"): Promise<{ ok: boolean; url?: string; error?: string }> {
   const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
   await requireTenantAccess(tenantId);
   try { await requireAdmin(); } catch (e: any) { return { ok: false, error: e?.message }; }
-  const { buildGoogleAuthUrl } = await import("@/lib/server/google-calendar");
-  return buildGoogleAuthUrl(tenantId, calendarId);
+  if (provider === "microsoft") { const { buildMsAuthUrl } = await import("@/lib/server/microsoft-calendar"); return buildMsAuthUrl(tenantId, calendarId); }
+  const { buildGoogleAuthUrl } = await import("@/lib/server/google-calendar"); return buildGoogleAuthUrl(tenantId, calendarId);
 }
 
-export interface GoogleCalStatus { ready: boolean; connected: boolean; accountEmail: string | null }
-export async function getGoogleStatus(tenantId: string, calendarId: string): Promise<GoogleCalStatus> {
-  const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
-  await requireTenantAccess(tenantId);
-  const { googleCalReady, getCalendarConnection } = await import("@/lib/server/google-calendar");
-  const [ready, conn] = await Promise.all([googleCalReady(), getCalendarConnection(tenantId, calendarId)]);
-  return { ready, connected: !!conn, accountEmail: conn?.accountEmail ?? null };
-}
-
-export async function disconnectGoogleAction(tenantId: string, calendarId: string): Promise<{ ok: boolean; error?: string }> {
+export async function connectIcalAction(tenantId: string, calendarId: string, url: string): Promise<{ ok: boolean; error?: string }> {
   const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
   await requireTenantAccess(tenantId);
   try { await requireAdmin(); } catch (e: any) { return { ok: false, error: e?.message }; }
-  const { disconnectGoogle } = await import("@/lib/server/google-calendar");
-  await disconnectGoogle(tenantId, calendarId);
+  const { connectICalFeed } = await import("@/lib/server/calendar-busy");
+  return connectICalFeed(tenantId, calendarId, url);
+}
+
+export interface CalendarConnectionsStatus {
+  googleReady: boolean; microsoftReady: boolean;
+  connections: { provider: string; accountEmail: string | null; status: string }[];
+}
+export async function getCalendarConnections(tenantId: string, calendarId: string): Promise<CalendarConnectionsStatus> {
+  const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
+  await requireTenantAccess(tenantId);
+  const { googleCalReady } = await import("@/lib/server/google-calendar");
+  const { msCalReady } = await import("@/lib/server/microsoft-calendar");
+  const { listConnections } = await import("@/lib/server/calendar-busy");
+  const [googleReady, microsoftReady, connections] = await Promise.all([googleCalReady(), msCalReady(), listConnections(tenantId, calendarId)]);
+  return { googleReady, microsoftReady, connections };
+}
+
+export async function disconnectProviderAction(tenantId: string, calendarId: string, provider: string): Promise<{ ok: boolean; error?: string }> {
+  const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
+  await requireTenantAccess(tenantId);
+  try { await requireAdmin(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { disconnectProvider } = await import("@/lib/server/calendar-busy");
+  await disconnectProvider(tenantId, calendarId, provider);
   return { ok: true };
 }

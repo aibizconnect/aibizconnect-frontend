@@ -84,12 +84,12 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
   const { data: booked } = await sb.from("tenant_appointments").select("start_at").eq("tenant_id", tenantId).eq("calendar_id", cal.id).eq("status", "booked");
   const taken = new Set((booked ?? []).map((b: any) => new Date(b.start_at).toISOString()));
 
-  // Google free/busy (no-op if this calendar isn't connected).
+  // External free/busy across every connected provider (Google + Outlook + iCal). No-op if none.
   let busy: { start: number; end: number }[] = [];
   try {
-    const { getGoogleBusy } = await import("./server/google-calendar");
-    busy = await getGoogleBusy(tenantId, cal.id, now.toISOString(), windowEnd.toISOString());
-  } catch { /* connector unavailable → internal-only */ }
+    const { getAllBusy } = await import("./server/calendar-busy");
+    busy = await getAllBusy(tenantId, cal.id, now.toISOString(), windowEnd.toISOString());
+  } catch { /* connectors unavailable → internal-only */ }
 
   const bufferMs = (cal.bufferMin ?? 0) * 60_000;
   const durMs = cal.durationMin * 60_000;
@@ -130,26 +130,25 @@ export async function bookAppointment(tenantId: string, calendarId: string, b: {
   const startMs = new Date(b.startAt).getTime();
   const endIso = new Date(startMs + durMin * 60_000).toISOString();
   try {
-    const { getGoogleBusy } = await import("./server/google-calendar");
-    const busy = await getGoogleBusy(tenantId, calendarId, b.startAt, endIso);
+    const { getAllBusy } = await import("./server/calendar-busy");
+    const busy = await getAllBusy(tenantId, calendarId, b.startAt, endIso);
     if (busy.some((x) => startMs < x.end && (startMs + durMin * 60_000) > x.start)) {
       return { ok: false, error: "That time is no longer available — pick another." };
     }
-  } catch { /* connector unavailable → internal-only guard */ }
+  } catch { /* connectors unavailable → internal-only guard */ }
 
   const { error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt });
   if (error) return { ok: false, error: error.message };
   await createContact(tenantId, { name: b.name, email: b.email, phone: b.phone, source: "calendar booking" });
 
-  // Mirror onto the agent's Google calendar (best-effort).
+  // Mirror onto every connected provider that supports writes (Google, Outlook) — best-effort.
   try {
-    const { createGoogleEvent } = await import("./server/google-calendar");
-    const eventId = await createGoogleEvent(tenantId, calendarId, {
+    const { createExternalEvents } = await import("./server/calendar-busy");
+    await createExternalEvents(tenantId, calendarId, {
       summary: `${(cal as any)?.name || "Appointment"} — ${b.name}`,
       description: `Booked via AIBizConnect.\nName: ${b.name}\nEmail: ${b.email}${b.phone ? `\nPhone: ${b.phone}` : ""}`,
       startIso: b.startAt, endIso, attendeeEmail: b.email,
     });
-    if (eventId) await sb.from("tenant_appointments").update({ external_event_id: eventId }).eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("start_at", b.startAt);
   } catch { /* best-effort */ }
 
   return { ok: true };
