@@ -5,6 +5,7 @@ import { createPage, saveDraft } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
+import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
   BRAND_TONES, FAMILY_THEME, RESERVED_SUBDOMAINS, SUBDOMAIN_BASE, TONE_DEFAULT_COLOR,
   normalizeSubdomain, normalizeCountry, audienceSuggestionsFor,
@@ -431,7 +432,12 @@ export async function generateWizardPages(
 ): Promise<number> {
   // Learn from the tenant's existing site once: text → brief, images → fill section slots.
   const ctx = wizard.hasWebsite ? await fetchSiteContext(wizard.existingUrl) : null;
-  const brief = buildBrief(wizard, ctx?.text ?? null);
+  // No existing site → research similar businesses so the AI builds a similar-but-better site.
+  let competitorBrief: string | null = null;
+  if (!wizard.hasWebsite) {
+    try { const ins = await researchCompetitors(wizard.industry, wizard.city, wizard.services); competitorBrief = ins?.brief ?? null; } catch { /* best-effort */ }
+  }
+  const brief = buildBrief(wizard, ctx?.text ?? null, competitorBrief);
   const learnedImages = ctx?.images ?? [];
   const { applyTemplateImages } = await import("@/lib/sections/prebuilt-templates");
   const { generatePlan } = await import("@/lib/agent/builder");
@@ -787,8 +793,8 @@ function cloneSectionsFromHtml(html: string, baseUrl: string): Record<string, un
   } catch { return []; }
 }
 
-/** Turn the wizard intake (+ learned existing-site content) into a brief for the planner. */
-function buildBrief(w: Record<string, any>, learnedText?: string | null): string {
+/** Turn the wizard intake (+ learned existing-site content / competitor research) into a planner brief. */
+function buildBrief(w: Record<string, any>, learnedText?: string | null, competitorBrief?: string | null): string {
   const parts: string[] = [];
   parts.push(`Create a multi-page marketing website for "${w.businessName}", a ${w.industry} business`);
   const loc = [w.city, w.country].filter(Boolean).join(", ");
@@ -806,6 +812,7 @@ function buildBrief(w: Record<string, any>, learnedText?: string | null): string
     );
   } else {
     parts.push("Include Home, About, Services, Gallery, Testimonials and Contact pages with compelling copy.");
+    if (competitorBrief) parts.push(competitorBrief);
   }
   return parts.join(". ") + ".";
 }
