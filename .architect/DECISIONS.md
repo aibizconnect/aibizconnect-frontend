@@ -60,4 +60,9 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-054] payments_gotchas — livemode auto-detect (sk_live_), restricted-key hint, PayPal sandbox/live base URL, key-rotation hint; Stripe Connect + webhooks deferred (defined)
 [D-055] verified_payments_integration — lib/server/payments.ts + payments-actions.ts + Settings PaymentsCards (Stripe/PayPal, guided) VERIFIED against all PAY checks incl. no-charge guarantee (verified)
 [D-056] core_integrations_complete — Core Integrations phase (Twilio → Shopify → Payments) COMPLETE (complete)
+[D-057] approve_website_generation_plan — full pipeline 1c→blocks→tree→lean build; block→section bridge; drafts-only/no-publish (approved)
+[D-058] define_website_generation_checks — Supervisor checks WG-V*, WG-1C-V*, WG-SB-V*, WG-S2-V*, WG-S3-V* (defined)
+[D-059] anti_hallucination — extract+repurpose for rebuilt pages; generate fact-free copy only for new funnel/SEO pages; placeholder over invented specifics (defined)
+[D-060] accepted_deterministic_extraction — Step 1c uses deterministic HTML parse (not LLM), structurally preventing hallucination on rebuilt pages — accepted (same precedent as Step 1b) (accepted)
+[D-061] verified_website_generation_pipeline — lib/sites/page-generate.ts + website/generate-actions.ts (generateSite) + /website/generate UI VERIFIED against all WG checks; builds superior on-brand DRAFT site (rebuilt pages faithful, funnel+SEO templated); Roboto brand applied; publish stays explicit (verified)
 

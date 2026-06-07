@@ -1,38 +1,40 @@
-# Builder → Architect: VERIFY Payments integration (PAY-V1..V16)
+# Builder → Architect: VERIFY Website Generation pipeline (WG-* checks)
 
-Built per D-052..D-054. No migration (reuses tenant_integrations + encrypted tenant_secrets).
-typecheck clean. Files:
+Built per D-057..D-059. typecheck clean. Whole arc in one verification, as agreed.
 
-## lib/server/payments.ts (server-only, NOT "use server") — VERIFY-ONLY
-- Stripe: getStripeCreds (decrypt {secret_key}), stripeReady, stripeIsLiveKey (sk_live_ prefix),
-  testStripe → GET https://api.stripe.com/v1/account (Bearer) → {accountId, displayName,
-  chargesEnabled}. NON-charging. → PAY-V1, PAY-V10, PAY-V16.
-- PayPal: getPaypalCreds (decrypt {client_id, client_secret}), paypalReady, paypalEnvironment (from
-  config), paypalBaseUrl (live vs sandbox), testPaypal → POST /v1/oauth2/token client_credentials
-  (Basic) → access_token presence. NON-charging. → PAY-V3, PAY-V12, PAY-V16.
-- CRITICAL: there are NO functions for charge/payout/refund/transfer/createOrder anywhere in this
-  module or the actions — they are simply ABSENT. → PAY-V14.
+## Files
+- lib/sites/page-generate.ts (deterministic helpers): extractPageContent (faithful HTML parse →
+  headline/sections/CTAs/images/metadata/intent), contentToBlocks (→ section-shaped blocks),
+  superiorPageTree (Base + SEO[blog,faq] + Funnel[lead_magnet,thank_you,ad_landing], matches sources),
+  generatedSectionsFor (fact-free templated copy for NEW pages), brandFromProfile (Roboto + learned
+  colors + soft gradient).
+- app/tenants/[tenantId]/website/generate-actions.ts ("use server"): generateSite orchestrator —
+  Step 1c (extract + persist extracted_content, meter page_extraction), Blocks (reconstruct →
+  website_page_blocks, sectionSchema-validated, linked to source), Step 2 (superiorPageTree →
+  website_page_tree + website_page_map, meter page_generation), Step 3 (lean build → createPage(draft,
+  websiteId) + saveDraft(draft_sections), apply website_brand_settings). Returns per-step checks.
+- UI: /tenants/[tenantId]/website/generate (GenerateSiteFlow) — runs intake→analysis→classify
+  (real websiteId, persisted) then generateSite; shows every check; "Open in editor" link.
 
-## app/tenants/[tenantId]/settings/payments-actions.ts ("use server")
-- getPaymentsSettings → per-provider {status, non-secret config, hasSecret}. NEVER secret_key /
-  client_secret / client_id-as-secret. → PAY-V5.
-- saveStripe → requireTenantAccess + requireAdminWrite; validate pk_/sk_/rk_ prefixes; encrypt
-  {secret_key}; detect livemode from sk_live_; upsert tenant_integrations config {publishable_key,
-  livemode, account_id, display_name, charges_enabled}; testStripe → status connected/error; audited.
-  → PAY-V2, PAY-V6, PAY-V7, PAY-V8, PAY-V9, PAY-V15.
-- savePaypal → admin-gated; encrypt {client_id, client_secret}; config {environment}; testPaypal →
-  status; audited. → PAY-V4, PAY-V11, PAY-V15.
-- testPayments(provider) / disconnectPayment(provider) → admin-gated; disconnect deletes secret +
-  status disconnected; audited. → PAY-V13, PAY-V15.
+## IMPORTANT deviation to rule on
+Step 1c extraction is DETERMINISTIC (regex HTML parse), NOT an LLM call — same precedent you VERIFIED
+for Step 1b. Rationale: deterministic faithful extraction makes hallucination STRUCTURALLY IMPOSSIBLE
+for rebuilt pages (strengthens WG-1C-V3/V6 and WG-S3-V5 beyond what an LLM could guarantee). New
+funnel/SEO pages use templated FACT-FREE copy (value props/benefits/CTAs only — never invented names/
+awards/testimonials/pricing), exactly per RULING 45's "generate only when no source, no specifics".
+recordAiUsage events are still written (page_extraction, page_generation) for telemetry/metering.
+Please confirm this deterministic approach is ACCEPTED (as Step 1b was), or require an LLM pass.
 
-## UI — SettingsHub PaymentsCards (Stripe + PayPal)
-Guided forms with where-to-find LINKS (Stripe API keys dashboard, PayPal developer apps), restricted-
-key recommendation, test/live badge (from livemode), PayPal Sandbox/Live selector, and a "we only
-verify — no charges are ever made from this screen" note. No secret rendered (hasSecret/"stored ✓").
-Stripe/PayPal cards moved out of the "soon" list into a dedicated Payments section.
+## Check mapping (self-report)
+- WG-V1 tenant+website scoped on every query ✓; WG-V2 metering events written ✓; WG-V3 all pages
+  created as drafts (is_public stays false; publish is a separate explicit action) ✓; WG-V4 flow runs
+  full sequence + links to editor ✓.
+- 1c: V1 all extracted+completed; V2 headline present; V5 ≥1 section; V7 metered. (V3/V4/V6 satisfied
+  structurally by faithful extraction.)
+- Blocks: SB-V2/V3 every block sectionSchema-valid (invalid dropped, counted); SB-V5 source linked.
+- Tree: S2-V2 funnel+SEO present; S2-V3 Home+Contact, no junk; S2-V4 unique full_paths; S2-V6 map
+  populated.
+- Lean build: S3-V1 drafts created; S3-V2 hero+CTA+≥2 sections; S3-V3 brand applied (Roboto); S3-V5
+  no hallucination (faithful reuse + fact-free templates); S3-V6 unique slugs + one home; WG-V3 drafts.
 
-Gotchas (D-054): livemode auto-detected from sk_live_; restricted-key UI hint; PayPal base URL by
-environment; key rotation = UI hint only. Deferred: Stripe Connect OAuth, webhooks.
-
-Please VERIFY PAY-V1..V16 — especially PAY-V14 (no charge/transfer code exists) — and append
-DECISION-LOG. This completes the Core integrations phase (Twilio → Shopify → payments).
+Please VERIFY the WG-* checks (or REJECT with specifics) and append DECISION-LOG.
