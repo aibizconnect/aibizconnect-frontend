@@ -53,7 +53,8 @@ export async function checkSubdomain(raw: string): Promise<SubdomainCheck> {
 async function aiExtractProfile(pageText: string, tenantId: string): Promise<any | null> {
   const system =
     "You analyze a business's website text and return ONLY a compact JSON object. " +
-    "Keys: industry (short string), services (one sentence), audience (short string), " +
+    "Keys: description (1-2 plain sentences answering 'what does this business do?'), " +
+    "industry (short string), services (one sentence), audience (short string), " +
     "tone (one of: professional, friendly, luxury, bold, minimal), " +
     "country (full country name, e.g. Canada), city (city name only). " +
     "Use null for any field you cannot determine. No prose, no markdown.";
@@ -95,6 +96,40 @@ function familyFromIndustry(text: string): TemplateFamily {
   if (/portfolio|photograph|designer|artist|architect|freelanc/.test(t)) return "portfolio";
   if (/startup|launch|fintech|venture|founder/.test(t)) return "startup";
   return "agency";
+}
+
+/** Extract social-profile links from raw HTML (deduped, capped). Used to pre-fill the wizard. */
+function socialLinksFromHtml(html: string): string[] {
+  const re = /https?:\/\/(?:www\.)?(?:facebook|fb|instagram|linkedin|tiktok|youtube|youtu\.be|x\.com|twitter|pinterest|threads)\.[a-z.]+\/[^"'\s<>)]+/gi;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(re)) {
+    let url = m[0].replace(/[)"'.,]+$/, "");
+    // Skip share/intent/widget links and bare domains.
+    if (/\/(sharer|share|intent|plugins|embed|widgets?)\b/i.test(url)) continue;
+    const key = url.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(url);
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+/** Best-effort logo URL from raw HTML (og:logo / og:image / <img> with "logo" in src|alt|class). */
+function logoFromHtml(html: string, baseUrl: string): string | undefined {
+  const abs = (u: string): string | undefined => {
+    try { return new URL(u, /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`).toString(); } catch { return undefined; }
+  };
+  const og = html.match(/<meta[^>]+property=["']og:logo["'][^>]+content=["']([^"']+)["']/i);
+  if (og?.[1]) return abs(og[1]);
+  const imgs = Array.from(html.matchAll(/<img\b[^>]*>/gi)).map((m) => m[0]);
+  for (const tag of imgs) {
+    if (!/logo/i.test(tag)) continue;
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1];
+    if (src && !/^data:/i.test(src)) return abs(src);
+  }
+  return undefined;
 }
 
 /** Pick a usable brand color from raw HTML (theme-color meta, else first non-neutral hex). */
@@ -152,15 +187,18 @@ export async function enrichFromPresence(
 
   // Inferred bits via LLM (JSON), with heuristic fallback. The owner's own description (when given)
   // is prepended as the strongest signal so industry/audience reflect what THEY say they do.
-  let industry = "", services = "", audience = "", country = "", city = "", tone: BrandTone | undefined;
+  let industry = "", services = "", audience = "", country = "", city = "", description = "", tone: BrandTone | undefined;
   const desc = (input.businessDescription || "").trim();
   const pageText = [desc ? `The business owner describes their business as: ${desc}` : "", ctx?.text ?? ""].filter(Boolean).join("\n\n");
+  const socialLinks = socialLinksFromHtml(html);
+  const logoUrl = logoFromHtml(html, url);
   if (pageText) {
     const j = await aiExtractProfile(pageText, tenantId);
     if (j) {
       industry = typeof j.industry === "string" ? j.industry.slice(0, 80) : "";
       services = typeof j.services === "string" ? j.services.slice(0, 200) : "";
       audience = typeof j.audience === "string" ? j.audience.slice(0, 120) : "";
+      description = typeof j.description === "string" ? j.description.slice(0, 280) : "";
       country = normalizeCountry(typeof j.country === "string" ? j.country : "");
       city = typeof j.city === "string" ? j.city.slice(0, 80) : "";
       if (typeof j.tone === "string" && (BRAND_TONES as readonly string[]).includes(j.tone.toLowerCase())) tone = j.tone.toLowerCase() as BrandTone;
@@ -172,15 +210,20 @@ export async function enrichFromPresence(
     }
   }
 
+  // Description: prefer the owner's own words, else the AI summary, else an industry+services synthesis.
+  const finalDescription = desc || description || [industry, services].filter(Boolean).join(" — ") || "";
   const templateFamily = familyFromIndustry(`${industry} ${services} ${businessName}`);
-  const filled = [businessName && "name", industry && "industry", services && "services", audience && "audience", country && "country", city && "city", tone && "tone", primaryColor && "brand color", imageCount && `${imageCount} images`].filter(Boolean);
+  const filled = [businessName && "name", finalDescription && "description", industry && "industry", services && "services", audience && "audience", socialLinks.length && `${socialLinks.length} social links`, logoUrl && "logo", country && "country", city && "city", tone && "tone", primaryColor && "brand color", imageCount && `${imageCount} images`].filter(Boolean);
 
   return {
-    found: !!(businessName || industry || services || country || primaryColor || imageCount),
+    found: !!(businessName || industry || services || finalDescription || country || primaryColor || imageCount || socialLinks.length),
     businessName: businessName || undefined,
+    description: finalDescription || undefined,
     industry: industry || undefined,
     services: services || undefined,
     audience: audience || undefined,
+    socialLinks: socialLinks.length ? socialLinks : undefined,
+    logoUrl: logoUrl || undefined,
     country: country || undefined,
     city: city || undefined,
     tone,
@@ -244,6 +287,7 @@ export async function createWebsiteFromWizard(
     aiConsent: !!payload.aiConsent,
     templateFamily: payload.templateFamily,
     primaryColor,
+    logoUrl: payload.logoUrl?.trim() || null,
     // makePublicNow is intentionally NOT acted on here — DRAFT only.
     makePublicNowRequested: !!payload.makePublicNow,
   };
@@ -279,6 +323,7 @@ export async function createWebsiteFromWizard(
         tenant_id: tenantId, website_id: websiteId, theme: brandTheme,
         primary_color: primaryColor, secondary_color: fam.secondary, accent_color: fam.accent,
         font_heading: fam.headingFont, font_body: fam.bodyFont,
+        ...(payload.logoUrl?.trim() ? { logo_url: payload.logoUrl.trim() } : {}),
       },
       { onConflict: "tenant_id,website_id" }
     );

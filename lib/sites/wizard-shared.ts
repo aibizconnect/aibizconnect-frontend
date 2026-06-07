@@ -130,6 +130,7 @@ export interface WizardPayload {
   audience?: string;
   services?: string;
   businessDescription?: string;   // a couple of sentences the owner provides up-front
+  logoUrl?: string;               // logo (from existing site or pasted) — important for brand
   tone: BrandTone;
   hasWebsite?: boolean;
   existingUrl?: string;
@@ -180,9 +181,12 @@ export function normalizeCountry(raw?: string | null): string {
 export interface EnrichedProfile {
   found: boolean;
   businessName?: string;
+  description?: string;           // AI's "what does this business do?" summary
   industry?: string;
   services?: string;
   audience?: string;
+  socialLinks?: string[];         // social-profile URLs scraped from the existing site
+  logoUrl?: string;               // best-effort logo from the existing site
   tone?: BrandTone;
   country?: string;
   city?: string;
@@ -191,6 +195,17 @@ export interface EnrichedProfile {
   imageCount?: number;
   sourceUrl?: string;
   notes?: string;                 // human summary ("Found name, services, brand color…")
+}
+
+/** Deterministic proposed sitemap shown on the plan step (mirrors lib/sites/page-generate trees). */
+export interface PlannedPage { title: string; kind: "core" | "seo" | "funnel" }
+export function plannedPages(): PlannedPage[] {
+  return [
+    { title: "Home", kind: "core" }, { title: "About", kind: "core" }, { title: "Services", kind: "core" },
+    { title: "Pricing", kind: "core" }, { title: "Testimonials", kind: "core" }, { title: "Contact", kind: "core" },
+    { title: "Blog", kind: "seo" }, { title: "FAQ", kind: "seo" },
+    { title: "Free Guide", kind: "funnel" }, { title: "Thank You", kind: "funnel" }, { title: "Get Started", kind: "funnel" },
+  ];
 }
 
 export interface CreateWizardResult {
