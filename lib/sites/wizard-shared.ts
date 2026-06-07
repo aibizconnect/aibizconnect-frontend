@@ -144,6 +144,21 @@ export function audienceSuggestionsFor(industry?: string, description?: string, 
   return byFull ? byFull.audiences : GENERIC_AUDIENCES;
 }
 
+/** Suggest a few good subdomains from the business name (+ industry/city), DNS-safe and deduped. */
+export function subdomainSuggestions(name: string, industry?: string, city?: string): string[] {
+  const base = normalizeSubdomain(name || "");
+  const out: string[] = [];
+  const push = (s: string) => { const v = normalizeSubdomain(s); if (v.length >= 3 && !out.includes(v) && !RESERVED_SUBDOMAINS.has(v)) out.push(v); };
+  if (base) push(base);
+  const indWord = (industry || "").trim().split(/\s+/)[0] || "";
+  if (base && indWord) push(`${base}-${indWord}`);
+  const cityWord = (city || "").trim().split(/\s+/)[0] || "";
+  if (base && cityWord) push(`${base}-${cityWord}`);
+  if (base) push(`get-${base}`);
+  if (base) push(`${base}-online`);
+  return out.slice(0, 4);
+}
+
 export interface WizardPayload {
   businessName: string;
   industry: string;

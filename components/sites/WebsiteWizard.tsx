@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { checkSubdomain, createWebsiteFromWizard, enrichFromPresence } from "@/app/tenants/[tenantId]/website/wizard-actions";
 import {
   normalizeSubdomain, SUBDOMAIN_BASE, BRAND_TONES, FAMILY_THEME, COUNTRIES,
-  audienceSuggestionsFor, plannedPages, WIZARD_PALETTES,
+  audienceSuggestionsFor, plannedPages, WIZARD_PALETTES, subdomainSuggestions,
   type WizardPayload, type SubdomainCheck, type EnrichedProfile, type WizardPalette,
 } from "@/lib/sites/wizard-shared";
 import FontPicker from "@/components/design/FontPicker";
@@ -81,9 +81,22 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
   };
 
   const [subdomainRaw, setSubdomainRaw] = useState("");
+  const [subTouched, setSubTouched] = useState(false);
   const [check, setCheck] = useState<SubdomainCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const normalized = normalizeSubdomain(subdomainRaw);
+  const subSuggestions = subdomainSuggestions(businessName, industry, city);
+
+  // Pre-fill a good subdomain from the business name (until the user edits it).
+  useEffect(() => {
+    if (!subTouched && subSuggestions[0] && subSuggestions[0] !== subdomainRaw) setSubdomainRaw(subSuggestions[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessName, industry, city, subTouched]);
+
+  const pickSubdomain = (s: string) => {
+    setSubTouched(true); setSubdomainRaw(s); setChecking(true);
+    start(async () => { try { setCheck(await checkSubdomain(s)); } finally { setChecking(false); } });
+  };
 
   // Upfront enrichment: read the existing site, then PRE-FILL the whole wizard (description, socials,
   // logo, name, industry, services, audience, brand color, tone, template).
@@ -399,7 +412,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
               <div className="flex items-stretch gap-2">
                 <div className="flex flex-1 items-center rounded-lg border border-slate-300 focus-within:border-[#1e3a8a] focus-within:ring-1 focus-within:ring-[#1e3a8a]">
                   <input className="flex-1 rounded-l-lg px-3 py-2 text-sm outline-none"
-                    value={subdomainRaw} onChange={(e) => { setSubdomainRaw(e.target.value); setCheck(null); }} placeholder="ali-realty" />
+                    value={subdomainRaw} onChange={(e) => { setSubTouched(true); setSubdomainRaw(e.target.value); setCheck(null); }} placeholder={subSuggestions[0] || "your-business"} />
                   <span className="select-none px-3 text-sm text-slate-400">.{SUBDOMAIN_BASE}</span>
                 </div>
                 <button type="button" onClick={runCheck} disabled={checking || normalized.length < 3}
@@ -408,6 +421,17 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
                 </button>
               </div>
               {normalized && <p className="mt-1 text-xs text-slate-400">Will be: <code>{normalized}.{SUBDOMAIN_BASE}</code></p>}
+              {subSuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-slate-400">Suggestions:</span>
+                  {subSuggestions.map((s) => (
+                    <button key={s} type="button" onClick={() => pickSubdomain(s)}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${normalized === s ? "border-[#1e3a8a] bg-[#1e3a8a]/10 text-[#1e3a8a]" : "border-slate-300 text-slate-600 hover:border-slate-400"}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {check && check.normalized === normalized && (
                 <p className={`mt-2 text-sm ${check.available ? "text-emerald-600" : "text-rose-600"}`}>
                   {check.available ? "✓ Available" : `✗ Not available${check.reason ? ` (${check.reason})` : ""}`}

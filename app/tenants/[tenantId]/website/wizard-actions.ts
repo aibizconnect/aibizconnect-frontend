@@ -6,7 +6,7 @@ import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor } from "@/lib/sites/page-generate";
 import {
   BRAND_TONES, FAMILY_THEME, RESERVED_SUBDOMAINS, SUBDOMAIN_BASE, TONE_DEFAULT_COLOR,
-  normalizeSubdomain, normalizeCountry,
+  normalizeSubdomain, normalizeCountry, audienceSuggestionsFor,
   type BrandTone, type TemplateFamily, type WizardPayload, type SubdomainCheck, type CreateWizardResult, type EnrichedProfile,
 } from "@/lib/sites/wizard-shared";
 
@@ -224,6 +224,9 @@ export async function enrichFromPresence(
 
   // Description: prefer the owner's own words, else the AI summary, else an industry+services synthesis.
   const finalDescription = desc || description || [industry, services].filter(Boolean).join(" — ") || "";
+  // Fill the Basics fields fully from what we collected: derive audience/services when the AI left them blank.
+  if (!services && finalDescription) services = finalDescription.slice(0, 200);
+  if (!audience && (industry || finalDescription)) audience = audienceSuggestionsFor(industry, finalDescription, services).slice(0, 3).join(", ");
   const templateFamily = familyFromIndustry(`${industry} ${services} ${businessName}`);
   const filled = [businessName && "name", finalDescription && "description", industry && "industry", services && "services", audience && "audience", socialLinks.length && `${socialLinks.length} social links`, logoUrl && "logo", country && "country", city && "city", tone && "tone", primaryColor && "brand color", imageCount && `${imageCount} images`].filter(Boolean);
 
