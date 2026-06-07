@@ -302,7 +302,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
               <div>
                 <label className={label}>How should we copy your existing site?</label>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {([["rebuild", "Smart rebuild", "Copy your content, images & structure into editable, on-brand sections you can restyle."], ["exact", "Exact copy", "A pixel-faithful snapshot of each page (your real layout & CSS). Best for keeping it identical."]] as [typeof importMode, string, string][]).map(([k, title, desc]) => (
+                  {([["rebuild", "Smart rebuild (recommended)", "Copy your content, images & structure into fully editable, on-brand sections you can restyle and edit with AI."], ["exact", "Exact copy (snapshot)", "A pixel-faithful, view-only snapshot. Looks identical but is NOT editable block-by-block — pick Smart rebuild to edit & customize."]] as [typeof importMode, string, string][]).map(([k, title, desc]) => (
                     <button key={k} type="button" onClick={() => setImportMode(k)}
                       className={`rounded-xl border p-3 text-left transition ${importMode === k ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]" : "border-slate-200 hover:border-slate-300"}`}>
                       <div className="text-sm font-semibold text-slate-800">{title}</div>

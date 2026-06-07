@@ -420,7 +420,10 @@ export default function Canvas({
       const headers = blocks.filter((b) => !isFooter(b)).map(tag);
       const footers = blocks.filter((b) => isFooter(b)).map(tag);
 
-      setItems([...headers, ...pageItems, ...footers]);
+      // "Exact copy" pages are a single html/iframe snapshot that ALREADY contains the site's own
+      // header & footer — don't pin the global ones on top (avoids duplicates). Architect D-081/D-083.
+      const isExactSnapshot = pageItems.length === 1 && (pageItems[0]?.content as any)?.type === "html";
+      setItems(isExactSnapshot ? pageItems : [...headers, ...pageItems, ...footers]);
       onBlocksChange?.([]); // header/footer now live in the items tree; no separate globals list
       setSelectedUid(null);
       setDirty(false);

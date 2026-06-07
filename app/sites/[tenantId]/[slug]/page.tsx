@@ -155,6 +155,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     : { data: [] as any[] };
 
   const sections = sectionRows ?? [];
+  // "Exact copy" pages are a single html/iframe snapshot carrying their own header/footer — don't
+  // also render the global Header/Footer blocks (avoids duplicates). Architect D-081/D-083.
+  const isExactSnapshot = sections.length === 1 && (sections[0] as any)?.content?.type === "html";
 
   // Background behind all sections — the per-page background wins; otherwise the
   // site-wide default (theme.pageBackground).
@@ -282,8 +285,8 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         `}
       </style>
 
-      {/* Global Header (single source of truth) — rendered above the body. */}
-      {headerBlocks.map((b) => (
+      {/* Global Header (single source of truth) — rendered above the body. Skipped on exact snapshots. */}
+      {!isExactSnapshot && headerBlocks.map((b) => (
         <SectionView key={b.id} content={b.content} theme={theme} cssSink={cssSink} />
       ))}
 
@@ -333,8 +336,8 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         ))
       )}
 
-      {/* Global Footer (single source of truth) — rendered below the body. */}
-      {footerBlocks.map((b) => (
+      {/* Global Footer (single source of truth) — rendered below the body. Skipped on exact snapshots. */}
+      {!isExactSnapshot && footerBlocks.map((b) => (
         <SectionView key={b.id} content={b.content} theme={theme} cssSink={cssSink} />
       ))}
 

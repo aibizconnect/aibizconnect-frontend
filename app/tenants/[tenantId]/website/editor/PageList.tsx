@@ -11,13 +11,14 @@ import { listSitePages, createPage, duplicatePage, deletePage, renamePageDraft, 
  */
 interface PageListProps {
   tenantId: string;
+  websiteId?: string | null;
   reloadKey?: number;
   onSelectPage?: (pageId: string | null, page?: { id: string; slug: string; title: string; is_public?: boolean } | null) => void;
   canLeavePage?: () => boolean; // returns false to block switching (unsaved-changes guard)
   currentPageId?: string | null; // the page currently open in the editor
 }
 
-export default function PageList({ tenantId, reloadKey, onSelectPage, canLeavePage, currentPageId }: PageListProps) {
+export default function PageList({ tenantId, websiteId, reloadKey, onSelectPage, canLeavePage, currentPageId }: PageListProps) {
   const [pages, setPages] = useState<SitePage[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   useEffect(() => { if (currentPageId) setSelectedId(currentPageId); }, [currentPageId]);
@@ -26,7 +27,7 @@ export default function PageList({ tenantId, reloadKey, onSelectPage, canLeavePa
   const [canDelete, setCanDelete] = useState(false); // does THIS user have delete rights?
   const [pending, start] = useTransition();
 
-  const reload = () => start(async () => setPages(await listSitePages(tenantId)));
+  const reload = () => start(async () => setPages(await listSitePages(tenantId, websiteId ?? undefined)));
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [tenantId, reloadKey]);
   useEffect(() => { canDeletePages(tenantId).then(setCanDelete).catch(() => setCanDelete(false)); }, [tenantId]);
 
@@ -43,7 +44,7 @@ export default function PageList({ tenantId, reloadKey, onSelectPage, canLeavePa
     if (!title) return;
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     start(async () => {
-      try { const p = await createPage(tenantId, { title, slug }); setPages(await listSitePages(tenantId)); select({ ...p, is_public: false, hasDraft: true } as SitePage); }
+      try { const p = await createPage(tenantId, { title, slug, websiteId: websiteId ?? undefined }); setPages(await listSitePages(tenantId, websiteId ?? undefined)); select({ ...p, is_public: false, hasDraft: true } as SitePage); }
       catch (e) { window.alert((e as Error).message); }
     });
   }
@@ -51,9 +52,9 @@ export default function PageList({ tenantId, reloadKey, onSelectPage, canLeavePa
     setMenuFor(null);
     const title = window.prompt("Rename page", p.title);
     if (!title || title === p.title) return;
-    start(async () => { await renamePageDraft(p.id, tenantId, title); setPages(await listSitePages(tenantId)); });
+    start(async () => { await renamePageDraft(p.id, tenantId, title); setPages(await listSitePages(tenantId, websiteId ?? undefined)); });
   }
-  function dup(p: SitePage) { setMenuFor(null); start(async () => { await duplicatePage(p.id, tenantId); setPages(await listSitePages(tenantId)); }); }
+  function dup(p: SitePage) { setMenuFor(null); start(async () => { await duplicatePage(p.id, tenantId); setPages(await listSitePages(tenantId, websiteId ?? undefined)); }); }
   function del(p: SitePage) {
     setMenuFor(null);
     if (!window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;

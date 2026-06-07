@@ -214,7 +214,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
     switch (mode) {
       case "add": return <AddElementsPanel onPick={pickElement} onInsertSections={pickSections} tenantId={tenantId} selectedPageId={selectedPageId} onApplied={() => setReloadKey((k) => k + 1)} />;
       case "layers": return <LayersPanel sections={structure} globals={globalInputs} selected={layerSel} onSelect={(s) => { setLayerSel(s); setSelectTarget(s); setSelectSignal((n) => n + 1); }} onOpenGlobal={() => { setMode("blocks"); setLeftOpen(true); }} />;
-      case "editor": return <PageList tenantId={tenantId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
+      case "editor": return <PageList tenantId={tenantId} websiteId={websiteId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
       case "tracking": return <TrackingCodePanel tenantId={tenantId} websiteId={websiteId ?? undefined} />;
       case "code": return <CustomCssPanel tenantId={tenantId} selectedPageId={selectedPageId} />;
       case "generate": return <WebsiteGeneratorPanel tenantId={tenantId} onApplied={() => setReloadKey((k) => k + 1)} />;
@@ -231,7 +231,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       case "media": return <MediaPanel tenantId={tenantId} />;
       case "blocks": return <GlobalBlocksPanel tenantId={tenantId} selectedPageId={selectedPageId} onChanged={() => setReloadKey((k) => k + 1)} />;
       case "design": return <BrandPanel tenantId={tenantId} websiteId={websiteId ?? undefined} reloadKey={reloadKey} />;
-      default: return <PageList tenantId={tenantId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
+      default: return <PageList tenantId={tenantId} websiteId={websiteId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
     }
   };
 

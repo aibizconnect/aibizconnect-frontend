@@ -50,7 +50,10 @@ function isContentImage(src: string): boolean {
 }
 
 export function extractPageContent(html: string, baseUrl: string): ExtractedContent {
+  // Strip site chrome (header/nav/footer) so the rebuild captures the page BODY only — the global
+  // Header/Footer blocks provide navigation site-wide (architect D-083). Title read before stripping.
   const title = stripTags(firstMatch(/<title[^>]*>([\s\S]*?)<\/title>/i, html) || "");
+  html = html.replace(/<(header|footer|nav)\b[\s\S]*?<\/\1>/gi, " ");
   const description = decode(firstMatch(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i, html) || "").trim();
   const ogImageRaw = firstMatch(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i, html) || "";
   const ogImage = ogImageRaw ? absolutize(ogImageRaw, baseUrl) : "";

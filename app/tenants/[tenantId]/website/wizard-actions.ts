@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
+import { htmlToSections } from "@/lib/sites/html-importer";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -115,12 +116,12 @@ async function aiSectionsForPage(tenantId: string, w: Record<string, any>, title
     `{"type":"features","heading":"","features":[{"title":"","description":""}]}\n` +
     `{"type":"text","text":""}\n` +
     `{"type":"bullet-list","bulletStyle":"check","items":[{"text":""}]}\n` +
-    `{"type":"testimonials","items":[{"quote":"","author":"Satisfied client"}]}\n` +
+    `{"type":"testimonials","heading":"","items":[{"quote":"","name":"Satisfied client","role":""}]}\n` +
     `{"type":"faq","items":[{"q":"","a":""}]}\n` +
     `{"type":"cta","heading":"","cta":{"label":"","href":"/contact"}}\n` +
     `{"type":"contact-form","heading":"","fields":[{"name":"name","label":"Name","type":"text"},{"name":"email","label":"Email","type":"email"}],"submitLabel":"Send"}\n` +
     `RULES: Do NOT invent specific facts — no fake client names, awards, statistics, prices, addresses, ` +
-    `or phone numbers. Keep testimonials generic ("author":"Satisfied client"). Hrefs are "/contact" or "#". JSON only.`;
+    `or phone numbers. Keep testimonials generic ("name":"Satisfied client"). Hrefs are "/contact" or "#". JSON only.`;
 
   const parse = (raw: string): Record<string, unknown>[] | null => {
     try {
@@ -128,6 +129,12 @@ async function aiSectionsForPage(tenantId: string, w: Record<string, any>, title
       const arr = Array.isArray(j?.sections) ? j.sections : Array.isArray(j) ? j : null;
       if (!arr) return null;
       const secs = arr.filter((s: any) => s && typeof s.type === "string" && ALLOWED_SECTION_TYPES.has(s.type)).slice(0, 8);
+      // Normalize testimonials to the schema shape (items need `name`, not `author`).
+      for (const s of secs) {
+        if (s.type === "testimonials" && Array.isArray(s.items)) {
+          s.items = s.items.map((it: any) => ({ name: it.name || it.author || "Satisfied client", role: it.role, quote: it.quote || "" }));
+        }
+      }
       return secs.length ? secs : null;
     } catch { return null; }
   };
@@ -898,8 +905,16 @@ function slugifyTitle(title: string): string {
   return (title || "page").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "page";
 }
 
-/** Faithfully turn an existing page's HTML into render-ready sections (a real copy, no invented facts). */
+/**
+ * Faithfully turn an existing page's HTML into ORDERED, editable sections (a real copy, no invented
+ * facts). Primary: full DOM walk (html-importer) that recognizes every element in document order.
+ * Fallback: the lighter headline/section extractor if the DOM walk yields nothing.
+ */
 function cloneSectionsFromHtml(html: string, baseUrl: string): Record<string, unknown>[] {
+  try {
+    const ordered = htmlToSections(html, baseUrl);
+    if (ordered.length >= 2) return ordered;
+  } catch { /* fall back */ }
   try {
     const ex = extractPageContent(html, baseUrl);
     return contentToBlocks(ex).map((b) => b.content);

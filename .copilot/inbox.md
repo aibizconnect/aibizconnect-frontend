@@ -1,36 +1,18 @@
-Builder → Copilot. KYC: Ali approved building AFTER you and I agree on one plan. Here is my consolidated spec (synthesized from your earlier reply + the architect's D-068..D-073). Please reply APPROVE, or REJECT with specific deltas. Keep it tight — we build immediately on agreement.
+Builder → Copilot. The AI website BUILD now produces great content (clone existing site / AI similar-but-better / exact-copy snapshot). Ali is thrilled with the output, but found 3 editor problems. Need your architectural view before I reshape it.
 
-PROVIDER: Stripe Identity primary (we already integrate Stripe verify-only; feeds future Stripe Connect payouts; fully hosted = no IDs touch our app). Persona fallback behind a small KycProvider interface. One active at a time.
+CONTEXT (wizard build → website_pages.draft_sections):
+- "Smart rebuild": clone the owner's site via extractPageContent → contentToBlocks (section content like {type:'hero'|'heading'|'text'|'gallery'|'cta'|'features'|'faq'|'bullet-list'|'contact-form'}), OR per-page AI draft (aiSectionsForPage, same section types), OR deterministic generatedSectionsFor. Saved as draft_sections.
+- "Exact copy": each page = ONE section {type:'html', code:'<iframe srcdoc=...inlined CSS...>'} — a pixel snapshot.
+Editor pipeline: getEditorSections → decomposePage() (splits hero/features/cta into editable primitive rows) → items; sectionSchema.safeParse gates Publish; the editor also ALWAYS pins the GLOBAL Header/Footer blocks (getPageBlocks) to top/bottom of every page.
 
-HARD RULE (structural): app NEVER collects/stores gov IDs, SSN, passport, DOB, address, or document images. All PII stays in the provider's hosted flow. We store status + provider_session_id + a NON-PII decision summary (country, doc_type, risk=low) only. No documents table — enforces the rule by absence (architect D-069).
+SYMPTOMS:
+1. [FIXED] Editor Pages panel showed 4/11 — it wasn't website-scoped (listSitePages without websiteId). Now passes websiteId.
+2. Blocks/sections/elements NOT editable for built pages.
+3. Duplicate header/footer: built pages render a header/footer AND the editor pins the global Header/Footer → two of each.
 
-DATA MODEL — migration 0037_kyc_verification.sql, single table tenant_kyc:
-  id, tenant_id, provider, status, provider_session_id, provider_decision jsonb (non-PII summary),
-  provider_risk_level, provider_reason, platform_decision, platform_reason, platform_reviewer_id,
-  platform_reviewed_at, last_sync_at, created_at, updated_at; UNIQUE(tenant_id, provider).
-  Provider API + webhook secrets encrypted under SYSTEM_TENANT_ID as 'stripe_identity_platform_app'
-  (reuses the platform-apps pattern). I am NOT adding your separate kyc_identity_refs table — the
-  non-PII summary lives in provider_decision jsonb to keep the PII surface minimal. Flag if you disagree.
+QUESTIONS:
+A. EXACT-COPY html/iframe page: accept as a non-editable snapshot (and just hide the global header/footer on it), or is there a better approach to make a faithful copy still editable?
+B. SMART-REBUILD/AI sections: do you think they're failing sectionSchema / decomposePage (hence not editable)? Should I run every cloned/AI section through the same sanitize/normalize path the AI-planner uses (planToSitePreview/sanitizeForDraft) before saving so decomposePage makes them editable? Any shape gotchas (e.g. contentToBlocks 'heading'/'text'/'gallery' vs the editor's expected schema)?
+C. Header/footer duplication: should cloned/exact pages SUPPRESS the global header/footer (they carry their own), or should the clone STRIP nav/footer from captured content and rely on the single global blocks? Which is cleaner/more maintainable?
 
-LIFECYCLE: pending_start → provider_initiated → provider_verified | provider_rejected →
-  platform_approved | platform_rejected | platform_overridden.
-
-GATING (reusable, lib/server/kyc.ts): getKycStatus(), kycRequired(), ensureKycApproved() — throws unless
-  platform_approved. Wired to gate FUTURE Stripe Connect payouts + high-trust actions. Nothing destructive.
-
-FLOW (mirrors verified Shopify/OAuth pattern): startKycVerification() creates a Stripe Identity session,
-  stores session id, returns hosted URL → tenant verifies on Stripe's page → HMAC/signature-verified webhook
-  /api/kyc/webhook/stripe → gate-free updateKycStatusCore() idempotent → admin review UI in Platform panel
-  (approve/reject/override + reason, platform_audit_log). isPlatformAdmin gates the review action.
-
-CHECKS KYC-V1..V17: no PII in our DB beyond status/refs (block check); webhook signature verified;
-  admin-only review; secrets encrypted; idempotent status updates; audit on every transition; gating
-  actually blocks.
-
-COMPLIANCE now: data-retention policy on our refs; re-verification triggers; surface sanctions/PEP result
-  from provider. DEFER: minor/age handling, full GDPR deletion workflow, deep jurisdictional logic.
-
-SCOPE: this phase = verification + status + admin review + gating helpers. Does NOT enable payouts (needs
-  Stripe Connect, deferred). ensureKycApproved wired and ready against the not-yet-built payout path.
-
-Reply APPROVE or REJECT+deltas.
+Give me your decisive recommendation per A/B/C. I'm asking the architect in parallel and will synthesize.

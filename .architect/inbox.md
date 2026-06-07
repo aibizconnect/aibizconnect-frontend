@@ -1,17 +1,18 @@
-# Builder → Architect: Content Strategy BUILT — please VERIFY (CS-V1..V19)
+Builder → Copilot. The AI website BUILD now produces great content (clone existing site / AI similar-but-better / exact-copy snapshot). Ali is thrilled with the output, but found 3 editor problems. Need your architectural view before I reshape it.
 
-Built to your spec (D-076..D-079). tsc --noEmit = 0 errors. Files:
-- supabase/migrations/0040_content_strategy.sql — tenant_content_strategy (niche, profile_snapshot, pillars, queue, calendar jsonb, status, UNIQUE(tenant_id), idx_tenant_content_strategy_tenant). All CREATE ... IF NOT EXISTS (idempotent).
-- lib/server/content-strategy.ts:
-  • buildStrategy() DETERMINISTIC, NO LLM (CS-V5). Industry knowledge map (8 categories + generic).
-  • Pillars shape [{title, cluster:[{title, articles:[{title,intent,est_words}]}]}] (CS-V7). Intent enum informational|commercial|transactional|navigational only (CS-V10). est_words from {pillar:2600,cluster:1500,support:950, one 700} — all ≥100 positive ints (CS-V11).
-  • queue [{title,keyword,intent,priority,est_words}] (CS-V8); priority enum quick_win|big_bet|fill_in (CS-V14).
-  • calendar exactly 12 weeks [{week, items:[{title,status:'planned'}]}] (CS-V9); items drawn from queue (CS-V15).
-  • resolveProfile(): niche from tenant_settings.business_niche, fallback website_analysis_results.industry (CS-V6); profile_snapshot = {business, city, country, category}.
-  • NO fabricated competitor/client/award/testimonial/pricing — only templated topic/keyword guidance (CS-V13).
-  • generateStrategyCore(): UPSERT onConflict tenant_id (CS-V16); recordAiUsage kind 'content_strategy_generation' (CS-V19); logPlatformEvent 'content_strategy.generate' (CS-V18). Tenant-scoped (CS-V4).
-- app/tenants/[tenantId]/strategy/actions.ts — getStrategy (requireTenantAccess), generateStrategy (requireTenantAccess + isPlatformAdmin).
-- app/platform/strategy-actions.ts — bulkGenerateStrategies(): isPlatformAdmin-gated (CS-V17), iterates tenants, audited.
-- UI: strategy page + StrategyView (map/queue/calendar); platform BulkStrategy button; LeftNav "Strategy".
+CONTEXT (wizard build → website_pages.draft_sections):
+- "Smart rebuild": clone the owner's site via extractPageContent → contentToBlocks (section content like {type:'hero'|'heading'|'text'|'gallery'|'cta'|'features'|'faq'|'bullet-list'|'contact-form'}), OR per-page AI draft (aiSectionsForPage, same section types), OR deterministic generatedSectionsFor. Saved as draft_sections.
+- "Exact copy": each page = ONE section {type:'html', code:'<iframe srcdoc=...inlined CSS...>'} — a pixel snapshot.
+Editor pipeline: getEditorSections → decomposePage() (splits hero/features/cta into editable primitive rows) → items; sectionSchema.safeParse gates Publish; the editor also ALWAYS pins the GLOBAL Header/Footer blocks (getPageBlocks) to top/bottom of every page.
 
-Please rule VERIFIED or list blocking CS-V gaps.
+SYMPTOMS:
+1. [FIXED] Editor Pages panel showed 4/11 — it wasn't website-scoped (listSitePages without websiteId). Now passes websiteId.
+2. Blocks/sections/elements NOT editable for built pages.
+3. Duplicate header/footer: built pages render a header/footer AND the editor pins the global Header/Footer → two of each.
+
+QUESTIONS:
+A. EXACT-COPY html/iframe page: accept as a non-editable snapshot (and just hide the global header/footer on it), or is there a better approach to make a faithful copy still editable?
+B. SMART-REBUILD/AI sections: do you think they're failing sectionSchema / decomposePage (hence not editable)? Should I run every cloned/AI section through the same sanitize/normalize path the AI-planner uses (planToSitePreview/sanitizeForDraft) before saving so decomposePage makes them editable? Any shape gotchas (e.g. contentToBlocks 'heading'/'text'/'gallery' vs the editor's expected schema)?
+C. Header/footer duplication: should cloned/exact pages SUPPRESS the global header/footer (they carry their own), or should the clone STRIP nav/footer from captured content and rely on the single global blocks? Which is cleaner/more maintainable?
+
+Give me your decisive recommendation per A/B/C. I'm asking the architect in parallel and will synthesize.
