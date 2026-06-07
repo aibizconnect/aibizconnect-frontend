@@ -5,6 +5,8 @@ import { listTeam } from "@/lib/auth/team";
 import { getPlatformAudit, getAllAiUsage } from "@/app/tenants/[tenantId]/website/actions";
 import { resolveDefaultTenantId } from "@/lib/tenant-resolve";
 import TeamConsole from "@/components/team/TeamConsole";
+import PlatformApps from "@/components/platform/PlatformApps";
+import { listPlatformApps } from "./platform-apps-actions";
 
 /**
  * Platform panel — the tenant-LESS admin console for the AI Biz Connect team. Reached from a
@@ -28,12 +30,14 @@ export default async function PlatformPanel() {
 
   const superadmin = await isPlatformSuperAdmin();
   const owner = await isOwner();
-  const [team, audit, usage, tenantId] = await Promise.all([
+  const [team, audit, usage, tenantId, platformApps] = await Promise.all([
     superadmin ? listTeam() : Promise.resolve([]),
     getPlatformAudit(25),
     getAllAiUsage(),
     resolveDefaultTenantId(),
+    superadmin ? listPlatformApps() : Promise.resolve([]),
   ]);
+  const appBase = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
 
   const roleBadge = role === "superadmin" ? "bg-violet-100 text-violet-700"
     : role === "admin" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700";
@@ -59,6 +63,14 @@ export default async function PlatformPanel() {
           <section>
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Team</h2>
             <TeamConsole initial={team} isOwner={owner} />
+          </section>
+        )}
+
+        {superadmin && (
+          <section>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Connected apps (platform OAuth)</h2>
+            <p className="mb-3 text-sm text-slate-500">Enter each provider&apos;s app credentials once — this enables the Connect buttons in every tenant&apos;s Settings. Stored encrypted; equivalent to the env vars, no restart needed. Requires SETTINGS_ENCRYPTION_KEY.</p>
+            <PlatformApps apps={platformApps} baseUrl={appBase} />
           </section>
         )}
 
