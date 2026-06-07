@@ -81,6 +81,47 @@ export function normalizeSubdomain(raw: string): string {
     .slice(0, 40);
 }
 
+/**
+ * Deterministic Target-Audience suggestions tailored to the business (NOT hardcoded to real estate).
+ * Matches industry first, then the owner's description / services, against a curated keyword map.
+ * Falls back to a sensible generic set. Pure — safe in client + server.
+ */
+interface AudiencePack { match: RegExp; audiences: string[] }
+const AUDIENCE_PACKS: AudiencePack[] = [
+  { match: /real\s?estate|realtor|broker(age)?|property|properties|homes?|listing|mortgage|mls/i,
+    audiences: ["First-time home buyers", "Luxury buyers", "Sellers & downsizers", "Real-estate investors", "Renters", "Relocating families", "Local families", "Property developers"] },
+  { match: /\bai\b|artificial intelligence|automation|machine learning|saas|software|tech\b|consult|agency|marketing|crm|gohighlevel|ghl|no[- ]?code|workflow/i,
+    audiences: ["Small business owners", "Agencies & consultants", "Coaches & course creators", "SaaS & startup founders", "Marketing teams", "Operations managers", "Solopreneurs & freelancers", "Local service businesses"] },
+  { match: /dental|dentist|orthodont|medical|clinic|health|therap|chiro|physio|optometr|derma/i,
+    audiences: ["New patients", "Families", "Busy professionals", "Seniors", "Parents of young children", "Cosmetic patients", "Insurance patients", "Referring providers"] },
+  { match: /fitness|gym|personal train|yoga|pilates|crossfit|nutrition|wellness|coach.*health/i,
+    audiences: ["Beginners", "Weight-loss clients", "Athletes & competitors", "Busy professionals", "Active seniors", "New parents", "Group-class members", "1:1 coaching clients"] },
+  { match: /\blaw\b|legal|attorney|lawyer|litigation|paralegal|notary/i,
+    audiences: ["Individuals & families", "Small businesses", "Accident & injury clients", "Estate-planning clients", "Startups & founders", "Employers", "Real-estate clients", "Immigration clients"] },
+  { match: /restaurant|cafe|coffee|food|catering|bakery|\bbar\b|bistro|brewery|diner/i,
+    audiences: ["Local diners", "Families", "Date-night couples", "Office & catering orders", "Private events", "Takeout & delivery", "Tourists & visitors", "Foodies"] },
+  { match: /plumb|hvac|roofing|electric|contractor|landscap|cleaning|renovat|handyman|pest|home\s?services|construction/i,
+    audiences: ["Homeowners", "Property managers", "Landlords", "Real-estate agents", "Commercial clients", "New-build clients", "Emergency-service customers", "Local businesses"] },
+  { match: /salon|spa|beauty|hair|nails|skincare|barber|aesthetic|lash|makeup|cosmetolog/i,
+    audiences: ["New clients", "Bridal & events", "Busy professionals", "Students", "Men's grooming", "Loyal regulars", "Gift-card buyers", "Self-care seekers"] },
+  { match: /shop|store|e-?commerce|retail|boutique|product|apparel|clothing|jewel|merch/i,
+    audiences: ["Online shoppers", "Gift buyers", "Repeat customers", "Deal seekers", "Premium buyers", "Wholesale & B2B", "Local pickup customers", "Subscribers"] },
+  { match: /account|bookkeep|\btax\b|financ|advisor|insurance|wealth|invest/i,
+    audiences: ["Small business owners", "Self-employed & freelancers", "Startups", "Individuals & families", "High-net-worth clients", "Retirees", "Real-estate investors", "Nonprofits"] },
+  { match: /coach|course|education|tutor|training|school|academy|mentor|bootcamp/i,
+    audiences: ["Beginners", "Career changers", "Students", "Professionals upskilling", "Entrepreneurs", "Parents", "Teams & organizations", "Lifelong learners"] },
+];
+const GENERIC_AUDIENCES = ["Small business owners", "Local customers", "Professionals", "Families", "Startups & founders", "Enterprise clients", "First-time customers", "Repeat clients"];
+
+export function audienceSuggestionsFor(industry?: string, description?: string, services?: string): string[] {
+  const ind = (industry ?? "").toLowerCase();
+  const byIndustry = ind ? AUDIENCE_PACKS.find((p) => p.match.test(ind)) : undefined;
+  if (byIndustry) return byIndustry.audiences;
+  const full = `${ind} ${(description ?? "").toLowerCase()} ${(services ?? "").toLowerCase()}`.trim();
+  const byFull = full ? AUDIENCE_PACKS.find((p) => p.match.test(full)) : undefined;
+  return byFull ? byFull.audiences : GENERIC_AUDIENCES;
+}
+
 export interface WizardPayload {
   businessName: string;
   industry: string;
@@ -88,6 +129,7 @@ export interface WizardPayload {
   city?: string;
   audience?: string;
   services?: string;
+  businessDescription?: string;   // a couple of sentences the owner provides up-front
   tone: BrandTone;
   hasWebsite?: boolean;
   existingUrl?: string;

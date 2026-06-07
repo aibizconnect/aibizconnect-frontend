@@ -122,7 +122,7 @@ function brandColorFromHtml(html: string): string | undefined {
  */
 export async function enrichFromPresence(
   tenantId: string,
-  input: { websiteUrl?: string; blogUrl?: string; socialLinks?: string[] }
+  input: { websiteUrl?: string; blogUrl?: string; socialLinks?: string[]; businessDescription?: string }
 ): Promise<EnrichedProfile> {
   const url = (input.websiteUrl || input.blogUrl || "").trim();
   if (!url) return { found: false, notes: "Enter your website (or blog) URL, then Analyze." };
@@ -150,9 +150,11 @@ export async function enrichFromPresence(
   const primaryColor = brandColorFromHtml(html);
   const imageCount = ctx?.images?.length ?? 0;
 
-  // Inferred bits via LLM (JSON), with heuristic fallback.
+  // Inferred bits via LLM (JSON), with heuristic fallback. The owner's own description (when given)
+  // is prepended as the strongest signal so industry/audience reflect what THEY say they do.
   let industry = "", services = "", audience = "", country = "", city = "", tone: BrandTone | undefined;
-  const pageText = ctx?.text ?? "";
+  const desc = (input.businessDescription || "").trim();
+  const pageText = [desc ? `The business owner describes their business as: ${desc}` : "", ctx?.text ?? ""].filter(Boolean).join("\n\n");
   if (pageText) {
     const j = await aiExtractProfile(pageText, tenantId);
     if (j) {
@@ -233,6 +235,7 @@ export async function createWebsiteFromWizard(
     city: payload.city?.trim() || null,
     audience: payload.audience?.trim() || null,
     services: payload.services?.trim() || null,
+    description: payload.businessDescription?.trim() || null,
     tone,
     hasWebsite: !!payload.hasWebsite,
     existingUrl: payload.existingUrl?.trim() || null,
@@ -626,6 +629,7 @@ function buildBrief(w: Record<string, any>, learnedText?: string | null): string
   parts.push(`Create a multi-page marketing website for "${w.businessName}", a ${w.industry} business`);
   const loc = [w.city, w.country].filter(Boolean).join(", ");
   if (loc) parts.push(`based in ${loc}`);
+  if (w.description) parts.push(`About the business (in the owner's words): ${w.description}`);
   if (w.audience) parts.push(`serving ${w.audience}`);
   if (w.services) parts.push(`offering: ${w.services}`);
   if (w.tone) parts.push(`Brand tone: ${w.tone}`);

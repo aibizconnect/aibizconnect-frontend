@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkSubdomain, createWebsiteFromWizard, enrichFromPresence } from "@/app/tenants/[tenantId]/website/wizard-actions";
 import {
   normalizeSubdomain, SUBDOMAIN_BASE, BRAND_TONES, TEMPLATE_FAMILIES, FAMILY_THEME, COUNTRIES,
+  audienceSuggestionsFor,
   type WizardPayload, type SubdomainCheck, type EnrichedProfile,
 } from "@/lib/sites/wizard-shared";
 
@@ -19,14 +20,7 @@ const FAMILY_LABEL: Record<string, string> = {
   realtor: "Real Estate", agency: "Agency", "local-service": "Local Service",
   portfolio: "Portfolio", startup: "Startup",
 };
-// Common audiences offered as click-to-add chips (Ali's request for more suggestions).
-const AUDIENCE_SUGGESTIONS = [
-  "First-time home buyers", "Luxury buyers", "Sellers & downsizers", "Real-estate investors",
-  "Renters", "Relocating families", "Commercial clients", "Small business owners",
-  "Local families", "Young professionals", "Retirees", "Property developers",
-];
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]";
+const input ="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]";
 const label = "mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500";
 
 export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
@@ -42,6 +36,9 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
   const [city, setCity] = useState("");
   const [audience, setAudience] = useState("");
   const [services, setServices] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
+  // Audience chips derived from THIS business (industry + description + services), not hardcoded.
+  const audienceSuggestions = audienceSuggestionsFor(industry, businessDescription, services);
   const [tone, setTone] = useState<string>("professional");
 
   const [existingUrl, setExistingUrl] = useState("");
@@ -55,7 +52,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
     setAnalyzing(true); setEnrich(null);
     start(async () => {
       try {
-        const p = await enrichFromPresence(tenantId, { websiteUrl: existingUrl, blogUrl: existingBlog, socialLinks: socialLinks.filter((s) => s.trim()) });
+        const p = await enrichFromPresence(tenantId, { websiteUrl: existingUrl, blogUrl: existingBlog, socialLinks: socialLinks.filter((s) => s.trim()), businessDescription: businessDescription.trim() || undefined });
         setEnrich(p);
         if (p.businessName) setBusinessName(p.businessName);
         if (p.industry) setIndustry(p.industry);
@@ -101,7 +98,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
 
   const canNext = (): boolean => {
     switch (step) {
-      case 0: return true; // Start/Presence is optional — you can skip straight to Basics
+      case 0: return !!businessDescription.trim(); // need a couple sentences to tailor everything
       case 1: return !!businessName.trim() && !!industry.trim() && !!country.trim();
       case 3: return !!check?.available && check.normalized === normalized && normalized.length >= 3;
       default: return true;
@@ -112,6 +109,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
     setError(null);
     const payload: WizardPayload = {
       businessName, industry, country, city, audience, services,
+      businessDescription: businessDescription.trim() || undefined,
       tone: tone as WizardPayload["tone"],
       hasWebsite: !!existingUrl.trim(), existingUrl, existingBlog,
       socialLinks: socialLinks.filter((s) => s.trim()),
@@ -180,7 +178,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
               <label className={label}>Target audience</label>
               <input className={input} value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Who do you serve? (you can pick below or type your own)" />
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {AUDIENCE_SUGGESTIONS.map((a) => {
+                {audienceSuggestions.map((a) => {
                   const on = audienceHas(a);
                   return (
                     <button key={a} type="button" onClick={() => toggleAudience(a)}
@@ -203,6 +201,12 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">Let&apos;s start with what you already have</h2>
             <p className="text-sm text-slate-500">Drop your website (and socials) and hit <strong>Analyze</strong> — our AI reads them and <strong>fills in the rest of this wizard for you</strong>. No website yet? Just skip to the next step.</p>
+            <div>
+              <label className={label}>In a sentence or two, what does your business do? *</label>
+              <textarea className={input} rows={3} value={businessDescription} onChange={(e) => setBusinessDescription(e.target.value)}
+                placeholder="e.g. We help small businesses automate operations and capture leads with AI and done-for-you GoHighLevel systems." />
+              <p className="mt-1 text-xs text-slate-400">This helps us tailor the industry, audience suggestions, and AI copy to <em>your</em> business.</p>
+            </div>
             <div>
               <label className={label}>Existing website</label>
               <div className="flex items-stretch gap-2">
