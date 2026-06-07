@@ -1,26 +1,32 @@
-### CONTROL RULING: VERIFIED (with accepted deviation for M-V1)
+### CONTROL RULING: VERIFIED
 
-The Builder has successfully addressed the previous rejections for Cloudflare client completeness and DKIM verification. The deviation for `tenant_domains` schema is accepted under strict production constraints.
+The Builder has successfully implemented the Social Integrations backend according to the approved data model and application logic, addressing all specified Supervisor checks.
 
 **Verification Details:**
 
-**For Cloudflare Client (`lib/server/cloudflare.ts`):**
-*   **CF-V5:** Verified. `createTxtRecord` is now implemented.
-*   **CF-V6:** Verified. `listRecords(name?)` is now implemented.
-*   **CF-V7:** Verified. `getZoneId(domain)` and `getOrCreateZone(domain)` are now implemented.
+**For Migration `0033_social_accounts.sql`:**
+*   **SOC-V1:** Verified. The `public.tenant_social_accounts` table is created exactly as specified in RULING 28, including all columns, types, defaults, and the `UNIQUE (tenant_id, provider, external_id)` constraint.
+*   **SOC-V2:** Verified. The `idx_tsa_tenant` and `idx_tsa_tenant_provider` indexes are correctly created.
+*   **SOC-V3:** Verified. The `encrypted_tokens` column is `TEXT NOT NULL`, consistent with the accepted deviation for base64-encoded encrypted payloads (D-023).
+*   **SOC-V4:** Verified. The `scopes` column is `TEXT[] NOT NULL DEFAULT '{}'`.
 
-**For Email Actions (`email-actions.ts`):**
-*   **E-V6:** Verified. `verifyEmailDns` now includes verification of the DKIM CNAME by checking for its presence. This is an acceptable approach given the variability of ESP DKIM target values.
+**For Social Application Logic (`lib/server/social.ts` and `app/tenants/[tenantId]/settings/social-actions.ts`):**
+*   **SOC-V5:** Verified. All server actions are gated by `requireTenantAccess(tenantId)`, ensuring strict tenant-scoping.
+*   **SOC-V6:** Verified. `listSocialAccounts` correctly returns non-secret fields and a `hasTokens` boolean, without exposing raw tokens.
+*   **SOC-V7:** Verified. `getOAuthStartUrl` constructs the authorization URL with an encrypted `state` parameter for CSRF and tenant binding, and includes YouTube-specific parameters for refresh tokens.
+*   **SOC-V8:** Verified. The code exchange for tokens is performed entirely server-side within `exchangeCodeForTokens` and `completeOAuth`.
+*   **SOC-V9:** Verified. Platform app credentials are correctly sourced from environment variables or the encrypted platform secret (`SYSTEM_TENANT_ID`, `provider '<p>_platform_app'`).
+*   **SOC-V10:** Verified. `completeOAuth` encrypts all sensitive tokens using `lib/server/encryption.ts` and stores them in `tenant_social_accounts.encrypted_tokens`.
+*   **SOC-V11:** Verified. `completeOAuth` (via `fetchConnectableAccounts` and `storeSocialAccount`) correctly upserts `tenant_social_accounts` rows, populating all required metadata fields.
+*   **SOC-V12:** Verified. `fetchConnectableAccounts` handles providers that return multiple connectable entities (e.g., Facebook Pages, YouTube channels) by creating separate `tenant_social_accounts` entries.
+*   **SOC-V13:** Verified. `disconnectSocialAccount` attempts best-effort token revocation and deletes the corresponding `tenant_social_accounts` row.
+*   **SOC-V14:** Verified. `refreshSocialToken` (via `refreshAccessToken`/`refreshSocialAccountToken`) correctly refreshes tokens, re-encrypts them, and updates expiry.
+*   **SOC-V15:** Verified. All sensitive actions (`oauth_start`, `oauth_complete`, `disconnect`, `refresh_token`) are correctly audited via `logPlatformEvent` to `platform_audit_log`.
+*   **SOC-V16:** Verified. The system degrades gracefully (`socialProviderReady()` check) when platform app credentials are not configured.
+*   **SOC-V17:** Verified. Raw (decrypted) tokens are never exposed to the client-side.
 
-**For Migration `0032_domain_email_tables.sql` (M-V1):**
-*   **M-V1:** **REJECTED (with acceptance).** The deviation from the `NOT NULL` constraints and the retention of `subdomain`/`custom_domain` columns in `tenant_domains` is accepted due to the critical constraint of not breaking existing live middleware and the inability to backfill `NOT NULL` columns on an existing table in production.
-    *   **Acceptance Condition:** The `domain_name`, `type`, and `website_id` columns *must* be added to `tenant_domains` as specified in RULING 24, even if initially `NULLABLE`.
-    *   **Acceptance Condition:** New code *must* populate these new columns, with `domain_name` being the canonical source for all new domain logic.
-    *   **Acceptance Condition:** This deviation creates technical debt. A future migration will be required to backfill `domain_name`, `type`, `website_id` for existing rows, update middleware to use these canonical fields, and then apply `NOT NULL` constraints and potentially deprecate `subdomain`/`custom_domain`.
-
-All other previously verified points remain verified.
+The `tsc-clean` status is noted. The accepted deviation for `TEXT` vs `bytea` for encrypted payloads (D-023) is confirmed to be consistently applied.
 
 ---
 DECISION-LOG
-[D-026] verified_domain_email_fixes — Domain and Email phase fixes verified, including Cloudflare client completeness and DKIM verification (status: verified)
-[D-027] accepted_m_v1_deviation — Accepted deviation for tenant_domains schema (nullable new columns, retaining legacy columns) due to production constraints, with conditions for future remediation (status: accepted)
+[D-031] verified_social_integrations_backend — Social integrations backend (data model and application logic) verified against all SOC checks (status: verified)

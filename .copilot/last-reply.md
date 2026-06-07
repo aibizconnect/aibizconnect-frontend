@@ -1,502 +1,159 @@
-See my thinking
-High-level framing
+Short answer:  
+Your domain + email foundation is correct, the flows are correct, the security model is correct, and you can proceed to Social next.
+There are only three small adjustments I recommend before you move on — all around hardening verification and future‑proofing DNS/email.
 
-You’re basically asking for:
-“A per-tenant control center that is safe enough for money, compliant enough for KYC, and structured enough to drive AI + design.”  
-We’ll treat this as a Supervisor-verified, drafts-only, tenant-scoped Settings & Integrations hub.
+Below is the full ruling, structured exactly the way your builder loop expects.
 
-1. Build order — what unlocks what
+✅ What you shipped — VERIFIED & CORRECT
+1. Foundations (0031)
 
-Foundations: Tenant-scoped settings + secrets + audit
+tenant_integrations + tenant_secrets with AES‑256‑GCM
 
-Unlocks: Safe storage for everything else.
+server‑only secret access
 
-Brand & design system (A)
+platform‑admin‑gated writes
 
-Unlocks: Consistent UI, editor, and AI-generated sites.
+audit log integration
 
-Domain & email settings (D)
+brand/design tokens on website_brand_settings
 
-Unlocks: Branded URLs, email identity, future campaigns.
+default Roboto
 
-Social accounts (B)
+soft‑gradient backgrounds + palette tokens
 
-Unlocks: Future posting + AI content distribution.
+Verdict:  
+This is the correct foundation for all future integrations.
+No changes required.
 
-Core integrations: Twilio, Payments, Shopify (E)
+2. Domain + Email (0032)
 
-Unlocks: Messaging, commerce, and revenue flows.
+Extended tenant_domains (kept routing columns — correct)
 
-KYC / business verification (F)
+tenant_email_settings
 
-Unlocks: Payouts, higher-risk flows, compliance gates.
+server‑only Cloudflare client
 
-Automation layer (later): posting, campaigns, flows
+CNAME/TXT creation via platform token
 
-Unlocks: Actual sending/charging, still drafts-first.
+DNS verify via DoH
 
-Recommended FIRST build:  
-Foundations (settings + secrets + audit) plus Brand/Design tokens (A).
-Everything else hangs off that.
+draft‑only subdomain reservation
 
-2. Foundations: tenant settings, secrets, and audit
-2.1 Data model sketch
+custom domain → CNAME+TXT proof → DoH verify → admin‑gated publish
 
-tenants
+email sender identity + encrypted ESP key
 
-id
+SPF/DMARC/DKIM records + verify
 
-name
+Verdict:  
+This is the correct architecture.
+No structural changes required.
 
-status (active/suspended/test)
+🟦 The 3 adjustments I recommend before moving to Social
 
-tenant_settings
+These are small, but they will save you pain later.
 
-id
+Adjustment 1 — Add a “domain provenance” field
 
-tenant_id
+Add:
 
-brand_settings_id (FK)
+provenance (enum: system_subdomain, tenant_custom, platform_reserved)
 
-domain_settings_id (FK)
+Why?
 
-email_settings_id (FK)
+Prevents accidental deletion of system‑reserved domains
 
-social_settings_id (FK)
+Allows Supervisor to enforce different rules for free vs custom
 
-kyc_status (enum: not_started/pending/verified/rejected)
+Helps future billing (custom domain = paid feature)
 
-created_at, updated_at
+Supervisor rule:
 
-tenant_integrations
+system_subdomain → cannot be removed by tenant
 
-id
+tenant_custom → must pass DNS verification before publish
 
-tenant_id
+platform_reserved → only superadmin can modify
 
-provider (enum: stripe, paypal, square, twilio, shopify, resend, smtp, custom)
+Adjustment 2 — Add DKIM key rotation metadata
 
-status (draft/connected/disabled)
+Add to tenant_email_settings:
 
-config (jsonb, non-secret metadata)
+dkim_key_version
 
-created_at, updated_at
+dkim_last_rotated_at
 
-tenant_integration_secrets
+Why?
 
-id
+ESPs (Resend, Postmark, SendGrid) rotate DKIM keys
 
-tenant_id
+You need to track which version is active
 
-integration_id (FK)
+Prevents mismatched DKIM records after rotation
 
-encrypted_payload (ciphertext)
+Enables Supervisor to detect stale DNS
 
-key_version
+Supervisor rule:
 
-created_at, rotated_at
+If dkim_key_version mismatches DNS → dkim_status = failed
 
-audit_log (already shipped)
+Adjustment 3 — Add “verification_attempts” + “last_verified_at”
 
-reuse for all settings/integration changes.
+Add to both tenant_domains and tenant_email_settings:
 
-2.2 Supervisor checks (foundations)
+verification_attempts (int)
 
-Tenant scoping:
+last_verified_at (timestamp)
 
-tenant_id present on every settings/integration row.
+Why?
 
-Secrets discipline:
+Prevents infinite verification loops
 
-No API keys in config or any non-secret column.
+Allows rate‑limiting
 
-All secrets stored only in tenant_integration_secrets.encrypted_payload.
+Enables Supervisor to detect “flapping” DNS
 
-Role enforcement:
+Helps debugging when tenants misconfigure DNS
 
-Only admin/superadmin can create/update integrations.
+Supervisor rule:
 
-Audit:
+Max 5 attempts per hour
 
-Every create/update/delete emits an audit_log entry.
+If >5 attempts → require admin override
 
-Drafts-only:
+If DNS flaps (verified → failed → verified) → flag for review
 
-No integration can be marked connected without passing its own verification step.
+🟩 Everything else is correct — proceed to Social
 
-3. Brand & design tokens (A)
-3.1 Data model sketch
+Your next step per the plan is:
 
-brand_settings
+Social Settings + Social Integrations
 
-id
+Social URLs (FB/IG/LinkedIn/TikTok/YouTube/X)
 
-tenant_id
+Optional OAuth tokens (encrypted)
 
-primary_color (hex)
+Draft‑only
 
-secondary_color (hex)
+No posting until Supervisor verifies connection
 
-accent_color (hex)
+Tenant‑scoped
 
-background_style (enum: solid/gradient/image/pattern)
+Audit‑logged
 
-background_token (jsonb: gradient stops, image ref, pattern id)
+This is the correct next milestone.
 
-font_heading (string, default: "Roboto")
+📘 DECISION‑LOG
 
-font_body (string, default: "Roboto")
+Decision 1 — Domain/email foundation:  
+Approved. Architecture, flows, and security model are correct.
 
-border_radius_scale (enum: sharp/soft/rounded)
+Decision 2 — Required adjustments:  
+Add domain provenance, DKIM rotation metadata, and verification attempt tracking.
 
-shadow_intensity (enum: none/light/medium/strong)
+Decision 3 — Next step:  
+Proceed to Social integrations exactly as planned.
 
-created_at, updated_at
-
-brand_assets
-
-id
-
-tenant_id
-
-type (logo_primary/logo_secondary/favicon/og_image)
-
-media_ref (FK to media library)
-
-created_at, updated_at
-
-Tokens must drive:
-
-Editor UI theme
-
-Generated site theme
-
-AI prompts (e.g., “use this palette and fonts”)
-
-3.2 Supervisor checks (brand)
-
-Color validity:
-
-All colors must be valid hex; no #000000/#ffffff as the only colors unless explicitly confirmed.
-
-Font validity:
-
-font_heading and font_body must be from an allowed list (e.g., Google Fonts + system).
-
-Default to Roboto if invalid or missing.
-
-Asset scoping:
-
-All brand_assets.tenant_id must match the current tenant.
-
-Logo rules:
-
-If no logo found → use text wordmark (business name), never platform logo.
-
-Propagation:
-
-When brand_settings change, a “design tokens updated” event is logged and used by the editor + generator.
-
-4. Domain & email settings (D)
-4.1 Data model sketch
-
-domain_settings
-
-id
-
-tenant_id
-
-subdomain (e.g., ali.abconnect.ai)
-
-custom_domain (nullable)
-
-dns_status (unverified/pending/verified/failed)
-
-last_dns_check_at
-
-created_at, updated_at
-
-email_settings
-
-id
-
-tenant_id
-
-sender_name
-
-sender_email
-
-provider (enum: resend/smtp/none)
-
-status (draft/verified/failed)
-
-dkim_status (pending/verified/failed)
-
-spf_status (pending/verified/failed)
-
-created_at, updated_at
-
-email_integration_secrets (if SMTP)
-
-id
-
-tenant_id
-
-email_settings_id
-
-encrypted_payload (host, port, username, password)
-
-key_version
-
-4.2 Supervisor checks (domain/email)
-
-DNS verification:
-
-For custom domains, require TXT/CNAME verification before dns_status=verified.
-
-Email identity:
-
-sender_email domain must match verified domain or allowed sending domain.
-
-DKIM/SPF:
-
-Mark dkim_status and spf_status only after actual verification.
-
-No auto-send:
-
-No campaigns or transactional flows auto-send until email_settings.status = verified.
-
-Secrets:
-
-SMTP credentials only in encrypted payload, never in plain config.
-
-5. Social accounts (B)
-5.1 Data model sketch
-
-social_settings
-
-id
-
-tenant_id
-
-facebook_url
-
-instagram_url
-
-linkedin_url
-
-tiktok_url
-
-youtube_url
-
-x_url
-
-created_at, updated_at
-
-social_integrations
-
-id
-
-tenant_id
-
-platform (fb/ig/li/tt/yt/x)
-
-status (draft/connected/expired)
-
-config (jsonb: page id, handle, etc.)
-
-created_at, updated_at
-
-social_integration_secrets
-
-id
-
-tenant_id
-
-integration_id
-
-encrypted_payload (access tokens/refresh tokens)
-
-key_version
-
-5.2 Supervisor checks (social)
-
-URL validation:
-
-Ensure URLs are valid and match expected host (facebook.com, instagram.com, etc.).
-
-Token handling:
-
-Tokens only in encrypted payload.
-
-Drafts-only:
-
-No posting endpoints enabled until status=connected and a manual “test post” passes.
-
-Scope:
-
-All integrations tenant-scoped; no cross-tenant tokens.
-
-6. Core integrations: Twilio, Shopify, Payments (E)
-6.1 Data model sketch (reusing generic integrations)
-
-Use tenant_integrations + tenant_integration_secrets:
-
-Twilio
-
-provider = 'twilio'
-
-config: { phone_number, region }
-
-encrypted_payload: { account_sid, auth_token }
-
-Shopify
-
-provider = 'shopify'
-
-config: { shop_domain, api_version }
-
-encrypted_payload: { access_token }
-
-Payments (Stripe/PayPal/Square)
-
-provider = 'stripe' | 'paypal' | 'square'
-
-config: { mode: test/live, account_id }
-
-encrypted_payload: { secret_key, webhook_secret }
-
-6.2 Supervisor checks (integrations)
-
-Secrets-only in encrypted payload.
-
-Test mode first:
-
-Require test mode verification before live mode.
-
-Webhook verification:
-
-For payments, require a successful webhook handshake before marking status=connected.
-
-No auto-charge:
-
-All payment flows drafts-only until KYC is verified (see next section).
-
-7. KYC / business verification (F)
-7.1 Data model sketch
-
-kyc_applications
-
-id
-
-tenant_id
-
-status (not_started/pending/reviewing/verified/rejected)
-
-reason (nullable, for rejection)
-
-submitted_at
-
-reviewed_at
-
-reviewed_by (platform staff)
-
-kyc_documents
-
-id
-
-tenant_id
-
-application_id
-
-type (id_front/id_back/business_license/utility_bill/bank_statement/other)
-
-file_ref (media storage ref, secure bucket)
-
-created_at
-
-kyc_identity_data
-
-id
-
-tenant_id
-
-application_id
-
-encrypted_payload (PII, encrypted)
-
-created_at
-
-7.2 Supervisor checks (KYC)
-
-Tenant scoping:
-
-All KYC records must match tenant_id.
-
-PII handling:
-
-No PII in logs, only in encrypted payload.
-
-Status gating:
-
-Payouts and live payment flows only allowed when kyc_status=verified.
-
-Role enforcement:
-
-Only platform staff/superadmin can change KYC status.
-
-Audit:
-
-Every status change logged with who/when/why.
-
-8. Recommended FIRST build
-
-Phase 1 (build now):
-
-Foundations
-
-tenant_settings, tenant_integrations, tenant_integration_secrets
-
-Encryption at rest for secrets
-
-Strict tenant scoping
-
-Full audit logging for settings/integrations
-
-Brand & Design Tokens
-
-brand_settings, brand_assets
-
-Default Roboto fonts
-
-Tokens wired into:
-
-Editor theme
-
-Generated site theme
-
-AI prompts for site generation
-
-This gives Ali:
-
-A real design system per tenant.
-
-A safe, compliant base for all future integrations.
-
-Immediate visible value (brand-consistent sites) without touching money/compliance yet.
-
-DECISION-LOG
-
-Decision 1 — Build order:  
-Start with Foundations + Brand/Design tokens, then Domain/Email, then Social, then Core Integrations, then KYC, then automation.
-
-Decision 2 — Data model:  
-Use tenant-scoped tables for settings, brand, domains, email, social, integrations, secrets, and KYC, with secrets always in encrypted payloads and never client-side.
-
-Decision 3 — Supervisor gates:  
-Every step has verification: tenant scoping, secrets discipline, role checks, DNS/email verification, integration test modes, KYC gating for payouts, and full audit logging.
-
-Decision 4 — First build:  
-Implement tenant settings + encrypted integrations + brand/design tokens as the first concrete deliverable, wired into the editor and generator so Ali immediately sees brand-true sites.
+If you want, I can now generate the Social Integrations data model or the Supervisor rules for Social OAuth.
 
 Edit in a page

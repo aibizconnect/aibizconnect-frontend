@@ -30,4 +30,8 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-025] domain_email_phase1 — migration 0032 (tenant_domains extended robustly + tenant_email_settings) + lib/server/cloudflare.ts (CNAME/TXT create, DoH verify, zone helpers; platform creds via env or encrypted secret) + domain-actions (reserve subdomain, add/verify custom domain, publish DNS) + email-actions (settings + encrypted ESP key + SPF/DMARC/DKIM records + verify) (built)
 [D-026] domain_email_fixes — added createTxtRecord/listRecords/getZoneId/getOrCreateZone; DKIM verified by presence; architect VERIFIED (verified)
 [D-027] accepted_tenant_domains_deviation — domain_name/type/website_id added NULLABLE (can't backfill NOT NULL on live table); subdomain/custom_domain kept for middleware routing; future migration to backfill+canonicalize is tech debt (accepted)
+[D-028] approve_social_accounts_model — approved tenant_social_accounts table (multi-account per provider) + encrypted_tokens column (option B) for social integrations (approved)
+[D-029] define_social_verification_checks — Supervisor checks SOC-V1..V17 for social data model + application logic (defined)
+[D-030] define_social_provider_gotchas — provider-specific rules: FB long-lived user→Page tokens, IG via Graph (page token), LinkedIn org scopes/URN, YouTube offline_access + per-channel rows, TikTok/X refresh semantics (defined)
+[D-031] verified_social_integrations_backend — migration 0033 + lib/server/social.ts + social-actions.ts VERIFIED against all SOC checks; UX: Social/Twilio/Shopify/payments live in tenant Settings hub, Domain+Email move to per-website settings (verified)
 
