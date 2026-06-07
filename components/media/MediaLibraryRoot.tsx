@@ -5,7 +5,7 @@ import {
   listMedia, uploadMedia, deleteMedia, importStockMedia, importAiMedia, importCanvaMedia,
   getSystemAssets, getMediaUsage, getTenantQuota,
   listFolders, createFolder, renameFolder, deleteFolder, moveMediaToFolder, moveFolder, getFolderImageCount, ensureDefaultMediaFolders,
-  searchProvider, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, promoteMediaToSystem, getAiUsage, getAllAiUsage,
+  searchProvider, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, getAiUsage, getAllAiUsage,
   type MediaItem, type MediaSource, type SystemAsset, type MediaFolder, type StockProvider, type ProviderResult, type AiUsage, type TenantAiUsage,
 } from "@/app/tenants/[tenantId]/website/actions";
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
@@ -140,6 +140,22 @@ export default function MediaLibraryRoot({
   const [systemFolders, setSystemFolders] = useState<MediaFolder[]>([]); // read-only, for System-tab grouping
   const [folderId, setFolderId] = useState<string | null>(null); // null = root / all
   const [systemCat, setSystemCat] = useState<string | null>(null); // selected System category in "All" (null = every category, flat)
+  // Bulk-tagging in the All (System) view: which System images are selected + the tag input.
+  const [sysSelected, setSysSelected] = useState<Set<string>>(new Set());
+  const [sysTagInput, setSysTagInput] = useState("");
+  const [sysTagBusy, setSysTagBusy] = useState(false);
+  const toggleSysSel = (id: string) => setSysSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  async function applySysTags() {
+    const ids = Array.from(sysSelected);
+    const tags = sysTagInput.split(",").map((t) => t.trim()).filter(Boolean);
+    if (!ids.length || !tags.length) return;
+    setSysTagBusy(true);
+    try {
+      const r = await addSystemMediaTags(ids, tags);
+      notify(`Added tags to ${r.updated} image${r.updated === 1 ? "" : "s"}.`, "ok");
+      setSysTagInput(""); setSysSelected(new Set()); reloadMedia();
+    } catch (e: any) { notify(e?.message ?? "Could not add tags.", "err"); } finally { setSysTagBusy(false); }
+  }
   const [uploadTags, setUploadTags] = useState<string[]>([]); // multi-tag picks in the System upload dialog ([] = Auto/AI)
   const [tagInput, setTagInput] = useState(""); // current typeahead text in the upload dialog
   const [websites, setWebsites] = useState<Website[]>([]);
@@ -952,10 +968,25 @@ export default function MediaLibraryRoot({
                   </div>
                 )}
               </div>
+              {/* Bulk-tag bar: select System images (checkbox) → add tags to all at once. */}
+              {(isSysManager || isAdmin) && sysSelected.size > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[#1e3a8a]/5 px-3 py-2 text-sm">
+                  <span className="font-medium text-slate-700">{sysSelected.size} selected</span>
+                  <input value={sysTagInput} onChange={(e) => setSysTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applySysTags(); }}
+                    placeholder="tags, comma-separated…" className="min-w-[180px] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+                  <button onClick={applySysTags} disabled={sysTagBusy || !sysTagInput.trim()} className="rounded-md bg-[#1e3a8a] px-3 py-1 text-xs font-medium text-white hover:bg-[#1e40af] disabled:opacity-50">{sysTagBusy ? "Adding…" : "Add tags"}</button>
+                  <button onClick={() => setSysSelected(new Set())} className="text-xs text-slate-500 hover:underline">Clear</button>
+                </div>
+              )}
               {shown.length === 0
                 ? <p className="py-10 text-center text-sm text-slate-400">No system assets{systemCat ? ` in ${systemCat}` : ""}{q ? ` matching “${q}”` : ""}.</p>
                 : <Grid>{shown.map((i) => (
-                    <div key={i.id} className="group relative overflow-hidden rounded-lg border border-slate-200">
+                    <div key={i.id} className={`group relative overflow-hidden rounded-lg border ${sysSelected.has(i.id) ? "border-[#1e3a8a] ring-2 ring-[#1e3a8a]/40" : "border-slate-200"}`}>
+                      {i.isMedia && (isSysManager || isAdmin) && (
+                        <input type="checkbox" checked={sysSelected.has(i.id)} onChange={() => toggleSysSel(i.id)} title="Select for bulk tagging"
+                          className={`absolute left-2 top-2 z-10 h-4 w-4 ${sysSelected.has(i.id) ? "" : "opacity-0 group-hover:opacity-100"}`} />
+                      )}
                       <button type="button" onClick={() => insert ? pick(i.url) : copyLink(i.url, i.id)} className="block w-full bg-[repeating-conic-gradient(#f8fafc_0%_25%,#fff_0%_50%)] bg-[length:16px_16px]" title={insert ? "Insert" : "Copy link"}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={i.url} alt={i.filename} className="h-28 w-full object-contain p-2" />

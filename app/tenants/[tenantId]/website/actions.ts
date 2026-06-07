@@ -2229,6 +2229,25 @@ export async function backfillSystemTagsFromFilenames(): Promise<{ updated: numb
   return { updated, scanned: (data ?? []).length };
 }
 
+/** Bulk-add tags to several System images at once (admin/staff). Merges, never removes. */
+export async function addSystemMediaTags(mediaIds: string[], tags: string[]): Promise<{ updated: number }> {
+  const { canManageSystemLibrary } = await import("@/lib/auth/platform-admin");
+  if (!(await canManageSystemLibrary())) throw new Error("Not authorized — admin/staff only.");
+  if (!(await mediaHasTags())) throw new Error("Apply migration 0030 (media tags) first.");
+  const clean = tags.map((t) => t.trim().toLowerCase()).filter(Boolean);
+  if (!clean.length || !mediaIds.length) return { updated: 0 };
+  const supabase = createSupabaseServiceClient();
+  const { data } = await supabase.from("website_media").select("id, tags").eq("tenant_id", SYSTEM_TENANT_ID).in("id", mediaIds);
+  let updated = 0;
+  for (const row of (data ?? []) as { id: string; tags: string[] | null }[]) {
+    const merged = Array.from(new Set([...(row.tags ?? []), ...clean]));
+    if (merged.length === (row.tags ?? []).length) continue;
+    const { error } = await supabase.from("website_media").update({ tags: merged }).eq("id", row.id).eq("tenant_id", SYSTEM_TENANT_ID);
+    if (!error) updated++;
+  }
+  return { updated };
+}
+
 export interface PromoteResult { promoted: number; skipped: number; errors: string[] }
 
 /**
