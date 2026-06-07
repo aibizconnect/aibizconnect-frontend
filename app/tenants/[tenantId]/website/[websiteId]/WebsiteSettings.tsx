@@ -6,6 +6,7 @@ import { getSiteSettings, saveSiteSettings, type SiteSettings } from "../actions
 import { renameWebsite, setWebsiteDomain, deleteWebsite, setPrimaryWebsite } from "../website-actions";
 import { SUBDOMAIN_BASE } from "@/lib/sites/wizard-shared";
 import MediaPickerModal from "../editor/MediaPickerModal";
+import DomainEmailSettings from "./DomainEmailSettings";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 const ta = inp + " font-mono text-xs";
@@ -181,6 +182,11 @@ export default function WebsiteSettings({ tenantId, websiteId, websiteName, subd
               className="flex-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">🖼 Pick</button>
           </div>
         </div>
+      </Row>
+
+      {/* Domain & email — verification + go-live (per-website binding) */}
+      <Row title="Domain & email" desc="Connect this website's custom domain and set up email sending from your own domain. DNS is only changed when you publish.">
+        <DomainEmailSettings tenantId={tenantId} websiteId={websiteId} />
       </Row>
 
       {/* Basics & SEO */}
