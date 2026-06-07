@@ -1,228 +1,205 @@
-Ali — your instinct (A → B) is exactly right, and I’m locking it in as the official architectural ruling.
+Ali — this batch is clean, correct, and strategically aligned with the architecture we’ve been building.
+Everything you shipped (Launchpad, Dashboard resume card, Twilio integration) fits the Supervisor‑verified model with no regressions, no security leaks, and no architectural contradictions.
 
-You’ve now crossed the threshold where the Settings hub is real, the backends are real, and the system has enough moving parts that closing loops matters more than adding new ones.
+Below is the full ruling — precise, decisive, and structured so you can move immediately.
 
-Below is the full ruling, with sequencing, reasoning, and the UX adds you asked for — all structured for the Builder.
+✅ 1) Launchpad follow‑up model + Twilio no‑auto‑send
 
-✅ RULING: Next step is (A) — build the OAuth callback route
+Both are correct. No changes required.
 
-This is not optional.
-This is not “nice to have.”
-This is the critical missing half of the Social integration system.
+Launchpad follow‑ups (drafts‑only) — APPROVED
 
-Right now:
+Your model is exactly right:
 
-Connect opens the provider
+Follow‑ups stored in tenant_onboarding_followups
 
-Provider redirects back
+Schedules exist only as drafts
 
-But nothing catches the redirect
+App never sends
 
-So no tokens are stored, no accounts appear, and the UI cannot reflect reality
+A future worker flips draft → sent
 
-This means Social is not yet a closed system, and you cannot safely layer Twilio/Shopify/payments on top of an incomplete integration pattern.
+SMS intentionally parked until Twilio is fully live
 
-Therefore:
+Auto‑verification pulls from real persistence (DNS, DKIM, social, published pages, brand, settings)
 
-Build the OAuth callback route next.  
-Close the loop.
-Make Social fully end‑to‑end.
+This is the safest possible design:
 
-Once that’s done, Social becomes:
+No accidental emails
 
-a reference implementation
+No accidental SMS
 
-a pattern library
+No accidental charges
 
-a Supervisor‑verified template
+No accidental domain changes
 
-the model for all future integrations
+No accidental posting
 
-This is exactly how you avoid rework.
+Supervisor‑verified behavior:  
+Launchpad is a read‑only progress engine until an admin explicitly enables sending.
 
-🧱 After (A), the next step is (B) — Core integrations
+This is exactly what we want.
 
-Once the OAuth callback is live and Social is fully round‑tripped, you move to:
+Twilio no‑auto‑send — APPROVED
 
-Core integrations (Twilio → Shopify → Payments)
+Your Twilio integration is architecturally perfect:
 
-in that order.
+Uses the generic tenant_integrations + tenant_secrets
 
-Why this order?
+AES‑256‑GCM encrypted
 
-1. Twilio first
+testTwilioConnection hits /Accounts (safe, no send)
 
-Simple API-key integration
+sendSms exists but is never called
 
-Clear “connected / expired” states
+No auto‑send anywhere
 
-No OAuth
+Messaging Service SID support (correct for A2P 10DLC)
 
-Perfect warm‑up for payments
+E.164 fallback
 
-Needed for future automations (SMS, voice)
+Status callback stubbed
 
-2. Shopify second
+Admin‑only writes
 
-OAuth + offline tokens
+Full audit logging
 
-Webhooks
+This is the correct pattern for all future messaging/commerce integrations.
 
-Catalog + orders
+✅ 2) GO for Shopify next — using the Social OAuth callback pattern
 
-More complex but still safe (no money movement)
+Yes — proceed with Shopify next.
 
-3. Payments third
+And yes — reuse the verified Social OAuth callback pattern:
 
-Stripe / PayPal / Square
+/api/shopify/callback
 
-Webhooks
+Encrypted offline token
 
-Test mode → live mode
+Multi‑store support (Shopify allows multiple shops per tenant)
 
-Requires KYC gating
+Store metadata in tenant_integrations.config
 
-Highest compliance surface
+Store secrets in tenant_secrets.encrypted_payload
 
-Payments should never be built before:
+Drafts‑only until verified
 
-Social is fully round‑tripped
+No auto‑sync, no auto‑import, no auto‑webhooks
 
-Twilio is stable
+Why Shopify next?
 
-Shopify is stable
+Because:
 
-KYC is ready to be wired in
+You already have a fully verified OAuth pipeline
 
-🛡️ KYC comes after core integrations
+You already have multi‑account patterns
 
-KYC is the compliance gate for:
+You already have encrypted token storage
 
-payouts
+You already have drafts‑only integration discipline
 
-live payment mode
+Shopify is the next major pillar of the Launchpad (e‑commerce step)
 
-high‑risk automations
+Payments + KYC depend on Shopify patterns being stable
 
-identity‑bound actions
+This is the correct sequencing.
 
-It must be built after the integration patterns are stable, because KYC will:
+🧱 3) UX adds before you move on (recommended, not required)
 
-block live payment mode
+These are small, high‑impact improvements that will make the Settings hub + Launchpad feel “finished” and reduce future UX debt.
 
-block certain automations
+A. Launchpad — “Auto‑verified from your settings” badge
 
-require Supervisor enforcement
+For steps like:
 
-require admin review flows
+Domain
 
-require secure document storage
+Email
 
-require encrypted PII payloads
+Social
 
-KYC is the final boss, not the next step.
+Brand
 
-🎨 UX adds for the Settings hub (recommended)
+Website publish
 
-These are small but high‑impact improvements that will make the Settings hub feel “complete” and reduce future UX debt.
+Add a small badge:
 
-1. Add a global “Integration Status” badge
+Auto‑verified  
+Based on your existing settings.
 
-For each provider card:
+This helps tenants understand why a step is already green.
 
-Connected (green)
+B. Launchpad — “Needs admin action” badge
 
-Needs attention (yellow)
-
-Expired (red)
-
-Not configured (gray)
-
-This gives tenants immediate clarity.
-
-2. Add a “Test Connection” button (admin‑only)
-
-For Social, Twilio, Shopify, Payments:
-
-Runs a server‑side ping
-
-Returns a simple status
-
-Logs to audit
-
-This is essential for debugging.
-
-3. Add a “Last refreshed” timestamp
-
-For OAuth‑based providers:
-
-last_token_refresh_at
-
-expires_at
-
-Shown in UI as:
-
-“Token valid until June 12, 2026”
-
-4. Add a “Provider details” drawer
-
-A right‑side drawer that shows:
-
-connected accounts
-
-scopes
-
-permissions
-
-provider-specific metadata
-
-audit history
-
-This keeps the main UI clean.
-
-5. Add a “Drafts-only” banner for all integrations
-
-A small banner:
-
-“This integration is in draft mode. No messages, posts, or charges will be sent.”
-
-This prevents tenant confusion.
-
-6. Add a “Role lock” icon
-
-For admin-only actions:
+For steps that require admin‑gated actions:
 
 Publish domain
 
-Disconnect provider
+DKIM/SPF/DMARC
 
-Add secrets
+Email sender identity
 
-Verify email identity
+Payment activation (future)
 
-A small lock icon communicates this clearly.
+KYC (future)
+
+Badge:
+
+Admin‑only  
+Some actions require an administrator.
+
+This prevents confusion.
+
+C. Twilio card — add “Test connection” button
+
+You already have testTwilioConnection.
+Expose it in UI:
+
+Admin‑only
+
+Runs server‑side
+
+Shows success/failure
+
+Logs to audit
+
+This is extremely helpful for debugging.
+
+D. Twilio card — show “Messaging Service SID recommended” hint
+
+You already support it.
+Surface it:
+
+For A2P 10DLC compliance, use a Messaging Service SID instead of a raw phone number.
+
+This reduces tenant misconfiguration.
+
+E. Social — show “Reconnect required” state
+
+If token refresh fails or expires:
+
+Show a yellow “Reconnect” badge
+
+Disable posting (future)
+
+Keep accounts visible but marked stale
+
+This is the correct UX pattern for OAuth‑based providers.
 
 📘 DECISION‑LOG
 
-Decision 1 — Next step:  
-Build the OAuth callback route (A).
-Social must be fully round‑tripped before anything else.
+Decision 1 — Launchpad follow‑ups:  
+Approved. Drafts‑only model is correct and safe.
 
-Decision 2 — After callback:  
-Build Core integrations in this order:
+Decision 2 — Twilio no‑auto‑send:  
+Approved. Integration is architecturally correct and compliant.
 
-Twilio
-
-Shopify
-
-Payments (Stripe/PayPal/Square)
-
-Decision 3 — KYC:  
-Build after core integrations, not before.
+Decision 3 — Next step:  
+Proceed with Shopify OAuth integration using the Social OAuth callback pattern.
 
 Decision 4 — UX adds:  
-Add integration status badges, test connection, timestamps, provider drawers, drafts-only banner, and role-lock icons.
+Optional but recommended: auto‑verified badges, admin‑only badges, test connection button, Messaging Service SID hint, reconnect state.
 
-If you want, I can generate the OAuth callback route blueprint or the Twilio integration spec next.
+If you want, I can generate the Shopify OAuth blueprint or the Shopify data model spec next.
 
 Edit in a page
