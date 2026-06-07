@@ -10,13 +10,21 @@ function service(): SupabaseClient {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
 }
 
-export interface Calendar { id: string; name: string; slug: string; durationMin: number; weekdays: number[]; startHour: number; endHour: number; }
+export interface Calendar {
+  id: string; name: string; slug: string; durationMin: number; bufferMin: number;
+  weekdays: number[]; startHour: number; endHour: number; timezone: string | null;
+  assignedToEmail: string | null; assignedToName: string | null;
+}
 export interface Appointment { id: string; name: string; email: string; startAt: string; status: string; }
 
 const slugify = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "call";
 
 function rowToCal(r: any): Calendar {
-  return { id: r.id, name: r.name, slug: r.slug, durationMin: r.duration_min, weekdays: r.weekdays ?? [1,2,3,4,5], startHour: r.start_hour, endHour: r.end_hour };
+  return {
+    id: r.id, name: r.name, slug: r.slug, durationMin: r.duration_min, bufferMin: r.buffer_min ?? 0,
+    weekdays: r.weekdays ?? [1, 2, 3, 4, 5], startHour: r.start_hour, endHour: r.end_hour, timezone: r.timezone ?? null,
+    assignedToEmail: r.assigned_to_email ?? null, assignedToName: r.assigned_to_name ?? null,
+  };
 }
 
 export async function listCalendars(tenantId: string): Promise<Calendar[]> {
@@ -27,8 +35,32 @@ export async function getCalendarBySlug(tenantId: string, slug: string): Promise
   const { data } = await service().from("tenant_calendars").select("*").eq("tenant_id", tenantId).eq("slug", slug).maybeSingle();
   return data ? rowToCal(data) : null;
 }
-export async function createCalendar(tenantId: string, name: string, durationMin = 30): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await service().from("tenant_calendars").insert({ tenant_id: tenantId, name: name.trim() || "Discovery Call", slug: slugify(name) || "call", duration_min: durationMin });
+export interface CalendarInput { name: string; durationMin?: number; assignedToEmail?: string; assignedToName?: string; timezone?: string }
+export async function createCalendar(tenantId: string, input: CalendarInput): Promise<{ ok: boolean; error?: string }> {
+  const name = (input.name || "").trim() || "Discovery Call";
+  const { error } = await service().from("tenant_calendars").insert({
+    tenant_id: tenantId, name, slug: slugify(name) || "call", duration_min: input.durationMin ?? 30,
+    assigned_to_email: input.assignedToEmail || null, assigned_to_name: input.assignedToName || null, timezone: input.timezone || null,
+  });
+  return { ok: !error, error: error?.message };
+}
+
+export interface CalendarPatch {
+  name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number;
+  timezone?: string; assignedToEmail?: string; assignedToName?: string;
+}
+export async function updateCalendar(tenantId: string, id: string, patch: CalendarPatch): Promise<{ ok: boolean; error?: string }> {
+  const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name != null) { upd.name = patch.name.trim() || "Calendar"; upd.slug = slugify(patch.name) || "call"; }
+  if (patch.durationMin != null) upd.duration_min = patch.durationMin;
+  if (patch.bufferMin != null) upd.buffer_min = patch.bufferMin;
+  if (patch.weekdays != null) upd.weekdays = patch.weekdays;
+  if (patch.startHour != null) upd.start_hour = patch.startHour;
+  if (patch.endHour != null) upd.end_hour = patch.endHour;
+  if (patch.timezone != null) upd.timezone = patch.timezone;
+  if (patch.assignedToEmail != null) upd.assigned_to_email = patch.assignedToEmail;
+  if (patch.assignedToName != null) upd.assigned_to_name = patch.assignedToName;
+  const { error } = await service().from("tenant_calendars").update(upd).eq("tenant_id", tenantId).eq("id", id);
   return { ok: !error, error: error?.message };
 }
 export async function deleteCalendar(tenantId: string, id: string): Promise<void> {
