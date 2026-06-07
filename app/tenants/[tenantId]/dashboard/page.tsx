@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { getLaunchpadState, type LaunchpadState } from "../launchpad/actions";
 
 /**
- * GHL-style tenant dashboard overview (Ali's direction). KPI cards + a get-started
- * checklist + quick links to the built tools. Data points show as zero/“—” until wired
- * to live sources (honest placeholders), matching the GoHighLevel home feel.
+ * GHL-style tenant dashboard overview (Ali's direction). KPI cards + a live Launchpad
+ * "Resume setup" card + quick links to the built tools. Data points show as zero/“—” until
+ * wired to live sources (honest placeholders), matching the GoHighLevel home feel.
  */
 
 const KPIS = [
@@ -13,16 +14,15 @@ const KPIS = [
   { label: "Appointments", value: "0", sub: "upcoming" },
 ];
 
+/** Live onboarding state for the dashboard card — null if not yet available (e.g. migration pending). */
+async function loadLaunchpad(tenantId: string): Promise<LaunchpadState | null> {
+  try { return await getLaunchpadState(tenantId); } catch { return null; }
+}
+
 export default async function DashboardPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const base = `/tenants/${tenantId}`;
-
-  const checklist = [
-    { label: "Build your website from a template", href: `${base}/agents`, done: false },
-    { label: "Add your AI agents", href: `${base}/agents`, done: false },
-    { label: "Import your contacts", href: `${base}/contacts`, done: false },
-    { label: "Set up your pipeline", href: `${base}/pipelines`, done: false },
-  ];
+  const launchpad = await loadLaunchpad(tenantId);
 
   const tools = [
     { label: "AI Agents", desc: "Your AI team across web, email & social", href: `${base}/agents` },
@@ -54,22 +54,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ tena
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Get started checklist */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
-          <h2 className="text-base font-semibold text-slate-900">Get started</h2>
-          <p className="mb-4 text-sm text-slate-500">Finish setup to launch your business.</p>
-          <ul className="space-y-2">
-            {checklist.map((c) => (
-              <li key={c.label}>
-                <Link href={c.href} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm transition hover:border-[#1e3a8a]/40 hover:bg-slate-50">
-                  <span className={`grid h-5 w-5 place-items-center rounded-full border ${c.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent"}`}>✓</span>
-                  <span className="flex-1 text-slate-700">{c.label}</span>
-                  <span className="text-slate-400">→</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* Launchpad — live setup progress */}
+        <LaunchpadCard base={base} state={launchpad} />
 
         {/* Tools */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
@@ -85,6 +71,53 @@ export default async function DashboardPage({ params }: { params: Promise<{ tena
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Dashboard "Resume setup" card — mirrors the Launchpad progress and surfaces the next steps. */
+function LaunchpadCard({ base, state }: { base: string; state: LaunchpadState | null }) {
+  // Fallback when onboarding isn't available yet (e.g. migration 0034 not applied).
+  if (!state) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
+        <h2 className="text-base font-semibold text-slate-900">Get started</h2>
+        <p className="mb-4 text-sm text-slate-500">Finish setup to launch your business.</p>
+        <Link href={`${base}/launchpad`} className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af]">Open Launchpad →</Link>
+      </div>
+    );
+  }
+
+  const next = state.steps.filter((s) => !s.optional && s.status !== "complete" && s.status !== "skipped").slice(0, 3);
+  const allDone = state.progress >= 100;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-slate-900">{allDone ? "You're all set 🎉" : "Resume setup"}</h2>
+        <span className="text-sm font-semibold text-[#1e3a8a]">{state.progress}%</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-gradient-to-r from-[#1e3a8a] to-[#22d3ee] transition-all" style={{ width: `${state.progress}%` }} />
+      </div>
+
+      {allDone ? (
+        <p className="mt-4 text-sm text-slate-500">Every required step is done. Review anything anytime from the Launchpad.</p>
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {next.map((s) => (
+            <li key={s.step_key}>
+              <Link href={s.route} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm transition hover:border-[#1e3a8a]/40 hover:bg-slate-50">
+                <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-300 text-transparent">✓</span>
+                <span className="flex-1 text-slate-700">{s.title}</span>
+                <span className="text-slate-400">→</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Link href={`${base}/launchpad`} className="mt-4 inline-block text-sm font-medium text-[#1e3a8a] hover:underline">Open Launchpad →</Link>
     </div>
   );
 }
