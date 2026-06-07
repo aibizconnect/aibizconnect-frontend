@@ -9,7 +9,7 @@ import { extractPageContent } from "./page-generate";
  * structural PATTERNS (section topics + CTA styles) to inform the brief, never invented facts.
  */
 
-const UA = { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)", "accept-language": "en-US,en;q=0.9" };
+const UA = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", "accept-language": "en-US,en;q=0.9" };
 
 // Domains that aren't real competitor sites (directories, socials, marketplaces, search).
 const JUNK = /(facebook|instagram|linkedin|twitter|x\.com|youtube|tiktok|pinterest|reddit|yelp|tripadvisor|wikipedia|amazon|ebay|indeed|glassdoor|bbb\.org|google\.|bing\.|duckduckgo|maps\.|apple\.com|crunchbase|trustpilot|angi\.com|thumbtack|houzz|booking\.com|wordpress\.org|wix\.com|squarespace\.com|godaddy)/i;

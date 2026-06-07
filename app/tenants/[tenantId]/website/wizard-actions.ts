@@ -167,6 +167,22 @@ function familyFromIndustry(text: string): TemplateFamily {
   return "agency";
 }
 
+// Identify as a real browser — "bot" UAs are frequently blocked (Cloudflare/WAF), which would leave
+// us unable to read the owner's own site (no socials, name, colors, or location).
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+/** Extract city/country from the page deterministically (JSON-LD PostalAddress, then OG meta). */
+function locationFromHtml(html: string): { city?: string; country?: string } {
+  let city = "", country = "";
+  const loc = html.match(/"addressLocality"\s*:\s*"([^"]{2,60})"/i); if (loc) city = loc[1];
+  let c = html.match(/"addressCountry"\s*:\s*"([A-Za-z .'-]{2,60})"/i);
+  if (!c) c = html.match(/"addressCountry"\s*:\s*\{[^}]*"name"\s*:\s*"([A-Za-z .'-]{2,60})"/i);
+  if (c) country = c[1];
+  if (!city) { const m = html.match(/<meta[^>]+property=["']business:contact_data:locality["'][^>]+content=["']([^"']{2,60})["']/i); if (m) city = m[1]; }
+  if (!country) { const m = html.match(/<meta[^>]+property=["']business:contact_data:country_name["'][^>]+content=["']([^"']{2,60})["']/i); if (m) country = m[1]; }
+  return { city: city.trim() || undefined, country: country.trim() || undefined };
+}
+
 /** Extract social-profile links from raw HTML (deduped, capped). Used to pre-fill the wizard. */
 function socialLinksFromHtml(html: string): string[] {
   const re = /https?:\/\/(?:www\.)?(?:facebook|fb|instagram|linkedin|tiktok|youtube|youtu\.be|x\.com|twitter|pinterest|threads)\.[a-z.]+\/[^"'\s<>)]+/gi;
@@ -236,7 +252,7 @@ export async function enrichFromPresence(
   try {
     const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     const res = await fetch(u.toString(), {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" },
+      headers: { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml" },
       signal: AbortSignal.timeout(12000), redirect: "follow",
     });
     if (res.ok) html = (await res.text()).slice(0, 400_000);
@@ -259,19 +275,34 @@ export async function enrichFromPresence(
   let industry = "", services = "", audience = "", country = "", city = "", description = "", tone: BrandTone | undefined;
   const desc = (input.businessDescription || "").trim();
   const pageText = [desc ? `The business owner describes their business as: ${desc}` : "", ctx?.text ?? ""].filter(Boolean).join("\n\n");
-  // Social links come ONLY from the owner's OWN site HTML (homepage + their blog) — never a web search.
+  // Social links come ONLY from the owner's OWN site HTML (homepage → their blog → their contact/about
+  // page) — never a web search. Many sites only list socials in the footer of inner pages.
   const socialLinks = socialLinksFromHtml(html);
   const logoUrl = logoFromHtml(html, url);
-  if (input.blogUrl && input.blogUrl.trim() && input.blogUrl.trim() !== url) {
+  const grabFrom = async (target: string) => {
     try {
-      const bu = new URL(/^https?:\/\//i.test(input.blogUrl) ? input.blogUrl : `https://${input.blogUrl}`);
-      const r2 = await fetch(bu.toString(), { headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
-      if (r2.ok) {
-        const h2 = (await r2.text()).slice(0, 300_000);
-        for (const s of socialLinksFromHtml(h2)) if (socialLinks.length < 8 && !socialLinks.includes(s)) socialLinks.push(s);
+      const tu = new URL(target, /^https?:\/\//i.test(url) ? url : `https://${url}`);
+      const r = await fetch(tu.toString(), { headers: { "user-agent": BROWSER_UA, accept: "text/html" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
+      if (!r.ok) return;
+      const h = (await r.text()).slice(0, 300_000);
+      for (const s of socialLinksFromHtml(h)) if (socialLinks.length < 8 && !socialLinks.includes(s)) socialLinks.push(s);
+    } catch { /* best-effort */ }
+  };
+  if (input.blogUrl && input.blogUrl.trim() && input.blogUrl.trim() !== url) await grabFrom(input.blogUrl.trim());
+  if (socialLinks.length < 2) {
+    // Find a same-origin contact/about link on the homepage and scan it too.
+    let origin = ""; try { origin = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { /* */ }
+    if (origin) {
+      for (const m of html.matchAll(/<a[^>]+href=["']([^"']+)["']/gi)) {
+        if (socialLinks.length >= 2) break;
+        const href = m[1];
+        if (!/contact|about|connect/i.test(href)) continue;
+        if (/^(mailto:|tel:|#|javascript:)/i.test(href)) continue;
+        try { if (new URL(href, origin).origin === origin) await grabFrom(href); } catch { /* */ }
       }
-    } catch { /* blog fetch best-effort */ }
+    }
   }
+  const loc = locationFromHtml(html);
   if (pageText) {
     const j = await aiExtractProfile(pageText, tenantId);
     if (j) {
@@ -289,6 +320,10 @@ export async function enrichFromPresence(
       if (heads.length) services = heads.join(", ").slice(0, 200);
     }
   }
+
+  // Location fallback: deterministic page extraction fills city/country when the AI couldn't.
+  if (!city && loc.city) city = loc.city.slice(0, 80);
+  if (!country && loc.country) { const n = normalizeCountry(loc.country); if (n) country = n; }
 
   // Description: prefer the owner's own words, else the AI summary, else an industry+services synthesis.
   const finalDescription = desc || description || [industry, services].filter(Boolean).join(" — ") || "";
@@ -782,7 +817,7 @@ async function fetchSiteContext(rawUrl?: string | null): Promise<SiteContext | n
     const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
     if (!/^https?:$/.test(url.protocol)) return null;
     const res = await fetch(url.toString(), {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" },
+      headers: { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml" },
       signal: AbortSignal.timeout(12000),
       redirect: "follow",
     });

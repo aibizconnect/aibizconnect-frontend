@@ -30,7 +30,7 @@ export interface IntakeResult {
 async function fetchPage(url: string): Promise<{ ok: boolean; status: number; html: string }> {
   try {
     const res = await fetch(url, {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" },
+      headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", accept: "text/html,application/xhtml+xml" },
       signal: AbortSignal.timeout(12000),
       redirect: "follow",
     });

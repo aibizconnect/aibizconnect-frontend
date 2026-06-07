@@ -26,7 +26,7 @@ export interface GenerateResult {
 
 async function fetchPage(url: string): Promise<string> {
   try {
-    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" }, signal: AbortSignal.timeout(12000), redirect: "follow" });
+    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", accept: "text/html,application/xhtml+xml" }, signal: AbortSignal.timeout(12000), redirect: "follow" });
     return res.ok ? (await res.text()).slice(0, 400_000) : "";
   } catch { return ""; }
 }

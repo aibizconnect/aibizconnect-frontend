@@ -9,7 +9,8 @@
  * All fetches are best-effort and capped. No PII, no AI spend.
  */
 
-const UA = { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" };
+// Real browser UA — "bot" UAs get blocked by Cloudflare/WAF, which would break importing the site.
+const UA = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", accept: "text/html,application/xhtml+xml" };
 
 export async function fetchPage(url: string, maxBytes = 600_000): Promise<string | null> {
   try {

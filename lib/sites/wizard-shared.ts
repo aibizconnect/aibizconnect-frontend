@@ -218,6 +218,10 @@ export function normalizeCountry(raw?: string | null): string {
     usa: "United States", us: "United States", "u.s.": "United States", "u.s.a.": "United States",
     america: "United States", uk: "United Kingdom", "u.k.": "United Kingdom", britain: "United Kingdom",
     england: "United Kingdom", uae: "United Arab Emirates", "korea": "South Korea", "south-korea": "South Korea",
+    // ISO 3166 alpha-2 codes (common; sites often expose these in schema.org addressCountry).
+    ca: "Canada", gb: "United Kingdom", au: "Australia", nz: "New Zealand", ie: "Ireland", de: "Germany",
+    fr: "France", es: "Spain", it: "Italy", nl: "Netherlands", in: "India", sg: "Singapore", ae: "United Arab Emirates",
+    za: "South Africa", br: "Brazil", mx: "Mexico", jp: "Japan", kr: "South Korea",
   };
   if (alias[v]) return alias[v];
   const hit = COUNTRIES.find((c) => c.toLowerCase() === v);
