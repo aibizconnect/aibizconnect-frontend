@@ -1,18 +1,18 @@
 ### CONTROL RULING: VERIFIED
 
-The Builder has successfully addressed the previous rejection and implemented Step 1b according to the revised specification.
+The Builder has successfully addressed all previous rejection points.
 
 **Verification Details:**
 
-**For Step 1b (`identifyAndVerifyMainPages`):**
-*   **S1-V2a:** Verified. `main_pages_detected` is updated in `wizard_pipeline_state` with the verified list and flag.
-*   **S1-V2b (S1_V9):** Verified. The `classifyMainPages` logic correctly implements the filtering and deduplication rules for main pages.
-*   **S1-V2c (S1_V10):** Verified. The `verifyPageContent(html)` function, applied to each fetched candidate page, now correctly confirms the presence of a hero section, at least two meaningful sections, and at least one CTA. Only pages passing these content checks are kept and marked `verified_content_present:true`. This directly resolves the previous rejection.
-*   **S1-V2d:** Verified. `website_page_extractions` rows are seeded *only* for these content-verified pages, with `status: 'pending_detailed_extraction'`.
-*   **S1-V2e:** Verified. `websites.wizard_pipeline_state.step1_ai_analysis.status` is correctly set to `'pages_classified'`.
+**For Migration `0031_tenant_settings_integrations.sql` (FDM-V1 & FAL-V7):**
+*   **FDM-V1:** Verified. The `ALTER TABLE` statements within migration 0031 now correctly add the `color_palette`, `font_pairing`, `background_style`, `spacing_scale`, `button_style`, `hero_defaults`, and `gallery_defaults` columns to the existing `website_brand_settings` table, including their specified types and `NOT NULL DEFAULT` clauses. This ensures the schema is complete.
+*   **FAL-V7:** Verified. By using `NOT NULL DEFAULT` in the `ALTER TABLE` statements, all existing rows in `website_brand_settings` are automatically initialized with the specified defaults, and any new rows will also inherit these defaults. This correctly implements the application of default brand tokens.
 
-All other constraints (no AI spend, `tsc-clean`, `requireTenantAccess` gate, `S1_V9` block check, `S1B_HOME` warn) are confirmed as implemented.
+**For Foundations Application Logic (FAL-V5):**
+*   **FAL-V5:** Verified. The implementation of `requireAdminWrite() = isPlatformAdmin()` for `saveIntegration`, `disconnectIntegration`, and `setTenantSetting` correctly enforces platform role-based authorization for sensitive write operations. Reads (`listIntegrations`, `getTenantSettings`) remain appropriately gated by `requireTenantAccess`. The note regarding future tenant-owner role integration is acknowledged as a subsequent enhancement.
+
+All other previously verified points remain verified.
 
 ---
 DECISION-LOG
-[D-019] verified_step1b_fix — Step 1b implementation verified after incorporating content-based page verification (S1-V2c / S1_V10) (status: verified)
+[D-024] verified_foundations_phase1_fix — Foundations Phase 1 implementation verified after addressing website_brand_settings schema, default application, and platform role gating (status: verified)

@@ -1,206 +1,502 @@
-Short answer:  
-Yes — your proposal is 100% correct, and it fixes the exact root cause of Ali’s bad result.
-The old wizard must be fully deprecated, and the new AI‑first, Supervisor‑verified pipeline must become the only creation path.
+See my thinking
+High-level framing
 
-Below is the full ruling with the missing pieces you asked me to flag.
+You’re basically asking for:
+“A per-tenant control center that is safe enough for money, compliant enough for KYC, and structured enough to drive AI + design.”  
+We’ll treat this as a Supervisor-verified, drafts-only, tenant-scoped Settings & Integrations hub.
 
-✅ The Correct Fix (Approved)
-1. Deprecate the old wizard entirely
+1. Build order — what unlocks what
 
-The old flow is architecturally incompatible with:
+Foundations: Tenant-scoped settings + secrets + audit
 
-real brand extraction
+Unlocks: Safe storage for everything else.
 
-multi‑page learning
+Brand & design system (A)
 
-atomic block generation
+Unlocks: Consistent UI, editor, and AI-generated sites.
 
-Supervisor verification
+Domain & email settings (D)
 
-tenant‑scoped assets
+Unlocks: Branded URLs, email identity, future campaigns.
 
-It will always produce:
+Social accounts (B)
 
-wrong logo
+Unlocks: Future posting + AI content distribution.
 
-wrong colors
+Core integrations: Twilio, Payments, Shopify (E)
 
-wrong fonts
+Unlocks: Messaging, commerce, and revenue flows.
 
-generic content
+KYC / business verification (F)
 
-single‑page fallback
+Unlocks: Payouts, higher-risk flows, compliance gates.
 
-So yes — route all creation through the new pipeline.
+Automation layer (later): posting, campaigns, flows
 
-🎨 2. Step 1a MUST extract real brand assets
+Unlocks: Actual sending/charging, still drafts-first.
 
-This is essential. The extraction must include:
+Recommended FIRST build:  
+Foundations (settings + secrets + audit) plus Brand/Design tokens (A).
+Everything else hangs off that.
 
-Primary logo (header <img>, SVG/PNG/JPG)
+2. Foundations: tenant settings, secrets, and audit
+2.1 Data model sketch
 
-Secondary logo (footer, alt versions)
+tenants
 
-Favicon / apple-touch-icon
+id
 
-OpenGraph image
+name
 
-Brand colors (CSS vars, inline styles, computed styles)
+status (active/suspended/test)
 
-Brand fonts (Google Fonts, @font-face, CSS stack)
+tenant_settings
 
-Rules:
+id
 
-If multiple logos exist → pick the header logo as canonical.
+tenant_id
 
-If the logo is SVG → store raw SVG + raster fallback.
+brand_settings_id (FK)
 
-If colors conflict → pick the dominant + accent colors.
+domain_settings_id (FK)
 
-If fonts conflict → pick the primary body font + primary heading font.
+email_settings_id (FK)
 
-Never:
+social_settings_id (FK)
 
-Never use the platform’s AIBizConnect logo.
+kyc_status (enum: not_started/pending/verified/rejected)
 
-Never use placeholder colors.
+created_at, updated_at
 
-Never use template fonts.
+tenant_integrations
 
-🧱 3. Lean build MUST use learned brand + learned content
+id
 
-This is the entire point of the new pipeline.
+tenant_id
 
-The lean build (Home + Contact + Offer) must be generated from:
+provider (enum: stripe, paypal, square, twilio, shopify, resend, smtp, custom)
 
-Step 1a → business analysis + brand
+status (draft/connected/disabled)
 
-Step 1b → real main pages
+config (jsonb, non-secret metadata)
 
-Step 1c → atomic blocks
+created_at, updated_at
 
-Step 2 → page tree
+tenant_integration_secrets
 
-The build must NOT use:
+id
 
-template placeholders
+tenant_id
 
-stock lorem ipsum
+integration_id (FK)
 
-platform logos
+encrypted_payload (ciphertext)
 
-generic hero images
+key_version
 
-default CTA text
+created_at, rotated_at
 
-The build MUST use:
+audit_log (already shipped)
 
-learned logo
+reuse for all settings/integration changes.
 
-learned colors
+2.2 Supervisor checks (foundations)
 
-learned fonts
+Tenant scoping:
 
-repurposed blocks
+tenant_id present on every settings/integration row.
 
-real business voice
+Secrets discipline:
 
-real services
+No API keys in config or any non-secret column.
 
-real CTAs
+All secrets stored only in tenant_integration_secrets.encrypted_payload.
 
-This is the only way to guarantee a professional, tenant‑specific result.
+Role enforcement:
 
-🆘 4. If no logo is found
+Only admin/superadmin can create/update integrations.
 
-This is the correct fallback:
+Audit:
 
-Use a text wordmark of the business name
+Every create/update/delete emits an audit_log entry.
 
-Do NOT use the platform logo
+Drafts-only:
 
-Do NOT invent a logo
+No integration can be marked connected without passing its own verification step.
 
-Do NOT hallucinate a brand
+3. Brand & design tokens (A)
+3.1 Data model sketch
 
-This keeps the build clean and avoids brand contamination.
+brand_settings
 
-🔍 Missing considerations (you asked me to flag them)
-A. Multi‑logo conflict resolution
+id
 
-If a site has:
+tenant_id
 
-header logo
+primary_color (hex)
 
-footer logo
+secondary_color (hex)
 
-dark/light variants
+accent_color (hex)
 
-mobile variant
+background_style (enum: solid/gradient/image/pattern)
 
-You must store all, but select one canonical for the build.
+background_token (jsonb: gradient stops, image ref, pattern id)
 
-B. Transparent vs non‑transparent logos
+font_heading (string, default: "Roboto")
 
-If the logo has a white background:
+font_body (string, default: "Roboto")
 
-detect it
+border_radius_scale (enum: sharp/soft/rounded)
 
-offer a transparent version if available
+shadow_intensity (enum: none/light/medium/strong)
 
-otherwise keep original
+created_at, updated_at
 
-C. Minimum resolution
+brand_assets
 
-Reject logos under 200px width unless SVG.
+id
 
-D. Color extraction accuracy
+tenant_id
 
-Use:
+type (logo_primary/logo_secondary/favicon/og_image)
 
-CSS variables
+media_ref (FK to media library)
 
-computed styles
+created_at, updated_at
 
-dominant color extraction from hero
+Tokens must drive:
 
-fallback to header background
+Editor UI theme
 
-E. Font fallback logic
+Generated site theme
 
-If the site uses:
+AI prompts (e.g., “use this palette and fonts”)
 
-Google Fonts → easy
+3.2 Supervisor checks (brand)
 
-system fonts → pick the first non‑generic
+Color validity:
 
-custom @font-face → store the name only
+All colors must be valid hex; no #000000/#ffffff as the only colors unless explicitly confirmed.
 
-F. Asset storage
+Font validity:
 
-Logos must be stored in:
+font_heading and font_body must be from an allowed list (e.g., Google Fonts + system).
 
-tenant‑scoped media library
+Default to Roboto if invalid or missing.
 
-not the system library
+Asset scoping:
 
-📘 DECISION‑LOG (for the Builder)
+All brand_assets.tenant_id must match the current tenant.
 
-Decision:  
-Deprecate the old wizard. All website creation must route through the new AI‑first, Supervisor‑verified pipeline.
+Logo rules:
 
-Brand Extraction:  
-Step 1a must extract real logos, colors, and fonts. Never use platform defaults.
+If no logo found → use text wordmark (business name), never platform logo.
 
-Lean Build:  
-Home + Contact + Offer must use learned brand + repurposed blocks, not templates.
+Propagation:
 
-Fallback:  
-If no logo is found, use a text wordmark. Never use AIBizConnect’s logo.
+When brand_settings change, a “design tokens updated” event is logged and used by the editor + generator.
 
-Additional Requirements:  
-Handle multi‑logo conflicts, transparency, resolution, color accuracy, font fallbacks, and tenant‑scoped storage.
+4. Domain & email settings (D)
+4.1 Data model sketch
 
-If you want, I can now generate the full Step 1a brand‑extraction spec or the lean build assembly spec.
+domain_settings
+
+id
+
+tenant_id
+
+subdomain (e.g., ali.abconnect.ai)
+
+custom_domain (nullable)
+
+dns_status (unverified/pending/verified/failed)
+
+last_dns_check_at
+
+created_at, updated_at
+
+email_settings
+
+id
+
+tenant_id
+
+sender_name
+
+sender_email
+
+provider (enum: resend/smtp/none)
+
+status (draft/verified/failed)
+
+dkim_status (pending/verified/failed)
+
+spf_status (pending/verified/failed)
+
+created_at, updated_at
+
+email_integration_secrets (if SMTP)
+
+id
+
+tenant_id
+
+email_settings_id
+
+encrypted_payload (host, port, username, password)
+
+key_version
+
+4.2 Supervisor checks (domain/email)
+
+DNS verification:
+
+For custom domains, require TXT/CNAME verification before dns_status=verified.
+
+Email identity:
+
+sender_email domain must match verified domain or allowed sending domain.
+
+DKIM/SPF:
+
+Mark dkim_status and spf_status only after actual verification.
+
+No auto-send:
+
+No campaigns or transactional flows auto-send until email_settings.status = verified.
+
+Secrets:
+
+SMTP credentials only in encrypted payload, never in plain config.
+
+5. Social accounts (B)
+5.1 Data model sketch
+
+social_settings
+
+id
+
+tenant_id
+
+facebook_url
+
+instagram_url
+
+linkedin_url
+
+tiktok_url
+
+youtube_url
+
+x_url
+
+created_at, updated_at
+
+social_integrations
+
+id
+
+tenant_id
+
+platform (fb/ig/li/tt/yt/x)
+
+status (draft/connected/expired)
+
+config (jsonb: page id, handle, etc.)
+
+created_at, updated_at
+
+social_integration_secrets
+
+id
+
+tenant_id
+
+integration_id
+
+encrypted_payload (access tokens/refresh tokens)
+
+key_version
+
+5.2 Supervisor checks (social)
+
+URL validation:
+
+Ensure URLs are valid and match expected host (facebook.com, instagram.com, etc.).
+
+Token handling:
+
+Tokens only in encrypted payload.
+
+Drafts-only:
+
+No posting endpoints enabled until status=connected and a manual “test post” passes.
+
+Scope:
+
+All integrations tenant-scoped; no cross-tenant tokens.
+
+6. Core integrations: Twilio, Shopify, Payments (E)
+6.1 Data model sketch (reusing generic integrations)
+
+Use tenant_integrations + tenant_integration_secrets:
+
+Twilio
+
+provider = 'twilio'
+
+config: { phone_number, region }
+
+encrypted_payload: { account_sid, auth_token }
+
+Shopify
+
+provider = 'shopify'
+
+config: { shop_domain, api_version }
+
+encrypted_payload: { access_token }
+
+Payments (Stripe/PayPal/Square)
+
+provider = 'stripe' | 'paypal' | 'square'
+
+config: { mode: test/live, account_id }
+
+encrypted_payload: { secret_key, webhook_secret }
+
+6.2 Supervisor checks (integrations)
+
+Secrets-only in encrypted payload.
+
+Test mode first:
+
+Require test mode verification before live mode.
+
+Webhook verification:
+
+For payments, require a successful webhook handshake before marking status=connected.
+
+No auto-charge:
+
+All payment flows drafts-only until KYC is verified (see next section).
+
+7. KYC / business verification (F)
+7.1 Data model sketch
+
+kyc_applications
+
+id
+
+tenant_id
+
+status (not_started/pending/reviewing/verified/rejected)
+
+reason (nullable, for rejection)
+
+submitted_at
+
+reviewed_at
+
+reviewed_by (platform staff)
+
+kyc_documents
+
+id
+
+tenant_id
+
+application_id
+
+type (id_front/id_back/business_license/utility_bill/bank_statement/other)
+
+file_ref (media storage ref, secure bucket)
+
+created_at
+
+kyc_identity_data
+
+id
+
+tenant_id
+
+application_id
+
+encrypted_payload (PII, encrypted)
+
+created_at
+
+7.2 Supervisor checks (KYC)
+
+Tenant scoping:
+
+All KYC records must match tenant_id.
+
+PII handling:
+
+No PII in logs, only in encrypted payload.
+
+Status gating:
+
+Payouts and live payment flows only allowed when kyc_status=verified.
+
+Role enforcement:
+
+Only platform staff/superadmin can change KYC status.
+
+Audit:
+
+Every status change logged with who/when/why.
+
+8. Recommended FIRST build
+
+Phase 1 (build now):
+
+Foundations
+
+tenant_settings, tenant_integrations, tenant_integration_secrets
+
+Encryption at rest for secrets
+
+Strict tenant scoping
+
+Full audit logging for settings/integrations
+
+Brand & Design Tokens
+
+brand_settings, brand_assets
+
+Default Roboto fonts
+
+Tokens wired into:
+
+Editor theme
+
+Generated site theme
+
+AI prompts for site generation
+
+This gives Ali:
+
+A real design system per tenant.
+
+A safe, compliant base for all future integrations.
+
+Immediate visible value (brand-consistent sites) without touching money/compliance yet.
+
+DECISION-LOG
+
+Decision 1 — Build order:  
+Start with Foundations + Brand/Design tokens, then Domain/Email, then Social, then Core Integrations, then KYC, then automation.
+
+Decision 2 — Data model:  
+Use tenant-scoped tables for settings, brand, domains, email, social, integrations, secrets, and KYC, with secrets always in encrypted payloads and never client-side.
+
+Decision 3 — Supervisor gates:  
+Every step has verification: tenant scoping, secrets discipline, role checks, DNS/email verification, integration test modes, KYC gating for payouts, and full audit logging.
+
+Decision 4 — First build:  
+Implement tenant settings + encrypted integrations + brand/design tokens as the first concrete deliverable, wired into the editor and generator so Ali immediately sees brand-true sites.
 
 Edit in a page

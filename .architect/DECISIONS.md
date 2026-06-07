@@ -24,4 +24,7 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-019] verified_step1b — added verifyPageContent (hero + >=2 sections + >=1 CTA), fetch+verify each candidate, keep only verified; architect VERIFIED (verified)
 [D-020] deprecate_old_wizard — BOTH advisors (Copilot + architect): old wizard made a 1-page site with ABC's default logo + generic content; DEPRECATE it, route creation through the new pipeline; Step 1a must extract REAL logo/colors/fonts, build uses learned brand + repurposed blocks, fallback = text wordmark, NEVER ABC's logo (approved)
 [D-021] logo_extraction — added extractLogo() (header logo img -> apple-touch-icon -> og:image -> first header img -> favicon) into Step 1a analysis_data.logo_url (+ logo_wordmark fallback); shown in the Learn demo (built)
+[D-022] settings_plan — both advisors: build order Foundations+Brand tokens -> Domain/Email -> Social -> Core integrations (Twilio/Shopify/payments) -> KYC -> automation; encrypted tenant-scoped secrets; Supervisor gates (.architect/SETTINGS-PLAN.md) (approved)
+[D-023] foundations_phase1 — migration 0031 (tenant_integrations, tenant_secrets[encrypted base64], tenant_settings; + website_brand_settings design tokens, Roboto default) + AES-256-GCM encryption helper + server-only secret access + client actions (never return secrets, audited) (built)
+[D-024] verified_foundations_phase1 — architect VERIFIED after fixes: brand-token columns added (FDM-V1), defaults applied to all rows (FAL-V7), isPlatformAdmin gate on sensitive writes (FAL-V5) (verified)
 
