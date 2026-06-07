@@ -162,7 +162,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
             <span className="rounded bg-violet-500/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-violet-200">admin</span>
           </Link>
         )}
-        <Row item={{ label: "Settings", key: "settings", soon: true }} />
+        <Row item={{ label: "Settings", key: "settings", route: "settings" }} />
       </nav>
 
       {/* Superadmin: act as another team member */}
