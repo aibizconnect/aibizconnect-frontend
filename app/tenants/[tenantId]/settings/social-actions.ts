@@ -4,7 +4,8 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import {
   PROVIDERS, isSocialProvider, socialProviderReady, buildAuthorizeUrl,
-  exchangeCodeForTokens, fetchConnectableAccounts, storeSocialAccount, refreshSocialAccountToken, type SocialProvider,
+  refreshSocialAccountToken, makeOAuthState, readOAuthState, socialRedirectUri,
+  completeOAuthCore, type SocialProvider,
 } from "@/lib/server/social";
 
 async function requireAdminWrite(): Promise<void> {
@@ -17,29 +18,6 @@ async function audit(action: string, meta: Record<string, unknown>) {
     const { getCurrentUserEmail } = await import("@/lib/auth/platform-admin");
     await logPlatformEvent({ action, actorEmail: await getCurrentUserEmail(), meta });
   } catch { /* best effort */ }
-}
-
-/** Where the provider sends the user back. The callback route (api/social/callback) is a later phase. */
-function redirectUriFor(provider: SocialProvider): string {
-  const base = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
-  return `${base}/api/social/callback/${provider}`;
-}
-
-/** Opaque, server-verifiable OAuth state binding tenant + provider + nonce (encrypted, not signed-only). */
-async function makeState(tenantId: string, provider: SocialProvider): Promise<string | null> {
-  const { encryptionReady, encryptSecret } = await import("@/lib/server/encryption");
-  if (!encryptionReady()) return null;
-  // No Date.now()/random in workflow scripts — but this is a normal server action, both are fine here.
-  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  return Buffer.from(encryptSecret(JSON.stringify({ tenantId, provider, nonce, ts: Date.now() })), "utf8").toString("base64url");
-}
-async function readState(state: string): Promise<{ tenantId: string; provider: SocialProvider; ts: number } | null> {
-  try {
-    const { decryptSecret } = await import("@/lib/server/encryption");
-    const payload = JSON.parse(decryptSecret(Buffer.from(state, "base64url").toString("utf8")));
-    if (!payload?.tenantId || !isSocialProvider(payload?.provider)) return null;
-    return payload;
-  } catch { return null; }
 }
 
 export interface SocialAccountView {
@@ -85,9 +63,9 @@ export async function getOAuthStartUrl(tenantId: string, provider: string): Prom
   try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
   if (!isSocialProvider(provider)) return { ok: false, message: "Unknown provider." };
   if (!(await socialProviderReady(provider))) return { ok: false, message: `${provider} is not configured yet (add its OAuth app credentials).` };
-  const state = await makeState(tenantId, provider);
+  const state = makeOAuthState(tenantId, provider);
   if (!state) return { ok: false, message: "Set SETTINGS_ENCRYPTION_KEY to start OAuth." };
-  const res = await buildAuthorizeUrl(provider, { state, redirectUri: redirectUriFor(provider) });
+  const res = await buildAuthorizeUrl(provider, { state, redirectUri: socialRedirectUri(provider) });
   if (!res.ok) return { ok: false, message: res.error };
   await audit("social.oauth_start", { tenantId, provider });
   return { ok: true, url: res.url };
@@ -101,30 +79,12 @@ export async function completeOAuth(tenantId: string, provider: string, code: st
   await requireTenantAccess(tenantId);
   try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
   if (!isSocialProvider(provider)) return { ok: false, message: "Unknown provider." };
-  const parsed = await readState(state);
+  const parsed = readOAuthState(state);
   if (!parsed || parsed.tenantId !== tenantId || parsed.provider !== provider) return { ok: false, message: "Invalid or expired OAuth state." };
-  if (Date.now() - parsed.ts > 15 * 60 * 1000) return { ok: false, message: "OAuth state expired — please retry." };
-
-  const ex = await exchangeCodeForTokens(provider, code, redirectUriFor(provider));
-  if (!ex.ok || !ex.tokens) return { ok: false, message: ex.error };
-
   const { getCurrentUserEmail } = await import("@/lib/auth/platform-admin");
   const connectedBy = (await getCurrentUserEmail()) || "unknown";
-  const accounts = await fetchConnectableAccounts(provider, ex.tokens);
-  let connected = 0;
-  for (const acct of accounts) {
-    const id = await storeSocialAccount(tenantId, provider, acct, ex.tokens, connectedBy, PROVIDERS[provider].scopes);
-    if (id) connected++;
-  }
-  // Reflect a summary row in tenant_integrations (non-secret) for the unified Integrations view.
-  const supabase = createSupabaseServiceClient();
-  await supabase.from("tenant_integrations").upsert(
-    { tenant_id: tenantId, provider, status: connected > 0 ? "connected" : "error", config: { kind: "social", account_count: connected }, updated_at: new Date().toISOString() },
-    { onConflict: "tenant_id,provider" }
-  );
-  await audit("social.oauth_complete", { tenantId, provider, connected });
-  if (connected === 0) return { ok: false, message: "OAuth succeeded but no connectable accounts were found." };
-  return { ok: true, connected };
+  const r = await completeOAuthCore(tenantId, provider, code, connectedBy);
+  return r.ok ? { ok: true, connected: r.connected } : { ok: false, message: r.message };
 }
 
 /** Disconnect one account: best-effort provider revoke, then delete the row. Admin-gated. */

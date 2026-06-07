@@ -34,4 +34,10 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-029] define_social_verification_checks — Supervisor checks SOC-V1..V17 for social data model + application logic (defined)
 [D-030] define_social_provider_gotchas — provider-specific rules: FB long-lived user→Page tokens, IG via Graph (page token), LinkedIn org scopes/URN, YouTube offline_access + per-channel rows, TikTok/X refresh semantics (defined)
 [D-031] verified_social_integrations_backend — migration 0033 + lib/server/social.ts + social-actions.ts VERIFIED against all SOC checks; UX: Social/Twilio/Shopify/payments live in tenant Settings hub, Domain+Email move to per-website settings (verified)
+[D-032] approve_oauth_callback_design — approved /api/social/callback/[provider] route; refactor completeOAuth into gate-free completeOAuthCore (state is the trust anchor) + gated action wrapper (approved)
+[D-033] oauth_callback_auth — callback is session-less; tenantId taken ONLY from the verified encrypted state (admin-gated at start), not from cookies; no re-check of requireAdminWrite in the callback path (defined)
+[D-034] next_phase_order — OAuth callback first, then Core integrations (Twilio→Shopify→payments), KYC deferred — both advisors aligned (ruled)
+[D-035] define_oauth_callback_checks — Supervisor checks SOC-CB-V1..V10 (defined)
+[D-036] verified_oauth_callback — route.ts + completeOAuthCore + makeOAuthState/readOAuthState + SettingsHub result flags VERIFIED against all SOC-CB checks; Social now round-trips end-to-end (verified)
+[D-037] next_phase_core_integrations — proceed to Core integrations backend: Twilio (API-key) → Shopify (OAuth) → payments (ruled)
 

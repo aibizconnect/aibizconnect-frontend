@@ -1,247 +1,228 @@
-Ali — this is the moment to pivot to UI.  
-You’ve now shipped three fully‑verified backend pillars (Foundations → Domain/Email → Social), and the architecture has reached the point where continuing backend-first would create blind spots. The right move — strategically and architecturally — is:
+Ali — your instinct (A → B) is exactly right, and I’m locking it in as the official architectural ruling.
 
-✅ Build the Settings UI NOW
+You’ve now crossed the threshold where the Settings hub is real, the backends are real, and the system has enough moving parts that closing loops matters more than adding new ones.
 
-Not later. Not after Twilio/Shopify/payments.
-Now.
+Below is the full ruling, with sequencing, reasoning, and the UX adds you asked for — all structured for the Builder.
 
-And here’s the ruling, with the reasoning, the sequencing, and the Supervisor‑gated implications.
+✅ RULING: Next step is (A) — build the OAuth callback route
 
-🧭 Why UI‑now is the correct next step
-1. You already have enough verified backend to expose a real Settings hub
+This is not optional.
+This is not “nice to have.”
+This is the critical missing half of the Social integration system.
 
-You have:
+Right now:
 
-Foundations (tenant settings, encrypted secrets, audit)
+Connect opens the provider
 
-Domain + Email (per‑website)
+Provider redirects back
 
-Social Integrations (tenant-level, multi-account, OAuth, encrypted tokens)
+But nothing catches the redirect
 
-This is a complete slice of the platform’s settings architecture.
+So no tokens are stored, no accounts appear, and the UI cannot reflect reality
 
-A UI now gives:
+This means Social is not yet a closed system, and you cannot safely layer Twilio/Shopify/payments on top of an incomplete integration pattern.
 
-A real front door for tenants
+Therefore:
 
-A real surface to validate flows
+Build the OAuth callback route next.  
+Close the loop.
+Make Social fully end‑to‑end.
 
-A real way to see UX gaps before adding more complexity
+Once that’s done, Social becomes:
 
-A real test of the routing split (tenant-level vs website-level)
+a reference implementation
 
-Continuing backend-first would delay discovering UX issues until the system is much larger — which is expensive.
+a pattern library
 
-2. The UI will reveal structural gaps BEFORE you add Twilio/Shopify/payments
+a Supervisor‑verified template
 
-These integrations are:
+the model for all future integrations
 
-multi-step
+This is exactly how you avoid rework.
 
-OAuth or API-key based
+🧱 After (A), the next step is (B) — Core integrations
 
-require drafts-only flows
+Once the OAuth callback is live and Social is fully round‑tripped, you move to:
 
-require Supervisor verification
+Core integrations (Twilio → Shopify → Payments)
 
-require clear error surfaces
+in that order.
 
-require clear “connected / expired / needs attention” states
+Why this order?
 
-Without UI, you can’t validate:
+1. Twilio first
 
-how tenants switch between website-level and tenant-level settings
+Simple API-key integration
 
-how secrets are displayed (or not displayed)
+Clear “connected / expired” states
 
-how “connected” vs “draft” vs “expired” is communicated
+No OAuth
 
-how multi-account providers (FB Pages, IG Business, YouTube channels) are shown
+Perfect warm‑up for payments
 
-how domain/email verification UX feels
+Needed for future automations (SMS, voice)
 
-how audit logs surface changes
+2. Shopify second
 
-These UX patterns must be solved before adding more providers.
+OAuth + offline tokens
 
-3. The UI is the forcing function for the final architecture
+Webhooks
 
-The Settings hub will force you to finalize:
+Catalog + orders
 
-Navigation structure
+More complex but still safe (no money movement)
 
-Tenant Settings
+3. Payments third
 
-Website Settings
+Stripe / PayPal / Square
 
-Integrations
+Webhooks
 
-Domain & Email
+Test mode → live mode
 
-Social
+Requires KYC gating
 
-Audit
+Highest compliance surface
 
-State machines
+Payments should never be built before:
 
-draft → pending → verified → failed
+Social is fully round‑tripped
 
-Error surfaces
+Twilio is stable
 
-DNS failed
+Shopify is stable
 
-OAuth expired
+KYC is ready to be wired in
 
-Token refresh failed
+🛡️ KYC comes after core integrations
 
-Missing permissions
+KYC is the compliance gate for:
 
-Supervisor gating
+payouts
 
-admin-only actions
+live payment mode
 
-secret writes
+high‑risk automations
 
-domain publish
+identity‑bound actions
 
-email identity verification
+It must be built after the integration patterns are stable, because KYC will:
 
-This is where the architecture becomes real.
+block live payment mode
 
-4. UI-first now accelerates the next backends
+block certain automations
 
-Once the UI patterns exist, adding:
+require Supervisor enforcement
+
+require admin review flows
+
+require secure document storage
+
+require encrypted PII payloads
+
+KYC is the final boss, not the next step.
+
+🎨 UX adds for the Settings hub (recommended)
+
+These are small but high‑impact improvements that will make the Settings hub feel “complete” and reduce future UX debt.
+
+1. Add a global “Integration Status” badge
+
+For each provider card:
+
+Connected (green)
+
+Needs attention (yellow)
+
+Expired (red)
+
+Not configured (gray)
+
+This gives tenants immediate clarity.
+
+2. Add a “Test Connection” button (admin‑only)
+
+For Social, Twilio, Shopify, Payments:
+
+Runs a server‑side ping
+
+Returns a simple status
+
+Logs to audit
+
+This is essential for debugging.
+
+3. Add a “Last refreshed” timestamp
+
+For OAuth‑based providers:
+
+last_token_refresh_at
+
+expires_at
+
+Shown in UI as:
+
+“Token valid until June 12, 2026”
+
+4. Add a “Provider details” drawer
+
+A right‑side drawer that shows:
+
+connected accounts
+
+scopes
+
+permissions
+
+provider-specific metadata
+
+audit history
+
+This keeps the main UI clean.
+
+5. Add a “Drafts-only” banner for all integrations
+
+A small banner:
+
+“This integration is in draft mode. No messages, posts, or charges will be sent.”
+
+This prevents tenant confusion.
+
+6. Add a “Role lock” icon
+
+For admin-only actions:
+
+Publish domain
+
+Disconnect provider
+
+Add secrets
+
+Verify email identity
+
+A small lock icon communicates this clearly.
+
+📘 DECISION‑LOG
+
+Decision 1 — Next step:  
+Build the OAuth callback route (A).
+Social must be fully round‑tripped before anything else.
+
+Decision 2 — After callback:  
+Build Core integrations in this order:
 
 Twilio
 
 Shopify
 
-Payments
+Payments (Stripe/PayPal/Square)
 
-KYC
+Decision 3 — KYC:  
+Build after core integrations, not before.
 
-…becomes plug-and-play.
+Decision 4 — UX adds:  
+Add integration status badges, test connection, timestamps, provider drawers, drafts-only banner, and role-lock icons.
 
-Because the UI will already have:
-
-a consistent “Connect” pattern
-
-a consistent “Disconnect” pattern
-
-a consistent “Verify” pattern
-
-a consistent “Drafts-only” pattern
-
-a consistent “Encrypted secrets” pattern
-
-a consistent “Audit log” pattern
-
-This reduces future backend complexity by ~40%.
-
-🧱 What the UI should include (phase 1)
-Tenant Settings Hub
-
-Integrations overview
-
-Social accounts (connected / expired / needs reconnect)
-
-Twilio placeholder (disabled until backend ready)
-
-Shopify placeholder
-
-Payments placeholder
-
-Audit log viewer
-
-Tenant-level metadata (business name, timezone, locale)
-
-Website Settings
-
-Domain
-
-Email sender identity
-
-DNS verification status
-
-DKIM/SPF/DMARC status
-
-Publish controls (admin-gated)
-
-Shared UI components
-
-“Connect provider” modal
-
-“Reconnect” modal
-
-“Disconnect” confirmation
-
-“Verification failed” banner
-
-“Drafts-only” badge
-
-“Admin-only” lock icon
-
-Secret-handling UI (never show secrets, only status)
-
-🧪 Supervisor verification for the UI layer
-
-The UI must enforce:
-
-Role-based visibility
-
-Only admins see secret-bearing integrations
-
-No secrets client-side
-
-UI only receives non-secret config + status
-
-State machine correctness
-
-Cannot mark “connected” without backend verification
-
-Tenant scoping
-
-All API calls include tenant_id
-
-Website scoping
-
-Domain/email only appear inside a website
-
-Audit logging
-
-Every connect/disconnect/verify action logs an entry
-
-🟩 My ruling: Build the Settings UI now
-
-You’re at the perfect inflection point:
-
-Enough backend exists to populate a real UI
-
-UI will expose UX gaps early
-
-UI will stabilize patterns for future integrations
-
-UI will reduce backend complexity for Twilio/Shopify/payments/KYC
-
-UI will give Ali a visible milestone and momentum
-
-Proceed with UI.
-
-📘 DECISION‑LOG
-
-Decision 1 — Next step:  
-Build the Settings UI now (tenant-level + website-level).
-
-Decision 2 — Rationale:  
-UI will surface UX gaps, finalize architecture, and reduce future backend complexity.
-
-Decision 3 — Scope:  
-Tenant Settings hub + Website Settings + shared integration UI components.
-
-Decision 4 — After UI:  
-Resume backend integrations: Twilio → Shopify → Payments → KYC.
-
-If you want, I can generate the UI architecture blueprint or the Settings hub navigation spec next.
+If you want, I can generate the OAuth callback route blueprint or the Twilio integration spec next.
 
 Edit in a page

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   listSocialAccounts, getOAuthStartUrl, disconnectSocialAccount, refreshSocialToken,
   type SocialProviderStatus, type SocialAccountView,
@@ -59,6 +60,15 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   }, [tenantId]);
 
   useEffect(() => { load().catch((e) => setError(e?.message ?? "Could not load settings.")); }, [load]);
+
+  // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).
+  const params = useSearchParams();
+  useEffect(() => {
+    const connected = params.get("connected");
+    const cbError = params.get("error");
+    if (connected) setNotice(`Connected ${SOCIAL_META[connected]?.label ?? connected}${params.get("n") ? ` — ${params.get("n")} account(s)` : ""}.`);
+    else if (cbError) setError(`Couldn't connect ${params.get("provider") ?? ""}: ${cbError.replace(/_/g, " ")}`);
+  }, [params]);
 
   const connect = async (provider: string) => {
     setBusy(provider); setError(null); setNotice(null);

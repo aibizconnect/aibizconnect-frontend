@@ -1,5 +1,5 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { encryptSecret, decryptSecret } from "./encryption";
+import { encryptSecret, decryptSecret, encryptionReady } from "./encryption";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
 import { getIntegrationSecret } from "./integrations";
 
@@ -231,6 +231,62 @@ export async function storeSocialAccount(
   ).select("id").single();
   if (error) return null;
   return data?.id ?? null;
+}
+
+/** Where the provider redirects back. The callback Route Handler lives at this path. */
+export function socialRedirectUri(provider: SocialProvider): string {
+  const base = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
+  return `${base}/api/social/callback/${provider}`;
+}
+
+interface OAuthState { tenantId: string; provider: SocialProvider; nonce: string; ts: number }
+
+/** Opaque, server-verifiable OAuth state binding tenant+provider+nonce (encrypted). null if no key. */
+export function makeOAuthState(tenantId: string, provider: SocialProvider): string | null {
+  if (!encryptionReady()) return null;
+  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const payload: OAuthState = { tenantId, provider, nonce, ts: Date.now() };
+  return Buffer.from(encryptSecret(JSON.stringify(payload)), "utf8").toString("base64url");
+}
+
+/** Decrypt + validate state. Enforces the 15-minute TTL. Returns null on any tampering/expiry. */
+export function readOAuthState(state: string): OAuthState | null {
+  try {
+    const payload = JSON.parse(decryptSecret(Buffer.from(state, "base64url").toString("utf8"))) as OAuthState;
+    if (!payload?.tenantId || !isSocialProvider(payload?.provider) || !payload?.nonce || !payload?.ts) return null;
+    if (Date.now() - payload.ts > 15 * 60 * 1000) return null;
+    return payload;
+  } catch { return null; }
+}
+
+/**
+ * SERVER-ONLY core of OAuth completion — NO auth gates. The caller MUST have already established
+ * trust (a validated state in the callback, or requireTenantAccess+requireAdminWrite in the action).
+ * Exchanges code→tokens, enumerates connectable entities, stores each with encrypted tokens, reflects
+ * a non-secret tenant_integrations summary row, and audits.
+ */
+export async function completeOAuthCore(
+  tenantId: string, provider: SocialProvider, code: string, connectedBy: string
+): Promise<{ ok: boolean; connected: number; message?: string }> {
+  const ex = await exchangeCodeForTokens(provider, code, socialRedirectUri(provider));
+  if (!ex.ok || !ex.tokens) return { ok: false, connected: 0, message: ex.error };
+  const accounts = await fetchConnectableAccounts(provider, ex.tokens);
+  let connected = 0;
+  for (const acct of accounts) {
+    const id = await storeSocialAccount(tenantId, provider, acct, ex.tokens, connectedBy, PROVIDERS[provider].scopes);
+    if (id) connected++;
+  }
+  const supabase = createSupabaseServiceClient();
+  await supabase.from("tenant_integrations").upsert(
+    { tenant_id: tenantId, provider, status: connected > 0 ? "connected" : "error", config: { kind: "social", account_count: connected }, updated_at: new Date().toISOString() },
+    { onConflict: "tenant_id,provider" }
+  );
+  try {
+    const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
+    await logPlatformEvent({ action: "social.oauth_complete", actorEmail: connectedBy, meta: { tenantId, provider, connected } });
+  } catch { /* best effort */ }
+  if (connected === 0) return { ok: false, connected: 0, message: "OAuth succeeded but no connectable accounts were found." };
+  return { ok: true, connected };
 }
 
 /** SERVER-ONLY: decrypt an account's tokens (for posting on the tenant's behalf). */
