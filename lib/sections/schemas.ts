@@ -210,6 +210,27 @@ export const sliderSchema = z.object({ type: z.literal("slider"), images: z.arra
 export const countdownSchema = z.object({ type: z.literal("countdown"), target: z.string(), label: z.string().optional() });
 export const mapSchema = z.object({ type: z.literal("map"), query: z.string() });
 export const qrSchema = z.object({ type: z.literal("qr"), data: z.string(), size: z.number().optional() });
+// Icon / icon-box (GHL parity): an emoji or character, optionally with a heading + text below it.
+export const iconSchema = z.object({
+  type: z.literal("icon"),
+  icon: z.string().default("★"),
+  heading: z.string().optional(),
+  text: z.string().optional(),
+  size: z.coerce.number().optional(),   // px
+  color: z.string().optional(),
+  align: alignEnum.optional(),
+});
+// Audio player (GHL parity): a hosted/linked audio file with native controls.
+export const audioSchema = z.object({
+  type: z.literal("audio"),
+  url: z.string().default(""),
+  title: z.string().optional(),
+});
+// Tabs (GHL parity): tabbed content — click a tab to reveal its panel.
+export const tabsSchema = z.object({
+  type: z.literal("tabs"),
+  tabs: z.array(z.object({ label: z.string(), content: z.string() })).default([]),
+});
 
 // Navigation menu element. Each top-level item may carry a submenu (children).
 // Items + submenus are edited in the right panel (expandable rows); on the canvas,
@@ -288,6 +309,9 @@ export const sectionSchema = z.discriminatedUnion("type", [
   mapSchema,
   qrSchema,
   menuSchema,
+  iconSchema,
+  audioSchema,
+  tabsSchema,
 ]);
 
 // Inferred TypeScript types (structurally compatible with SectionContent)
@@ -320,6 +344,9 @@ export type CountdownContent = z.infer<typeof countdownSchema>;
 export type MapContent = z.infer<typeof mapSchema>;
 export type QrContent = z.infer<typeof qrSchema>;
 export type MenuContent = z.infer<typeof menuSchema>;
+export type IconContent = z.infer<typeof iconSchema>;
+export type AudioContent = z.infer<typeof audioSchema>;
+export type TabsContent = z.infer<typeof tabsSchema>;
 export type SectionContent = z.infer<typeof sectionSchema>;
 
 export type SectionType = SectionContent["type"];
@@ -355,6 +382,9 @@ export const sectionSchemas = {
   map: mapSchema,
   qr: qrSchema,
   menu: menuSchema,
+  icon: iconSchema,
+  audio: audioSchema,
+  tabs: tabsSchema,
 } as const;
 
 /** Ordered list of section types (for the "add section" picker). */
@@ -388,6 +418,9 @@ export const sectionTypes: SectionType[] = [
   "map",
   "qr",
   "menu",
+  "icon",
+  "audio",
+  "tabs",
 ];
 
 /** Human-friendly labels for the editor UI. */
@@ -421,6 +454,9 @@ export const sectionLabels: Record<SectionType, string> = {
   map: "Map",
   qr: "QR Code",
   menu: "Menu",
+  icon: "Icon",
+  audio: "Audio",
+  tabs: "Tabs",
 };
 
 /** Sensible default content when a new section is added. */
@@ -503,6 +539,15 @@ export function defaultContentFor(type: SectionType): SectionContent {
       return { type: "menu", orientation: "horizontal", align: "left", items: [
         { label: "Home", href: "/" },
         { label: "Pricing", href: "/pricing" },
+      ] };
+    case "icon":
+      return { type: "icon", icon: "★", heading: "Feature", text: "Describe this feature.", size: 40, align: "center" };
+    case "audio":
+      return { type: "audio", url: "", title: "Audio" };
+    case "tabs":
+      return { type: "tabs", tabs: [
+        { label: "Tab 1", content: "Content for the first tab." },
+        { label: "Tab 2", content: "Content for the second tab." },
       ] };
   }
 }

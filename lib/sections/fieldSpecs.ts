@@ -236,6 +236,24 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   countdown: [{ kind: "text", key: "label", label: "Label" }, { kind: "text", key: "target", label: "Target date (ISO)" }],
   map: [{ kind: "text", key: "query", label: "Location / address" }],
   qr: [{ kind: "text", key: "data", label: "QR content (URL/text)" }],
+  icon: [
+    { kind: "text", key: "icon", label: "Icon (emoji or character)" },
+    { kind: "text", key: "heading", label: "Heading" },
+    { kind: "text", key: "text", label: "Text", multiline: true },
+    { kind: "color", key: "color", label: "Icon color" },
+    { kind: "number", key: "size", label: "Icon size", min: 16, max: 160, unit: "px" },
+    alignField("align"),
+  ],
+  audio: [
+    { kind: "text", key: "url", label: "Audio file URL (mp3/wav/ogg)" },
+    { kind: "text", key: "title", label: "Title" },
+  ],
+  tabs: [
+    { kind: "array", key: "tabs", label: "Tabs", itemLabel: "Tab", itemFields: [
+      { kind: "text", key: "label", label: "Tab label" },
+      { kind: "text", key: "content", label: "Tab content", multiline: true },
+    ] },
+  ],
   // Menu items + submenus are edited by the dedicated MenuItemsEditor in the right
   // panel; these specs cover only presentational options.
   menu: [

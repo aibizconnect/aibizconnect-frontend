@@ -11,7 +11,7 @@ import {
 import {
   BulletListSection, NumberCounterSection, ProgressBarSection, PricingSection,
   FaqSection, GallerySection, LogosSection, SocialSection, SliderSection,
-  CountdownSection, MapSection, QrSection,
+  CountdownSection, MapSection, QrSection, IconSection, AudioSection, TabsSection,
 } from "./MoreSections";
 import { MenuSection } from "./MenuSection";
 import HeaderResponsive, { type HeaderNavItem } from "./HeaderResponsive";
@@ -304,6 +304,12 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
       return <MapSection content={c} theme={theme} />;
     case "qr":
       return <QrSection content={c} theme={theme} />;
+    case "icon":
+      return <IconSection content={c} theme={theme} />;
+    case "audio":
+      return <AudioSection content={c} theme={theme} />;
+    case "tabs":
+      return <TabsSection content={c} theme={theme} />;
     case "menu":
       return <MenuSection content={c} theme={theme} bp={bp} />;
     default:

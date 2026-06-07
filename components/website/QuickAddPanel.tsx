@@ -36,18 +36,19 @@ const ELEMENT_GROUPS: Group[] = [
     { label: "Bullet List", icon: I.list, type: "bullet-list" },
   ]},
   { group: "Buttons", items: [{ label: "Button", icon: I.btn, type: "button" }] },
+  { group: "Icon", items: [{ label: "Icon", icon: I.star, type: "icon" }] },
   { group: "Images", items: [
     { label: "Image", icon: I.img, type: "image" }, { label: "Photo Gallery", icon: I.img, type: "gallery" },
     { label: "Image Slider", icon: I.img, type: "slider" }, { label: "Logo Showcase", icon: I.img, type: "logos" },
   ]},
   { group: "Media", items: [
-    { label: "Video", icon: I.video, type: "video" }, { label: "Map", icon: I.map, type: "map" }, { label: "QR Code", icon: I.qr, type: "qr" },
+    { label: "Video", icon: I.video, type: "video" }, { label: "Audio", icon: I.video, type: "audio" }, { label: "Map", icon: I.map, type: "map" }, { label: "QR Code", icon: I.qr, type: "qr" },
   ]},
   { group: "Sections", items: [
     { label: "Hero", icon: I.hero, type: "hero" }, { label: "Features", icon: I.grid, type: "features" },
     { label: "Testimonials", icon: I.star, type: "testimonials" }, { label: "Reviews", icon: I.star, type: "testimonials" },
     { label: "Listings", icon: I.grid, type: "listings" }, { label: "Pricing Table", icon: I.price, type: "pricing" },
-    { label: "FAQ", icon: I.faq, type: "faq" }, { label: "Call to Action", icon: I.btn, type: "cta" },
+    { label: "FAQ", icon: I.faq, type: "faq" }, { label: "Tabs", icon: I.grid, type: "tabs" }, { label: "Call to Action", icon: I.btn, type: "cta" },
   ]},
   { group: "Forms & Surveys", items: [{ label: "Contact Form", icon: I.form, type: "contact-form" }, { label: "Survey", icon: I.form, soon: true }] },
   { group: "Social Media Icons", items: [{ label: "Social Icons", icon: I.social, type: "social" }] },

@@ -2,9 +2,10 @@ import type { ThemeTokens } from "@/lib/sections/theme";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
   FaqContent, GalleryContent, LogosContent, SocialContent, SliderContent,
-  CountdownContent, MapContent, QrContent,
+  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent,
 } from "@/lib/sections/schemas";
 import Countdown from "./Countdown";
+import Tabs from "./Tabs";
 import InlineText from "./InlineText";
 
 /** Extended best-in-class element renderers (functional, no external paid keys). */
@@ -167,6 +168,34 @@ export function MapSection({ content }: { content: MapContent; theme?: ThemeToke
       <noscript>{src}</noscript>
     </div>
   );
+}
+
+export function IconSection({ content, theme }: { content: IconContent; theme?: ThemeTokens }) {
+  const align = content.align ?? "center";
+  const size = content.size ?? 40;
+  const color = content.color || primary(theme);
+  return (
+    <div style={{ textAlign: align }}>
+      <div style={{ fontSize: size, lineHeight: 1, color }}>{content.icon || "★"}</div>
+      {content.heading && <div className="mt-2 font-semibold" style={{ color: theme?.colors.text }}>{content.heading}</div>}
+      {content.text && <div className="mt-1 text-sm" style={{ color: theme?.colors.text ?? "#64748b" }}>{content.text}</div>}
+    </div>
+  );
+}
+
+export function AudioSection({ content }: { content: AudioContent; theme?: ThemeTokens }) {
+  if (!content.url) return <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400">Add an audio file URL in the inspector.</div>;
+  return (
+    <div>
+      {content.title && <div className="mb-1 text-sm font-medium text-slate-700">{content.title}</div>}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio controls preload="none" src={content.url} className="w-full">Your browser does not support audio.</audio>
+    </div>
+  );
+}
+
+export function TabsSection({ content, theme }: { content: TabsContent; theme?: ThemeTokens }) {
+  return <Tabs tabs={content.tabs ?? []} accent={primary(theme)} text={theme?.colors.text} />;
 }
 
 export function QrSection({ content }: { content: QrContent; theme?: ThemeTokens }) {
