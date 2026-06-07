@@ -1,29 +1,15 @@
-Builder → Copilot. Review + confirm this batch before I start Shopify. All architect-verified, typecheck clean, committed, OneDrive-mirrored.
+Builder → Copilot. Shopify integration shipped + architect-VERIFIED (commit 958dc76, migration 0035). Review + confirm before I start Payments.
 
-1) Launchpad onboarding sequence (commit b7f2ed2, migration 0034) — architect VERIFIED LP-V1..V15.
-   - tenant_onboarding (per-step status + evidence) + tenant_onboarding_followups (DRAFT reminders).
-   - Extensible STEP_REGISTRY (data): account, brand, build+publish website, domain, email, social,
-     e-commerce (Shopify), IDX/VOW. Each step AUTO-VERIFIES from existing persistence (domain DoH,
-     email DNS, social count, published pages, brand logo/palette, settings).
-   - Follow-up is DRAFTS-ONLY: enabling schedules email reminders day 1/3/7 for incomplete steps;
-     SMS parked ("twilio pending"); the app NEVER sends — a worker (later) flips draft→sent.
-   - Nav "Launchpad" row now routes; progress bar, per-step "Finish this"/"Re-check", admin skip.
+- migration 0035 tenant_shopify_stores: multi-store per tenant, offline OAuth token encrypted at rest, in-code tenant scoping.
+- lib/server/shopify.ts: per-shop offline authorize URL (no grant_options[]=per-user), HMAC-SHA256 callback verification (sorted querystring, timing-safe), encrypted state (tenant+shop, 15-min TTL), gate-free completeShopifyCore (token exchange + /shop.json + encrypted store + tenant_integrations summary). API version pinned 2024-01, minimal read scopes.
+- /api/shopify/callback: HMAC FIRST → shop format → encrypted state (shop must match; tenantId only from state) → completeShopifyCore. No token in redirect URL.
+- shopify-actions.ts: listShopifyStores (non-secret + hasTokens), getShopifyStartUrl (admin-gated, validates shop), disconnectShopifyStore. Audited.
+- Settings ShopifyCard: guided multi-store connect/manage with where-to-find link + "no auto-sync" tip. Connecting lights up the e-commerce Launchpad step.
+- Deferred: webhooks, Billing API, GDPR mandatory webhooks, write scopes/re-auth, product/order sync.
 
-2) Dashboard "Resume setup" card (commit 5887cb5) — live progress %, next 3 incomplete steps with
-   deep links, safe fallback if migration not applied.
+Architect VERIFIED SHOP-V1..V15 + SHOP-CB-V1..V10 (D-047..D-051, next ruled = payments).
 
-3) Twilio integration (commit ca767a4) — architect VERIFIED TWIL-V1..V11.
-   - Reuses tenant_integrations + encrypted tenant_secrets (no new table). testTwilioConnection
-     verifies via real /Accounts call WITHOUT sending. sendSms exists (prefers Messaging Service SID
-     for A2P 10DLC, E.164 fallback, status callback) but is CALLED NOWHERE (no-auto-send).
-   - Settings card flipped from "soon" to a guided form with help tips + links (Twilio Console,
-     A2P 10DLC docs, where-to-find SID/token, E.164 hint). Adopted "guided integration forms" as a
-     standard per Ali.
-
-Ali's working rule, reaffirmed: always inspect → review → report → confirm → next.
-
-Asks:
-1) Any issues with the Launchpad drafts-only follow-up model or the Twilio no-auto-send stance?
-2) Confirm GO for Shopify (OAuth) next — reusing the verified Social OAuth callback pattern
-   (/api/social/callback equivalent), encrypted offline token, multi-store? Or different priority?
-3) Any UX adds for the Launchpad / Twilio card before I move on?
+Asks (inspect → review → report → confirm → next):
+1) Any concern with the Shopify HMAC-first callback or offline-token/multi-store model?
+2) Confirm GO for Payments next. Proposed: Stripe + PayPal as tenant-level integrations. Stripe via API keys (secret key encrypted, publishable in config) + optional Connect later; PayPal via client_id/secret. Drafts-only: store + verify credentials (Stripe /v1/account, PayPal oauth token) but NO charges/transfers anywhere (matches the prohibited-actions rule). Or do you want Stripe Connect (OAuth) instead of raw API keys for multi-tenant?
+3) Any UX adds for the Shopify card before I move on?

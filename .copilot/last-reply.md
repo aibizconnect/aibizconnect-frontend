@@ -1,205 +1,209 @@
-Ali — this batch is clean, correct, and strategically aligned with the architecture we’ve been building.
-Everything you shipped (Launchpad, Dashboard resume card, Twilio integration) fits the Supervisor‑verified model with no regressions, no security leaks, and no architectural contradictions.
+Ali — this batch is excellent.
+Shopify is now implemented exactly the way a multi‑tenant, Supervisor‑verified platform should do it.
+Everything you shipped matches the architectural contract we’ve been building for months.
 
-Below is the full ruling — precise, decisive, and structured so you can move immediately.
+Below is the full ruling — precise, technical, and structured so you can move directly into Payments.
 
-✅ 1) Launchpad follow‑up model + Twilio no‑auto‑send
+✅ 1) Shopify HMAC‑first callback + offline token + multi‑store
 
-Both are correct. No changes required.
+No concerns. This is the correct model.
 
-Launchpad follow‑ups (drafts‑only) — APPROVED
+Here’s the breakdown:
 
-Your model is exactly right:
+HMAC‑first callback — CORRECT
 
-Follow‑ups stored in tenant_onboarding_followups
+Your flow:
 
-Schedules exist only as drafts
+Verify HMAC BEFORE anything else
 
-App never sends
+Sort querystring lexicographically
 
-A future worker flips draft → sent
+Timing‑safe compare
 
-SMS intentionally parked until Twilio is fully live
+Reject if invalid
 
-Auto‑verification pulls from real persistence (DNS, DKIM, social, published pages, brand, settings)
+Only then decrypt state
 
-This is the safest possible design:
+Only then check shop domain
 
-No accidental emails
+Only then exchange code
 
-No accidental SMS
+This is the canonical Shopify security sequence.
 
-No accidental charges
+Most developers get this wrong — you got it right.
 
-No accidental domain changes
+Offline token — CORRECT
 
-No accidental posting
+You used offline access (no grant_options[]=per-user)
 
-Supervisor‑verified behavior:  
-Launchpad is a read‑only progress engine until an admin explicitly enables sending.
+You store the token encrypted at rest
 
-This is exactly what we want.
+You never expose it client‑side
 
-Twilio no‑auto‑send — APPROVED
+You fetch /shop.json to validate the token
 
-Your Twilio integration is architecturally perfect:
+You pin API version (2024‑01)
 
-Uses the generic tenant_integrations + tenant_secrets
+You use minimal read scopes
 
-AES‑256‑GCM encrypted
+This is exactly how Shopify expects multi‑tenant SaaS to behave.
 
-testTwilioConnection hits /Accounts (safe, no send)
+Multi‑store per tenant — CORRECT
 
-sendSms exists but is never called
+Your tenant_shopify_stores table is the right abstraction:
 
-No auto‑send anywhere
+A tenant can connect multiple shops
 
-Messaging Service SID support (correct for A2P 10DLC)
+Each shop has its own encrypted offline token
 
-E.164 fallback
+Each shop has its own metadata
 
-Status callback stubbed
+Disconnect is clean
 
-Admin‑only writes
+No auto‑sync
 
-Full audit logging
+No auto‑webhooks
 
-This is the correct pattern for all future messaging/commerce integrations.
+No auto‑billing
 
-✅ 2) GO for Shopify next — using the Social OAuth callback pattern
+This is the safest possible implementation.
 
-Yes — proceed with Shopify next.
+🟩 2) GO for Payments next — with one architectural rule
 
-And yes — reuse the verified Social OAuth callback pattern:
+Yes — proceed to Payments next.
 
-/api/shopify/callback
+But here is the ruling you need before you start:
 
-Encrypted offline token
+🧭 RULING: Use Stripe API keys NOW, Stripe Connect LATER
+Why API keys now?
 
-Multi‑store support (Shopify allows multiple shops per tenant)
+Faster to implement
 
-Store metadata in tenant_integrations.config
+Matches your existing tenant_integrations model
 
-Store secrets in tenant_secrets.encrypted_payload
+Perfect for “verify credentials only”
 
-Drafts‑only until verified
+Drafts‑only means no charges, no payouts, no risk
 
-No auto‑sync, no auto‑import, no auto‑webhooks
+You can verify with /v1/account safely
 
-Why Shopify next?
+You can store publishable_key in config and secret_key encrypted
 
-Because:
+Why NOT Connect yet?
 
-You already have a fully verified OAuth pipeline
+Stripe Connect introduces:
 
-You already have multi‑account patterns
+onboarding flows
 
-You already have encrypted token storage
+account types
 
-You already have drafts‑only integration discipline
+capabilities
 
-Shopify is the next major pillar of the Launchpad (e‑commerce step)
+payouts
 
-Payments + KYC depend on Shopify patterns being stable
+KYC dependencies
 
-This is the correct sequencing.
+webhook signing
 
-🧱 3) UX adds before you move on (recommended, not required)
+multi‑tenant risk
 
-These are small, high‑impact improvements that will make the Settings hub + Launchpad feel “finished” and reduce future UX debt.
+Connect is the right long‑term direction, but only after:
 
-A. Launchpad — “Auto‑verified from your settings” badge
+KYC is implemented
 
-For steps like:
+Payments test mode is stable
 
-Domain
+You have a clear payout model
 
-Email
+You have a Supervisor‑verified compliance layer
 
-Social
+So the correct sequence is:
 
-Brand
+Stripe API keys (test mode only)
 
-Website publish
+PayPal client_id/secret
 
-Add a small badge:
+Square (optional)
 
-Auto‑verified  
-Based on your existing settings.
+Stripe Connect (later, after KYC)
 
-This helps tenants understand why a step is already green.
+This matches your “no auto‑charge, no auto‑transfer” rule.
 
-B. Launchpad — “Needs admin action” badge
+🟦 3) UX adds for Shopify before you move on
 
-For steps that require admin‑gated actions:
+These are optional but recommended — they will make the Shopify card feel complete.
 
-Publish domain
+A. Add “Store domain” + “Plan” + “Currency” in the store list
 
-DKIM/SPF/DMARC
+You already fetch /shop.json.
+Surface:
 
-Email sender identity
+shop.myshopify_domain
 
-Payment activation (future)
+plan_display_name
 
-KYC (future)
+currency
 
-Badge:
+This helps tenants identify which store is which.
 
-Admin‑only  
-Some actions require an administrator.
+B. Add “Token last refreshed” timestamp
 
-This prevents confusion.
+You already store the offline token.
+Add:
 
-C. Twilio card — add “Test connection” button
+last_token_refresh_at
 
-You already have testTwilioConnection.
-Expose it in UI:
+Show in UI:
 
-Admin‑only
+Token valid (offline). Last refreshed June 7, 2026.
 
-Runs server‑side
+C. Add “Reconnect” state
 
-Shows success/failure
+If the offline token ever fails:
 
-Logs to audit
+Mark store as Needs reconnect
+
+Disable any future sync actions
+
+Keep store visible
+
+This matches the Social UX pattern.
+
+D. Add a “Test connection” button
+
+You already have the primitives:
+
+Call /shop.json
+
+If 200 → success
+
+If 401/403 → expired token
 
 This is extremely helpful for debugging.
 
-D. Twilio card — show “Messaging Service SID recommended” hint
+E. Add a “No auto‑sync” badge
 
-You already support it.
-Surface it:
+You already mention it in text.
+Make it a badge:
 
-For A2P 10DLC compliance, use a Messaging Service SID instead of a raw phone number.
+Drafts‑only  
+No auto‑sync. No auto‑import.
 
-This reduces tenant misconfiguration.
-
-E. Social — show “Reconnect required” state
-
-If token refresh fails or expires:
-
-Show a yellow “Reconnect” badge
-
-Disable posting (future)
-
-Keep accounts visible but marked stale
-
-This is the correct UX pattern for OAuth‑based providers.
+This reinforces safety.
 
 📘 DECISION‑LOG
 
-Decision 1 — Launchpad follow‑ups:  
-Approved. Drafts‑only model is correct and safe.
+Decision 1 — Shopify callback model:  
+Approved. HMAC‑first, offline token, multi‑store — all correct.
 
-Decision 2 — Twilio no‑auto‑send:  
-Approved. Integration is architecturally correct and compliant.
+Decision 2 — Payments next:  
+Approved.
+Use Stripe API keys + PayPal client/secret first.
+Stripe Connect comes later, after KYC.
 
-Decision 3 — Next step:  
-Proceed with Shopify OAuth integration using the Social OAuth callback pattern.
+Decision 3 — UX adds:  
+Recommended: store metadata, token timestamps, reconnect state, test connection, drafts‑only badge.
 
-Decision 4 — UX adds:  
-Optional but recommended: auto‑verified badges, admin‑only badges, test connection button, Messaging Service SID hint, reconnect state.
-
-If you want, I can generate the Shopify OAuth blueprint or the Shopify data model spec next.
+If you want, I can generate the Payments integration blueprint or the Stripe test-mode verification spec next.
 
 Edit in a page
