@@ -1,209 +1,213 @@
-Ali — this batch is excellent.
-Shopify is now implemented exactly the way a multi‑tenant, Supervisor‑verified platform should do it.
-Everything you shipped matches the architectural contract we’ve been building for months.
+Ali — this is a major platform milestone.
+You now have a fully verified, end‑to‑end tenant settings architecture, website settings, Launchpad, and all core integrations (Twilio → Shopify → Payments) implemented with zero unsafe actions and perfect Supervisor alignment.
 
-Below is the full ruling — precise, technical, and structured so you can move directly into Payments.
+At this point, the platform has two possible “next big arcs” — KYC or AI Website Generation — and one infrastructural piece — Follow‑up Sender Worker.
 
-✅ 1) Shopify HMAC‑first callback + offline token + multi‑store
+Here is the ruling, with the exact sequencing and rationale.
 
-No concerns. This is the correct model.
+⭐ RULING: The next phase is → (3) Website Generation
 
-Here’s the breakdown:
+Then → (2) Follow‑up Sender Worker  
+Then → (1) KYC
 
-HMAC‑first callback — CORRECT
+This is the correct order for safety, momentum, and architectural leverage.
 
-Your flow:
+🧭 WHY WEBSITE GENERATION IS NEXT (the ruling)
 
-Verify HMAC BEFORE anything else
+You now have:
 
-Sort querystring lexicographically
+Brand tokens
 
-Timing‑safe compare
+Domain/email
 
-Reject if invalid
+Social
 
-Only then decrypt state
+Twilio
 
-Only then check shop domain
+Shopify
 
-Only then exchange code
+Payments (verify‑only)
 
-This is the canonical Shopify security sequence.
+Launchpad
 
-Most developers get this wrong — you got it right.
+Settings hub
 
-Offline token — CORRECT
+Website Settings
 
-You used offline access (no grant_options[]=per-user)
+AI pipeline Step 0 → Step 1b
 
-You store the token encrypted at rest
+Deprecated wizard waiting to be replaced
 
-You never expose it client‑side
+The only missing piece of the core product is the real AI website builder — the thing tenants actually see and use.
 
-You fetch /shop.json to validate the token
+This is the moment to ship:
 
-You pin API version (2024‑01)
+Step 1c: extract → atomic blocks
 
-You use minimal read scopes
+Step 2: page tree
 
-This is exactly how Shopify expects multi‑tenant SaaS to behave.
+Step 3: lean build
 
-Multi‑store per tenant — CORRECT
+Step 4: review
 
-Your tenant_shopify_stores table is the right abstraction:
+Step 5: build
 
-A tenant can connect multiple shops
+Step 6: verify
 
-Each shop has its own encrypted offline token
+Step 7: publish
 
-Each shop has its own metadata
+This unlocks:
 
-Disconnect is clean
+A real, branded, on‑domain website
 
-No auto‑sync
+A real Launchpad “Website” step
 
-No auto‑webhooks
+A real onboarding experience
 
-No auto‑billing
+A real “wow moment” for tenants
 
-This is the safest possible implementation.
+A real differentiator for AIBizConnect
 
-🟩 2) GO for Payments next — with one architectural rule
+A real use of all the integrations you’ve built
 
-Yes — proceed to Payments next.
+This is the highest‑impact next move.
 
-But here is the ruling you need before you start:
+🟦 WHY NOT KYC NEXT?
 
-🧭 RULING: Use Stripe API keys NOW, Stripe Connect LATER
-Why API keys now?
+KYC is:
 
-Faster to implement
+compliance‑heavy
 
-Matches your existing tenant_integrations model
+multi‑step
 
-Perfect for “verify credentials only”
+document‑driven
 
-Drafts‑only means no charges, no payouts, no risk
+requires a payout model
 
-You can verify with /v1/account safely
+requires Stripe Connect (later)
 
-You can store publishable_key in config and secret_key encrypted
+requires a Supervisor‑verified identity workflow
 
-Why NOT Connect yet?
+requires secure document storage
 
-Stripe Connect introduces:
+requires admin review UI
 
-onboarding flows
+requires gating of payments
 
-account types
+KYC is the final boss, not the next step.
 
-capabilities
+You don’t want to build KYC before:
 
-payouts
-
-KYC dependencies
-
-webhook signing
-
-multi‑tenant risk
-
-Connect is the right long‑term direction, but only after:
-
-KYC is implemented
+Website generation is live
 
 Payments test mode is stable
 
-You have a clear payout model
+The platform has real tenant usage
 
-You have a Supervisor‑verified compliance layer
+You know what flows actually need gating
 
-So the correct sequence is:
+KYC is correctly last.
 
-Stripe API keys (test mode only)
+🟩 WHY FOLLOW‑UP SENDER WORKER IS SECOND
 
-PayPal client_id/secret
+The worker is important, but:
 
-Square (optional)
+It depends on Twilio + Email + Launchpad
 
-Stripe Connect (later, after KYC)
+It is not tenant‑visible yet
 
-This matches your “no auto‑charge, no auto‑transfer” rule.
+It is not a core differentiator
 
-🟦 3) UX adds for Shopify before you move on
+It is not blocking any major flows
 
-These are optional but recommended — they will make the Shopify card feel complete.
+It is safer to build after website generation
 
-A. Add “Store domain” + “Plan” + “Currency” in the store list
+It is easier to design once the website builder exists
 
-You already fetch /shop.json.
-Surface:
+It will reuse the same “drafts‑only → worker sends” pattern
 
-shop.myshopify_domain
+So the correct order is:
 
-plan_display_name
+Website Generation
 
-currency
+Follow‑up Sender Worker
 
-This helps tenants identify which store is which.
+KYC
 
-B. Add “Token last refreshed” timestamp
+🧱 KYC GUIDANCE (for when you reach it)
 
-You already store the offline token.
-Add:
+When you do start KYC, here is the Supervisor‑verified blueprint:
 
-last_token_refresh_at
+Providers
 
-Show in UI:
+Stripe Identity (recommended)
 
-Token valid (offline). Last refreshed June 7, 2026.
+Persona (optional)
 
-C. Add “Reconnect” state
+Trulioo (optional)
 
-If the offline token ever fails:
+Stripe Identity integrates cleanly with your existing Stripe integration.
 
-Mark store as Needs reconnect
+Data model
 
-Disable any future sync actions
+kyc_applications
 
-Keep store visible
+kyc_documents
 
-This matches the Social UX pattern.
+kyc_identity_data (encrypted)
 
-D. Add a “Test connection” button
+kyc_status on tenant
 
-You already have the primitives:
+kyc_review_events (audit)
 
-Call /shop.json
+Gating
 
-If 200 → success
+Payments live mode
 
-If 401/403 → expired token
+Payouts
 
-This is extremely helpful for debugging.
+High‑risk automations
 
-E. Add a “No auto‑sync” badge
+Certain Launchpad steps
 
-You already mention it in text.
-Make it a badge:
+Certain integrations (future)
 
-Drafts‑only  
-No auto‑sync. No auto‑import.
+Supervisor rules
 
-This reinforces safety.
+No PII in logs
+
+All PII encrypted at rest
+
+Admin‑only review
+
+Drafts‑only until verified
+
+No auto‑approve
+
+No auto‑reject
+
+No auto‑payout
+
+No auto‑charge
+
+No auto‑transfer
+
+KYC is a compliance surface, not a product surface — it must be built last.
 
 📘 DECISION‑LOG
 
-Decision 1 — Shopify callback model:  
-Approved. HMAC‑first, offline token, multi‑store — all correct.
+Decision 1 — Next phase:  
+Proceed with Website Generation (Step 1c → lean build → publish).
 
-Decision 2 — Payments next:  
-Approved.
-Use Stripe API keys + PayPal client/secret first.
-Stripe Connect comes later, after KYC.
+Decision 2 — After website generation:  
+Build the Follow‑up Sender Worker to activate Launchpad reminders + Twilio SMS.
 
-Decision 3 — UX adds:  
-Recommended: store metadata, token timestamps, reconnect state, test connection, drafts‑only badge.
+Decision 3 — Final phase:  
+Build KYC after payments test mode is stable and the website builder is live.
 
-If you want, I can generate the Payments integration blueprint or the Stripe test-mode verification spec next.
+Decision 4 — Payments:  
+Your verify‑only Stripe + PayPal implementation is correct and safe.
+
+If you want, I can generate the Website Generation Master Blueprint (Step 1c → Step 7) so you can start immediately.
 
 Edit in a page
