@@ -1,23 +1,16 @@
-Builder → Copilot. MILESTONE: Core Integrations phase COMPLETE — all architect-verified, committed, mirrored.
+Builder → Copilot. Two milestones + a clarification confirmation.
 
-Payments (Stripe + PayPal) just shipped (commit 2459e1e), VERIFY-ONLY:
-- Stripe (encrypted secret key, /v1/account check, auto test/live detection) + PayPal (encrypted client_id/secret, oauth2 token check, sandbox/live selector).
-- SAFETY IS STRUCTURAL: no charge/payout/refund/transfer/createOrder function exists anywhere — nothing can move money. Satisfies architect PAY-V14 + the platform prohibited-actions rule.
-- Guided cards (API-key dashboard links, restricted-key tip, test/live badge, "verify only — no charges" note). Secrets never rendered.
+1) AI WEBSITE GENERATION pipeline shipped + architect-VERIFIED (commit bf60c9c). The real on-brand builder replacing the deprecated wizard. Whole arc, drafts-only:
+- Step 1c faithful DETERMINISTIC extraction (architect ACCEPTED, D-060 — makes hallucination structurally impossible for rebuilt pages, same precedent as Step 1b).
+- Blocks: extracted content -> website_page_blocks shaped to the renderer's real section types (sectionSchema-validated).
+- Step 2: superior page tree (rebuilt base pages + SEO[blog,faq] + funnel[lead-magnet,thank-you,ad-landing]) + website_page_map.
+- Step 3 lean build: createPage(draft)+saveDraft(draft_sections) + apply website_brand_settings (Roboto + learned colors). Publishing stays explicit.
+- New pages use FACT-FREE templated copy (RULING 45). UI /website/generate shows every WG check + opens editor. Architect VERIFIED all WG-* (D-061).
 
-Full status — every piece architect-verified:
-- Foundations, Domain/Email, Social (+ HMAC/encrypted-state OAuth callback) ✅
-- Tenant Settings hub + per-website Website Settings UI ✅
-- Launchpad onboarding sequence (auto-verify each step) + dashboard "Resume setup" card ✅
-- Core integrations: Twilio (API-key, no-auto-send) → Shopify (OAuth, multi-store, HMAC-first) → Payments (verify-only) ✅ COMPLETE
+2) Platform OAuth-app admin screen (commit 5ca9855): superadmin enters each provider's app id/secret ONCE (encrypted under system tenant, where providerAppCreds/shopifyAppCreds/platformCreds look) — lights up Connect in every tenant. No .env editing/restart.
 
-Migrations to run: 0029–0035.
+CLARIFICATION I confirmed to Ali (please sanity-check): tenants do NOT register developer apps. The PLATFORM registers one app per provider once; each tenant just clicks Connect -> Allow (standard multi-tenant OAuth). Platform creds shared; tenant tokens per-account. Correct?
 
-Ali's working rule holds: inspect → review → report → confirm → next.
+Ali's loop holds: inspect -> review -> report -> confirm -> next.
 
-Ask — rule the NEXT phase. Candidates:
-1) KYC / verification (last item from Ali's original list: social/APIs/domain/email/Twilio/Shopify/payments/KYC).
-2) Follow-up SENDER WORKER — turns the Launchpad reminder drafts (and future automations) into real email/SMS sends, with explicit per-tenant opt-in. Closes the Launchpad loop end-to-end and activates the Twilio SMS channel.
-3) Website generation — the real on-brand AI site builder (Step 1c extract→blocks, page tree, lean build) replacing the deprecated wizard, using the learned brand + the now-connected integrations.
-
-Which order? And any KYC-specific guidance (providers, data model, where it gates) if that's first.
+Ask: confirm GO for the next phase per your earlier ruling = Follow-up SENDER WORKER (turn Launchpad reminder drafts + future automations into real email/SMS sends, explicit per-tenant opt-in, uses Resend + the Twilio sendSms we built). Then KYC last. Any design guidance for the worker (trigger model since we have no cron runtime guarantee — a server action "run due follow-ups" + manual/scheduled trigger? idempotency? send-gating)?

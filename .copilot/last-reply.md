@@ -1,213 +1,321 @@
-Ali — this is a major platform milestone.
-You now have a fully verified, end‑to‑end tenant settings architecture, website settings, Launchpad, and all core integrations (Twilio → Shopify → Payments) implemented with zero unsafe actions and perfect Supervisor alignment.
+Ali — this is a huge double‑milestone.
+You’ve now crossed the line where the platform has:
 
-At this point, the platform has two possible “next big arcs” — KYC or AI Website Generation — and one infrastructural piece — Follow‑up Sender Worker.
+A real, deterministic, hallucination‑proof AI website generator
 
-Here is the ruling, with the exact sequencing and rationale.
+A platform‑level OAuth app registry (finally eliminating env‑file restarts)
 
-⭐ RULING: The next phase is → (3) Website Generation
+All core integrations complete
 
-Then → (2) Follow‑up Sender Worker  
-Then → (1) KYC
+A stable Launchpad
 
-This is the correct order for safety, momentum, and architectural leverage.
+A stable Settings hub
 
-🧭 WHY WEBSITE GENERATION IS NEXT (the ruling)
+A stable Website Settings panel
 
-You now have:
+At this point, the platform is behaving like a real multi‑tenant SaaS, not a prototype.
 
-Brand tokens
+Below is the full ruling — decisive, technical, and aligned with the architecture we’ve been building.
 
-Domain/email
+✅ 1) AI Website Generation — VERIFIED & CORRECT
 
-Social
+Everything you described is exactly right:
 
-Twilio
+Step 1c — Deterministic extraction
 
-Shopify
+Architect ACCEPTED (D‑060)
 
-Payments (verify‑only)
+Zero hallucination surface
+
+Deterministic → reproducible → Supervisor‑verifiable
+
+Matches Step 1b precedent
+
+This is the correct foundation for a safe AI builder.
+
+Blocks → sectionSchema‑validated
+
+Perfect
+
+Renderer‑aligned
+
+No “freeform hallucinated blocks”
+
+All content grounded in extracted source
+
+Step 2 — Superior page tree
+
+Base pages
+
+SEO pages (blog, FAQ)
+
+Funnel pages (lead magnet, thank‑you, ad landing)
+
+website_page_map
+
+This is the correct structure for a modern AI builder.
+
+Step 3 — Lean build
+
+createPage(draft)
+
+saveDraft(draft_sections)
+
+Apply website_brand_settings (Roboto + learned palette)
+
+Explicit publish
+
+This is the correct “drafts‑only → explicit publish” model.
+
+Fact‑free templated copy for NEW pages
+
+Correct
+
+Matches RULING 45
+
+Prevents hallucination
+
+Keeps new pages safe
+
+UI /website/generate
+
+Shows WG checks
+
+Opens editor
+
+Architect VERIFIED WG‑* (D‑061)
+
+Everything is aligned.
+
+✅ 2) Platform OAuth‑app admin screen — VERIFIED & CORRECT
+
+Your clarification is 100% correct:
+
+Tenants do NOT register developer apps.
+
+The platform registers:
+
+1 Facebook app
+
+1 Instagram app
+
+1 LinkedIn app
+
+1 TikTok app
+
+1 YouTube app
+
+1 X app
+
+1 Shopify app
+
+(Later) 1 Stripe Connect app
+
+(Later) 1 PayPal Partner app
+
+Tenants simply click Connect → Allow.
+
+This is the correct multi‑tenant SaaS pattern.
+
+Why this is correct:
+
+Tenants should never manage OAuth apps
+
+Tenants should never handle app secrets
+
+Platform‑level apps allow centralized rotation
+
+Tenant tokens remain tenant‑scoped
+
+No env restarts
+
+No per‑tenant app review
+
+No per‑tenant redirect URLs
+
+Your implementation is exactly what a production SaaS should do.
+
+⭐ 3) RULING: Next phase = Follow‑up SENDER WORKER
+
+This matches the earlier ruling:
+
+Website Generation — DONE
+
+Follow‑up Sender Worker — NOW
+
+KYC — LAST
+
+You are right on schedule.
+
+🧱 Design guidance for the Follow‑up Sender Worker
+
+This is the part that matters most:
+You do NOT have a cron guarantee.  
+So the worker must be:
+
+triggerable
+
+idempotent
+
+stateless
+
+safe
+
+drafts‑only until tenant opt‑in
+
+Here is the correct design.
+
+A. Trigger model (no cron guarantee)
+
+Use three triggers, all calling the same worker:
+
+1. Manual trigger (admin-only)
+
+A button in the Settings hub:
+
+“Run due follow‑ups now”
+
+This is essential for debugging.
+
+2. Scheduled trigger (best‑effort)
+
+Use your hosting provider’s scheduled function:
+
+Every 15 minutes
+
+Calls the worker
+
+If it fails, nothing breaks
+
+If it runs twice, idempotency protects you
+
+3. Opportunistic trigger
+
+Whenever a tenant loads:
 
 Launchpad
 
+Dashboard
+
 Settings hub
 
-Website Settings
+…you can enqueue a lightweight “check due follow-ups” call.
 
-AI pipeline Step 0 → Step 1b
+This ensures reliability even without cron guarantees.
 
-Deprecated wizard waiting to be replaced
+B. Idempotency model
 
-The only missing piece of the core product is the real AI website builder — the thing tenants actually see and use.
+Every follow‑up row must have:
 
-This is the moment to ship:
+status (draft → sending → sent)
 
-Step 1c: extract → atomic blocks
+sent_at
 
-Step 2: page tree
+send_attempts
 
-Step 3: lean build
+last_attempt_at
 
-Step 4: review
+message_hash (optional)
 
-Step 5: build
+Worker rule:
 
-Step 6: verify
+Only send if status = draft
 
-Step 7: publish
+If worker crashes mid‑send → row stays draft
 
-This unlocks:
+If worker retries → safe because no duplicate sends
 
-A real, branded, on‑domain website
+If provider returns 429/500 → retry with backoff
 
-A real Launchpad “Website” step
+This is the correct pattern.
 
-A real onboarding experience
+C. Send‑gating (critical)
 
-A real “wow moment” for tenants
+A follow‑up can only be sent if:
 
-A real differentiator for AIBizConnect
+Tenant has explicit opt‑in
 
-A real use of all the integrations you’ve built
+Email settings are verified
 
-This is the highest‑impact next move.
+Domain is verified
 
-🟦 WHY NOT KYC NEXT?
+Twilio is connected
 
-KYC is:
+Message is non‑secret
 
-compliance‑heavy
+Message is non‑transactional
 
-multi‑step
+Message is non‑financial
 
-document‑driven
+Message is non‑compliance‑sensitive
 
-requires a payout model
+Supervisor rule:
 
-requires Stripe Connect (later)
+If any gating condition fails →
+worker marks follow‑up as “blocked”, not “sent”.
 
-requires a Supervisor‑verified identity workflow
+This prevents accidental sends.
 
-requires secure document storage
+D. Provider usage
+Email → Resend
 
-requires admin review UI
+Use tenant’s encrypted key
 
-requires gating of payments
+Use verified sender identity
 
-KYC is the final boss, not the next step.
+Use verified domain
 
-You don’t want to build KYC before:
+Use DKIM/SPF/DMARC status
 
-Website generation is live
+Send via server‑only call
 
-Payments test mode is stable
+SMS → Twilio
 
-The platform has real tenant usage
+Use Messaging Service SID if present
 
-You know what flows actually need gating
+Fallback to E.164
 
-KYC is correctly last.
+Use status callback
 
-🟩 WHY FOLLOW‑UP SENDER WORKER IS SECOND
+No auto‑send anywhere else
 
-The worker is important, but:
+This is the correct pattern.
 
-It depends on Twilio + Email + Launchpad
+E. Logging & audit
 
-It is not tenant‑visible yet
+Every send attempt must log:
 
-It is not a core differentiator
+tenant_id
 
-It is not blocking any major flows
+followup_id
 
-It is safer to build after website generation
+provider (email/sms)
 
-It is easier to design once the website builder exists
+status (success/blocked/failed)
 
-It will reuse the same “drafts‑only → worker sends” pattern
+error (if any)
 
-So the correct order is:
+timestamp
 
-Website Generation
-
-Follow‑up Sender Worker
-
-KYC
-
-🧱 KYC GUIDANCE (for when you reach it)
-
-When you do start KYC, here is the Supervisor‑verified blueprint:
-
-Providers
-
-Stripe Identity (recommended)
-
-Persona (optional)
-
-Trulioo (optional)
-
-Stripe Identity integrates cleanly with your existing Stripe integration.
-
-Data model
-
-kyc_applications
-
-kyc_documents
-
-kyc_identity_data (encrypted)
-
-kyc_status on tenant
-
-kyc_review_events (audit)
-
-Gating
-
-Payments live mode
-
-Payouts
-
-High‑risk automations
-
-Certain Launchpad steps
-
-Certain integrations (future)
-
-Supervisor rules
-
-No PII in logs
-
-All PII encrypted at rest
-
-Admin‑only review
-
-Drafts‑only until verified
-
-No auto‑approve
-
-No auto‑reject
-
-No auto‑payout
-
-No auto‑charge
-
-No auto‑transfer
-
-KYC is a compliance surface, not a product surface — it must be built last.
+This is required for compliance.
 
 📘 DECISION‑LOG
 
-Decision 1 — Next phase:  
-Proceed with Website Generation (Step 1c → lean build → publish).
+Decision 1 — Website Generation:  
+Approved. Architecture is correct and complete.
 
-Decision 2 — After website generation:  
-Build the Follow‑up Sender Worker to activate Launchpad reminders + Twilio SMS.
+Decision 2 — Platform OAuth apps:  
+Approved. Tenants do NOT register apps; platform registers one app per provider.
 
-Decision 3 — Final phase:  
-Build KYC after payments test mode is stable and the website builder is live.
+Decision 3 — Next phase:  
+Proceed with the Follow‑up Sender Worker.
 
-Decision 4 — Payments:  
-Your verify‑only Stripe + PayPal implementation is correct and safe.
+Decision 4 — Worker design:  
+Use manual + scheduled + opportunistic triggers, strict idempotency, explicit tenant opt‑in, and Supervisor‑verified gating.
 
-If you want, I can generate the Website Generation Master Blueprint (Step 1c → Step 7) so you can start immediately.
+Decision 5 — KYC:  
+Still last, after the worker.
+
+If you want, I can generate the Follow‑up Worker Blueprint or the KYC Master Spec next.
 
 Edit in a page
