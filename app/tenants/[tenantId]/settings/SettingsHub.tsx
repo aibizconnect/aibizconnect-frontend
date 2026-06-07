@@ -11,6 +11,7 @@ import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, ty
 import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type ShopifyStoreView } from "./shopify-actions";
 import { getPaymentsSettings, saveStripe, savePaypal, testPayments, disconnectPayment, type PaymentsView } from "./payments-actions";
 import { getKycView, startKycVerification, type KycView } from "./kyc-actions";
+import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from "./business-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -24,7 +25,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "integrations" | "verification" | "preferences";
+type Tab = "business" | "integrations" | "verification" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -44,7 +45,7 @@ function Initial({ name, accent }: { name?: string | null; accent: string }) {
 }
 
 export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
-  const [tab, setTab] = useState<Tab>("integrations");
+  const [tab, setTab] = useState<Tab>("business");
   const [social, setSocial] = useState<SocialProviderStatus[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +61,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   const params = useSearchParams();
   useEffect(() => {
     const t = params.get("tab");
-    if (t === "preferences" || t === "verification") setTab(t);
+    if (t === "preferences" || t === "verification" || t === "business" || t === "integrations") setTab(t);
     if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
@@ -101,7 +102,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
       <div className="mb-6 flex gap-1 border-b border-slate-200">
-        {([["integrations", "Integrations"], ["verification", "Verification"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -109,6 +110,8 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">{notice}</div>}
+
+      {tab === "business" && <BusinessProfileSection tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "integrations" && (
         <div className="space-y-8">
@@ -462,6 +465,79 @@ function PaymentsCards({ tenantId, isAdmin }: { tenantId: string; isAdmin: boole
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function BusinessProfileSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [p, setP] = useState<BusinessProfile | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => { getBusinessProfile(tenantId).then(setP).catch(() => setP(null)); }, [tenantId]);
+  const set = (k: keyof BusinessProfile, v: string) => setP((cur) => (cur ? { ...cur, [k]: v } : cur));
+
+  const save = async () => {
+    if (!p) return;
+    setBusy(true); setMsg(null);
+    const r = await saveBusinessProfile(tenantId, p);
+    setBusy(false);
+    setMsg({ ok: r.ok, text: r.ok ? "Saved ✓" : (r.message ?? "Could not save.") });
+  };
+
+  if (!p) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+
+  const F = ({ k, label, placeholder, hint, type = "text" }: { k: keyof BusinessProfile; label: string; placeholder?: string; hint?: string; type?: string }) => (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <input className={inp} type={type} disabled={!isAdmin} value={p[k]} placeholder={placeholder} onChange={(e) => set(k, e.target.value)} />
+      {hint && <Tip>{hint}</Tip>}
+    </label>
+  );
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <p className="text-sm text-slate-500">Your business identity. This powers your site&apos;s contact details, email sending identity, invoices, and AI-generated copy — set it once and it&apos;s reused everywhere.</p>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold text-slate-800">General information</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <F k="business_name" label="Business name" placeholder="Al Biz Connect" />
+          <F k="legal_business_name" label="Legal business name" placeholder="As registered (for invoices & KYC)" hint="The exact legal name, as registered." />
+          <F k="business_email" label="Business email" placeholder="hello@yourbiz.com" type="email" />
+          <F k="business_phone" label="Business phone" placeholder="+1 416 555 1234" />
+          <F k="business_website" label="Website" placeholder="https://yourbiz.com" />
+          <F k="business_niche" label="Industry / niche" placeholder="Real estate, dental, fitness…" />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold text-slate-800">Physical address</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2"><F k="address_street" label="Street address" placeholder="396 Hwy 7 E" /></div>
+          <F k="address_city" label="City" placeholder="Richmond Hill" />
+          <F k="address_state" label="State / Province / Region" placeholder="Ontario" />
+          <F k="address_postal" label="Postal / ZIP code" placeholder="L4B 0G7" />
+          <F k="address_country" label="Country" placeholder="Canada" />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold text-slate-800">Locale</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <F k="default_timezone" label="Time zone" placeholder="America/Toronto" hint="IANA name, e.g. America/Toronto." />
+          <F k="currency" label="Currency" placeholder="CAD" hint="3-letter ISO code, e.g. CAD, USD." />
+          <F k="platform_language" label="Language" placeholder="English (Canada)" />
+        </div>
+      </section>
+
+      {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+
+      {isAdmin ? (
+        <button type="button" disabled={busy} onClick={save} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "Saving…" : "Save business profile"}</button>
+      ) : (
+        <p className="text-xs text-slate-400">Admin required to edit the business profile.</p>
+      )}
     </div>
   );
 }

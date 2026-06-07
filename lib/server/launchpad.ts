@@ -29,8 +29,8 @@ const DEFAULT_BRAND_PRIMARY = "#1e3a8a"; // migration 0031 default — used to d
 export const STEP_REGISTRY: StepDef[] = [
   {
     key: "account", title: "Complete your business profile", category: "core", optional: false,
-    desc: "Set your timezone and currency so dates, schedules, and pricing are right.",
-    route: (t) => `/tenants/${t}/settings?tab=preferences`,
+    desc: "Add your business name, contact details, address, timezone and currency.",
+    route: (t) => `/tenants/${t}/settings?tab=business`,
     verify: async ({ tenantId }) => {
       const supabase = createSupabaseServiceClient();
       const { data } = await supabase.from("tenant_settings").select("setting_key, setting_value").eq("tenant_id", tenantId).in("setting_key", ["default_timezone", "currency"]);
