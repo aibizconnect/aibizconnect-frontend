@@ -12,6 +12,7 @@ import { getPageBlocks } from "../../../tenants/[tenantId]/website/actions";
 import SitePopups from "@/components/website/SitePopups";
 import SiteContactForm from "@/components/website/SiteContactForm";
 import SiteSurvey from "@/components/website/SiteSurvey";
+import BookingWidget from "@/components/calendars/BookingWidget";
 import { listPopups } from "@/lib/popups";
 import type { BrandSettings } from "@/lib/sections/schemas";
 import { resolveTheme, mergeBrandRows } from "@/lib/sections/theme";
@@ -159,6 +160,29 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
   // "Exact copy" pages are a single html/iframe snapshot carrying their own header/footer — don't
   // also render the global Header/Footer blocks (avoids duplicates). Architect D-081/D-083.
   const isExactSnapshot = sections.length === 1 && (sections[0] as any)?.content?.type === "html";
+
+  // Pre-resolve any Booking elements (calendar + available slots) so the section map stays sync.
+  const bookingData: Record<string, { id: string; name: string; durationMin: number; days: { date: string; slots: string[] }[] }> = {};
+  const bookingSlugs = Array.from(new Set(sections.filter((s: any) => s?.content?.type === "booking" && s.content?.calendarSlug).map((s: any) => String(s.content.calendarSlug))));
+  if (bookingSlugs.length) {
+    try {
+      const { getCalendarBySlug, availableSlots } = await import("@/lib/calendars");
+      for (const bs of bookingSlugs) {
+        try { const cal = await getCalendarBySlug(tenantId, bs); if (cal) bookingData[bs] = { id: cal.id, name: cal.name, durationMin: cal.durationMin, days: await availableSlots(tenantId, cal) }; } catch { /* skip */ }
+      }
+    } catch { /* calendars unavailable */ }
+  }
+  const renderBooking = (c: any, key: string) => {
+    const cal = bookingData[String(c.calendarSlug || "")];
+    return (
+      <section key={key} className="mx-auto max-w-2xl px-6 py-10">
+        {c.heading && <h2 className="text-center text-2xl font-semibold">{c.heading}</h2>}
+        {c.subheading && <p className="mb-6 mt-1 text-center text-slate-500">{c.subheading}</p>}
+        {cal ? <BookingWidget tenantId={tenantId} calendarId={cal.id} calendarName={cal.name} durationMin={cal.durationMin} days={cal.days} />
+          : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">This booking calendar isn&apos;t set up yet.</div>}
+      </section>
+    );
+  };
 
   // Background behind all sections — the per-page background wins; otherwise the
   // site-wide default (theme.pageBackground).
@@ -318,7 +342,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
           {sections.map((s: any) => {
             const adapted = adaptSection(s.content);
             const isForm = adapted?.type === "contact-form" || s.content?.type === "contact-form";
-            const node = s.content?.type === "survey"
+            const node = s.content?.type === "booking"
+              ? renderBooking(s.content, s.id)
+              : s.content?.type === "survey"
               ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
               : isForm
               ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} />
@@ -333,7 +359,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         </div>
       ) : (
         sections.map((s: any) => (
-          s.content?.type === "survey"
+          s.content?.type === "booking"
+            ? renderBooking(s.content, s.id)
+            : s.content?.type === "survey"
             ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
             : s.content?.type === "contact-form"
             ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} />

@@ -265,6 +265,14 @@ export const surveySchema = z.object({
   submitLabel: z.string().optional(),
   successMessage: z.string().optional(),
 });
+// Booking element (GHL parity): embeds a calendar's slot picker on a page. The visitor books a slot
+// (respecting the agent's Google/Outlook/iCal availability) → appointment + CRM contact.
+export const bookingSchema = z.object({
+  type: z.literal("booking"),
+  calendarSlug: z.string().default(""),
+  heading: z.string().optional(),
+  subheading: z.string().optional(),
+});
 // Ticker / scrolling marquee (stock-ticker / news-ticker / announcement).
 export const tickerSchema = z.object({
   type: z.literal("ticker"),
@@ -358,6 +366,7 @@ export const sectionSchema = z.discriminatedUnion("type", [
   tabsSchema,
   tickerSchema,
   surveySchema,
+  bookingSchema,
 ]);
 
 // Inferred TypeScript types (structurally compatible with SectionContent)
@@ -395,6 +404,7 @@ export type AudioContent = z.infer<typeof audioSchema>;
 export type TabsContent = z.infer<typeof tabsSchema>;
 export type TickerContent = z.infer<typeof tickerSchema>;
 export type SurveyContent = z.infer<typeof surveySchema>;
+export type BookingContent = z.infer<typeof bookingSchema>;
 export type SectionContent = z.infer<typeof sectionSchema>;
 
 export type SectionType = SectionContent["type"];
@@ -435,6 +445,7 @@ export const sectionSchemas = {
   tabs: tabsSchema,
   ticker: tickerSchema,
   survey: surveySchema,
+  booking: bookingSchema,
 } as const;
 
 /** Ordered list of section types (for the "add section" picker). */
@@ -473,6 +484,7 @@ export const sectionTypes: SectionType[] = [
   "tabs",
   "ticker",
   "survey",
+  "booking",
 ];
 
 /** Human-friendly labels for the editor UI. */
@@ -511,6 +523,7 @@ export const sectionLabels: Record<SectionType, string> = {
   tabs: "Tabs",
   ticker: "Ticker",
   survey: "Survey",
+  booking: "Booking",
 };
 
 /** Sensible default content when a new section is added. */
@@ -613,6 +626,8 @@ export function defaultContentFor(type: SectionType): SectionContent {
         { label: "What are you most interested in?", kind: "multiple", options: [{ text: "Pricing" }, { text: "Features" }, { text: "Support" }] },
         { label: "Your email", kind: "email", options: [], required: true },
       ] };
+    case "booking":
+      return { type: "booking", calendarSlug: "", heading: "Book a time", subheading: "Pick a slot that works for you." };
   }
 }
 

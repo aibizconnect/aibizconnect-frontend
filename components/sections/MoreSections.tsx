@@ -2,7 +2,7 @@ import type { ThemeTokens } from "@/lib/sections/theme";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
   FaqContent, GalleryContent, LogosContent, SocialContent, SliderContent,
-  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent, TickerContent, SurveyContent,
+  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent, TickerContent, SurveyContent, BookingContent,
 } from "@/lib/sections/schemas";
 import Countdown from "./Countdown";
 import Tabs from "./Tabs";
@@ -263,6 +263,20 @@ export function AudioSection({ content }: { content: AudioContent; theme?: Theme
 
 export function TabsSection({ content, theme }: { content: TabsContent; theme?: ThemeTokens }) {
   return <Tabs tabs={content.tabs ?? []} accent={primary(theme)} text={theme?.colors.text} />;
+}
+
+/** Editor-canvas PREVIEW of a booking element. The live site renders the functional BookingWidget. */
+export function BookingSection({ content, theme }: { content: BookingContent; theme?: ThemeTokens }) {
+  return (
+    <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-5 text-center">
+      {content.heading && <h3 className="text-lg font-semibold" style={{ color: primary(theme) }}>{content.heading}</h3>}
+      {content.subheading && <p className="mt-1 text-sm text-slate-500">{content.subheading}</p>}
+      <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-400">
+        📅 Booking calendar{content.calendarSlug ? <> — <span className="font-mono text-slate-600">{content.calendarSlug}</span></> : <> — set a <b>calendar slug</b> in the inspector</>}<br />
+        <span className="text-xs">Available times appear here on the live site.</span>
+      </div>
+    </div>
+  );
 }
 
 export function QrSection({ content }: { content: QrContent; theme?: ThemeTokens }) {

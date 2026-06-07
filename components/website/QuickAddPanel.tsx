@@ -51,6 +51,7 @@ const ELEMENT_GROUPS: Group[] = [
     { label: "FAQ", icon: I.faq, type: "faq" }, { label: "Tabs", icon: I.grid, type: "tabs" }, { label: "Call to Action", icon: I.btn, type: "cta" },
   ]},
   { group: "Forms & Surveys", items: [{ label: "Contact Form", icon: I.form, type: "contact-form" }, { label: "Survey", icon: I.form, type: "survey" }] },
+  { group: "Booking", items: [{ label: "Booking Calendar", icon: I.clock, type: "booking" }] },
   { group: "Social Media Icons", items: [{ label: "Social Icons", icon: I.social, type: "social" }] },
   { group: "Ticker", items: [{ label: "Ticker", icon: I.clock, type: "ticker" }] },
   { group: "Countdown Timers", items: [

@@ -290,6 +290,11 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "text", key: "submitLabel", label: "Submit button label" },
     { kind: "text", key: "successMessage", label: "Success message" },
   ],
+  booking: [
+    { kind: "text", key: "calendarSlug", label: "Calendar slug (from Calendars page)" },
+    { kind: "text", key: "heading", label: "Heading" },
+    { kind: "text", key: "subheading", label: "Subheading" },
+  ],
   // Menu items + submenus are edited by the dedicated MenuItemsEditor in the right
   // panel; these specs cover only presentational options.
   menu: [
