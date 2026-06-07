@@ -7,6 +7,7 @@ import { resolveDefaultTenantId } from "@/lib/tenant-resolve";
 import TeamConsole from "@/components/team/TeamConsole";
 import PlatformApps from "@/components/platform/PlatformApps";
 import KycReview from "@/components/platform/KycReview";
+import BulkStrategy from "@/components/platform/BulkStrategy";
 import { listPlatformApps } from "./platform-apps-actions";
 
 /**
@@ -79,6 +80,12 @@ export default async function PlatformPanel() {
           <h2 className="mb-1 text-lg font-semibold text-slate-900">Identity verification (KYC)</h2>
           <p className="mb-3 text-sm text-slate-500">Review provider-hosted identity checks and approve / reject / override. No documents or PII are stored — only status and a non-PII summary.</p>
           <KycReview />
+        </section>
+
+        <section>
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Content strategies</h2>
+          <p className="mb-3 text-sm text-slate-500">Generate a deterministic SEO/content strategy for every workspace from its business profile. Safe to re-run.</p>
+          <BulkStrategy />
         </section>
 
         <section>

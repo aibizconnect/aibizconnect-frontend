@@ -1,21 +1,24 @@
-# Builder → Architect: KYC BUILT — please VERIFY (KYC-V1..V17)
+# Builder → Architect: NEW FEATURE spec request — per-tenant Content Strategy generator
 
-Copilot APPROVED the consolidated spec. Build is complete; `npx tsc --noEmit` = 0 errors. Please rule VERIFIED or list blocking gaps.
+Ali wants "good strategies for all tenants." Building a per-tenant Content Strategy generator (every tenant gets one; SEO/topical-authority + content calendar). Please ratify the approach + give the data model + Supervisor checks (number your rulings).
 
-Files:
-- supabase/migrations/0037_kyc_verification.sql — single `tenant_kyc` table (status lifecycle, provider_session_id, provider_decision jsonb NON-PII, risk/reason, platform_decision/reason/reviewer/reviewed_at, last_sync_at, UNIQUE(tenant_id,provider)). NO documents table. Comments assert the no-PII rule. Unique partial index on (provider, provider_session_id).
-- lib/server/kyc.ts (server-only, not "use server"):
-  • stripeIdentityCreds(): env STRIPE_IDENTITY_SECRET_KEY/STRIPE_SECRET_KEY + STRIPE_IDENTITY_WEBHOOK_SECRET, else encrypted platform secret under SYSTEM_TENANT_ID 'stripe_identity_platform_app'. kycProviderReady().
-  • getKycRecord/getKycStatus (NON-PII view), kycRequired() (KYC_REQUIRED env, default false), ensureKycApproved() throws unless platform_approved (gates future Stripe Connect payouts; non-destructive).
-  • startKycCore(): POST /v1/identity/verification_sessions type=document, metadata[tenant_id], return_url; upsert provider_initiated + session id; audit.
-  • verifyStripeSignature(): Stripe-Signature t/v1, HMAC-SHA256 over `${t}.${rawBody}`, timing-safe, 5-min tolerance.
-  • updateKycStatusCore(): idempotent; maps session.status→lifecycle; NON-PII summary only (never reads verified_outputs); never rolls back platform_* terminal; audit.
-  • applyPlatformDecisionCore(): admin decision approved/rejected/overridden; audit.
-- app/api/kyc/webhook/[provider]/route.ts — signature FIRST on RAW body, then parse, then core; 200 on idempotent no-op, 400 bad sig, 500 on processing error (so provider retries).
-- app/tenants/[tenantId]/settings/kyc-actions.ts ("use server") — getKycView/startKycVerification, requireTenantAccess gated.
-- app/platform/kyc-actions.ts ("use server") — listKycCases/reviewKycDecision, isPlatformAdmin gated.
-- components/platform/KycReview.tsx + wired into app/platform/page.tsx (admin). Shows NON-PII only.
-- components/platform/PlatformApps.tsx + platform-apps-actions.ts — added 'stripe_identity_platform_app' (secret_key + webhook_secret) with webhook-URL hint /api/kyc/webhook/stripe.
-- SettingsHub.tsx — new Verification tab + VerificationCard (start/resume hosted flow, status, privacy note; admin-gated start).
+PROPOSED APPROACH (ratify or adjust):
+- DETERMINISTIC-first (same no-hallucination ethos as lib/sites/page-generate.ts D-060): derive the strategy from the tenant's Business Profile (niche, business_name, city/country) using a curated industry→topic knowledge map, NOT a live LLM call. Always works, zero hallucination, no dependency on app LLM keys. AI enhancement can layer later.
+- Output = (1) topical authority map: pillars → clusters → article ideas (each with search intent: informational/commercial/transactional/navigational), (2) prioritized content queue (quick win / big bet / fill-in), (3) a 12-week content calendar. Persisted so it's stable + editable.
 
-Confirm KYC-V1 (no PII beyond status/refs), V-webhook-signature, V-admin-only-review, V-secrets-encrypted, V-audit, V-gating-blocks, V-idempotent. VERIFIED?
+PROPOSED DATA MODEL — migration 0040_content_strategy.sql:
+  tenant_content_strategy (
+    id uuid pk, tenant_id uuid not null,
+    niche text, profile_snapshot jsonb,        -- inputs used (name, city, seed keywords, competitors)
+    pillars jsonb,                              -- [{ title, cluster:[{ title, articles:[{ title, intent, est_words }] }] }]
+    queue jsonb,                                -- [{ title, keyword, intent, priority, est_words }]
+    calendar jsonb,                             -- [{ week, items:[title] }]
+    status text default 'draft',                -- draft | active
+    created_at, updated_at, unique(tenant_id)
+  )
+
+QUESTIONS:
+1. Ratify deterministic-first vs require an AI path now? (I lean deterministic for reliability; AI as opt-in enhancement.)
+2. Data model OK? One row per tenant (regenerate overwrites) vs versioned history?
+3. Should a platform admin action bulk-generate for ALL tenants ("good strategies for all tenants" literally), gated by isPlatformAdmin + audited?
+4. Supervisor checks (CS-V1..) — what must I assert (e.g. tenant scoping, no fabricated competitor data, calendar covers queue, intent valid enum)?
