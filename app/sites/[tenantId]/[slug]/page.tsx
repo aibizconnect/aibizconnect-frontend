@@ -165,6 +165,17 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         cookieConsent?: { enabled?: boolean; message?: string; acceptLabel?: string; declineLabel?: string; policyUrl?: string; position?: "bottom" | "bottom-left" | "bottom-right" };
         occasions?: import("@/lib/occasions").OccasionsConfig } | null;
   const cookie = siteSettings?.cookieConsent;
+  // Tenant-level External Tracking defaults (Settings → External Tracking) apply across ALL sites;
+  // a per-website value (theme.site) always wins. Set-once-for-everything, GHL location-level parity.
+  const { getTenantTrackingDefaults } = await import("../../../tenants/[tenantId]/settings/tracking-actions");
+  const trackDefaults = await getTenantTrackingDefaults(tenantId).catch(() => ({} as Record<string, string | undefined>));
+  const tracking = {
+    ga4Id: siteSettings?.ga4Id || trackDefaults.ga4Id,
+    gtmId: siteSettings?.gtmId || trackDefaults.gtmId,
+    metaPixelId: siteSettings?.metaPixelId || trackDefaults.metaPixelId,
+    headScripts: siteSettings?.headScripts || trackDefaults.headScripts,
+    footerScripts: siteSettings?.footerScripts || trackDefaults.footerScripts,
+  };
   const pageBg = perPageBg ?? siteBg;
   const pageBgHasImage = hasBgLayer(pageBg ?? undefined);
   const pageBgCss = pageBg ? backgroundOnlyCss(pageBg, { bgAsLayer: pageBgHasImage }) : null;
@@ -237,9 +248,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     return (
     <>
       {/* Site-wide tracking / integrations (GA4, GTM, Meta Pixel, custom scripts). */}
-      {siteSettings && (siteSettings.ga4Id || siteSettings.gtmId || siteSettings.metaPixelId || siteSettings.headScripts || siteSettings.footerScripts) && (
-        <SiteScripts ga4Id={siteSettings.ga4Id} gtmId={siteSettings.gtmId} metaPixelId={siteSettings.metaPixelId}
-          headScripts={siteSettings.headScripts} footerScripts={siteSettings.footerScripts} />
+      {(tracking.ga4Id || tracking.gtmId || tracking.metaPixelId || tracking.headScripts || tracking.footerScripts) && (
+        <SiteScripts ga4Id={tracking.ga4Id} gtmId={tracking.gtmId} metaPixelId={tracking.metaPixelId}
+          headScripts={tracking.headScripts} footerScripts={tracking.footerScripts} />
       )}
       {/* GDPR/PIPEDA cookie consent banner. */}
       {cookie?.enabled && (

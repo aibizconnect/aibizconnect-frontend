@@ -12,6 +12,9 @@ import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type Sho
 import { getPaymentsSettings, saveStripe, savePaypal, testPayments, disconnectPayment, type PaymentsView } from "./payments-actions";
 import { getKycView, startKycVerification, type KycView } from "./kyc-actions";
 import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from "./business-actions";
+import { getTracking, saveTracking, type TrackingSettings } from "./tracking-actions";
+import { listTags, createTag, updateTag, deleteTag, type TagView } from "./tags-actions";
+import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, FIELD_TYPES, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -25,7 +28,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "business" | "integrations" | "verification" | "preferences";
+type Tab = "business" | "integrations" | "verification" | "tracking" | "tags" | "fields" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -60,8 +63,8 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).
   const params = useSearchParams();
   useEffect(() => {
-    const t = params.get("tab");
-    if (t === "preferences" || t === "verification" || t === "business" || t === "integrations") setTab(t);
+    const t = params.get("tab") as Tab | null;
+    if (t && ["business", "integrations", "verification", "tracking", "tags", "fields", "preferences"].includes(t)) setTab(t);
     if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
@@ -101,8 +104,8 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       </div>
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
-      <div className="mb-6 flex gap-1 border-b border-slate-200">
-        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-slate-200">
+        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["tracking", "External Tracking"], ["tags", "Tags"], ["fields", "Custom Fields"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -194,6 +197,12 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       )}
 
       {tab === "verification" && <VerificationCard tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "tracking" && <ExternalTrackingSection tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "tags" && <TagsSection tenantId={tenantId} isAdmin={isAdmin} />}
+
+      {tab === "fields" && <CustomFieldsSection tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "preferences" && <Preferences tenantId={tenantId} isAdmin={isAdmin} />}
     </div>
@@ -609,6 +618,171 @@ function VerificationCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
           <p className="mt-4 text-xs text-slate-400">No action needed right now{v.updatedAt ? ` · last updated ${new Date(v.updatedAt).toLocaleString()}` : ""}.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function ExternalTrackingSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [t, setT] = useState<TrackingSettings | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => { getTracking(tenantId).then(setT).catch(() => setT(null)); }, [tenantId]);
+  const set = (k: keyof TrackingSettings, v: string) => setT((c) => (c ? { ...c, [k]: v } : c));
+  const save = async () => { if (!t) return; setBusy(true); setMsg(null); const r = await saveTracking(tenantId, t); setBusy(false); setMsg({ ok: r.ok, text: r.ok ? "Saved ✓" : (r.message ?? "Could not save.") }); };
+
+  if (!t) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  return (
+    <div className="max-w-2xl space-y-5">
+      <p className="text-sm text-slate-500">Analytics &amp; marketing tags applied across <b>all</b> your published sites. A per-website override (set in the website editor&apos;s Site Settings) always takes priority.</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Google Analytics 4 — Measurement ID</span>
+          <input className={inp} disabled={!isAdmin} value={t.ga4Id} onChange={(e) => set("ga4Id", e.target.value)} placeholder="G-XXXXXXXXXX" />
+          <Tip>From <Ext href="https://analytics.google.com">Google Analytics</Ext> → Admin → Data Streams.</Tip>
+        </label>
+        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Google Tag Manager — Container ID</span>
+          <input className={inp} disabled={!isAdmin} value={t.gtmId} onChange={(e) => set("gtmId", e.target.value)} placeholder="GTM-XXXXXX" />
+        </label>
+        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Meta (Facebook) Pixel ID</span>
+          <input className={inp} disabled={!isAdmin} value={t.metaPixelId} onChange={(e) => set("metaPixelId", e.target.value)} placeholder="1234567890" />
+        </label>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800">Custom scripts</h2>
+          <Tip>Advanced: raw HTML/JS injected into every page. Only paste code you trust.</Tip>
+        </div>
+        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Head scripts <span className="font-normal text-slate-400">(before &lt;/head&gt;)</span></span>
+          <textarea className={`${inp} font-mono text-xs`} rows={4} disabled={!isAdmin} value={t.headScripts} onChange={(e) => set("headScripts", e.target.value)} placeholder="<!-- e.g. verification meta, chat widget -->" />
+        </label>
+        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Footer scripts <span className="font-normal text-slate-400">(before &lt;/body&gt;)</span></span>
+          <textarea className={`${inp} font-mono text-xs`} rows={4} disabled={!isAdmin} value={t.footerScripts} onChange={(e) => set("footerScripts", e.target.value)} placeholder="<!-- e.g. conversion pixels -->" />
+        </label>
+      </div>
+      {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+      {isAdmin ? <button type="button" disabled={busy} onClick={save} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "Saving…" : "Save tracking"}</button>
+        : <p className="text-xs text-slate-400">Admin required to edit tracking.</p>}
+    </div>
+  );
+}
+
+function TagsSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [tags, setTags] = useState<TagView[] | null>(null);
+  const [name, setName] = useState(""); const [color, setColor] = useState("#1e3a8a");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => { setTags(await listTags(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => setTags([])); }, [load]);
+
+  const add = async () => { setBusy(true); setMsg(null); const r = await createTag(tenantId, name, color); setBusy(false); if (!r.ok) { setMsg(r.message ?? "Could not add."); return; } setName(""); await load(); };
+  const remove = async (id: string) => { const r = await deleteTag(tenantId, id); if (!r.ok) setMsg(r.message ?? "Could not delete."); await load(); };
+  const recolor = async (id: string, c: string) => { await updateTag(tenantId, id, { color: c }); await load(); };
+
+  if (!tags) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  return (
+    <div className="max-w-2xl space-y-4">
+      <p className="text-sm text-slate-500">Reusable labels for organizing contacts and opportunities. Create them once and apply them across your CRM and automations.</p>
+      {isAdmin && (
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">New tag</span>
+            <input className={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Hot lead" /></label>
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-12 rounded border border-slate-300" title="Tag color" />
+          <button type="button" disabled={!name || busy} onClick={add} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "…" : "Add tag"}</button>
+        </div>
+      )}
+      {msg && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{msg}</div>}
+      <div className="flex flex-wrap gap-2">
+        {tags.length === 0 ? <p className="text-sm text-slate-400">No tags yet.</p>
+          : tags.map((tg) => (
+            <span key={tg.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm">
+              <span className="h-3 w-3 rounded-full" style={{ background: tg.color }} />
+              <span className="text-slate-700">{tg.name}</span>
+              {isAdmin && <>
+                <input type="color" value={tg.color} onChange={(e) => recolor(tg.id, e.target.value)} className="h-4 w-4 cursor-pointer border-0 bg-transparent p-0" title="Change color" />
+                <button onClick={() => remove(tg.id)} className="text-slate-300 hover:text-red-500" title="Delete">×</button>
+              </>}
+            </span>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+function CustomFieldsSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [fields, setFields] = useState<CustomFieldView[] | null>(null);
+  const [obj, setObj] = useState<CustomObjectType>("contact");
+  const [name, setName] = useState(""); const [type, setType] = useState<CustomFieldType>("text");
+  const [opts, setOpts] = useState(""); const [required, setRequired] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => { setFields(await listCustomFields(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => setFields([])); }, [load]);
+
+  const add = async () => {
+    setBusy(true); setMsg(null);
+    const r = await createCustomField(tenantId, { object_type: obj, name, field_type: type, options: opts.split(",").map((s) => s.trim()).filter(Boolean), required });
+    setBusy(false);
+    if (!r.ok) { setMsg(r.message ?? "Could not add."); return; }
+    setName(""); setOpts(""); setRequired(false); await load();
+  };
+  const remove = async (id: string) => { const r = await deleteCustomField(tenantId, id); if (!r.ok) setMsg(r.message ?? "Could not delete."); await load(); };
+
+  if (!fields) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
+  const forObj = (o: CustomObjectType) => fields.filter((f) => f.object_type === o);
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      <p className="text-sm text-slate-500">Capture the data that matters to your business. Custom fields appear on contact &amp; opportunity records, forms, and automations.</p>
+
+      {isAdmin && (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap gap-2">
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Object</span>
+              <select className={inp} value={obj} onChange={(e) => setObj(e.target.value as CustomObjectType)}><option value="contact">Contact</option><option value="opportunity">Opportunity</option></select></label>
+            <label className="flex flex-1 flex-col gap-1"><span className="text-xs font-medium text-slate-600">Field name</span>
+              <input className={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Budget range" /></label>
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Type</span>
+              <select className={inp} value={type} onChange={(e) => setType(e.target.value as CustomFieldType)}>{FIELD_TYPES.map((ft) => <option key={ft} value={ft}>{ft}</option>)}</select></label>
+          </div>
+          {type === "dropdown" && (
+            <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Options <span className="font-normal text-slate-400">(comma-separated)</span></span>
+              <input className={inp} value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Under 500k, 500k–1M, 1M+" /></label>
+          )}
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="h-4 w-4 accent-[#1e3a8a]" /> Required</label>
+            <button type="button" disabled={!name || busy} onClick={add} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "…" : "Add field"}</button>
+          </div>
+        </div>
+      )}
+      {msg && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{msg}</div>}
+
+      {(["contact", "opportunity"] as CustomObjectType[]).map((o) => (
+        <div key={o}>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{o === "contact" ? "Contact fields" : "Opportunity fields"}</h2>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+                <tr><th className="px-4 py-2">Name</th><th className="px-4 py-2">Key</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Req.</th><th className="px-4 py-2"></th></tr>
+              </thead>
+              <tbody>
+                {forObj(o).length === 0
+                  ? <tr><td colSpan={5} className="px-4 py-4 text-center text-slate-400">No custom fields.</td></tr>
+                  : forObj(o).map((f) => (
+                    <tr key={f.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2 text-slate-700">{f.name}{f.field_type === "dropdown" && f.options.length > 0 && <span className="ml-1 text-[11px] text-slate-400">({f.options.join(", ")})</span>}</td>
+                      <td className="px-4 py-2 font-mono text-[11px] text-slate-400">{f.field_key}</td>
+                      <td className="px-4 py-2 text-slate-500">{f.field_type}</td>
+                      <td className="px-4 py-2 text-slate-500">{f.required ? "✓" : "—"}</td>
+                      <td className="px-4 py-2 text-right">{isAdmin && <button onClick={() => remove(f.id)} className="text-xs text-red-500 hover:underline">Delete</button>}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
