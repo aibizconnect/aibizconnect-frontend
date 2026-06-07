@@ -191,8 +191,19 @@ export async function enrichFromPresence(
   let industry = "", services = "", audience = "", country = "", city = "", description = "", tone: BrandTone | undefined;
   const desc = (input.businessDescription || "").trim();
   const pageText = [desc ? `The business owner describes their business as: ${desc}` : "", ctx?.text ?? ""].filter(Boolean).join("\n\n");
+  // Social links come ONLY from the owner's OWN site HTML (homepage + their blog) — never a web search.
   const socialLinks = socialLinksFromHtml(html);
   const logoUrl = logoFromHtml(html, url);
+  if (input.blogUrl && input.blogUrl.trim() && input.blogUrl.trim() !== url) {
+    try {
+      const bu = new URL(/^https?:\/\//i.test(input.blogUrl) ? input.blogUrl : `https://${input.blogUrl}`);
+      const r2 = await fetch(bu.toString(), { headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
+      if (r2.ok) {
+        const h2 = (await r2.text()).slice(0, 300_000);
+        for (const s of socialLinksFromHtml(h2)) if (socialLinks.length < 8 && !socialLinks.includes(s)) socialLinks.push(s);
+      }
+    } catch { /* blog fetch best-effort */ }
+  }
   if (pageText) {
     const j = await aiExtractProfile(pageText, tenantId);
     if (j) {
@@ -314,17 +325,27 @@ export async function createWebsiteFromWizard(
   // ---- 2. Per-(tenant, website) brand row so theme reads are EXACT (Option A). ----
   // Seed a full cohesive theme from the chosen template family (theme-factory palette +
   // font pairing). The wizard's color picker overrides only the PRIMARY color.
-  const fam = (FAMILY_THEME as Record<string, any>)[payload.templateFamily as TemplateFamily] ?? FAMILY_THEME.realtor;
-  const brandTheme = {
-    colors: { primary: primaryColor, secondary: fam.secondary, accent: fam.accent },
-    fonts: { heading: fam.headingFont, body: fam.bodyFont },
+  const fam = (FAMILY_THEME as Record<string, any>)[payload.templateFamily as TemplateFamily] ?? FAMILY_THEME.agency;
+  // Prefer the explicit palette + typography chosen on the Design step; fall back to the family theme.
+  const secondary = payload.secondaryColor?.trim() || fam.secondary;
+  const accent = payload.accentColor?.trim() || fam.accent;
+  const headingFont = payload.fontHeading?.trim() || fam.headingFont;
+  const bodyFont = payload.fontBody?.trim() || fam.bodyFont;
+  const background = payload.backgroundColor?.trim() || "#ffffff";
+  const textColor = payload.textColor?.trim() || "#0f172a";
+  const linkColor = payload.linkColor?.trim() || primaryColor;
+  const brandTheme: Record<string, any> = {
+    colors: { primary: primaryColor, secondary, accent, background, text: textColor, link: linkColor },
+    fonts: { heading: headingFont, body: bodyFont },
+    // The chosen background actually renders behind the page (ElementStyle.bg accepts a hex).
+    pageBackground: { bg: background },
   };
   try {
     await supabase.from("website_brand_settings").upsert(
       {
         tenant_id: tenantId, website_id: websiteId, theme: brandTheme,
-        primary_color: primaryColor, secondary_color: fam.secondary, accent_color: fam.accent,
-        font_heading: fam.headingFont, font_body: fam.bodyFont,
+        primary_color: primaryColor, secondary_color: secondary, accent_color: accent,
+        font_heading: headingFont, font_body: bodyFont,
         ...(payload.logoUrl?.trim() ? { logo_url: payload.logoUrl.trim() } : {}),
       },
       { onConflict: "tenant_id,website_id" }

@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { checkSubdomain, createWebsiteFromWizard, enrichFromPresence } from "@/app/tenants/[tenantId]/website/wizard-actions";
 import {
-  normalizeSubdomain, SUBDOMAIN_BASE, BRAND_TONES, TEMPLATE_FAMILIES, FAMILY_THEME, COUNTRIES,
-  audienceSuggestionsFor, plannedPages,
-  type WizardPayload, type SubdomainCheck, type EnrichedProfile,
+  normalizeSubdomain, SUBDOMAIN_BASE, BRAND_TONES, FAMILY_THEME, COUNTRIES,
+  audienceSuggestionsFor, plannedPages, WIZARD_PALETTES,
+  type WizardPayload, type SubdomainCheck, type EnrichedProfile, type WizardPalette,
 } from "@/lib/sites/wizard-shared";
+import FontPicker from "@/components/design/FontPicker";
 
 /** polished onboarding wizard. DRAFT-ONLY — creates a website, no publish/DNS/charge. */
 
@@ -15,10 +16,6 @@ const STEPS = ["Start", "Basics", "Design & Plan", "Subdomain", "Review"] as con
 
 const TONE_LABEL: Record<string, string> = {
   professional: "Professional", friendly: "Friendly", luxury: "Luxury", bold: "Bold", minimal: "Minimal",
-};
-const FAMILY_LABEL: Record<string, string> = {
-  realtor: "Real Estate", agency: "Agency", "local-service": "Local Service",
-  portfolio: "Portfolio", startup: "Startup",
 };
 const PLAN_KIND_LABEL: Record<string, string> = { core: "Core", seo: "SEO", funnel: "Funnel" };
 const PLAN_KIND_CLS: Record<string, string> = {
@@ -65,10 +62,23 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
 
   const [tone, setTone] = useState<string>("professional");
   const [aiConsent, setAiConsent] = useState(true);
-  const [templateFamily, setTemplateFamily] = useState<string>("realtor");
-  const fam = FAMILY_THEME[templateFamily as keyof typeof FAMILY_THEME] ?? FAMILY_THEME.realtor;
-  const [primaryColor, setPrimaryColor] = useState(FAMILY_THEME.realtor.primary);
+  const [templateFamily] = useState<string>("agency"); // server fallback only; UI uses palette/fonts
   const [makePublicNow, setMakePublicNow] = useState(false);
+
+  // Brand: palette (named roles) + typography.
+  const [paletteName, setPaletteName] = useState<string | null>("Ocean");
+  const [primaryColor, setPrimaryColor] = useState(WIZARD_PALETTES[0].primary);
+  const [secondaryColor, setSecondaryColor] = useState(WIZARD_PALETTES[0].secondary);
+  const [accentColor, setAccentColor] = useState(WIZARD_PALETTES[0].accent);
+  const [backgroundColor, setBackgroundColor] = useState(WIZARD_PALETTES[0].background);
+  const [textColor, setTextColor] = useState(WIZARD_PALETTES[0].text);
+  const [linkColor, setLinkColor] = useState(WIZARD_PALETTES[0].link);
+  const [fontHeading, setFontHeading] = useState(FAMILY_THEME.agency.headingFont);
+  const [fontBody, setFontBody] = useState(FAMILY_THEME.agency.bodyFont);
+  const applyPalette = (p: WizardPalette) => {
+    setPaletteName(p.name); setPrimaryColor(p.primary); setSecondaryColor(p.secondary); setAccentColor(p.accent);
+    setBackgroundColor(p.background); setTextColor(p.text); setLinkColor(p.link);
+  };
 
   const [subdomainRaw, setSubdomainRaw] = useState("");
   const [check, setCheck] = useState<SubdomainCheck | null>(null);
@@ -93,8 +103,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
         if (p.tone) setTone(p.tone);
         if (p.logoUrl) setLogoUrl(p.logoUrl);
         if (p.socialLinks?.length) setSocialLinks(p.socialLinks);
-        if (p.templateFamily) setTemplateFamily(p.templateFamily);
-        if (p.primaryColor && /^#[0-9a-fA-F]{6}$/.test(p.primaryColor)) setPrimaryColor(p.primaryColor);
+        if (p.primaryColor && /^#[0-9a-fA-F]{6}$/.test(p.primaryColor)) { setPrimaryColor(p.primaryColor); setPaletteName(null); }
       } finally { setAnalyzing(false); }
     });
   };
@@ -136,7 +145,8 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
       aiConsent,
       subdomain: normalized,
       templateFamily: templateFamily as WizardPayload["templateFamily"],
-      primaryColor, makePublicNow,
+      primaryColor, secondaryColor, accentColor, backgroundColor, textColor, linkColor,
+      fontHeading, fontBody, makePublicNow,
     };
     start(async () => {
       const res = await createWebsiteFromWizard(tenantId, payload);
@@ -288,40 +298,60 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
               <img src={logoUrl} alt="Logo preview" className="h-12 w-auto rounded border border-slate-200 bg-white object-contain p-1" />
             )}
 
-            {/* Template family / palette */}
+            {/* Color palette (named roles) */}
             <div>
-              <label className={label}>Starting look</label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {TEMPLATE_FAMILIES.map((f) => {
-                  const ft = FAMILY_THEME[f];
-                  return (
-                    <button key={f} type="button" onClick={() => { setTemplateFamily(f); setPrimaryColor(ft.primary); }}
-                      className={`rounded-xl border p-3 text-left text-sm transition ${templateFamily === f ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]" : "border-slate-200 hover:border-slate-300"}`}>
-                      <span className="mb-2 flex h-8 w-full overflow-hidden rounded">
-                        <span className="flex-1" style={{ background: ft.primary }} />
-                        <span className="flex-1" style={{ background: ft.secondary }} />
-                        <span className="flex-1" style={{ background: ft.accent }} />
-                      </span>
-                      <span className="block font-semibold text-slate-800">{ft.label}</span>
-                      <span className="block text-[11px] text-slate-400">{ft.headingFont} · {ft.bodyFont}</span>
-                    </button>
-                  );
-                })}
+              <label className={label}>Color palette</label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {WIZARD_PALETTES.map((p) => (
+                  <button key={p.name} type="button" onClick={() => applyPalette(p)}
+                    className={`rounded-xl border p-2 text-left transition ${paletteName === p.name ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]" : "border-slate-200 hover:border-slate-300"}`}>
+                    <span className="flex h-10 w-full overflow-hidden rounded" style={{ background: p.background }}>
+                      <span className="m-1 flex flex-1 items-center justify-center rounded text-[10px] font-bold" style={{ background: p.primary, color: p.background }}>Aa</span>
+                      <span className="my-1 w-3 rounded" style={{ background: p.secondary }} />
+                      <span className="my-1 mr-1 w-3 rounded" style={{ background: p.accent }} />
+                    </span>
+                    <span className="mt-1 block text-xs font-semibold text-slate-700">{p.name}{p.dark ? " (dark)" : ""}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Primary color + font preview */}
-            <div className="rounded-xl border border-slate-200 p-4">
-              <div className="mb-2 text-2xl font-bold" style={{ color: primaryColor, fontFamily: `'${fam.headingFont}', serif` }}>
-                {businessName || "Your Business"}
+            {/* Typography — full font list, same as the editor */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label}>Heading font</label>
+                <div className="flex items-center gap-3">
+                  <FontPicker value={fontHeading} onChange={setFontHeading} />
+                  <span className="truncate text-lg font-bold text-slate-700" style={{ fontFamily: `'${fontHeading}', sans-serif` }}>{fontHeading}</span>
+                </div>
               </div>
-              <div className="text-sm text-slate-500" style={{ fontFamily: `'${fam.bodyFont}', sans-serif` }}>
-                Headings in <strong>{fam.headingFont}</strong>, body in <strong>{fam.bodyFont}</strong> — from the {fam.themeName} palette.
+              <div>
+                <label className={label}>Body font</label>
+                <div className="flex items-center gap-3">
+                  <FontPicker value={fontBody} onChange={setFontBody} />
+                  <span className="truncate text-sm text-slate-600" style={{ fontFamily: `'${fontBody}', sans-serif` }}>{fontBody}</span>
+                </div>
               </div>
-              <div className="mt-3 flex items-center gap-3">
-                <label className={label + " mb-0"}>Primary color</label>
-                <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="h-9 w-14 cursor-pointer rounded border border-slate-300" />
-                <code className="text-xs text-slate-500">{primaryColor}</code>
+            </div>
+
+            {/* Fine-tune individual roles */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([["Primary", primaryColor, setPrimaryColor], ["Background", backgroundColor, setBackgroundColor], ["Text", textColor, setTextColor], ["Links", linkColor, setLinkColor], ["Secondary", secondaryColor, setSecondaryColor], ["Accent", accentColor, setAccentColor]] as [string, string, (v: string) => void][]).map(([roleLabel, val, setVal]) => (
+                <label key={roleLabel} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5">
+                  <input type="color" value={val} onChange={(e) => { setVal(e.target.value); setPaletteName(null); }} className="h-7 w-8 cursor-pointer rounded border border-slate-200" />
+                  <span className="text-xs text-slate-600">{roleLabel}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Live preview using the chosen palette + fonts */}
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="p-5" style={{ background: backgroundColor, color: textColor }}>
+                <div className="mb-1 text-2xl font-bold" style={{ color: primaryColor, fontFamily: `'${fontHeading}', sans-serif` }}>{businessName || "Your Business"}</div>
+                <p className="mb-3 text-sm" style={{ fontFamily: `'${fontBody}', sans-serif` }}>
+                  This is body text on your background. Here&apos;s a <span style={{ color: linkColor, textDecoration: "underline" }}>link</span> in your link color.
+                </p>
+                <button type="button" className="rounded-lg px-3 py-1.5 text-sm font-semibold" style={{ background: primaryColor, color: backgroundColor, fontFamily: `'${fontBody}', sans-serif` }}>Primary button</button>
               </div>
             </div>
 
@@ -350,7 +380,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
                 <button type="button" onClick={addPage} disabled={!newPageTitle.trim()}
                   className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">＋ Add</button>
               </div>
-              <p className="mt-3 text-xs text-slate-500">Colors: <span className="font-medium" style={{ color: primaryColor }}>{primaryColor}</span> · {fam.secondary} · {fam.accent}. Fonts: {fam.headingFont} / {fam.bodyFont}. You can refine every page, image, and color in the editor after this.</p>
+              <p className="mt-3 text-xs text-slate-500">Palette: <span className="font-medium">{paletteName ?? "Custom"}</span> (primary <span className="font-medium" style={{ color: primaryColor }}>{primaryColor}</span>). Fonts: {fontHeading} / {fontBody}. You can refine every page, image, and color in the editor after this.</p>
             </div>
 
             <label className="flex items-center gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
@@ -400,7 +430,8 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
                 ["Logo", logoUrl ? "Provided" : "—"],
                 ["Tone", TONE_LABEL[tone]],
                 ["Address", `${normalized}.${SUBDOMAIN_BASE}`],
-                ["Template", FAMILY_LABEL[templateFamily]],
+                ["Palette", paletteName ?? "Custom"],
+                ["Fonts", `${fontHeading} / ${fontBody}`],
                 ["Pages planned", String(planPages.length)],
                 ["AI drafting", aiConsent ? "On" : "Off"],
               ].map(([k, v]) => (

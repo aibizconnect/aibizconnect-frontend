@@ -62,6 +62,28 @@ export const FAMILY_THEME: Record<TemplateFamily, FamilyTheme> = {
   },
 };
 
+/**
+ * Wizard color palettes with NAMED ROLES so the user understands what each color drives:
+ * background, surface (cards), text, muted text, primary (buttons/brand), secondary, accent, and
+ * link color. Primary/secondary/accent + background are applied to the live site; text/link are
+ * stored on the brand theme for the editor.
+ */
+export interface WizardPalette {
+  name: string; dark?: boolean;
+  background: string; surface: string; text: string; muted: string;
+  primary: string; secondary: string; accent: string; link: string;
+}
+export const WIZARD_PALETTES: WizardPalette[] = [
+  { name: "Ocean",      background: "#ffffff", surface: "#f1f5f9", text: "#0f172a", muted: "#64748b", primary: "#1a2332", secondary: "#457b9d", accent: "#2d8b8b", link: "#2563eb" },
+  { name: "Midnight", dark: true, background: "#0b1220", surface: "#131c2e", text: "#e2e8f0", muted: "#94a3b8", primary: "#22d3ee", secondary: "#6366f1", accent: "#818cf8", link: "#38bdf8" },
+  { name: "Forest",     background: "#ffffff", surface: "#f3f6f1", text: "#1f2a24", muted: "#6b7280", primary: "#2d4a2b", secondary: "#5b7a4f", accent: "#7d8471", link: "#2f855a" },
+  { name: "Sunset",     background: "#fffdf9", surface: "#fff4ec", text: "#2b2620", muted: "#8a7f72", primary: "#e76f51", secondary: "#264653", accent: "#f4a261", link: "#d2603a" },
+  { name: "Royal",      background: "#ffffff", surface: "#f5f3ff", text: "#1e1b2e", muted: "#6b7280", primary: "#4f46e5", secondary: "#7c3aed", accent: "#a855f7", link: "#4f46e5" },
+  { name: "Mono",       background: "#ffffff", surface: "#f8fafc", text: "#111827", muted: "#6b7280", primary: "#111827", secondary: "#374151", accent: "#6b7280", link: "#2563eb" },
+  { name: "Coral",      background: "#fffafa", surface: "#fff1f2", text: "#2a1a1d", muted: "#9b8588", primary: "#e11d48", secondary: "#881337", accent: "#fb7185", link: "#e11d48" },
+  { name: "Sand",       background: "#fbf7f0", surface: "#f3ece0", text: "#2c2620", muted: "#8c8170", primary: "#b45309", secondary: "#78350f", accent: "#f59e0b", link: "#b45309" },
+];
+
 export const TONE_DEFAULT_COLOR: Record<BrandTone, string> = {
   professional: "#1e3a8a",
   friendly: "#0d9488",
@@ -133,6 +155,14 @@ export interface WizardPayload {
   logoUrl?: string;               // logo (from existing site or pasted) — important for brand
   pages?: string[];               // the (editable) page titles to build, from the plan step
   tone: BrandTone;
+  // Brand palette (named roles) + typography overrides from the Design step.
+  secondaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  linkColor?: string;
+  fontHeading?: string;
+  fontBody?: string;
   hasWebsite?: boolean;
   existingUrl?: string;
   existingBlog?: string;
