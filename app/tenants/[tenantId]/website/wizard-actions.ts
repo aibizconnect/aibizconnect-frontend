@@ -90,6 +90,72 @@ async function aiExtractProfile(pageText: string, tenantId: string): Promise<any
   return null;
 }
 
+const ALLOWED_SECTION_TYPES = new Set(["hero", "features", "text", "heading", "bullet-list", "testimonials", "faq", "gallery", "cta", "contact-form"]);
+
+/**
+ * AI-draft rich, on-brand sections for ANY page (incl. custom titles) — Gemini first, then the BYOK
+ * provider, with a deterministic fallback handled by the caller. Returns validated section content
+ * objects (same shape as draft_sections). NEVER fabricates specific facts (no fake clients, awards,
+ * prices, addresses, phone numbers) — that rule is in the prompt and enforced by type allow-listing.
+ */
+async function aiSectionsForPage(tenantId: string, w: Record<string, any>, title: string): Promise<Record<string, unknown>[] | null> {
+  const ctx = [
+    w.businessName && `Business: ${w.businessName}`,
+    w.industry && `Industry: ${w.industry}`,
+    w.audience && `Audience: ${w.audience}`,
+    w.services && `Services: ${w.services}`,
+    w.description && `About: ${w.description}`,
+    w.tone && `Tone: ${w.tone}`,
+  ].filter(Boolean).join("\n");
+  const system =
+    `You are a senior conversion copywriter and web designer. Draft the "${title}" page as ONLY a JSON ` +
+    `object {"sections":[...]}. Use 4-7 sections, ordered, with specific, persuasive, on-topic copy for ` +
+    `THIS page's purpose. Allowed section shapes (use only these):\n` +
+    `{"type":"hero","heading":"","subheading":"","primaryCta":{"label":"","href":"/contact"}}\n` +
+    `{"type":"features","heading":"","features":[{"title":"","description":""}]}\n` +
+    `{"type":"text","text":""}\n` +
+    `{"type":"bullet-list","bulletStyle":"check","items":[{"text":""}]}\n` +
+    `{"type":"testimonials","items":[{"quote":"","author":"Satisfied client"}]}\n` +
+    `{"type":"faq","items":[{"q":"","a":""}]}\n` +
+    `{"type":"cta","heading":"","cta":{"label":"","href":"/contact"}}\n` +
+    `{"type":"contact-form","heading":"","fields":[{"name":"name","label":"Name","type":"text"},{"name":"email","label":"Email","type":"email"}],"submitLabel":"Send"}\n` +
+    `RULES: Do NOT invent specific facts — no fake client names, awards, statistics, prices, addresses, ` +
+    `or phone numbers. Keep testimonials generic ("author":"Satisfied client"). Hrefs are "/contact" or "#". JSON only.`;
+
+  const parse = (raw: string): Record<string, unknown>[] | null => {
+    try {
+      const j = JSON.parse(stripFences(raw));
+      const arr = Array.isArray(j?.sections) ? j.sections : Array.isArray(j) ? j : null;
+      if (!arr) return null;
+      const secs = arr.filter((s: any) => s && typeof s.type === "string" && ALLOWED_SECTION_TYPES.has(s.type)).slice(0, 8);
+      return secs.length ? secs : null;
+    } catch { return null; }
+  };
+
+  // Gemini direct (the key this env has).
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (apiKey) {
+    try {
+      const model = process.env.AI_PLAN_MODEL || "gemini-2.5-flash";
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `${system}\n\n${ctx}` }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.6 } }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        const text: string = (j?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("");
+        const out = text ? parse(text) : null;
+        if (out) return out;
+      }
+    } catch { /* fall through */ }
+  }
+  // BYOK provider fallback.
+  const out = await llm.complete({ system, user: ctx, jsonObject: true, temperature: 0.6 }, tenantId);
+  return out ? parse(out) : null;
+}
+
 /** Infer a template family from free-text industry/services (heuristic). */
 function familyFromIndustry(text: string): TemplateFamily {
   const t = (text || "").toLowerCase();
@@ -496,10 +562,15 @@ export async function generateWizardPages(
           if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: secs.map((content) => ({ content })) }); continue; }
         }
       }
-      // 2) AI sections where a title matches.
+      // 2) AI sections where a title matches the site plan.
       const ai = aiPages.find((p: any) => norm(p.title || "") === norm(title)) ?? (isHome ? (aiPages.find((p: any) => p.isHome) ?? aiPages[0]) : undefined);
       if (ai) { chosen.push({ ...ai, title, isHome }); continue; }
-      // 3) Deterministic fallback.
+      // 2b) Full AI draft for THIS page — covers custom titles the site plan didn't include.
+      if (wizard.aiConsent) {
+        const aiSecs = await aiSectionsForPage(tenantId, wizard, title);
+        if (aiSecs && aiSecs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, sections: aiSecs.map((content) => ({ content })) }); continue; }
+      }
+      // 3) Deterministic fallback (no AI key / AI unavailable).
       chosen.push({ title, slug: slugifyTitle(title), isHome, sections: generatedSectionsFor(ptype, profile).map((content) => ({ content })) });
     }
   } else if (aiPages.length) {
@@ -810,6 +881,7 @@ function buildBrief(w: Record<string, any>, learnedText?: string | null, competi
   if (w.audience) parts.push(`serving ${w.audience}`);
   if (w.services) parts.push(`offering: ${w.services}`);
   if (w.tone) parts.push(`Brand tone: ${w.tone}`);
+  if (Array.isArray(w.plannedPages) && w.plannedPages.length) parts.push(`Required pages (draft each with full, rich, page-appropriate content): ${w.plannedPages.join(", ")}`);
 
   if (learnedText) {
     parts.push(
