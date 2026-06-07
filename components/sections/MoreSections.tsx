@@ -9,6 +9,7 @@ import Tabs from "./Tabs";
 import Slideshow from "./Slideshow";
 import Ticker from "./Ticker";
 import Gallery from "./Gallery";
+import Counter from "./Counter";
 import InlineText from "./InlineText";
 
 /** Extended best-in-class element renderers (functional, no external paid keys). */
@@ -64,14 +65,7 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
 }
 
 export function NumberCounterSection({ content, theme }: { content: NumberCounterContent; theme?: ThemeTokens }) {
-  return (
-    <div className="text-center">
-      <div className="text-4xl font-extrabold md:text-5xl" style={{ color: primary(theme) }}>
-        {content.prefix}{content.value}{content.suffix}
-      </div>
-      {content.label && <div className="mt-1 text-sm font-medium text-slate-600">{content.label}</div>}
-    </div>
-  );
+  return <Counter value={content.value} prefix={content.prefix} suffix={content.suffix} label={content.label} color={primary(theme)} />;
 }
 
 export function ProgressBarSection({ content, theme }: { content: ProgressBarContent; theme?: ThemeTokens }) {
@@ -150,15 +144,34 @@ export function LogosSection({ content }: { content: LogosContent; theme?: Theme
   );
 }
 
-export function SocialSection({ content }: { content: SocialContent; theme?: ThemeTokens }) {
+const SOCIAL_BRAND: Record<string, { color: string; glyph: string }> = {
+  facebook: { color: "#1877F2", glyph: "f" }, fb: { color: "#1877F2", glyph: "f" },
+  instagram: { color: "#E1306C", glyph: "◉" }, ig: { color: "#E1306C", glyph: "◉" },
+  linkedin: { color: "#0A66C2", glyph: "in" },
+  x: { color: "#111111", glyph: "𝕏" }, twitter: { color: "#111111", glyph: "𝕏" },
+  youtube: { color: "#FF0000", glyph: "▶" }, yt: { color: "#FF0000", glyph: "▶" },
+  tiktok: { color: "#111111", glyph: "♪" },
+  pinterest: { color: "#E60023", glyph: "P" },
+  whatsapp: { color: "#25D366", glyph: "✆" },
+  telegram: { color: "#0088cc", glyph: "✈" },
+  email: { color: "#64748b", glyph: "✉" }, mail: { color: "#64748b", glyph: "✉" },
+  website: { color: "#1e3a8a", glyph: "🌐" }, link: { color: "#1e3a8a", glyph: "🔗" },
+};
+
+export function SocialSection({ content, theme }: { content: SocialContent; theme?: ThemeTokens }) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      {content.links.map((l, i) => (
-        <a key={i} href={l.url} target="_blank" rel="noreferrer"
-          className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xs font-semibold uppercase text-slate-600 hover:bg-slate-200">
-          {l.platform.slice(0, 2)}
-        </a>
-      ))}
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      {content.links.map((l, i) => {
+        const key = (l.platform || "").trim().toLowerCase();
+        const brand = SOCIAL_BRAND[key] ?? { color: primary(theme), glyph: (l.platform || "?").slice(0, 2) };
+        return (
+          <a key={i} href={l.url} target="_blank" rel="noreferrer" aria-label={l.platform} title={l.platform}
+            className="grid h-10 w-10 place-items-center rounded-full text-sm font-bold text-white transition hover:opacity-90"
+            style={{ background: brand.color }}>
+            {brand.glyph}
+          </a>
+        );
+      })}
     </div>
   );
 }
