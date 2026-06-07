@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
+import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import {
   BRAND_TONES, FAMILY_THEME, RESERVED_SUBDOMAINS, SUBDOMAIN_BASE, TONE_DEFAULT_COLOR,
   normalizeSubdomain, normalizeCountry, audienceSuggestionsFor,
@@ -304,6 +305,7 @@ export async function createWebsiteFromWizard(
     primaryColor,
     logoUrl: payload.logoUrl?.trim() || null,
     plannedPages: (payload.pages || []).map((t) => String(t || "").trim()).filter(Boolean),
+    importMode: payload.importMode === "exact" ? "exact" : "rebuild",
     // makePublicNow is intentionally NOT acted on here — DRAFT only.
     makePublicNowRequested: !!payload.makePublicNow,
   };
@@ -458,23 +460,28 @@ export async function generateWizardPages(
     //   1) CLONE the owner's existing site (faithful copy of their real content/images),
     //   2) reuse AI sections where a title matches, 3) deterministic template.
     const baseUrl = wizard.existingUrl ? (/^https?:\/\//i.test(wizard.existingUrl) ? wizard.existingUrl : `https://${wizard.existingUrl}`) : "";
-    const homeHtml = (wizard.hasWebsite && wizard.existingUrl) ? await fetchHtml(wizard.existingUrl) : null;
+    const hasSite = !!(wizard.hasWebsite && wizard.existingUrl);
+    const exact = wizard.importMode === "exact";
+    const homeHtml = hasSite ? await fetchPage(wizard.existingUrl) : null;
+    // Sitemap discovery → copy EVERY page, not just homepage-linked ones.
+    const sitemapUrls = hasSite ? await discoverSitemapUrls(baseUrl) : [];
     const htmlCache = new Map<string, string | null>();
+    const getHtml = async (u: string) => { if (!htmlCache.has(u)) htmlCache.set(u, await fetchPage(u)); return htmlCache.get(u) ?? null; };
     chosen = [];
     for (let i = 0; i < plannedTitles.length; i++) {
       const title = plannedTitles[i];
       const isHome = i === 0;
       const ptype = guessPageType(title);
-      // 1) Faithful clone from their existing site.
-      if (homeHtml) {
-        let srcHtml: string | null = null;
-        if (isHome || ptype === "home") srcHtml = homeHtml;
-        else {
-          const link = findPageUrl(homeHtml, baseUrl, ptype);
-          if (link) { if (!htmlCache.has(link)) htmlCache.set(link, await fetchHtml(link)); srcHtml = htmlCache.get(link) ?? null; }
-        }
-        if (srcHtml) {
-          const secs = cloneSectionsFromHtml(srcHtml, baseUrl);
+      // 1) Copy from their existing site (sitemap → homepage links). Exact snapshot or structured rebuild.
+      if (hasSite) {
+        const srcUrl = (isHome || ptype === "home") ? baseUrl : pickUrlForType(sitemapUrls, homeHtml || "", baseUrl, ptype);
+        const srcHtml = srcUrl ? (isHome || ptype === "home" ? homeHtml : await getHtml(srcUrl)) : null;
+        if (srcHtml && srcUrl) {
+          if (exact) {
+            const sec = await buildExactCopyIframe(srcHtml, srcUrl);
+            if (sec) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: [{ content: sec }] }); continue; }
+          }
+          const secs = cloneSectionsFromHtml(srcHtml, srcUrl);
           if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: secs.map((content) => ({ content })) }); continue; }
         }
       }
@@ -770,45 +777,6 @@ function guessPageType(title: string): string {
 
 function slugifyTitle(title: string): string {
   return (title || "page").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "page";
-}
-
-/** Fetch raw HTML for a URL (best-effort, capped). */
-async function fetchHtml(url: string): Promise<string | null> {
-  try {
-    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
-    const res = await fetch(u.toString(), { headers: { "user-agent": "Mozilla/5.0 (compatible; AIBizConnectBot/1.0)" }, signal: AbortSignal.timeout(12000), redirect: "follow" });
-    if (!res.ok) return null;
-    return (await res.text()).slice(0, 500_000);
-  } catch { return null; }
-}
-
-/** Find a same-origin internal link on the homepage matching a target page type. */
-function findPageUrl(homeHtml: string, baseUrl: string, pageType: string): string | undefined {
-  const want: Record<string, RegExp> = {
-    about: /about|team|story|who-we-are|our-/i,
-    services: /service|product|solution|offer|what-we-do|portfolio|work/i,
-    pricing: /pric|plan|package|rates?/i,
-    testimonials: /testimonial|review|client|case-stud/i,
-    contact: /contact|get-in-touch|quote|book|appointment/i,
-    faq: /faq|questions|help/i,
-    blog_index: /blog|news|articles|insights|resources/i,
-  };
-  const re = want[pageType];
-  if (!re) return undefined;
-  let origin = "";
-  try { origin = new URL(baseUrl).origin; } catch { return undefined; }
-  const aRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = aRe.exec(homeHtml))) {
-    const href = m[1];
-    const text = m[2].replace(/<[^>]+>/g, " ");
-    if (!re.test(href) && !re.test(text)) continue;
-    try {
-      const abs = new URL(href, baseUrl);
-      if (abs.origin === origin && !/^(mailto:|tel:|#)/i.test(href)) return abs.toString();
-    } catch { /* skip */ }
-  }
-  return undefined;
 }
 
 /** Faithfully turn an existing page's HTML into render-ready sections (a real copy, no invented facts). */

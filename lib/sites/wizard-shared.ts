@@ -169,6 +169,7 @@ export interface WizardPayload {
   businessDescription?: string;   // a couple of sentences the owner provides up-front
   logoUrl?: string;               // logo (from existing site or pasted) — important for brand
   pages?: string[];               // the (editable) page titles to build, from the plan step
+  importMode?: "rebuild" | "exact"; // how to copy an existing site: structured rebuild vs exact snapshot
   tone: BrandTone;
   // Brand palette (named roles) + typography overrides from the Design step.
   secondaryColor?: string;

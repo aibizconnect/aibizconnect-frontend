@@ -68,7 +68,7 @@ export function extractPageContent(html: string, baseUrl: string): ExtractedCont
     const slice = html.slice(marks[i].end, i + 1 < marks.length ? marks[i + 1].idx : marks[i].end + 4000);
     const text = stripTags(slice).slice(0, 600);
     if (marks[i].heading && text.length > 40) sections.push({ heading: marks[i].heading, text });
-    if (sections.length >= 8) break;
+    if (sections.length >= 12) break;
   }
 
   const subheadline = description || (sections[0]?.text ? sections[0].text.slice(0, 160) : "");
@@ -115,7 +115,7 @@ export function contentToBlocks(ex: ExtractedContent, contactDefaultHref = "#con
   blocks.push({ block_type: "hero", block_name: "Hero", content: hero });
 
   // Sections → heading + text pairs (faithful copy).
-  for (const s of ex.sections.slice(0, 6)) {
+  for (const s of ex.sections.slice(0, 10)) {
     blocks.push({ block_type: "heading", block_name: "Section heading", content: brandedHeading(s.heading) });
     blocks.push({ block_type: "text", block_name: "Section text", content: { type: "text", text: s.text, fontFamily: HEADING_FONT } });
   }

@@ -62,6 +62,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
 
   const [tone, setTone] = useState<string>("professional");
   const [aiConsent, setAiConsent] = useState(true);
+  const [importMode, setImportMode] = useState<"rebuild" | "exact">("rebuild");
   const [templateFamily] = useState<string>("agency"); // server fallback only; UI uses palette/fonts
   const [makePublicNow, setMakePublicNow] = useState(false);
 
@@ -152,6 +153,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
       businessDescription: businessDescription.trim() || undefined,
       logoUrl: logoUrl.trim() || undefined,
       pages: planPages.map((p) => p.title.trim()).filter(Boolean),
+      importMode: existingUrl.trim() ? importMode : undefined,
       tone: tone as WizardPayload["tone"],
       hasWebsite: !!existingUrl.trim(), existingUrl, existingBlog,
       socialLinks: socialLinks.filter((s) => s.trim()),
@@ -292,8 +294,24 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
           <div className="space-y-5">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Your design &amp; build plan</h2>
-              <p className="text-sm text-slate-500">Here&apos;s what the AI will build. Adjust the brand below, then continue.</p>
+              <p className="text-sm text-slate-500">Here&apos;s what we&apos;ll build. Adjust the brand below, then continue.</p>
             </div>
+
+            {/* How to import the existing site (only when one was provided) */}
+            {existingUrl.trim() && (
+              <div>
+                <label className={label}>How should we copy your existing site?</label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([["rebuild", "Smart rebuild", "Copy your content, images & structure into editable, on-brand sections you can restyle."], ["exact", "Exact copy", "A pixel-faithful snapshot of each page (your real layout & CSS). Best for keeping it identical."]] as [typeof importMode, string, string][]).map(([k, title, desc]) => (
+                    <button key={k} type="button" onClick={() => setImportMode(k)}
+                      className={`rounded-xl border p-3 text-left transition ${importMode === k ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]" : "border-slate-200 hover:border-slate-300"}`}>
+                      <div className="text-sm font-semibold text-slate-800">{title}</div>
+                      <div className="mt-0.5 text-xs text-slate-500">{desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Brand identity */}
             <div className="grid gap-4 sm:grid-cols-2">
