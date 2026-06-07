@@ -74,13 +74,31 @@ export async function listAppointments(tenantId: string, calendarId: string): Pr
   return (data ?? []).map((r: any) => ({ id: r.id, name: r.name ?? "", email: r.email ?? "", startAt: r.start_at, status: r.status }));
 }
 
-/** Generate bookable slots for the next `days` days, excluding already-booked times. */
+/** Generate bookable slots for the next `days` days, excluding internally-booked times AND the agent's
+ *  Google Calendar busy times (when connected), with the calendar's buffer applied. */
 export async function availableSlots(tenantId: string, cal: Calendar, days = 14): Promise<{ date: string; slots: string[] }[]> {
   const sb = service();
+  const now = new Date();
+  const windowEnd = new Date(now); windowEnd.setDate(now.getDate() + days);
+
   const { data: booked } = await sb.from("tenant_appointments").select("start_at").eq("tenant_id", tenantId).eq("calendar_id", cal.id).eq("status", "booked");
   const taken = new Set((booked ?? []).map((b: any) => new Date(b.start_at).toISOString()));
+
+  // Google free/busy (no-op if this calendar isn't connected).
+  let busy: { start: number; end: number }[] = [];
+  try {
+    const { getGoogleBusy } = await import("./server/google-calendar");
+    busy = await getGoogleBusy(tenantId, cal.id, now.toISOString(), windowEnd.toISOString());
+  } catch { /* connector unavailable → internal-only */ }
+
+  const bufferMs = (cal.bufferMin ?? 0) * 60_000;
+  const durMs = cal.durationMin * 60_000;
+  const clashesGoogle = (startMs: number) => {
+    const s = startMs - bufferMs, e = startMs + durMs + bufferMs;
+    return busy.some((b) => s < b.end && e > b.start);
+  };
+
   const out: { date: string; slots: string[] }[] = [];
-  const now = new Date();
   for (let d = 0; d < days; d++) {
     const day = new Date(now); day.setDate(now.getDate() + d); day.setHours(0, 0, 0, 0);
     if (!cal.weekdays.includes(day.getDay())) continue;
@@ -90,6 +108,7 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
         const slot = new Date(day); slot.setHours(h, m, 0, 0);
         if (slot <= now) continue;
         if (taken.has(slot.toISOString())) continue;
+        if (clashesGoogle(slot.getTime())) continue;
         slots.push(slot.toISOString());
       }
     }
@@ -98,14 +117,40 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
   return out;
 }
 
-/** Public booking: create an appointment + a CRM contact (lead). */
+/** Public booking: create an appointment + a CRM contact (lead) + (if connected) a Google event. */
 export async function bookAppointment(tenantId: string, calendarId: string, b: { name: string; email: string; phone?: string; startAt: string }): Promise<{ ok: boolean; error?: string }> {
   const sb = service();
   // guard against double-booking the same slot
   const { data: clash } = await sb.from("tenant_appointments").select("id").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("start_at", b.startAt).eq("status", "booked").maybeSingle();
   if (clash) return { ok: false, error: "That time was just taken — pick another." };
+
+  // Re-check the agent's Google calendar at booking time (avoid a race with their real calendar).
+  const { data: cal } = await sb.from("tenant_calendars").select("duration_min, name").eq("tenant_id", tenantId).eq("id", calendarId).maybeSingle();
+  const durMin = (cal as any)?.duration_min ?? 30;
+  const startMs = new Date(b.startAt).getTime();
+  const endIso = new Date(startMs + durMin * 60_000).toISOString();
+  try {
+    const { getGoogleBusy } = await import("./server/google-calendar");
+    const busy = await getGoogleBusy(tenantId, calendarId, b.startAt, endIso);
+    if (busy.some((x) => startMs < x.end && (startMs + durMin * 60_000) > x.start)) {
+      return { ok: false, error: "That time is no longer available — pick another." };
+    }
+  } catch { /* connector unavailable → internal-only guard */ }
+
   const { error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt });
   if (error) return { ok: false, error: error.message };
   await createContact(tenantId, { name: b.name, email: b.email, phone: b.phone, source: "calendar booking" });
+
+  // Mirror onto the agent's Google calendar (best-effort).
+  try {
+    const { createGoogleEvent } = await import("./server/google-calendar");
+    const eventId = await createGoogleEvent(tenantId, calendarId, {
+      summary: `${(cal as any)?.name || "Appointment"} — ${b.name}`,
+      description: `Booked via AIBizConnect.\nName: ${b.name}\nEmail: ${b.email}${b.phone ? `\nPhone: ${b.phone}` : ""}`,
+      startIso: b.startAt, endIso, attendeeEmail: b.email,
+    });
+    if (eventId) await sb.from("tenant_appointments").update({ external_event_id: eventId }).eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("start_at", b.startAt);
+  } catch { /* best-effort */ }
+
   return { ok: true };
 }

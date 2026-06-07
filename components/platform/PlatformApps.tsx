@@ -14,6 +14,7 @@ const CALLBACK: Record<string, string> = {
   tiktok_platform_app: "/api/social/callback/tiktok",
   x_platform_app: "/api/social/callback/x",
   shopify_platform_app: "/api/shopify/callback",
+  google_calendar_platform_app: "/api/calendar/google/callback",
 };
 const DOCS: Record<string, string> = {
   facebook_platform_app: "https://developers.facebook.com/apps",
@@ -23,6 +24,7 @@ const DOCS: Record<string, string> = {
   x_platform_app: "https://developer.x.com",
   shopify_platform_app: "https://partners.shopify.com",
   stripe_identity_platform_app: "https://dashboard.stripe.com/identity",
+  google_calendar_platform_app: "https://console.cloud.google.com/apis/credentials",
   cloudflare_platform: "https://dash.cloudflare.com/profile/api-tokens",
 };
 // Webhook (not OAuth callback) endpoints to register in the provider's dashboard.

@@ -34,6 +34,7 @@ const APPS: PlatformAppDef[] = [
   { key: "x_platform_app", label: "X (Twitter)", fields: [{ name: "app_id", label: "Client ID", secret: false }, { name: "app_secret", label: "Client Secret", secret: true }] },
   { key: "shopify_platform_app", label: "Shopify", fields: [{ name: "app_id", label: "API Key", secret: false }, { name: "app_secret", label: "API Secret", secret: true }] },
   { key: "stripe_identity_platform_app", label: "Stripe Identity (KYC)", fields: [{ name: "secret_key", label: "Secret Key (sk_…)", secret: true }, { name: "webhook_secret", label: "Webhook Signing Secret (whsec_…)", secret: true }] },
+  { key: "google_calendar_platform_app", label: "Google Calendar", fields: [{ name: "client_id", label: "Client ID", secret: false }, { name: "client_secret", label: "Client Secret", secret: true }] },
   { key: "cloudflare_platform", label: "Cloudflare (DNS)", fields: [{ name: "zone_id", label: "Zone ID", secret: false }, { name: "api_token", label: "API Token", secret: true }] },
 ];
 

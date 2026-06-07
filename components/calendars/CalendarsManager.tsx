@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction } from "@/app/tenants/[tenantId]/calendars/actions";
+import { useEffect, useState, useTransition } from "react";
+import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getGoogleConnectUrl, getGoogleStatus, disconnectGoogleAction } from "@/app/tenants/[tenantId]/calendars/actions";
 import type { Calendar, Appointment } from "@/lib/calendars";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -61,7 +61,7 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
                   </div>
                 </div>
                 <div className="mt-2 font-mono text-[11px] text-slate-400">{link}</div>
-                {editId === c.id && <CalEditor cal={c} onSave={(patch) => saveCal(c.id, patch)} pending={pending} />}
+                {editId === c.id && <CalEditor tenantId={tenantId} cal={c} onSave={(patch) => saveCal(c.id, patch)} pending={pending} />}
                 {openId === c.id && (
                   <div className="mt-3 border-t border-slate-100 pt-3">
                     {appts.length === 0 ? <div className="text-xs text-slate-400">No appointments yet.</div> : (
@@ -82,7 +82,19 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
   );
 }
 
-function CalEditor({ cal, onSave, pending }: { cal: Calendar; onSave: (patch: { name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number; timezone?: string; assignedToEmail?: string; assignedToName?: string }) => void; pending: boolean }) {
+function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: Calendar; onSave: (patch: { name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number; timezone?: string; assignedToEmail?: string; assignedToName?: string }) => void; pending: boolean }) {
+  const [gcal, setGcal] = useState<{ ready: boolean; connected: boolean; accountEmail: string | null } | null>(null);
+  const [gbusy, setGbusy] = useState(false);
+  useEffect(() => { getGoogleStatus(tenantId, cal.id).then(setGcal).catch(() => setGcal({ ready: false, connected: false, accountEmail: null })); }, [tenantId, cal.id]);
+  const connectGoogle = async () => {
+    setGbusy(true);
+    const r = await getGoogleConnectUrl(tenantId, cal.id);
+    setGbusy(false);
+    if (r.ok && r.url) { window.open(r.url, "_blank", "noopener,noreferrer"); }
+    else alert(r.error || "Could not start Google connection.");
+  };
+  const disconnectGoogle = async () => { setGbusy(true); await disconnectGoogleAction(tenantId, cal.id); setGbusy(false); setGcal((s) => s ? { ...s, connected: false, accountEmail: null } : s); };
+
   const [name, setName] = useState(cal.name);
   const [agent, setAgent] = useState(cal.assignedToEmail ?? "");
   const [agentName, setAgentName] = useState(cal.assignedToName ?? "");
@@ -121,8 +133,15 @@ function CalEditor({ cal, onSave, pending }: { cal: Calendar; onSave: (patch: { 
         <label className="flex flex-col gap-1 text-xs text-slate-600">Buffer<select className={inp} value={buffer} onChange={(e) => setBuffer(+e.target.value)}>{[0, 5, 10, 15, 30].map((d) => <option key={d} value={d}>{d} min</option>)}</select></label>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <span className="text-[11px] text-slate-400" title="Connect this agent's Google Calendar so booked times check their real availability (coming next).">🔗 Connect Google Calendar — coming next</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <div className="text-xs">
+          {!gcal ? <span className="text-slate-400">Checking Google…</span>
+            : gcal.connected ? (
+              <span className="text-emerald-700">✓ Google Calendar connected{gcal.accountEmail ? ` (${gcal.accountEmail})` : ""} — busy times block bookings. <button onClick={disconnectGoogle} disabled={gbusy} className="ml-1 text-red-500 hover:underline disabled:opacity-40">Disconnect</button></span>
+            ) : gcal.ready ? (
+              <button onClick={connectGoogle} disabled={gbusy} className="rounded-lg border border-[#1e3a8a] px-3 py-1.5 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">{gbusy ? "…" : "🔗 Connect Google Calendar"}</button>
+            ) : <span className="text-slate-400" title="A platform admin must add the Google Calendar app credentials in Platform → Connected apps.">Google Calendar not configured yet</span>}
+        </div>
         <button onClick={() => onSave({ name, durationMin: dur, bufferMin: buffer, weekdays: days, startHour: startH, endHour: endH, timezone: tz || undefined, assignedToEmail: agent, assignedToName: agentName })} disabled={pending}
           className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50">Save</button>
       </div>
