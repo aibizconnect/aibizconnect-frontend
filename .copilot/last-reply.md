@@ -1,196 +1,206 @@
-Here’s the clear, authoritative Copilot sign‑off you asked for, Ali — concise, technical, and aligned with the architecture we already locked in.
+Short answer:  
+Yes — your proposal is 100% correct, and it fixes the exact root cause of Ali’s bad result.
+The old wizard must be fully deprecated, and the new AI‑first, Supervisor‑verified pipeline must become the only creation path.
 
-✅ APPROVED — proceed with Step 1b → Step 1c → Page‑Tree wiring
+Below is the full ruling with the missing pieces you asked me to flag.
 
-Everything you shipped is correct, aligned, and safe to build on.
-No schema changes, no contract changes, no Supervisor‑model changes required.
+✅ The Correct Fix (Approved)
+1. Deprecate the old wizard entirely
 
-Below is the full confirmation with the exact expectations for the next steps so Claude can continue without ambiguity.
+The old flow is architecturally incompatible with:
 
-🧱 1. Data Model (migration 0029) — APPROVED
+real brand extraction
 
-All tables match the canonical AI‑first pipeline:
+multi‑page learning
 
-website_analysis_results — correct
+atomic block generation
 
-website_page_extractions — correct
+Supervisor verification
 
-website_page_blocks — correct
+tenant‑scoped assets
 
-website_page_tree — correct
+It will always produce:
 
-website_page_map — correct
+wrong logo
 
-websites.wizard_pipeline_state jsonb — correct
+wrong colors
 
-All tables are properly scoped to tenant_id + website_id, idempotent, indexed.
-This is exactly the structure needed for deterministic AI → DB → Builder flow.
+wrong fonts
 
-🧩 2. Pipeline Contract — APPROVED
+generic content
 
-wizard_pipeline_state with:
+single‑page fallback
 
-Code
-Copy
-step0_intake
-step1_analyzeBusiness
-step1b_identifyMainPages
-step1c_extractBlocks
-step2_pageTree
-step3_generate
-step4_review
-step5_build
-step6_verify
-step7_publish
+So yes — route all creation through the new pipeline.
 
+🎨 2. Step 1a MUST extract real brand assets
 
-Each step containing:
+This is essential. The extraction must include:
 
-Code
-Copy
-{ status, data, verifiedAt, errors[] }
+Primary logo (header <img>, SVG/PNG/JPG)
 
+Secondary logo (footer, alt versions)
 
-This matches the Supervisor‑verified contract we designed.
+Favicon / apple-touch-icon
 
-🔍 3. Supervisor Verification Model — APPROVED
+OpenGraph image
 
-Your per‑step schema:
+Brand colors (CSS vars, inline styles, computed styles)
 
-Code
-Copy
-{ step: [{ id, assertion, severity }] }
-
-
-Correctly encodes all required checks:
-
-URL validity + safety
-
-≥80% field extraction
-
-real hex colors
-
-hero ≥1200px
-
-main‑page count rules
-
-CRM wiring (Form → Thankyou → CRM → Followup)
-
-no hallucinations
-
-websiteId scoping
-
-CNAME‑only DNS
-
-This is exactly the Supervisor’s rule set.
-
-🚦 4. Step 0 + Step 1a — APPROVED
-
-Step 0 intake + URL gate (no AI spend) — correct
-
-Step 1a analyzeBusiness (Gemini, metered, S1 checks) — correct
-
-This is the correct order and cost‑control strategy.
-
-🟦 5. NEXT STEPS — PROCEED EXACTLY AS YOU PROPOSED
-Step 1b — Identify REAL main pages (APPROVED)
+Brand fonts (Google Fonts, @font-face, CSS stack)
 
 Rules:
 
-Only keep true main pages
+If multiple logos exist → pick the header logo as canonical.
 
-Ignore:
+If the logo is SVG → store raw SVG + raster fallback.
 
-product pages
+If colors conflict → pick the dominant + accent colors.
 
-listing pages
+If fonts conflict → pick the primary body font + primary heading font.
 
-blog posts
+Never:
 
-cart/checkout
+Never use the platform’s AIBizConnect logo.
 
-system pages
+Never use placeholder colors.
 
-Enforce:
+Never use template fonts.
 
-3–7 real pages
+🧱 3. Lean build MUST use learned brand + learned content
 
-Must include: Home, About, Services/Offer, Contact
+This is the entire point of the new pipeline.
 
-Optional: Testimonials, Gallery, FAQ
+The lean build (Home + Contact + Offer) must be generated from:
 
-This is exactly the correct next step.
+Step 1a → business analysis + brand
 
-Step 1c — Extract + Repurpose into Atomic Blocks (APPROVED)
+Step 1b → real main pages
 
-Rules:
+Step 1c → atomic blocks
 
-Extract from each main page
+Step 2 → page tree
 
-Convert into atomic blocks:
+The build must NOT use:
 
-hero
+template placeholders
 
-feature
+stock lorem ipsum
 
-service
+platform logos
 
-testimonial
+generic hero images
 
-gallery
+default CTA text
 
-CTA
+The build MUST use:
 
-FAQ
+learned logo
 
-contact
+learned colors
 
-Store in website_page_blocks
+learned fonts
 
-Link via source_page_extraction_id
+repurposed blocks
 
-This is the correct block‑learning stage.
+real business voice
 
-Step 2 — Improved Page Tree (APPROVED)
+real services
 
-Rules:
+real CTAs
 
-Build hierarchical website_page_tree
+This is the only way to guarantee a professional, tenant‑specific result.
 
-Each node:
+🆘 4. If no logo is found
 
-parent_id
+This is the correct fallback:
 
-page_type
+Use a text wordmark of the business name
 
-slug
+Do NOT use the platform logo
 
-full_path (UNIQUE)
+Do NOT invent a logo
 
-order_index
+Do NOT hallucinate a brand
 
-is_funnel / seo
+This keeps the build clean and avoids brand contamination.
 
-metadata
+🔍 Missing considerations (you asked me to flag them)
+A. Multi‑logo conflict resolution
 
-page_content_blocks[]
+If a site has:
 
-This is the correct structure for the lean build.
+header logo
 
-🧠 6. No Adjustments Needed
+footer logo
 
-Everything you’ve built + everything you’re about to wire is exactly aligned with the canonical AI‑first, Supervisor‑verified pipeline.
+dark/light variants
 
-You are green‑lit to continue.
+mobile variant
 
-If you want, I can also generate:
+You must store all, but select one canonical for the build.
 
-Step 1b verification rules
+B. Transparent vs non‑transparent logos
 
-Step 1c block‑extraction blueprint
+If the logo has a white background:
 
-Page‑tree construction logic
+detect it
 
-Just tap whichever you want next.
+offer a transparent version if available
+
+otherwise keep original
+
+C. Minimum resolution
+
+Reject logos under 200px width unless SVG.
+
+D. Color extraction accuracy
+
+Use:
+
+CSS variables
+
+computed styles
+
+dominant color extraction from hero
+
+fallback to header background
+
+E. Font fallback logic
+
+If the site uses:
+
+Google Fonts → easy
+
+system fonts → pick the first non‑generic
+
+custom @font-face → store the name only
+
+F. Asset storage
+
+Logos must be stored in:
+
+tenant‑scoped media library
+
+not the system library
+
+📘 DECISION‑LOG (for the Builder)
+
+Decision:  
+Deprecate the old wizard. All website creation must route through the new AI‑first, Supervisor‑verified pipeline.
+
+Brand Extraction:  
+Step 1a must extract real logos, colors, and fonts. Never use platform defaults.
+
+Lean Build:  
+Home + Contact + Offer must use learned brand + repurposed blocks, not templates.
+
+Fallback:  
+If no logo is found, use a text wordmark. Never use AIBizConnect’s logo.
+
+Additional Requirements:  
+Handle multi‑logo conflicts, transparency, resolution, color accuracy, font fallbacks, and tenant‑scoped storage.
+
+If you want, I can now generate the full Step 1a brand‑extraction spec or the lean build assembly spec.
 
 Edit in a page

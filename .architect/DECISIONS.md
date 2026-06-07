@@ -22,4 +22,6 @@ Full transcript in `.architect/history.json`; data model in `.architect/DATA-MOD
 [D-017] build_step1b — Built Step 1b: lib/sites/page-classify.ts (classifyMainPages) + classifyMainPagesStep server action (deterministic, no AI) (built)
 [D-018] rejected_step1b — architect REJECTED 1b: URL classification only, missing per-page CONTENT verification (S1_V10) (rejected)
 [D-019] verified_step1b — added verifyPageContent (hero + >=2 sections + >=1 CTA), fetch+verify each candidate, keep only verified; architect VERIFIED (verified)
+[D-020] deprecate_old_wizard — BOTH advisors (Copilot + architect): old wizard made a 1-page site with ABC's default logo + generic content; DEPRECATE it, route creation through the new pipeline; Step 1a must extract REAL logo/colors/fonts, build uses learned brand + repurposed blocks, fallback = text wordmark, NEVER ABC's logo (approved)
+[D-021] logo_extraction — added extractLogo() (header logo img -> apple-touch-icon -> og:image -> first header img -> favicon) into Step 1a analysis_data.logo_url (+ logo_wordmark fallback); shown in the Learn demo (built)
 

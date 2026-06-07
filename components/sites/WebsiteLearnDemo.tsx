@@ -70,7 +70,15 @@ export default function WebsiteLearnDemo({ tenantId }: { tenantId: string }) {
       {profile && (
         <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-slate-800">Step 1a — Business profile {profile.status === "passed" ? "✅" : "⚠️"}</h2>
-          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          {/* Logo: the REAL extracted logo, or a text wordmark — never the platform logo. */}
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-xs text-slate-400">Logo</span>
+            {prof.logo_url
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={prof.logo_url as string} alt="brand logo" className="h-10 w-auto rounded border border-slate-200 bg-white object-contain p-1" />
+              : <span className="rounded border border-dashed border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700">{prof.logo_wordmark || prof.business_name || "—"} <span className="text-[10px] font-normal text-slate-400">(text wordmark)</span></span>}
+          </div>
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             {[["Business", prof.business_name], ["Industry", prof.industry], ["Services", (prof.services_products ?? []).join(", ")], ["Audience", prof.audience], ["Tone", prof.tone], ["Location", prof.location], ["Brand color", (prof.brand_colors ?? [])[0]], ["Template", prof.template_family]].map(([k, v]) => (
               <div key={k as string} className="flex gap-2"><dt className="w-24 shrink-0 text-slate-400">{k}</dt><dd className="text-slate-700">{v || "—"}</dd></div>
             ))}

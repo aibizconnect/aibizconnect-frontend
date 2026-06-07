@@ -3,7 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { validateIntakeUrl, runStep0Checks, type Check, type InputType } from "@/lib/sites/intake-validation";
-import { classifyMainPages, verifyPageContent } from "@/lib/sites/page-classify";
+import { classifyMainPages, verifyPageContent, extractLogo } from "@/lib/sites/page-classify";
 import { enrichFromPresence } from "./wizard-actions";
 import { recordAiUsage } from "./actions";
 
@@ -124,6 +124,11 @@ export async function analyzeBusiness(tenantId: string, websiteId: string, urlOv
   const p = await enrichFromPresence(tenantId, { websiteUrl: url });
   try { await recordAiUsage(tenantId, "analysis", 1, { step: "1a", websiteId, source: "wizard" }); } catch { /* metering best-effort */ }
 
+  // Extract the tenant's REAL logo from their homepage (never the platform default). Falls
+  // back to a text wordmark of the business name when no logo is found.
+  let logo_url: string | null = null;
+  try { const home = await fetchPage(url); if (home.html) logo_url = extractLogo(home.html, url); } catch { /* no logo */ }
+
   const services = (p.services || "").split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
   const colors = p.primaryColor ? [p.primaryColor] : [];
   const analysis_data: Record<string, unknown> = {
@@ -133,6 +138,8 @@ export async function analyzeBusiness(tenantId: string, websiteId: string, urlOv
     audience: p.audience || "",
     tone: p.tone || "",
     brand_colors: colors,
+    logo_url,                          // real brand logo (or null → caller uses a text wordmark)
+    logo_wordmark: logo_url ? "" : (p.businessName || ""),
     template_family: p.templateFamily || "",
     country: p.country || "",
     city: p.city || "",

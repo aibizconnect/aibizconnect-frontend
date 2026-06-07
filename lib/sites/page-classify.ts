@@ -64,6 +64,38 @@ export function classifyMainPages(html: string, baseUrl: string): { main_pages: 
 }
 
 /**
+ * Extract the site's real LOGO url from its HTML (never the platform default). Priority:
+ * a header/nav <img> hinted as a logo → apple-touch-icon → og:image → first header image →
+ * favicon. Returns an absolute URL, or null (caller falls back to a text wordmark).
+ */
+export function extractLogo(html: string, baseUrl: string): string | null {
+  const abs = (u: string): string | null => { try { return new URL(u, baseUrl).toString(); } catch { return null; } };
+  const headerMatch = html.match(/<(header|nav)\b[\s\S]*?<\/\1>/i);
+  const headerHtml = headerMatch ? headerMatch[0] : html.slice(0, 6000);
+
+  // 1) header/nav <img> whose tag mentions "logo"
+  for (const m of headerHtml.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    if (!/logo/i.test(tag)) continue;
+    const src = tag.match(/(?:data-src|src)=["']([^"']+)["']/i);
+    if (src) { const a = abs(src[1]); if (a) return a; }
+  }
+  // 2) apple-touch-icon
+  const ati = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]+href=["']([^"']+)["']/i);
+  if (ati) { const a = abs(ati[1]); if (a) return a; }
+  // 3) og:image (often the brand image)
+  const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+  if (og) { const a = abs(og[1]); if (a) return a; }
+  // 4) first image in the header/nav
+  const firstImg = headerHtml.match(/<img\b[^>]*(?:data-src|src)=["']([^"']+)["']/i);
+  if (firstImg) { const a = abs(firstImg[1]); if (a) return a; }
+  // 5) favicon
+  const fav = html.match(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']/i);
+  if (fav) { const a = abs(fav[1]); if (a) return a; }
+  return null;
+}
+
+/**
  * Verify a page is a real, substantive page: a hero/heading + >=2 meaningful sections + >=1
  * CTA (Supervisor check S1_V10). Heuristic over the fetched HTML — pure, no network.
  */
