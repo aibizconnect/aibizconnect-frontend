@@ -251,6 +251,20 @@ export const tabsSchema = z.object({
   type: z.literal("tabs"),
   tabs: z.array(z.object({ label: z.string(), content: z.string() })).default([]),
 });
+// Survey / Quiz (GHL parity): a multi-step questionnaire. Submissions go to the existing public
+// lead pipeline (/api/leads/submit → form_submissions + CRM contact). No new storage needed.
+export const surveySchema = z.object({
+  type: z.literal("survey"),
+  heading: z.string().optional(),
+  questions: z.array(z.object({
+    label: z.string(),
+    kind: z.enum(["single", "multiple", "text", "email", "rating"]).default("single"),
+    options: z.array(z.object({ text: z.string() })).default([]),
+    required: z.boolean().optional(),
+  })).default([]),
+  submitLabel: z.string().optional(),
+  successMessage: z.string().optional(),
+});
 // Ticker / scrolling marquee (stock-ticker / news-ticker / announcement).
 export const tickerSchema = z.object({
   type: z.literal("ticker"),
@@ -343,6 +357,7 @@ export const sectionSchema = z.discriminatedUnion("type", [
   audioSchema,
   tabsSchema,
   tickerSchema,
+  surveySchema,
 ]);
 
 // Inferred TypeScript types (structurally compatible with SectionContent)
@@ -379,6 +394,7 @@ export type IconContent = z.infer<typeof iconSchema>;
 export type AudioContent = z.infer<typeof audioSchema>;
 export type TabsContent = z.infer<typeof tabsSchema>;
 export type TickerContent = z.infer<typeof tickerSchema>;
+export type SurveyContent = z.infer<typeof surveySchema>;
 export type SectionContent = z.infer<typeof sectionSchema>;
 
 export type SectionType = SectionContent["type"];
@@ -418,6 +434,7 @@ export const sectionSchemas = {
   audio: audioSchema,
   tabs: tabsSchema,
   ticker: tickerSchema,
+  survey: surveySchema,
 } as const;
 
 /** Ordered list of section types (for the "add section" picker). */
@@ -455,6 +472,7 @@ export const sectionTypes: SectionType[] = [
   "audio",
   "tabs",
   "ticker",
+  "survey",
 ];
 
 /** Human-friendly labels for the editor UI. */
@@ -492,6 +510,7 @@ export const sectionLabels: Record<SectionType, string> = {
   audio: "Audio",
   tabs: "Tabs",
   ticker: "Ticker",
+  survey: "Survey",
 };
 
 /** Sensible default content when a new section is added. */
@@ -587,6 +606,12 @@ export function defaultContentFor(type: SectionType): SectionContent {
     case "ticker":
       return { type: "ticker", direction: "left", speed: 30, bg: "#0f172a", color: "#e2e8f0", separator: "•", items: [
         { text: "Welcome to our store" }, { text: "Free shipping over $50" }, { text: "New arrivals weekly" },
+      ] };
+    case "survey":
+      return { type: "survey", heading: "Quick survey", submitLabel: "Submit", successMessage: "Thanks for your response!", questions: [
+        { label: "How did you hear about us?", kind: "single", options: [{ text: "Search" }, { text: "Social media" }, { text: "Referral" }, { text: "Other" }] },
+        { label: "What are you most interested in?", kind: "multiple", options: [{ text: "Pricing" }, { text: "Features" }, { text: "Support" }] },
+        { label: "Your email", kind: "email", options: [], required: true },
       ] };
   }
 }

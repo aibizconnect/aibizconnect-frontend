@@ -11,6 +11,7 @@ import { getDesignSystemEnabled } from "@/lib/design/brand-memory";
 import { getPageBlocks } from "../../../tenants/[tenantId]/website/actions";
 import SitePopups from "@/components/website/SitePopups";
 import SiteContactForm from "@/components/website/SiteContactForm";
+import SiteSurvey from "@/components/website/SiteSurvey";
 import { listPopups } from "@/lib/popups";
 import type { BrandSettings } from "@/lib/sections/schemas";
 import { resolveTheme, mergeBrandRows } from "@/lib/sections/theme";
@@ -317,7 +318,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
           {sections.map((s: any) => {
             const adapted = adaptSection(s.content);
             const isForm = adapted?.type === "contact-form" || s.content?.type === "contact-form";
-            const node = isForm
+            const node = s.content?.type === "survey"
+              ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
+              : isForm
               ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} />
               : adapted
                 ? <ComponentRenderer type={adapted.type} props={adapted.props} />
@@ -330,7 +333,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         </div>
       ) : (
         sections.map((s: any) => (
-          s.content?.type === "contact-form"
+          s.content?.type === "survey"
+            ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
+            : s.content?.type === "contact-form"
             ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} />
             : <SectionView key={s.id} content={s.content} theme={theme} cssSink={cssSink} />
         ))

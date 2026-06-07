@@ -279,6 +279,17 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "color", key: "color", label: "Text color" },
     { kind: "text", key: "separator", label: "Separator" },
   ],
+  survey: [
+    { kind: "text", key: "heading", label: "Heading" },
+    { kind: "array", key: "questions", label: "Questions", itemLabel: "Question", itemFields: [
+      { kind: "text", key: "label", label: "Question" },
+      { kind: "select", key: "kind", label: "Type", options: ["single", "multiple", "text", "email", "rating"] },
+      { kind: "array", key: "options", label: "Options (for single/multiple)", itemLabel: "Option", itemFields: [{ kind: "text", key: "text", label: "Option" }] },
+      { kind: "boolean", key: "required", label: "Required" },
+    ] },
+    { kind: "text", key: "submitLabel", label: "Submit button label" },
+    { kind: "text", key: "successMessage", label: "Success message" },
+  ],
   // Menu items + submenus are edited by the dedicated MenuItemsEditor in the right
   // panel; these specs cover only presentational options.
   menu: [

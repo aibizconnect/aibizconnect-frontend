@@ -2,7 +2,7 @@ import type { ThemeTokens } from "@/lib/sections/theme";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
   FaqContent, GalleryContent, LogosContent, SocialContent, SliderContent,
-  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent, TickerContent,
+  CountdownContent, MapContent, QrContent, IconContent, AudioContent, TabsContent, TickerContent, SurveyContent,
 } from "@/lib/sections/schemas";
 import Countdown from "./Countdown";
 import Tabs from "./Tabs";
@@ -193,6 +193,34 @@ export function SliderSection({ content, theme }: { content: SliderContent; them
 
 export function TickerSection({ content }: { content: TickerContent; theme?: ThemeTokens }) {
   return <Ticker items={content.items ?? []} speed={content.speed ?? 30} bg={content.bg} color={content.color} separator={content.separator} direction={content.direction} />;
+}
+
+/** Editor-canvas PREVIEW of a survey (non-submitting). The live site renders the functional SiteSurvey. */
+export function SurveySection({ content, theme }: { content: SurveyContent; theme?: ThemeTokens }) {
+  const qs = content.questions ?? [];
+  return (
+    <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-5">
+      {content.heading && <h3 className="mb-3 text-lg font-semibold" style={{ color: primary(theme) }}>{content.heading}</h3>}
+      {qs.length === 0 ? <p className="text-sm text-slate-400">Add questions in the inspector.</p> : (
+        <div className="space-y-4">
+          {qs.map((q, i) => (
+            <div key={i}>
+              <div className="mb-1 text-sm font-medium text-slate-700">{q.label}{q.required ? " *" : ""}</div>
+              {(q.kind === "single" || q.kind === "multiple") && (
+                <div className="space-y-1">{(q.options ?? []).map((o, j) => (
+                  <label key={j} className="flex items-center gap-2 text-sm text-slate-600"><input type={q.kind === "single" ? "radio" : "checkbox"} disabled /> {o.text}</label>
+                ))}</div>
+              )}
+              {q.kind === "text" && <input disabled placeholder="Answer…" className="w-full rounded border border-slate-200 px-2 py-1 text-sm" />}
+              {q.kind === "email" && <input disabled placeholder="you@email.com" className="w-full rounded border border-slate-200 px-2 py-1 text-sm" />}
+              {q.kind === "rating" && <div className="text-lg text-amber-400">★★★★★</div>}
+            </div>
+          ))}
+          <button disabled className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: primary(theme) }}>{content.submitLabel || "Submit"}</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CountdownSection({ content, theme }: { content: CountdownContent; theme?: ThemeTokens }) {

@@ -11,7 +11,7 @@ import {
 import {
   BulletListSection, NumberCounterSection, ProgressBarSection, PricingSection,
   FaqSection, GallerySection, LogosSection, SocialSection, SliderSection,
-  CountdownSection, MapSection, QrSection, IconSection, AudioSection, TabsSection, TickerSection,
+  CountdownSection, MapSection, QrSection, IconSection, AudioSection, TabsSection, TickerSection, SurveySection,
 } from "./MoreSections";
 import { MenuSection } from "./MenuSection";
 import HeaderResponsive, { type HeaderNavItem } from "./HeaderResponsive";
@@ -312,6 +312,8 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
       return <TabsSection content={c} theme={theme} />;
     case "ticker":
       return <TickerSection content={c} theme={theme} />;
+    case "survey":
+      return <SurveySection content={c} theme={theme} />;
     case "menu":
       return <MenuSection content={c} theme={theme} bp={bp} />;
     default:
