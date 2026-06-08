@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { SectionType, SectionContent } from "@/lib/sections/schemas";
 import { PREBUILT_TEMPLATES, PREBUILT_CATEGORIES, applyTemplateImages, type PrebuiltTemplate } from "@/lib/sections/prebuilt-templates";
 import { listMedia } from "@/app/tenants/[tenantId]/website/actions";
+import { SectionView } from "@/components/sections/registry";
+import { DEFAULT_THEME } from "@/lib/sections/theme";
 
 /**
  * polished Add-Elements panel rendered as the LEFT column. A functional left sub-nav
@@ -93,28 +95,55 @@ function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?
   );
 }
 
-/** Prebuilt template tile — designed, ready-to-drop block. Drag onto the canvas (same
- *  text/abc-template payload as Saved Assets) or click to insert. Image slots are filled
- *  with the tenant's real Media Library images. Matches the Tile look. */
-function PrebuiltTile({ t, onInsert, imgUrls }: { t: PrebuiltTemplate; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[] }) {
+type HoverState = { t: PrebuiltTemplate; sections: SectionContent[]; top: number; left: number } | null;
+
+/** Prebuilt template tile — looks exactly like a regular element Tile (icon + label,
+ *  in the 2-col grid). No inline thumbnail; hovering opens a larger FLOATING preview
+ *  that renders the actual block. Drag onto the canvas or click to insert. */
+function PrebuiltTile({ t, onInsert, imgUrls, onHover }: { t: PrebuiltTemplate; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
   const filled = () => applyTemplateImages(t.sections, imgUrls);
+  const enter = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.min(r.right + 14, vw - 440);   // park to the right of the panel
+    const top = Math.max(12, Math.min(r.top - 8, vh - 360));
+    onHover({ t, sections: filled(), top, left });
+  };
   return (
     <button
       draggable
-      onDragStart={(e) => { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/abc-template", JSON.stringify(filled())); }}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/abc-template", JSON.stringify(filled())); onHover(null); }}
       onClick={() => onInsert?.(filled())}
+      onMouseEnter={enter}
+      onMouseLeave={() => onHover(null)}
       title={t.blurb}
-      className="group flex w-full cursor-grab items-center gap-2.5 rounded-xl border border-slate-200 p-3 text-left transition hover:-translate-y-0.5 hover:border-[#1e3a8a]/40 hover:shadow-sm active:cursor-grabbing">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#2563eb]/10 to-[#22d3ee]/10 text-lg">{t.icon}</span>
-      <span className="min-w-0">
-        <span className="block truncate text-[13px] font-semibold text-slate-700">{t.name}</span>
-        <span className="block truncate text-[11px] text-slate-400">{t.blurb} · drag or click</span>
-      </span>
+      className="group flex cursor-grab flex-col items-center gap-1.5 rounded-xl border border-slate-200 p-3 text-center transition hover:-translate-y-0.5 hover:border-[#1e3a8a]/40 hover:shadow-sm active:cursor-grabbing">
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-[#2563eb]/10 to-[#22d3ee]/10 text-base text-[#1e3a8a]">{t.icon}</span>
+      <span className="text-[11px] font-medium leading-tight text-slate-700">{t.name}</span>
     </button>
   );
 }
 
-function PrebuiltTemplates({ q, onInsert, imgUrls }: { q: string; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[] }) {
+/** Larger floating preview window — renders the actual sections (scaled) so you can see
+ *  exactly what the block looks like before dropping it. */
+function FloatingPreview({ hover }: { hover: NonNullable<HoverState> }) {
+  return (
+    <div className="pointer-events-none fixed z-[9999] w-[420px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+      style={{ top: hover.top, left: hover.left, maxHeight: "80vh" }}>
+      <div className="border-b border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+        {hover.t.name}<span className="font-normal text-slate-400"> — {hover.t.blurb}</span>
+      </div>
+      {/* Render at desktop width, then zoom down so the proportions are faithful. */}
+      <div style={{ zoom: 0.38 } as React.CSSProperties}>
+        <div style={{ width: 1100 }}>
+          {hover.sections.map((s, i) => <SectionView key={i} content={s as Record<string, unknown>} theme={DEFAULT_THEME} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrebuiltTemplates({ q, onInsert, imgUrls, onHover }: { q: string; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
   const ql = q.toLowerCase();
   return (
     <>
@@ -129,7 +158,7 @@ function PrebuiltTemplates({ q, onInsert, imgUrls }: { q: string; onInsert?: (se
         return (
           <div key={cat} className="mb-5">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{cat}</div>
-            <div className="flex flex-col gap-2">{items.map((t) => <PrebuiltTile key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} />)}</div>
+            <div className="grid grid-cols-2 gap-2">{items.map((t) => <PrebuiltTile key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>
           </div>
         );
       })}
@@ -159,6 +188,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [imgUrls, setImgUrls] = useState<string[]>([]);
+  const [hover, setHover] = useState<HoverState>(null);
 
   // Load the tenant's PHOTO images once so prebuilt templates can drop in using real photos.
   // Exclude brand assets (logos / wordmarks / mascot / icons) so a hero never gets a logo.
@@ -180,7 +210,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       case "sections": return <Groups groups={[SECTION_PRESETS]} q={q} onPick={onPick} />;
       case "rows": return <Groups groups={[ROWS_GROUP]} q={q} onPick={onPick} />;
       case "elements": return <Groups groups={elementGroups} q={q} onPick={onPick} />;
-      case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} />;
+      case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} />;
       case "saved": return savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections will appear here and in the Templates tool.</div>;
       case "market": case "store": return <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Coming soon.</div>;
       default: return <Groups groups={[ROWS_GROUP, ...ELEMENT_GROUPS]} q={q} onPick={onPick} />;
@@ -213,6 +243,9 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">{content}</div>
         {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
       </div>
+
+      {/* Floating preview of the hovered prebuilt block (rendered above everything). */}
+      {tab === "prebuilt" && hover && <FloatingPreview hover={hover} />}
     </div>
   );
 }
