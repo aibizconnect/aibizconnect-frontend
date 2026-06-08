@@ -133,7 +133,10 @@ export async function generateAiImages(params: GenerateAiImagesParams): Promise<
   if (!preset) return { mediaIds: [], generated: 0, skipped: `Unknown preset "${params.presetId}"` };
 
   const batchSize = params.batchSizeOverride ?? preset.batchSize;
-  const model = params.model || process.env.AI_IMAGE_MODEL || "imagen-4.0-generate-001";
+  // Don't force a model here. Leaving it undefined lets imagenGenerateAndImport run its
+  // cost ladder: free gemini-2.5-flash-image first, paid Imagen only as automatic fallback.
+  // (An explicit params.model still wins if a caller asks for a specific model.)
+  const model = params.model;
 
   // GATE: never call the provider / spend unless explicitly enabled with a key.
   if (!imageGenEnabled()) {
@@ -364,9 +367,13 @@ export async function imagenGenerateAndImport(
 
   // Cost policy (Ali's rule — "use the free one as much as possible"):
   //   primary  = the free native model (gemini-2.5-flash-image)
-  //   fallback = the paid Imagen model (env AI_IMAGE_MODEL or Imagen 4 Fast)
+  //   fallback = the paid Imagen safety net (Imagen 4 Fast)
   // An explicit opts.model overrides and is tried first (caller asked for it).
-  const paidModel = process.env.AI_IMAGE_MODEL || "imagen-4.0-fast-generate-001";
+  // AI_IMAGE_MODEL can override the *paid fallback* ONLY when it points at a non-native
+  // (Imagen :predict) model. If it's set to a native Gemini model we ignore it for the
+  // fallback so Imagen always stays the safety net (free Gemini is already the primary).
+  const envModel = process.env.AI_IMAGE_MODEL;
+  const paidModel = envModel && !isNativeImageModel(envModel) ? envModel : "imagen-4.0-fast-generate-001";
   const primary = opts?.model || FREE_NATIVE_MODEL;
   const fallback = opts?.model && opts.model !== paidModel ? paidModel
     : opts?.model ? undefined           // caller already asked for the paid model
