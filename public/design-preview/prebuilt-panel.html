@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prebuilt Sections panel — preview & options</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,sans-serif}
+  body{background:#eef1f5;color:#334155;padding:24px}
+  h1{font-size:18px;margin-bottom:4px;color:#0f172a}
+  .note{font-size:13px;color:#64748b;margin-bottom:18px}
+  .toggle{display:inline-flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;margin-bottom:18px}
+  .toggle button{padding:8px 16px;font-size:13px;font-weight:600;background:#fff;color:#475569;border:none;cursor:pointer}
+  .toggle button.on{background:#1e3a8a;color:#fff}
+  /* panel shell */
+  .panel{display:flex;width:520px;height:560px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden;position:relative}
+  .subnav{width:128px;flex-shrink:0;border-right:1px solid #f1f5f9;padding:10px 8px;font-size:13px;overflow:auto}
+  .subnav button{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:8px;border:none;background:none;color:#475569;cursor:pointer;font-size:13px}
+  .subnav button.on{background:#1e3a8a1a;color:#1e3a8a;font-weight:600}
+  .content{flex:1;min-width:0;padding:12px;overflow:auto}
+  .search{width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:12px}
+  .dropdown{display:none;width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:12px;background:#fff;font-weight:600;color:#334155}
+  .catlabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:6px 0 8px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1px solid #e2e8f0;border-radius:12px;cursor:grab;text-align:center;transition:.15s;background:#fff}
+  .tile:hover{transform:translateY(-2px);border-color:#1e3a8a66;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .tile .ic{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:linear-gradient(135deg,#2563eb1a,#22d3ee1a);color:#1e3a8a;font-size:16px}
+  .tile .nm{font-size:11px;font-weight:500;color:#334155;line-height:1.2}
+  /* floating preview */
+  .fp{position:fixed;width:420px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.22);overflow:hidden;pointer-events:none;opacity:0;transition:opacity .12s;z-index:50}
+  .fp.show{opacity:1}
+  .fp .hd{padding:7px 12px;font-size:11px;font-weight:600;color:#475569;background:#f8fafc;border-bottom:1px solid #f1f5f9}
+  .fp .hd span{font-weight:400;color:#94a3b8}
+  .fp .body{}
+  /* mini luxury hero rendered inside the floating preview */
+  .lux{background:#F7F4EF;padding:40px 24px;text-align:center;color:#1A1714}
+  .lux .eb{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#B08D57;font-weight:600;margin-bottom:10px}
+  .lux h2{font-family:'Playfair Display',serif;font-size:26px;line-height:1.1;margin-bottom:10px}
+  .lux p{font-size:12px;color:#5C544B;max-width:300px;margin:0 auto 16px}
+  .lux .b1{display:inline-block;background:#1A1714;color:#F7F4EF;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:9px 18px}
+  .lux .b2{display:inline-block;border:1px solid #1A1714;color:#1A1714;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:9px 18px;margin-left:8px}
+</style>
+</head>
+<body>
+
+<h1>Prebuilt Sections — panel preview</h1>
+<div class="note">This is a static mockup of the editor panel. Hover any tile in the <b>Contemporary Luxury</b> group to see the floating preview (your chosen style). Use the toggle to compare the two category layouts.</div>
+
+<div class="toggle">
+  <button id="t-side" class="on" onclick="setMode('side')">Side-nav groups (current)</button>
+  <button id="t-drop" onclick="setMode('drop')">GHL-style dropdown</button>
+</div>
+
+<div class="panel">
+  <div class="subnav">
+    <button>Quick Add</button>
+    <button>Sections</button>
+    <button>Rows</button>
+    <button>Elements</button>
+    <button class="on">Prebuilt Sections</button>
+    <button>Saved Assets</button>
+  </div>
+  <div class="content">
+    <input class="search" placeholder="Search" />
+    <select class="dropdown" id="dd"><option>Contemporary Luxury</option><option>Hero</option><option>Content</option><option>Social Proof</option><option>Conversion</option></select>
+
+    <div class="catlabel" id="cl">Contemporary Luxury</div>
+    <div class="grid">
+      <div class="tile" data-pv="Luxury — Hero · Ivory hero, serif headline, dual CTAs"><div class="ic">◆</div><div class="nm">Luxury — Hero</div></div>
+      <div class="tile" data-pv="Luxury — Feature Trio · Three bordered cards on ivory"><div class="ic">❖</div><div class="nm">Luxury — Feature Trio</div></div>
+      <div class="tile" data-pv="Luxury — Stat Counters · Animated counters, hairline band"><div class="ic">✦</div><div class="nm">Luxury — Stat Counters</div></div>
+      <div class="tile" data-pv="Luxury — Testimonial · Serif italic quote"><div class="ic">❝</div><div class="nm">Luxury — Testimonial</div></div>
+      <div class="tile" data-pv="Luxury — CTA Panel · Gold-tinted panel, glow button"><div class="ic">✷</div><div class="nm">Luxury — CTA Panel</div></div>
+      <div class="tile" data-pv="Luxury — Footer · Dark ink footer"><div class="ic">▭</div><div class="nm">Luxury — Footer</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- floating preview -->
+<div class="fp" id="fp">
+  <div class="hd" id="fphd"></div>
+  <div class="body">
+    <div class="lux">
+      <div class="eb">Bespoke Atelier</div>
+      <h2>Spaces composed with intention, crafted to endure.</h2>
+      <p>A considered approach — where material, light and proportion meet restraint.</p>
+      <span class="b1">Book a consultation</span><span class="b2">View portfolio</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setMode(m){
+    document.getElementById('t-side').classList.toggle('on', m==='side');
+    document.getElementById('t-drop').classList.toggle('on', m==='drop');
+    document.getElementById('cl').style.display = m==='side' ? '' : 'none';
+    document.getElementById('dd').style.display = m==='drop' ? 'block' : 'none';
+  }
+  var fp=document.getElementById('fp'), hd=document.getElementById('fphd');
+  document.querySelectorAll('.tile').forEach(function(t){
+    t.addEventListener('mouseenter', function(e){
+      var r=t.getBoundingClientRect();
+      hd.innerHTML = t.dataset.pv.replace(' · ',' <span>— ')+'</span>';
+      fp.style.top = Math.max(12, r.top-8)+'px';
+      fp.style.left = (r.right+14)+'px';
+      fp.classList.add('show');
+    });
+    t.addEventListener('mouseleave', function(){ fp.classList.remove('show'); });
+  });
+</script>
+</body>
+</html>
