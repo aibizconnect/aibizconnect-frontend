@@ -155,7 +155,13 @@ export function ButtonSection({ content, theme, onEditText }: { content: ButtonC
   else { base.color = txt || primary; base.background = "transparent"; }
   const full = content.fullWidth === "full";
   const rel = content.rel || (content.target === "_blank" ? "noopener noreferrer" : undefined);
-  const icon = content.icon ? <span aria-hidden>{content.icon}</span> : null;
+  // Icon can be an emoji/char OR an image/SVG (data-URI or URL) chosen via "Media".
+  const iconIsImg = !!content.icon && /^(data:|https?:|\/)/i.test(content.icon);
+  const icon = content.icon
+    ? (iconIsImg
+        ? <img src={content.icon} alt="" aria-hidden className="inline-block h-[1.1em] w-auto align-[-0.15em]" />
+        : <span aria-hidden>{content.icon}</span>)
+    : null;
   const left = content.iconPosition !== "right";
   // Per-button hover effect (content.hover): adds an abc-btnfx-* class. Color-dependent
   // effects (glow/fill) read --abc-btn-color, which we set to the button's own color.
