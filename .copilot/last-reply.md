@@ -1,240 +1,247 @@
-Ali — logging this cleanly into the project record.
-Your write‑up is already excellent; I’m only adding the minimal, high‑value items that matter for long‑term stability, compliance, and future engineers.
+See my thinking
 
-Below is the finalized documentation entry with only the additions worth keeping.
+You’ve hardened the plumbing—now it’s about taste encoded as systems.
 
-⭐ PROJECT RECORD — Media Connectors & Production Wiring (Completed & Live)
+Here’s the concrete, prioritized plan to get to “luxury, contemporary, editable all the way down” without losing fidelity.
 
-(Builder → Copilot: permanent engineering log)
+1. Lock in a design-token system (this is the foundation)
 
-Status
+Do this first. Everything else hangs off it.
 
-Media connectors (Google Drive + Canva) are fully implemented, verified in production, and Media Storage is now RE‑LOCKED.
-All media now flows through the unified R2‑backed storage layer with CDN caching and permanent URLs.
+Create a global design-token layer that every imported + generated section resolves through:
 
-Google Drive Connector (Per‑Tenant) — DONE
+Type scale
 
-OAuth scope: drive.readonly + email
+Define 6–8 tokens: display, h1–h4, body-lg, body, label.
 
-Encrypted per‑tenant token: google_drive (with refresh)
+Map imported fontSizes to nearest token (with a small tolerance).
 
-Server module: lib/server/google-drive.ts
+Generated sites use tokens only; imports get “snapped” where safe.
 
-Features:
+Spacing scale
 
-Browse Drive images
+Define a tight scale: 0, 4, 8, 12, 16, 24, 32, 40, 56, 72, 96.
 
-Multi-select import
+Map captured paddings/margins to nearest token.
 
-Sharp → WebP optimization
+Section _style stores both: rawPx + token (for future refinement).
 
-Upload to R2
+Radius + shadow (elevation)
 
-Insert into tenant’s website_media folder
+Radius tokens: none, sm, md, lg, pill.
 
-UI: DriveTab.tsx
+Shadow tokens: none, subtle, card, floating.
 
-Callback: /api/drive/callback
+Map imported values to nearest token; generator uses tokens only.
 
-Verified end‑to‑end in production.
+Why first:  
+This gives you a coherent visual language across imported and generated sites, and it’s compatible with “editable all the way down” because you store both raw + token.
 
-Canva Connector (Per‑Tenant) — DONE
+2. Introduce section-level layout presets (row + columns)
 
-OAuth 2.0 + PKCE
+You already have rowSchema with cols, gap, valign, colStyles. Turn that into named layout presets:
 
-Compliance note:
+hero-split (50/50 image + text)
 
-code_verifier not stored in state (forbidden by Canva)
+hero-centered (single column, max-width, center)
 
-Stored in short-lived HttpOnly SameSite=Lax cookie
+feature-grid-3 (3 equal cols)
 
-state contains only {tenantId, nonce} (encrypted)
+feature-grid-4
 
-Callback verifies nonce
+testimonial-carousel
 
-Async export job:
+logo-strip
 
-Create export
+cta-band
 
-Poll
+pricing-3-cols
 
-Retrieve PNG URLs
+faq-two-column
 
-Server module: lib/server/canva.ts
+Implementation:
 
-UI: CanvaTab.tsx
+Add layoutPreset?: string to rowSchema.
 
-Callback: /api/canva/callback
+For imports:
 
-Verified in production (Ali’s Canva account).
+Infer preset when pattern matches (e.g., 3 equal cols with cards → feature-grid-3).
 
-Platform & UX — DONE
+Still keep exact col widths in colStyles so fidelity is preserved.
 
-Platform Connected Apps:
+For generation:
 
-google_drive_platform_app
+Always start from a preset; then apply tokens + theme.
 
-canva_platform_app
+Why now:  
+Presets give you structure and rhythm—luxury sites feel intentional because the layouts repeat with variation, not chaos.
 
-Redirect URIs:
+3. Build a “design DNA” library (curated templates + theme presets)
 
-https://app.aibizconnect.app/api/drive/callback
+This is where “luxury” really comes from.
 
-https://app.aibizconnect.app/api/canva/callback
+Design DNA = curated combinations of:
 
-Folder rail:
+Theme presets
 
-Pinned: Google Drive / Canva / AI Images
+Typography pairings (e.g., serif display + sans body).
 
-Protected: no rename/delete/drag
+Color systems (muted neutrals + one accent, dark mode, warm luxury, tech minimal).
 
-Old “Canava” folder auto‑merged
+Radius/shadow defaults (sharp + no shadow vs soft + subtle shadow).
 
-Opening:
+Section templates
 
-Drive → Drive connector
+Fully designed sections using your presets:
 
-Canva → Canva connector
+Hero variants (image-left, image-right, full-bleed, video background).
 
-AI Images → AI generator
+Feature sections (cards, icon rows, staggered layouts).
 
-Bugfix: callbacks now redirect to /tenants/{id}/media.
+Testimonial layouts (cards, quotes, avatars).
 
-Production Environment — DONE
+CTAs, pricing, FAQs, footers.
 
-Custom domain: app.aibizconnect.app
+Architecture:
 
-CNAME → Vercel DNS
+Store templates as real sections JSON using your existing schema.
 
-Cloudflare grey-cloud
+Tag them with:
 
-Fixes all OAuth flows
+industry, tone (luxury, playful, corporate), complexity.
 
-Vercel env:
+Generator:
 
-NEXT_PUBLIC_SUPABASE_URL
+Picks a theme preset.
 
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+Picks section templates by archetype + industry.
 
-SUPABASE_SERVICE_ROLE_KEY
+Fills content (copy, images, CTAs) into those templates.
 
-SETTINGS_ENCRYPTION_KEY (matches local)
+Editable all the way down:  
+Because templates are just normal sections, every element is editable; you’re not introducing a separate “locked template” system.
 
-R2_* (5 vars)
+4. Motion + whitespace defaults (subtle but high impact)
 
-AI_IMAGE_GEN_ENABLED
+Once tokens + presets + DNA exist, add gentle motion + breathing room:
 
-DB fix:
+Whitespace
 
-tenant_secrets table was missing (0031 never applied)
+Default section vertical padding from spacing tokens (e.g., 56 or 72).
 
-Created table
+Ensure first/last sections have slightly more breathing room.
 
-Re-saved platform app creds
+For imports: keep captured padding but snap to nearest token where it doesn’t break layout.
 
-Decryption verified
+Motion
 
-Security:
+Add a small set of animation tokens:
 
-Superadmins cannot be deactivated
+fade-in-up, fade-in, scale-in, staggered-list.
 
-UI + server enforcement
+Attach them at the section/row level:
 
-Next (In Progress)
+animationPreset?: string.
 
-Sharp upload resizing
+Generator uses them sparingly (e.g., hero + first feature + CTA).
 
-≤1920px hero
+Imports: default to none unless user opts in.
 
-WebP
+Key:  
+Luxury = calm motion + generous whitespace, not flashy.
 
-Skip SVG/GIF
+5. Preserve fidelity while staying editable (system vs user vs captured)
 
-R2-down fallback
+To avoid losing captured fidelity while still being editable:
 
-If R2 PUT fails → Supabase Storage
+For each block/row, store:
 
-Ensures no broken uploads
+capturedStyle (from importer, raw computed values).
 
-After this: Media re-lock stays enforced
+systemStyle (tokens + theme-driven defaults).
 
-Future (Planned)
+userStyle (editor overrides).
 
-Tenant Media Connectors:
+Render order:
 
-Google Drive (full asset import)
+Start from systemStyle (tokens + theme).
 
-Canva (design import)
+Overlay capturedStyle where it materially affects layout (e.g., band bg, major padding).
 
-Logging & monitoring
+Overlay userStyle (always wins).
 
-Canva app review for multi-tenant production use
+Behavior:
 
-⭐ Recommended Additions (Copilot’s review)
+Imported sites:
 
-These are the only items I’d add to the record — all are practical, low‑noise, and relevant.
+Initially lean more on capturedStyle to look faithful.
 
-1. R2 CORS Policy (Required for Editor & Media Library)
+As user edits, userStyle gradually replaces it.
 
-Add CORS rules to R2 bucket:
+Generated sites:
 
-Allowed origins:
+Use systemStyle only; no capturedStyle.
 
-https://app.aibizconnect.app
+This keeps imports faithful, but lets you normalize toward your design system over time.
 
-https://*.aibizconnect.app
+6. Tie generator to real-world references (you already started this)
 
-http://localhost:3000
+You already have competitor-research.ts and blueprint.ts.
 
-Methods: GET, PUT, DELETE, HEAD
+Upgrade them to:
 
-Headers: content-type, authorization, x-amz-acl
+Choose theme preset based on competitor cluster (e.g., dark tech vs light wellness).
 
-2. R2 Lifecycle Rules
+Choose section templates from the design DNA library instead of synthesizing raw rows.
 
-Optional but recommended:
+Use imported competitor sites only to:
 
-Auto-delete temporary uploads
+influence theme (colors, type)
 
-Auto-clean unused thumbnails
+influence section ordering
 
-Auto-transition large assets to cheaper storage class
+influence density (how many sections, how long pages feel)
 
-3. Monitoring / Alerts
+This gives you “inspired by” rather than “copied from”, and keeps everything within your curated luxury system.
 
-Add alerts for:
+Concrete implementation order
 
-R2 storage growth
+Design tokens layer
 
-R2 error rates
+Type, spacing, radius, shadow tokens.
 
-Supabase fallback usage
+Map imports to tokens (store raw + token).
 
-OAuth connector failures
+Section layout presets
 
-Media migration anomalies
+Add layoutPreset to rowSchema.
 
-4. Media Path Convention
+Infer presets on import where obvious.
 
-Document canonical path format:
+Use presets for generation.
 
-<tenantId>/<uuid>.<ext>
+Design DNA library
 
-This ensures predictable organization and future multi-region replication.
+Theme presets + curated section templates.
 
-⭐ Final Verdict
+Generator composes from these, not raw.
 
-This is a textbook-perfect implementation of multi-tenant media connectors and R2-backed storage.
-The only additions worth logging are:
+Motion + whitespace defaults
 
-R2 CORS
+Section padding from spacing tokens.
 
-Lifecycle rules
+Add subtle animation presets.
 
-Monitoring
+capturedStyle / systemStyle / userStyle
 
-Path conventions
+Implement merge order.
 
-Everything else is already excellent and production-grade.
+Imports use captured+system; generated use system; user always wins.
+
+If you follow that order, you’ll get:
+
+imports that look like the real site but are still editable, and
+
+generated sites that feel coherent, intentional, and high-end, not generic.
 
 Edit in a page

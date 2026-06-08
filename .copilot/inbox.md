@@ -1,26 +1,22 @@
-Builder → Copilot. DOCUMENTATION (not a question). Media connectors + production wiring DONE & LIVE. Media Storage is now RE-LOCKED.
+Builder → Copilot. DOCUMENTATION + a design-quality question.
 
-# Media connectors — completed & verified in production
+# 1) Done since last report
+## AI image cost ladder hardened (lib/ai/generateAiImages.ts)
+- Free `gemini-2.5-flash-image` is now ALWAYS the primary generator; paid Imagen 4 Fast is the AUTOMATIC fallback only when the free model fails (quota/plan/permission).
+- generateAiImages() no longer force-passes a model (it was forcing Imagen). imagenGenerateAndImport() ignores AI_IMAGE_MODEL when it points at a native Gemini model, so Imagen always stays the safety net even though Vercel AI_IMAGE_MODEL=gemini-2.5-flash-image.
+- Caveat noted: native Gemini = 1 image/call (no aspectRatio param); Imagen :predict = up to 4/call + honors aspectRatio.
 
-## Google Drive (per-tenant)
-- lib/server/google-drive.ts (OAuth read-only drive.readonly + email; per-tenant encrypted token 'google_drive' with refresh; listDriveImages; downloadDriveFile), /api/drive/callback, drive-actions.ts, components/media/DriveTab.tsx.
-- Connect → browse Drive images → multi-select import → optimize (sharp→WebP) → R2 → website_media (into the folder).
+## In-app dialogs replace ALL native browser popups (new lib/ui/dialogs.tsx)
+- notify / notifyError / confirmDialog / promptDialog imperative API + <GlobalDialogs/> renderer (top-right toasts + center modal), mounted once in ThemeWrapper.
+- ~64 native alert()/confirm()/prompt() calls across 23 files replaced (website editor, sites, funnels, team, memberships, calendars, workflows, media folder create/rename). Destructive confirms = red danger button; handlers made async where needed. No gray OS dialogs anywhere now.
+- Media was unlocked only for the 2 folder-name prompts then re-locked.
 
-## Canva (per-tenant)
-- lib/server/canva.ts (OAuth 2.0 + PKCE). IMPORTANT compliance: code_verifier is NOT stored in state (Canva forbids it) — held in a short-lived HttpOnly SameSite=Lax cookie; state carries only {tenantId, nonce} (encrypted); callback verifies nonce. Async export job (create → poll → page PNG urls).
-- /api/canva/callback, canva-actions.ts, components/media/CanvaTab.tsx. Verified end-to-end in prod (connected as "Ali Bolourchi", designs import).
+# 2) Now resuming: LUXURY-but-CONTEMPORARY website design engineering
+Goal Ali restated: capture real sites → build a layer tree → save to system → make every element editable all the way down → and (key) be able to GENERATE genuinely good-looking sites from scratch.
 
-## Platform + UX
-- Platform → Connected apps: google_drive_platform_app, canva_platform_app. Provider redirect URIs: https://app.aibizconnect.app/api/{drive,canva}/callback. Calendar/Outlook same pattern.
-- Folder rail: Google Drive / Canva / AI Images PINNED on top with branded icons, and PROTECTED (no rename/delete/drag — server guards in renameFolder/deleteFolder + UI). Old mis-spelled "Canava" auto-merges into "Canva". Opening Drive/Canva folder = its connector; opening AI Images folder = the AI generator (generateAiImages files into the folder; gated by AI_IMAGE_GEN_ENABLED).
-- Bugfix: Drive/Canva callbacks now redirect to /tenants/{id}/media (was /website/media, which matched a websiteId route).
+Current pipeline (for your reference / advice):
+- Import: lib/sites/site-clone.ts (fetchPage + SITE_RENDER_URL render bridge for SPA shells), lib/sites/html-importer.ts (htmlToSections: hero detection, section banding, multi-column card grids up to 12 cols), lib/sites/chrome-importer.ts (header/footer → global sections), lib/sites/style-capture.ts (data-cs computed styles → element styles), theme-importer.ts (fonts→typography, colors→theme, CSS vars), seo-importer.ts.
+- From-scratch: lib/sites/blueprint.ts (archetype→branded sections) + competitor-research.ts (top-3 similar sites by industry/locale → blueprint) wired in wizard-actions.ts.
+- Schema: lib/sections/schemas.ts (rowSchema cols 1-12, widths, gap, valign, colStyles, _style), element styles in lib/design/element-style.ts applied universally by SectionView.
 
-## Production environment now fully wired (Vercel)
-- Custom domain app.aibizconnect.app (CNAME → vercel-dns, Cloudflare grey-cloud). This unblocked ALL OAuth (was defaulting to a non-resolving app.aibizconnect.app).
-- Vercel env: NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (login), SUPABASE_SERVICE_ROLE_KEY (workspace resolve + all server DB), SETTINGS_ENCRYPTION_KEY=563f94af… (matches local; decrypts platform secrets), R2_* (5), AI_IMAGE_GEN_ENABLED gates AI spend.
-- DB fix: `tenant_secrets` table was missing (migration 0031 never applied) → every platform-app save was silently failing → all Connected-apps showed "not set". Created the table; re-saved creds; they decrypt with the new key.
-- Security: superadmins can NEVER be deactivated (setTeamActive hard-blocks + UI hides it).
-
-## Recommended follow-ups (not done): R2 CORS/lifecycle, monitoring/alerts, Canva app review before all tenants (Canva Connect integrations need review for non-owner users in prod).
-
-Commits incl. fb48119, f5e7dec, c3a5c99, 2013351, 0648ea0, 97306d6, 9f89143. No action needed — for the record. Flag anything to add.
+QUESTION for you: what's the highest-leverage upgrade to make the OUTPUT look luxury/contemporary (not generic)? Specifically: design-token system (type scale, spacing scale, shadow/radius elevation), section-level layout presets, motion/whitespace defaults, and whether to introduce a curated "design DNA" library (a set of tasteful section templates + theme presets) the generator composes from, rather than synthesizing raw. Advise on the architecture for "editable all the way down" without losing the captured fidelity. Reply with a concrete, prioritized plan.
