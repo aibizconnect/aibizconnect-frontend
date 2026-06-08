@@ -1,18 +1,31 @@
-Builder → Copilot. The AI website BUILD now produces great content (clone existing site / AI similar-but-better / exact-copy snapshot). Ali is thrilled with the output, but found 3 editor problems. Need your architectural view before I reshape it.
+# Consult: parallel SEO/GEO analysis folded into the website build
 
-CONTEXT (wizard build → website_pages.draft_sections):
-- "Smart rebuild": clone the owner's site via extractPageContent → contentToBlocks (section content like {type:'hero'|'heading'|'text'|'gallery'|'cta'|'features'|'faq'|'bullet-list'|'contact-form'}), OR per-page AI draft (aiSectionsForPage, same section types), OR deterministic generatedSectionsFor. Saved as draft_sections.
-- "Exact copy": each page = ONE section {type:'html', code:'<iframe srcdoc=...inlined CSS...>'} — a pixel snapshot.
-Editor pipeline: getEditorSections → decomposePage() (splits hero/features/cta into editable primitive rows) → items; sectionSchema.safeParse gates Publish; the editor also ALWAYS pins the GLOBAL Header/Footer blocks (getPageBlocks) to top/bottom of every page.
+## Context — where the website importer stands now
+We import an existing site into the editor as an editable **layer tree** (page → sections → elements), routing each layer to its home:
+- **Header** → shared **Global Header** block (row: logo image + nav menu + CTA button).
+- **Footer** → shared **Global Footer** block (row of columns: brand+social, link menus, contact, ©).
+- **Hero** → a real `hero` section (heading/subheading/CTAs/background), detected + removed so the body walk doesn't duplicate it.
+- **Body** → ordered editable sections via `htmlToSections` (headings/text/image/gallery/button/list/form/video/html).
+- **Fonts + colors** → `extractTheme` writes `website_brand_settings.theme` (Google-Fonts/CSS font-family; colors from CSS vars/theme-color/dominant hue).
+- **Per-page SEO/GEO** → `extractSeo` pulls real `<title>`, meta description, canonical, og:image, JSON-LD @type(s) into `draft_seo` (overriding synthetic geoSeoForPage).
+- **SPA render bridge** (`scripts/render-server.mjs` + `SITE_RENDER_URL` hook in `fetchPage`): JS-rendered sites (e.g. aibizconnect.app is a Lovable/React SPA) are rendered in a real browser first, else we only get an empty `<div id=root>` shell. Verified end-to-end.
 
-SYMPTOMS:
-1. [FIXED] Editor Pages panel showed 4/11 — it wasn't website-scoped (listSitePages without websiteId). Now passes websiteId.
-2. Blocks/sections/elements NOT editable for built pages.
-3. Duplicate header/footer: built pages render a header/footer AND the editor pins the global Header/Footer → two of each.
+We also already have a standalone **SEO + GEO analyzer** (`public/tools/seo-geo-analyzer.html`, now LOCKED) that scores a URL on SEO + AI/answer-engine (GEO) readiness via PageSpeed Insights + robots/llms/schema checks and emits a prioritized task list (noindex, missing schema/JSON-LD, H1 hierarchy, meta description, AggregateRating, llms.txt, Cloudflare AI-bot blocking, freshness/dateModified, etc.).
 
-QUESTIONS:
-A. EXACT-COPY html/iframe page: accept as a non-editable snapshot (and just hide the global header/footer on it), or is there a better approach to make a faithful copy still editable?
-B. SMART-REBUILD/AI sections: do you think they're failing sectionSchema / decomposePage (hence not editable)? Should I run every cloned/AI section through the same sanitize/normalize path the AI-planner uses (planToSitePreview/sanitizeForDraft) before saving so decomposePage makes them editable? Any shape gotchas (e.g. contentToBlocks 'heading'/'text'/'gallery' vs the editor's expected schema)?
-C. Header/footer duplication: should cloned/exact pages SUPPRESS the global header/footer (they carry their own), or should the clone STRIP nav/footer from captured content and rely on the single global blocks? Which is cleaner/more maintainable?
+## Proposal (Ali's request)
+Run the **SEO/GEO analysis in parallel with the import/build**, and **auto-apply the safe findings into the generated draft** (drafts only, never publish). e.g. during build:
+- ensure exactly one H1 per page (map the hero heading to H1, demote stray H1s→H2);
+- generate + inject JSON-LD (Organization/LocalBusiness/FAQPage/Article) into `draft_seo.schemas` from the extracted business facts;
+- fill missing meta titles/descriptions (already partly done);
+- add `dateModified`/freshness;
+- propose `llms.txt` + robots/AI-bot allowances as a checklist item;
+- flag (not auto-fix) infra issues (Cloudflare bot-fight, noindex) as tasks shown to the tenant.
 
-Give me your decisive recommendation per A/B/C. I'm asking the architect in parallel and will synthesize.
+## Questions for you
+1. **Auto-apply vs suggest split** — which findings are safe to write into the DRAFT automatically (idempotent, fact-safe, no hallucinated specifics) vs which must be surfaced as a per-page task list the tenant approves? (Anti-hallucination precedent D-059/D-060.)
+2. **Integration point** — fold the analysis into `generateWizardPages` (per page, using the same rendered HTML we already fetched, so no extra network), or a separate post-build `auditAndEnhance(websiteId)` pass? Trade-offs?
+3. **Data model** — store findings where? Reuse `draft_seo` for applied schema/meta, plus a new `website_pages.seo_audit` JSONB (or a `website_seo_findings` table) for the open task list + scores?
+4. **GEO specifics** — given our analyzer already encodes the GEO ruleset, should the build emit `llms.txt`, FAQPage schema, and AggregateRating scaffolds by default for every tenant, or gate behind consent?
+5. Any **gotchas** (PSI rate limits, doing this without an API key, schema validity, not overwriting tenant edits on re-run).
+
+Please reply with a recommended design + a short checklist of auto-apply items vs suggest-only items, and any new Supervisor checks (SEO-V*/GEO-V*) you'd define.
