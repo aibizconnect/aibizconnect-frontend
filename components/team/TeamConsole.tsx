@@ -102,7 +102,7 @@ export default function TeamConsole({ initial, isOwner = false }: { initial: Tea
                   {m.active ? <span className="text-xs text-emerald-600">● Active</span> : <span className="text-xs text-slate-400">○ Deactivated</span>}
                   {!m.confirmed && <span className="ml-1 text-xs text-amber-500">(unconfirmed)</span>}
                 </td>
-                <td className="px-4 py-2 text-xs text-slate-400">{m.lastSignInAt ? new Date(m.lastSignInAt).toLocaleDateString() : "never"}</td>
+                <td className="px-4 py-2 text-xs text-slate-400">{m.lastSignInAt ? new Date(m.lastSignInAt).toISOString().slice(0, 10) : "never"}</td>
                 <td className="px-4 py-2 text-right">
                   {m.role === "superadmin" && !isOwner ? (
                     <span className="text-xs text-slate-300">—</span>

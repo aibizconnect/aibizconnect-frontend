@@ -80,6 +80,10 @@ button{
 .cta-pill{background:#fff;color:#203f96;border:1px solid #fff;border-radius:50px;padding:9px 20px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap;letter-spacing:.01em}
 .cta-pill:hover{background:#e8efff;color:#203f96;transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.25)}
 
+/* Embed mode: slim toolbar (marketing logo/links/CTA removed for in-platform iframe) */
+.header--embed{justify-content:center;gap:8px;height:54px}
+.header--embed .header-nav{justify-content:center}
+
 /* Legacy nav-btn alias — keep for any stray references */
 .nav-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#b0c0e0;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .2s}
 .nav-btn:hover,.nav-btn.active{background:var(--blue-mid);color:#fff;border-color:var(--blue-mid)}
@@ -237,7 +241,7 @@ button{
 .clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#b0c0e0;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer}
 .tracker-empty{padding:32px;text-align:center;color:var(--muted);font-size:14px}
 .tracker-list{padding:0}
-.tracker-row{display:grid;grid-template-columns:1fr 80px 80px 90px 100px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--gray-mid);gap:8px;font-size:13px}
+.tracker-row{display:grid;grid-template-columns:1fr 70px 70px 150px 180px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--gray-mid);gap:8px;font-size:13px}
 .tracker-row:last-child{border-bottom:none}
 .tracker-row.header{background:var(--gray-light);font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .tracker-url{color:var(--blue);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
@@ -245,6 +249,10 @@ button{
 .score-pill{font-weight:700;font-size:13px}
 .re-analyze{background:var(--blue-mid);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
 .re-analyze:hover{background:var(--blue)}
+.re-analyze.view-run{background:#fff;color:var(--blue);border:1px solid var(--blue-mid)}
+.re-analyze.view-run:hover{background:#eef4ff;color:var(--blue)}
+.tracker-row.active{background:#eef4ff;box-shadow:inset 3px 0 0 var(--blue-mid)}
+.tracker-row.active .tracker-url{font-weight:700}
 
 /* RESULT URL BAR */
 .result-url-bar{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -434,25 +442,12 @@ button{
 </head>
 <body>
 
-<!-- HEADER -->
-<header class="header">
-  <div class="logo-area">
-    <img class="logo-svg" src="https://assets.cdn.filesafe.space/yDwou55cNKwHB5cg0Frs/media/6a0e9c45a33d272edaa00e14.png" alt="AI Biz Connect Logo"/>
-  </div>
+<!-- HEADER (marketing chrome removed for in-platform embed; only the view toggle remains) -->
+<header class="header header--embed">
   <nav class="header-nav">
-    <a href="https://www.AIBizConnect.ca" class="nav-link" data-site target="_blank">Home</a>
-    <a href="https://www.AIBizConnect.ca/services" class="nav-link" data-site target="_blank">Services ▾</a>
-    <a href="https://www.AIBizConnect.ca/education" class="nav-link" data-site target="_blank">Education</a>
-    <a href="https://www.AIBizConnect.ca/community" class="nav-link" data-site target="_blank">Community</a>
-    <a href="https://www.AIBizConnect.ca/about" class="nav-link" data-site target="_blank">About</a>
-    <a href="https://www.AIBizConnect.ca/contact" class="nav-link" data-site target="_blank">Contact</a>
-    <span class="nav-divider"></span>
     <button class="nav-link nav-btn active" onclick="showView('analyzer')">Analyzer</button>
     <button class="nav-link nav-btn" onclick="showView('tracker')">Tracker <span id="tracker-count"></span></button>
   </nav>
-  <div class="header-cta">
-    <a href="https://aibizconnect.ca/initial-strategy-session" class="cta-pill" target="_blank">Book Consultation ⊕</a>
-  </div>
 </header>
 
 <!-- HERO -->
@@ -626,65 +621,7 @@ button{
 
 </main>
 
-<footer class="site-footer">
-  <div class="footer-grid">
-    <!-- Col 1: Brand -->
-    <div class="footer-col footer-brand">
-      <img class="footer-logo" src="https://assets.cdn.filesafe.space/yDwou55cNKwHB5cg0Frs/media/6a0e9c45a33d272edaa00e14.png" alt="AI Biz Connect"/>
-      <p class="footer-tagline">Canada's AI Business Automation Consultancy. We build the systems that run your business while you focus on growth.</p>
-      <div class="footer-social">
-        <a class="social-icon" href="https://www.facebook.com/aibizconnect" target="_blank" aria-label="Facebook">f</a>
-        <a class="social-icon" href="https://www.instagram.com/aibizconnect" target="_blank" aria-label="Instagram">✦</a>
-        <a class="social-icon" href="https://www.linkedin.com/company/aibizconnect" target="_blank" aria-label="LinkedIn">in</a>
-        <a class="social-icon" href="https://www.youtube.com/@aibizconnect" target="_blank" aria-label="YouTube">▶</a>
-      </div>
-    </div>
-    <!-- Col 2: Quick Links -->
-    <div class="footer-col">
-      <h4>Quick Links</h4>
-      <ul>
-        <li><a href="https://www.AIBizConnect.ca" target="_blank">Home</a></li>
-        <li><a href="https://www.AIBizConnect.ca/services" target="_blank">Services</a></li>
-        <li><a href="https://www.AIBizConnect.ca/education" target="_blank">Education</a></li>
-        <li><a href="https://www.AIBizConnect.ca/community" target="_blank">Community</a></li>
-        <li><a href="https://www.AIBizConnect.ca/about" target="_blank">About</a></li>
-        <li><a href="https://www.AIBizConnect.ca/contact" target="_blank">Contact</a></li>
-      </ul>
-    </div>
-    <!-- Col 3: Our Services -->
-    <div class="footer-col">
-      <h4>Our Services</h4>
-      <ul>
-        <li><a href="https://www.AIBizConnect.ca/ai-automation" target="_blank">AI Automation</a></li>
-        <li><a href="https://www.AIBizConnect.ca/ai-consulting" target="_blank">AI Consulting</a></li>
-        <li><a href="https://www.AIBizConnect.ca/seo-geo" target="_blank">SEO &amp; GEO</a></li>
-        <li><a href="https://www.AIBizConnect.ca/lead-generation" target="_blank">Lead Generation</a></li>
-        <li><a href="https://www.AIBizConnect.ca/ghl-buildout" target="_blank">GHL Buildout</a></li>
-        <li><a href="https://www.AIBizConnect.ca/software-integration" target="_blank">Software Integration</a></li>
-      </ul>
-    </div>
-    <!-- Col 4: Contact Details -->
-    <div class="footer-col">
-      <h4>Contact Details</h4>
-      <div class="footer-contact-item">
-        <span class="footer-contact-icon">✉</span>
-        <a href="mailto:info@aibizconnect.ca">info@aibizconnect.ca</a>
-      </div>
-      <div class="footer-contact-item">
-        <span class="footer-contact-icon">📞</span>
-        <span>+1 (416) 727-7111</span>
-      </div>
-      <div class="footer-contact-item">
-        <span class="footer-contact-icon">📍</span>
-        <span>Richmond Hill, Ontario</span>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <span>© Copyright 2024–2026. AI Biz Connect. All rights reserved.</span>
-    <a href="https://www.AIBizConnect.ca" target="_blank">www.AIBizConnect.ca</a>
-  </div>
-</footer>
+<!-- Marketing footer removed for in-platform embed (captured to /captured-assets/aibizconnect-ca-header-footer.html). -->
 
 <!-- SCHEMA GUIDE MODAL -->
 <div class="sg-overlay" id="sgOverlay" style="display:none" onclick="closeSchemaGuide(event)">
@@ -2276,47 +2213,71 @@ function renderAuditTable(audits, geoFactors){
   }).join('');
 }
 
-// ── TRACKER ───────────────────────────────────────────────────────
+// ── HISTORY / TRACKER ─────────────────────────────────────────────
+// Each analysis is stored as its own timestamped RECORD (a snapshot of the
+// full results view), so we never re-analyze just to look at past data.
+// Clicking a record shows that snapshot; "Re-Analyze" creates a NEW record.
+const RUNS_KEY = 'seo_runs';
+let activeRunId = null;
+
+function getRuns(){ try{ return JSON.parse(localStorage.getItem(RUNS_KEY)||'[]'); }catch(e){ return []; } }
+function setRuns(r){ localStorage.setItem(RUNS_KEY, JSON.stringify(r)); }
+
+// Called at the end of renderResults — snapshots the finished results DOM as a new record.
 function saveToTracker(url, seoScore, geoScore){
-  let history = JSON.parse(localStorage.getItem('seo_history')||'[]');
-  // Remove existing entry for same URL
-  history = history.filter(h=>h.url!==url);
-  history.unshift({url, seoScore, geoScore, date:new Date().toLocaleDateString()});
-  // Keep max 20
-  history = history.slice(0,20);
-  localStorage.setItem('seo_history', JSON.stringify(history));
+  const runs = getRuns();
+  const now = new Date();
+  const id = 'run_' + now.getTime() + '_' + Math.floor(Math.random()*1e4);
+  let report = null; try{ report = JSON.parse(JSON.stringify(reportData)); }catch(e){}
+  runs.unshift({
+    id, url, seoScore, geoScore,
+    ts: now.toISOString(),
+    label: now.toLocaleString(),
+    html: document.getElementById('state-results').innerHTML,
+    report
+  });
+  setRuns(runs.slice(0, 60));   // newest first, cap 60 records
+  activeRunId = id;
 }
 
 function updateTrackerCount(){
-  const history = JSON.parse(localStorage.getItem('seo_history')||'[]');
   const el=document.getElementById('tracker-count');
-  if(history.length) el.textContent='('+history.length+')';
+  if(!el) return;
+  const n = getRuns().length;
+  el.textContent = n ? '('+n+')' : '';
+}
+
+function latestRunFor(url){
+  const norm = (u)=> (u||'').replace(/\/+$/,'').toLowerCase();
+  return getRuns().find(r=> norm(r.url)===norm(url)) || null;
 }
 
 function renderTracker(){
-  const history = JSON.parse(localStorage.getItem('seo_history')||'[]');
+  const runs = getRuns();
   const el=document.getElementById('trackerBody');
-  if(!history.length){
-    el.innerHTML='<div class="tracker-empty">No sites tracked yet. Analyze a URL to start tracking.</div>';
+  if(!runs.length){
+    el.innerHTML='<div class="tracker-empty">No analyses yet. Analyze a URL to create your first record.</div>';
     return;
   }
-
   el.innerHTML=`
     <div class="tracker-list">
       <div class="tracker-row header">
         <span>URL</span>
         <span>SEO</span>
         <span>GEO</span>
-        <span class="tracker-date">Date</span>
+        <span class="tracker-date">Date / Time</span>
         <span></span>
       </div>
-      ${history.map(h=>`
-        <div class="tracker-row">
-          <span class="tracker-url" onclick="reAnalyze('${h.url}')" title="${h.url}">${h.url.replace(/^https?:\/\//,'')}</span>
-          <span class="score-pill" style="color:${scoreColor(h.seoScore)}">${h.seoScore}</span>
-          <span class="score-pill" style="color:${scoreColor(h.geoScore)}">${h.geoScore}</span>
-          <span class="tracker-date" style="color:var(--muted);font-size:12px">${h.date}</span>
-          <button class="re-analyze" onclick="reAnalyze('${h.url}')">Re-Analyze</button>
+      ${runs.map(r=>`
+        <div class="tracker-row${r.id===activeRunId?' active':''}">
+          <span class="tracker-url" onclick="viewRun('${r.id}')" title="View this saved analysis — ${r.url}">${r.url.replace(/^https?:\/\//,'')}</span>
+          <span class="score-pill" style="color:${scoreColor(r.seoScore)}">${r.seoScore}</span>
+          <span class="score-pill" style="color:${scoreColor(r.geoScore)}">${r.geoScore}</span>
+          <span class="tracker-date" style="color:var(--muted);font-size:12px">${r.label||''}</span>
+          <span style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="re-analyze view-run" onclick="viewRun('${r.id}')" title="Show this saved record">View</button>
+            <button class="re-analyze" onclick="reAnalyze('${r.url.replace(/'/g,"\\'")}')" title="Run a fresh analysis (creates a new record)">Re-Analyze</button>
+          </span>
         </div>
       `).join('')}
     </div>
@@ -2330,20 +2291,39 @@ function scoreColor(s){
   return 'var(--red)';
 }
 
-function reAnalyze(url){
-  document.getElementById('urlInput').value=url;
-  showView({target:document.querySelector('.nav-btn')});
-  // Navigate to analyzer
+function gotoAnalyzer(){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-analyzer').classList.add('active');
-  document.querySelector('.nav-btn').classList.add('active');
-  analyze(url);
+  const b=document.querySelector('.nav-btn'); if(b) b.classList.add('active');
+}
+
+// View a SAVED record — no network call, just re-display the stored snapshot.
+function viewRun(id){
+  const run = getRuns().find(r=>r.id===id);
+  if(!run){ return; }
+  activeRunId = id;
+  gotoAnalyzer();
+  const sr = document.getElementById('state-results');
+  sr.innerHTML = run.html;
+  if(run.report){ try{ reportData = run.report; }catch(e){} }
+  lastAnalyzedUrl = run.url;
+  const inp=document.getElementById('urlInput'); if(inp && !inp.readOnly) inp.value = run.url;
+  showState('results');
+  // Re-run the circle animation from the saved scores (snapshot froze them mid-animation).
+  setTimeout(()=>{ try{ animateCircle('seoCircle', run.seoScore); animateCircle('geoCircle', run.geoScore); }catch(e){} }, 60);
+}
+
+function reAnalyze(url){
+  document.getElementById('urlInput').value=url;
+  gotoAnalyzer();
+  analyze(url);   // saveToTracker() inside renderResults will create a NEW record
 }
 
 function clearTracker(){
-  if(confirm('Clear all tracked sites?')){
-    localStorage.removeItem('seo_history');
+  if(confirm('Delete all saved analysis records? This cannot be undone.')){
+    localStorage.removeItem(RUNS_KEY);
+    activeRunId = null;
     renderTracker();
     updateTrackerCount();
   }
@@ -2374,7 +2354,15 @@ updateKeyStatus();
         var clr = document.querySelector('.clear-btn'); if(clr) clr.style.display='none';
       }
     }
-    if(typeof analyze === 'function'){ setTimeout(function(){ try{ analyze(dom); }catch(e){} }, 350); }
+    // History-first, NEVER auto-analyze: if this domain was analyzed before,
+    // show the latest saved record. Otherwise just pre-fill the URL and wait
+    // for the user to click Analyze (no automatic network call on load).
+    setTimeout(function(){
+      try{
+        var prior = (typeof latestRunFor==='function') ? latestRunFor(dom) : null;
+        if(prior){ viewRun(prior.id); }
+      }catch(e){}
+    }, 350);
   }catch(e){}
 })();
 </script>
