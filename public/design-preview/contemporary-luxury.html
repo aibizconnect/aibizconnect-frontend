@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Design DNA — Contemporary Luxury (preview)</title>
+<!-- Exact fonts the aesthetic injects -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+<style>
+  /* ── exact Contemporary Luxury tokens (lib/sites/design-dna.ts) ── */
+  :root{
+    --ivory:#F7F4EF; --white:#FFFFFF; --panel:#F1EADD;
+    --ink:#1A1714; --body:#5C544B; --gold:#B08D57; --hair:#E4DCCE;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ivory);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1200px;margin:0 auto;padding-left:24px;padding-right:24px}
+  .eyebrow{font-size:13px;font-weight:600;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+  h1{font-family:'Playfair Display',serif;font-size:66px;font-weight:600;line-height:1.04;letter-spacing:-.6px}
+  h2{font-family:'Playfair Display',serif;font-size:42px;font-weight:600;line-height:1.14;letter-spacing:-.4px}
+  h3{font-family:'Playfair Display',serif;font-size:27px;font-weight:500;line-height:1.25}
+  .sub{font-size:20px;font-weight:300;line-height:1.6;color:var(--body)}
+  p{font-size:17px;line-height:1.75;color:var(--body)}
+  .quote{font-family:'Playfair Display',serif;font-style:italic;font-size:25px;line-height:1.5;color:var(--ink)}
+  .btn{display:inline-block;font-size:14px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:15px 34px;border:1px solid var(--ink);text-decoration:none}
+  .btn-primary{background:var(--ink);color:var(--ivory)}
+  .btn-ghost{background:transparent;color:var(--ink);margin-left:14px}
+  .btn-gold{background:var(--gold);border-color:var(--gold);color:#fff}
+  /* bands */
+  section{padding-left:24px;padding-right:24px}
+  .band-ivory{background:var(--ivory)}
+  .band-white{background:var(--white)}
+  .band-panel{background:var(--panel);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+  /* nav */
+  nav{background:var(--ivory);border-bottom:1px solid var(--hair)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:22px;padding-bottom:22px}
+  .brand{font-family:'Playfair Display',serif;font-size:24px;font-weight:600;letter-spacing:.3px}
+  .menu a{font-size:15px;font-weight:500;letter-spacing:.3px;color:var(--ink);text-decoration:none;margin-left:34px}
+  .menu a:hover{color:var(--gold)}
+  /* hero */
+  .hero{padding-top:140px;padding-bottom:120px;text-align:center}
+  .hero .wrap{max-width:880px}
+  .hero p.sub{margin:26px auto 40px;max-width:620px}
+  /* features */
+  .features{padding-top:112px;padding-bottom:112px;text-align:center}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:64px;text-align:left}
+  .card{background:var(--white);border:1px solid var(--hair);padding:40px 34px}
+  .card .ic{width:44px;height:44px;border:1px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:22px}
+  .card h3{font-size:22px;margin-bottom:12px}
+  .card p{font-size:15.5px}
+  /* stats */
+  .stats{padding-top:92px;padding-bottom:92px;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);text-align:center}
+  .grid3.stats-row{margin-top:0;text-align:center}
+  .stat .n{font-family:'Playfair Display',serif;font-size:58px;font-weight:600;color:var(--ink)}
+  .stat .l{font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:var(--body);margin-top:8px}
+  /* testimonial */
+  .testi{padding-top:116px;padding-bottom:116px;text-align:center}
+  .testi .wrap{max-width:820px}
+  .testi .quote{margin:30px 0 24px}
+  .testi .who{font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}
+  /* cta */
+  .cta{padding-top:124px;padding-bottom:124px;text-align:center}
+  .cta .wrap{max-width:720px}
+  .cta h2{margin-bottom:18px}
+  .cta p.sub{margin:0 auto 36px;max-width:540px}
+  .hr-gold{width:54px;height:2px;background:var(--gold);margin:0 auto 26px}
+  footer{background:var(--ink);color:#CFC7BB;padding:54px 24px;text-align:center;font-size:14px;letter-spacing:.3px}
+  @media(max-width:820px){h1{font-size:44px}h2{font-size:32px}.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="brand">Aurelia &amp; Co.</div>
+  <div class="menu"><a>Home</a><a>Services</a><a>About</a><a>Journal</a><a>Contact</a></div>
+</div></nav>
+
+<!-- HERO (ivory) -->
+<section class="hero band-ivory"><div class="wrap">
+  <div class="eyebrow">Bespoke Interior Atelier</div>
+  <h1>Spaces composed with intention, crafted to endure.</h1>
+  <p class="sub">A considered approach to interiors — where material, light and proportion meet restraint. Built for those who value the quiet confidence of timeless design.</p>
+  <a class="btn btn-primary">Book a consultation</a><a class="btn btn-ghost">View portfolio</a>
+</div></section>
+
+<!-- FEATURES (white) -->
+<section class="features band-white"><div class="wrap">
+  <div class="eyebrow">What we offer</div>
+  <h2>A practice built on detail</h2>
+  <div class="grid3">
+    <div class="card"><div class="ic">◇</div><h3>Full-service design</h3><p>From first sketch to final styling — a single, coherent vision carried through every room.</p></div>
+    <div class="card"><div class="ic">❖</div><h3>Material curation</h3><p>Natural stone, aged brass, hand-finished timber. Sourced for warmth and longevity.</p></div>
+    <div class="card"><div class="ic">✦</div><h3>Project stewardship</h3><p>Discreet, precise project management so the experience feels as refined as the result.</p></div>
+  </div>
+</div></section>
+
+<!-- STATS (ivory, hairline) -->
+<section class="stats band-ivory"><div class="wrap">
+  <div class="grid3 stats-row">
+    <div class="stat"><div class="n">120+</div><div class="l">Residences</div></div>
+    <div class="stat"><div class="n">18</div><div class="l">Years of craft</div></div>
+    <div class="stat"><div class="n">100%</div><div class="l">Bespoke</div></div>
+  </div>
+</div></section>
+
+<!-- TESTIMONIAL (white) -->
+<section class="testi band-white"><div class="wrap">
+  <div class="eyebrow">Client</div>
+  <div class="quote">“They understood the home before we could describe it. The result is quiet, warm, and unmistakably ours.”</div>
+  <div class="who">— A private residence, Mayfair</div>
+</div></section>
+
+<!-- CTA (gold-tinted panel) -->
+<section class="cta band-panel"><div class="wrap">
+  <div class="hr-gold"></div>
+  <h2>Begin your commission</h2>
+  <p class="sub">A limited number of projects each season, given the attention each deserves.</p>
+  <a class="btn btn-gold">Enquire now</a>
+</div></section>
+
+<footer>© Aurelia &amp; Co. — Contemporary Luxury aesthetic · generated layout, fully editable</footer>
+
+</body>
+</html>
