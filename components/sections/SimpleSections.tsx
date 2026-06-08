@@ -157,9 +157,13 @@ export function ButtonSection({ content, theme, onEditText }: { content: ButtonC
   const rel = content.rel || (content.target === "_blank" ? "noopener noreferrer" : undefined);
   const icon = content.icon ? <span aria-hidden>{content.icon}</span> : null;
   const left = content.iconPosition !== "right";
+  // Per-button hover effect (content.hover): adds an abc-btnfx-* class. Color-dependent
+  // effects (glow/fill) read --abc-btn-color, which we set to the button's own color.
+  const hover = (content as any).hover as string | undefined;
+  if (hover && hover !== "none") { cls += ` abc-btnfx-${hover}`; (base as any)["--abc-btn-color"] = primary; }
   return (
     <div className={alignClass(content.align)}>
-      <a href={onEditText ? undefined : content.href} target={content.target || "_self"} rel={rel}
+      <a href={onEditText ? undefined : content.href} target={content.target || "_self"} rel={rel} data-variant={variant}
         className={`${full ? "flex w-full justify-center" : "inline-flex"} items-center gap-2 ${sizeClass} ${cls}`} style={base}>
         {icon && left && icon}
         {onEditText ? <InlineText as="span" text={content.label} onChange={onEditText} /> : content.label}

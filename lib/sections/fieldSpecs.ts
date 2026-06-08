@@ -191,6 +191,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "number", key: "radius", label: "Corner radius", min: 0, max: 100, step: 1, unit: "px" },
     { kind: "text", key: "icon", label: "Icon (emoji/char)" },
     { kind: "select", key: "iconPosition", label: "Icon position", options: ["left", "right"] },
+    { kind: "select", key: "hover", label: "Hover effect", options: ["none", "lift", "grow", "glow", "fill", "underline", "slide"] },
     { kind: "text", key: "rel", label: "Link rel (e.g. nofollow)" },
     alignField(),
   ],

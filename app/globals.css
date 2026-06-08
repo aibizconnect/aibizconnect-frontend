@@ -70,8 +70,27 @@
 .abc-hover-elevate:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,.18) }
 .abc-hover-wobble { transition: transform .2s ease }
 .abc-hover-wobble:hover { animation: abc-bounce .5s ease }
+
+/* Button element hover effects (controlled per-button via content.hover).
+   Color-dependent effects read --abc-btn-color (set inline to the button's color);
+   variant-aware effects target [data-variant]. */
+.abc-btnfx-lift { transition: transform .2s ease, box-shadow .2s ease }
+.abc-btnfx-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,0,0,.20) }
+.abc-btnfx-grow { transition: transform .2s ease }
+.abc-btnfx-grow:hover { transform: scale(1.05) }
+.abc-btnfx-glow { transition: box-shadow .25s ease }
+.abc-btnfx-glow:hover { box-shadow: 0 0 0 1px var(--abc-btn-color, #1e3a8a), 0 8px 22px -4px var(--abc-btn-color, #1e3a8a) }
+.abc-btnfx-fill { transition: background-color .2s ease, color .2s ease, filter .2s ease }
+.abc-btnfx-fill[data-variant="outline"]:hover, .abc-btnfx-fill[data-variant="ghost"]:hover { background: var(--abc-btn-color, #1e3a8a) !important; color: #fff !important }
+.abc-btnfx-fill[data-variant="solid"]:hover { filter: brightness(.9) }
+.abc-btnfx-underline { position: relative }
+.abc-btnfx-underline::after { content: ""; position: absolute; left: 50%; right: 50%; bottom: 6px; height: 1.5px; background: currentColor; transition: left .25s ease, right .25s ease }
+.abc-btnfx-underline:hover::after { left: 14%; right: 14% }
+.abc-btnfx-slide { transition: transform .2s ease, box-shadow .2s ease }
+.abc-btnfx-slide:hover { transform: translateX(4px) }
+
 @media (prefers-reduced-motion: reduce) {
-  [class*="abc-anim-"], [class*="abc-hover-"] { animation: none !important; transition: none !important }
+  [class*="abc-anim-"], [class*="abc-hover-"], [class*="abc-btnfx-"] { animation: none !important; transition: none !important }
 }
 
 :root {

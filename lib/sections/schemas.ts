@@ -183,6 +183,7 @@ export const buttonSchema = z.object({
   fontFamily: z.string().optional(),
   fontWeight: z.string().optional(),
   italic: z.boolean().optional(),
+  hover: z.enum(["none", "lift", "grow", "glow", "fill", "underline", "slide"]).optional(), // per-button hover effect
 });
 export const dividerSchema = z.object({
   type: z.literal("divider"),
