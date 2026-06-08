@@ -97,10 +97,9 @@ function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?
 
 type HoverState = { t: PrebuiltTemplate; sections: SectionContent[]; top: number; left: number } | null;
 
-/** Prebuilt template tile — looks exactly like a regular element Tile (icon + label,
- *  in the 2-col grid). No inline thumbnail; hovering opens a larger FLOATING preview
- *  that renders the actual block. Drag onto the canvas or click to insert. */
-function PrebuiltTile({ t, onInsert, imgUrls, onHover }: { t: PrebuiltTemplate; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
+/** One prebuilt template as a list row (GHL-style). Minimal icon + name; hovering opens
+ *  the larger FLOATING preview to the right. Drag onto the canvas or click to insert. */
+function PrebuiltRow({ t, onInsert, imgUrls, onHover }: { t: PrebuiltTemplate; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
   const filled = () => applyTemplateImages(t.sections, imgUrls);
   const enter = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -117,9 +116,12 @@ function PrebuiltTile({ t, onInsert, imgUrls, onHover }: { t: PrebuiltTemplate; 
       onMouseEnter={enter}
       onMouseLeave={() => onHover(null)}
       title={t.blurb}
-      className="group flex cursor-grab flex-col items-center gap-1.5 rounded-xl border border-slate-200 p-3 text-center transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-base text-slate-900">{t.icon}</span>
-      <span className="text-[11px] font-medium leading-tight text-slate-700">{t.name}</span>
+      className="group flex w-full cursor-grab items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-base text-slate-900">{t.icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[12px] font-medium text-slate-800">{t.name}</span>
+        <span className="block truncate text-[10px] text-slate-400">{t.blurb}</span>
+      </span>
     </button>
   );
 }
@@ -143,26 +145,36 @@ function FloatingPreview({ hover }: { hover: NonNullable<HoverState> }) {
   );
 }
 
-function PrebuiltTemplates({ q, onInsert, imgUrls, onHover }: { q: string; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
+/** GHL-style prebuilt browser: a category list (left) + the selected category's templates
+ *  as a vertical list (right). Hovering a template opens the floating preview. */
+function PrebuiltTemplates({ q, onInsert, imgUrls, onHover, cat, setCat }: { q: string; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void; cat: string; setCat: (c: string) => void }) {
   const ql = q.toLowerCase();
+  const match = (t: PrebuiltTemplate) => t.name.toLowerCase().includes(ql) || t.blurb.toLowerCase().includes(ql) || t.category.toLowerCase().includes(ql);
+  const byCat = PREBUILT_CATEGORIES.map((c) => ({ c, items: PREBUILT_TEMPLATES.filter((t) => t.category === c && match(t)) }));
+  const visible = byCat.filter((x) => x.items.length); // hide empty categories (esp. while searching)
+  const active = visible.find((x) => x.c === cat)?.c ?? visible[0]?.c ?? cat;
+  const list = byCat.find((x) => x.c === active)?.items ?? [];
+  if (!visible.length) return <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">No matching sections.</div>;
   return (
-    <>
-      {imgUrls.length === 0 && (
-        <div className="mb-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
-          Tip: upload images in the Media Library and these templates will drop in using your photos automatically.
+    <div className="flex h-full gap-2">
+      {/* category list */}
+      <div className="w-28 shrink-0 overflow-y-auto border-r border-slate-100 pr-1.5 text-sm">
+        {visible.map(({ c, items }) => (
+          <button key={c} onClick={() => setCat(c)}
+            className={`mb-0.5 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[12px] transition ${c === active ? "bg-slate-900 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+            <span className="truncate">{c}</span>
+            <span className={`ml-1 shrink-0 text-[10px] ${c === active ? "text-white/70" : "text-slate-400"}`}>{items.length}</span>
+          </button>
+        ))}
+      </div>
+      {/* templates in the active category */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto pr-1">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{active}</div>
+        <div className="flex flex-col gap-2">
+          {list.map((t) => <PrebuiltRow key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}
         </div>
-      )}
-      {PREBUILT_CATEGORIES.map((cat) => {
-        const items = PREBUILT_TEMPLATES.filter((t) => t.category === cat && (t.name.toLowerCase().includes(ql) || t.blurb.toLowerCase().includes(ql)));
-        if (!items.length) return null;
-        return (
-          <div key={cat} className="mb-5">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{cat}</div>
-            <div className="grid grid-cols-2 gap-2">{items.map((t) => <PrebuiltTile key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>
-          </div>
-        );
-      })}
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -189,6 +201,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [imgUrls, setImgUrls] = useState<string[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
+  const [prebuiltCat, setPrebuiltCat] = useState<string>(PREBUILT_CATEGORIES[0]);
 
   // Load the tenant's PHOTO images once so prebuilt templates can drop in using real photos.
   // Exclude brand assets (logos / wordmarks / mascot / icons) so a hero never gets a logo.
@@ -210,7 +223,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       case "sections": return <Groups groups={[SECTION_PRESETS]} q={q} onPick={onPick} />;
       case "rows": return <Groups groups={[ROWS_GROUP]} q={q} onPick={onPick} />;
       case "elements": return <Groups groups={elementGroups} q={q} onPick={onPick} />;
-      case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} />;
+      case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} cat={prebuiltCat} setCat={setPrebuiltCat} />;
       case "saved": return savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections will appear here and in the Templates tool.</div>;
       case "market": case "store": return <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Coming soon.</div>;
       default: return <Groups groups={[ROWS_GROUP, ...ELEMENT_GROUPS]} q={q} onPick={onPick} />;
