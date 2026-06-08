@@ -6,6 +6,8 @@ import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
 import { htmlToSections } from "@/lib/sites/html-importer";
 import { importChrome, type ImportedChrome } from "@/lib/sites/chrome-importer";
+import { extractTheme, type ExtractedTheme } from "@/lib/sites/theme-importer";
+import { extractSeo } from "@/lib/sites/seo-importer";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -545,6 +547,32 @@ async function scaffoldSkeleton(
  * (generatePlan → deterministic fallbackPlan when no LLM key) so it always returns a
  * real draft. DRAFT-ONLY: nothing is published. Returns the number of pages created.
  */
+/** Merge fonts/colors learned from the source site into the website's brand theme (extracted wins
+ *  for whatever it confidently found; existing values are kept otherwise). Best-effort. */
+async function applyImportedTheme(tenantId: string, websiteId: string, t: ExtractedTheme): Promise<void> {
+  if (!t || (!Object.keys(t.fonts).length && !Object.keys(t.colors).length)) return;
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("website_brand_settings").select("theme")
+    .eq("tenant_id", tenantId).eq("website_id", websiteId).maybeSingle();
+  const theme: Record<string, any> = (data?.theme && typeof data.theme === "object") ? { ...data.theme } : {};
+  const colors: Record<string, any> = { ...(theme.colors || {}) };
+  const fonts: Record<string, any> = { ...(theme.fonts || {}) };
+  for (const [k, v] of Object.entries(t.colors)) if (v) colors[k] = v;
+  if (t.fonts.heading) fonts.heading = t.fonts.heading;
+  if (t.fonts.body) fonts.body = t.fonts.body;
+  theme.colors = colors; theme.fonts = fonts;
+  if (t.colors.background) theme.pageBackground = { ...(theme.pageBackground || {}), bg: t.colors.background };
+
+  const patch: Record<string, any> = { tenant_id: tenantId, website_id: websiteId, theme };
+  if (t.colors.primary) patch.primary_color = t.colors.primary;
+  if (t.colors.secondary) patch.secondary_color = t.colors.secondary;
+  if (t.colors.accent) patch.accent_color = t.colors.accent;
+  if (t.fonts.heading) patch.font_heading = t.fonts.heading;
+  if (t.fonts.body) patch.font_body = t.fonts.body;
+  try { await sb.from("website_brand_settings").upsert(patch, { onConflict: "tenant_id,website_id" }); }
+  catch { try { await sb.from("website_brand_settings").upsert({ tenant_id: tenantId, website_id: websiteId, theme }, { onConflict: "tenant_id,website_id" }); } catch { /* ignore */ } }
+}
+
 export async function generateWizardPages(
   tenantId: string, websiteId: string, wizard: Record<string, any>
 ): Promise<number> {
@@ -586,8 +614,12 @@ export async function generateWizardPages(
     const hasSite = !!(wizard.hasWebsite && wizard.existingUrl);
     const exact = wizard.importMode === "exact";
     const homeHtml = hasSite ? await fetchPage(wizard.existingUrl) : null;
-    // Recognise the source site's header + footer → editable global Header/Footer blocks.
-    if (homeHtml) { try { importedChrome = importChrome(homeHtml, baseUrl); } catch { /* keep defaults */ } }
+    // Recognise the source site's header + footer → editable global Header/Footer blocks,
+    // and its fonts + colors → the website theme (so the import reproduces the look).
+    if (homeHtml) {
+      try { importedChrome = importChrome(homeHtml, baseUrl); } catch { /* keep defaults */ }
+      try { await applyImportedTheme(tenantId, websiteId, extractTheme(homeHtml)); } catch { /* keep theme */ }
+    }
     // Sitemap discovery → copy EVERY page, not just homepage-linked ones.
     const sitemapUrls = hasSite ? await discoverSitemapUrls(baseUrl) : [];
     const htmlCache = new Map<string, string | null>();
@@ -602,12 +634,15 @@ export async function generateWizardPages(
         const srcUrl = (isHome || ptype === "home") ? baseUrl : pickUrlForType(sitemapUrls, homeHtml || "", baseUrl, ptype);
         const srcHtml = srcUrl ? (isHome || ptype === "home" ? homeHtml : await getHtml(srcUrl)) : null;
         if (srcHtml && srcUrl) {
+          // Carry the source page's real SEO/GEO meta (title, description, canonical, schema) forward.
+          let _seo: Record<string, unknown> | null = null;
+          try { _seo = extractSeo(srcHtml); } catch { /* synthetic SEO fallback */ }
           if (exact) {
             const sec = await buildExactCopyIframe(srcHtml, srcUrl);
-            if (sec) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: [{ content: sec }] }); continue; }
+            if (sec) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, _seo, sections: [{ content: sec }] }); continue; }
           }
           const secs = cloneSectionsFromHtml(srcHtml, srcUrl);
-          if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, sections: secs.map((content) => ({ content })) }); continue; }
+          if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, _seo, sections: secs.map((content) => ({ content })) }); continue; }
         }
       }
       // 2) AI sections where a title matches the site plan.
@@ -662,7 +697,17 @@ export async function generateWizardPages(
       if (learnedImages.length && sections.length && !pg._cloned) {
         try { sections = applyTemplateImages(sections as any, learnedImages) as any[]; } catch { /* keep originals */ }
       }
-      const draft_seo = geoSeoForPage(pg.title || "", wizard);
+      // Synthetic GEO SEO as the base; override with the source page's REAL meta where we found it.
+      const draft_seo: Record<string, unknown> = geoSeoForPage(pg.title || "", wizard);
+      const src = pg._seo as Record<string, unknown> | null | undefined;
+      if (src) {
+        if (src.title) draft_seo.title = src.title;
+        if (src.description) draft_seo.description = src.description;
+        if (src.schema_type) draft_seo.schema_type = src.schema_type;
+        if (Array.isArray(src.schemas) && src.schemas.length) draft_seo.schemas = src.schemas;
+        if (src.canonical) draft_seo.canonical_url = src.canonical;
+        if (src.image) { draft_seo.image = src.image; draft_seo.seo_image_url = src.image; }
+      }
       await saveDraft(page.id, tenantId, {
         ...(sections.length ? { draft_sections: sections as any } : {}),
         draft_seo,

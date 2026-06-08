@@ -80,6 +80,55 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     return { type: "contact-form", heading, fields, submitLabel: "Send" };
   };
 
+  // Detect a HERO band at the very top and emit it as one `hero` section (heading + subheading +
+  // CTAs + background), then REMOVE it so the generic walk doesn't re-emit its parts. Only two SAFE
+  // strategies are used (never remove a large content wrapper): an explicit hero/banner container,
+  // or the first of several <section>s.
+  const detectHero = (container: HTMLElement): Record<string, unknown> | null => {
+    let heroEl: HTMLElement | null = null;
+    // (a) class/id hints
+    for (const el of container.querySelectorAll("section, header, div").slice(0, 40)) {
+      const idc = ((el.getAttribute("class") || "") + " " + (el.getAttribute("id") || "")).toLowerCase();
+      if (/\b(hero|banner|jumbotron|masthead|intro|cover|headline)\b/.test(idc) && el.querySelector("h1, h2")) { heroEl = el; break; }
+    }
+    // (b) first of several top-level <section>s that contains an h1
+    if (!heroEl) {
+      const sections = container.childNodes.filter((n: any) => n.nodeType === 1 && (n.rawTagName || "").toLowerCase() === "section") as HTMLElement[];
+      if (sections.length >= 2 && sections[0].querySelector("h1")) heroEl = sections[0];
+    }
+    if (!heroEl) return null;
+
+    const headingEl = heroEl.querySelector("h1") || heroEl.querySelector("h2");
+    const heading = clean(headingEl?.text || "");
+    if (!heading) return null;
+
+    let subheading = "";
+    for (const p of heroEl.querySelectorAll("p")) { const t = clean(p.text); if (t.length >= 12 && t !== heading) { subheading = t; break; } }
+
+    const ctas: { label: string; href: string }[] = [];
+    for (const a of heroEl.querySelectorAll("a, button")) {
+      if (!looksLikeButton(a)) continue;
+      const label = clean(a.text); if (!label || label.length > 40) continue;
+      ctas.push({ label, href: abs(a.getAttribute("href") || "#") });
+      if (ctas.length >= 2) break;
+    }
+
+    let bg = "";
+    for (const img of heroEl.querySelectorAll("img")) { const src = img.getAttribute("src") || img.getAttribute("data-src"); if (src && isContentImage(src)) { bg = abs(src); break; } }
+    if (!bg) {
+      const styled = [heroEl, ...heroEl.querySelectorAll("[style]")].find((e: any) => /background(-image)?\s*:[^;]*url\(/i.test(e.getAttribute?.("style") || ""));
+      if (styled) { const m = /url\((['"]?)([^'")]+)\1\)/i.exec(styled.getAttribute("style") || ""); if (m) bg = abs(m[2]); }
+    }
+
+    const hero: Record<string, unknown> = { type: "hero", heading, _name: "Hero" };
+    if (subheading) hero.subheading = subheading;
+    if (ctas[0]) hero.primaryCta = ctas[0];
+    if (ctas[1]) hero.secondaryCta = ctas[1];
+    if (bg) hero.backgroundImageUrl = bg;
+    try { heroEl.remove(); } catch { /* ignore */ }
+    return hero;
+  };
+
   const walk = (node: HTMLElement) => {
     for (const raw of node.childNodes) {
       const el = raw as HTMLElement;
@@ -113,6 +162,8 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     }
   };
 
+  const hero = detectHero(main);
+  if (hero) out.push(hero);
   walk(main);
   flushImgs();
   return out.slice(0, 80);
