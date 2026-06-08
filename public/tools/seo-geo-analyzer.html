@@ -490,8 +490,8 @@ button{
     <div id="state-welcome">
       <div class="welcome-wrap">
         <div class="welcome-icon">🔍</div>
-        <h2>Enter a URL to get started</h2>
-        <p>We'll analyze your site's traditional SEO health AND how well it's optimized for AI-powered search engines (GEO score) — with specific steps to improve both.</p>
+        <h2 id="welcomeTitle">Enter a URL to get started</h2>
+        <p id="welcomeText">We'll analyze your site's traditional SEO health AND how well it's optimized for AI-powered search engines (GEO score) — with specific steps to improve both.</p>
         <div class="feature-chips">
           <div class="feature-chip">📊 Real SEO Score</div>
           <div class="feature-chip">🤖 AI/GEO Score</div>
@@ -2352,6 +2352,12 @@ updateKeyStatus();
         inp.style.cursor = 'not-allowed';
         inp.title = 'Locked to your connected domain';
         var clr = document.querySelector('.clear-btn'); if(clr) clr.style.display='none';
+        // Domain is pre-filled & permitted — drop the generic "Enter a URL" copy.
+        var wt = document.getElementById('welcomeTitle');
+        var wx = document.getElementById('welcomeText');
+        var host = dom.replace(/^https?:\/\//i,'').replace(/\/+$/,'');
+        if(wt) wt.textContent = 'Ready to analyze ' + host;
+        if(wx) wx.textContent = 'Click Analyze to score this domain for SEO and AI/GEO readiness, with specific steps to improve both. Past analyses are kept under Tracker.';
       }
     }
     // History-first, NEVER auto-analyze: if this domain was analyzed before,
