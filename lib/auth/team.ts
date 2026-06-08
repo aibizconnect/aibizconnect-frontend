@@ -127,16 +127,15 @@ export async function setTeamRole(userId: string, role: string, opts: { actorIsO
 
 /**
  * Deactivate (ban) or reactivate a member. Guardrails:
- *  - Only an owner may deactivate a superadmin.
- *  - Cannot deactivate the last active superadmin (lockout protection).
+ *  - A SUPERADMIN can NEVER be deactivated, by anyone (hard lockout protection).
  */
 export async function setTeamActive(userId: string, active: boolean, opts: { actorIsOwner: boolean }): Promise<void> {
+  void opts; // actor role no longer relaxes the rule — superadmins are always protected
   if (!active) {
     const target = await getMember(userId);
     if (!target) throw new Error("Member not found.");
     if (target.role === "superadmin") {
-      if (!opts.actorIsOwner) throw new Error("Only an owner (sysadmin) can deactivate a superadmin.");
-      if ((await activeSuperadminCount()) <= 1) throw new Error("Can't deactivate the last active superadmin.");
+      throw new Error("Superadmins can't be deactivated.");
     }
   }
   const supabase = createSupabaseServiceClient();

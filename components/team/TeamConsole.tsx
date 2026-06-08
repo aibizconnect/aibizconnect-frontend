@@ -104,8 +104,12 @@ export default function TeamConsole({ initial, isOwner = false }: { initial: Tea
                 </td>
                 <td className="px-4 py-2 text-xs text-slate-400">{m.lastSignInAt ? new Date(m.lastSignInAt).toISOString().slice(0, 10) : "never"}</td>
                 <td className="px-4 py-2 text-right">
-                  {m.role === "superadmin" && !isOwner ? (
-                    <span className="text-xs text-slate-300">—</span>
+                  {m.role === "superadmin" ? (
+                    // Superadmins can never be deactivated (server enforces this too). Allow reactivating
+                    // a legacy-deactivated one, but never show a Deactivate action.
+                    m.active
+                      ? <span className="text-xs text-slate-300" title="Superadmins can't be deactivated">🔒</span>
+                      : <button onClick={() => toggleActive(m)} className="text-xs font-medium text-emerald-600 hover:underline">Reactivate</button>
                   ) : (
                     <button onClick={() => toggleActive(m)} className={`text-xs font-medium ${m.active ? "text-rose-600 hover:underline" : "text-emerald-600 hover:underline"}`}>
                       {m.active ? "Deactivate" : "Reactivate"}
