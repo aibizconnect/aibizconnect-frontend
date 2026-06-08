@@ -634,7 +634,7 @@ export function defaultContentFor(type: SectionType): SectionContent {
 
 /** Build a Row with N empty columns. */
 export function makeRow(columns: number): RowContent {
-  const n = Math.max(1, Math.min(6, columns));
+  const n = Math.max(1, Math.min(12, columns));
   return {
     type: "row",
     columns: n,

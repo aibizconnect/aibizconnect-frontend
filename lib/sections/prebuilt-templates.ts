@@ -6,10 +6,14 @@ import type { SectionContent } from "./schemas";
  * out of the box and stays fully editable. Surfaced in the Add panel's "Prebuilt Sections"
  * tab as draggable tiles (drag → drop on the canvas) and click-to-insert.
  */
+export type PrebuiltCategory =
+  | "Contemporary Luxury" | "Headers" | "Hero" | "Split / Photo" | "About & Services"
+  | "Content" | "Social Proof" | "Conversion" | "Footers";
+
 export interface PrebuiltTemplate {
   id: string;
   name: string;
-  category: "Contemporary Luxury" | "Hero" | "Content" | "Social Proof" | "Conversion";
+  category: PrebuiltCategory;
   icon: string;          // single emoji/char for the tile
   blurb: string;         // one-line description
   sections: SectionContent[];
@@ -45,6 +49,28 @@ const lxCounter = (start: number, end: number, suffix: string, label: string): S
 const lxCard = { bg: LX.white, borderStyle: "solid", borderWidth: 1, borderColor: LX.hair, shadow: "soft", pt: 40, pb: 40, pl: 34, pr: 34, radius: 2 };
 
 const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
+  {
+    id: "lux-header", name: "Luxury — Header", category: "Contemporary Luxury", icon: "▭",
+    blurb: "Serif wordmark · menu · login",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
+      _style: { bg: LX.ivory, pt: 20, pb: 20, paddingX: 24, borderStyle: "solid", borderWidth: 1, borderColor: LX.hair },
+      colStyles: [{ itemsAlign: "start" }, { itemsAlign: "center" }, { itemsAlign: "end" }] as any,
+      children: [
+        [{ type: "heading", text: "Aurelia & Co.", level: "h3", align: "left", color: LX.ink, fontFamily: SERIF, fontWeight: "600", letterSpacing: 0.3 } as SectionContent],
+        [{ type: "menu", orientation: "horizontal", align: "center", color: LX.ink, activeColor: LX.gold, fontFamily: SANS,
+          submenuBg: LX.white, submenuColor: LX.ink, submenuHoverBg: LX.ivory,
+          items: [
+            { label: "Home", href: "/" },
+            { label: "Services", href: "/services", children: [{ label: "Interiors", href: "#" }, { label: "Styling", href: "#" }, { label: "Consulting", href: "#" }] },
+            { label: "Portfolio", href: "/portfolio" },
+            { label: "About", href: "/about" },
+            { label: "Contact", href: "/contact" },
+          ] } as SectionContent],
+        [lxBtn("Login", { variant: "outline", bg: LX.ink, fg: LX.ink, hover: "fill", align: "right" })],
+      ],
+    }] as SectionContent[],
+  },
   {
     id: "lux-hero", name: "Luxury — Hero", category: "Contemporary Luxury", icon: "◆",
     blurb: "Ivory hero, serif headline, dual CTAs",
@@ -140,8 +166,188 @@ const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
   },
 ];
 
+// ── Generic design system (light / dark / tinted palettes) ──────────────────────
+const PAL = {
+  light: { bg: "#FFFFFF", soft: "#F8FAFC", text: "#0F172A", sub: "#475569", accent: "#2563eb", hair: "#E5E7EB" },
+  dark: { bg: "#0F172A", soft: "#111827", text: "#FFFFFF", sub: "#CBD5E1", accent: "#60A5FA", hair: "#1E293B" },
+  tint: { bg: "#EEF2FF", soft: "#E0E7FF", text: "#1E293B", sub: "#475569", accent: "#4F46E5", hair: "#C7D2FE" },
+} as const;
+type Pal = { bg: string; soft: string; text: string; sub: string; accent: string; hair: string };
+
+const gEyebrow = (t: string, color: string, align: Align = "center"): SectionContent =>
+  ({ type: "text", text: t, align, color, fontSize: 13, fontWeight: "600", letterSpacing: 1.6, textTransform: "uppercase" } as SectionContent);
+const gH = (t: string, color: string, level: "h1" | "h2" | "h3" = "h2", align: Align = "center"): SectionContent =>
+  ({ type: "heading", text: t, level, align, color, fontWeight: "700", letterSpacing: -0.4 } as SectionContent);
+const gT = (t: string, color: string, align: Align = "center"): SectionContent =>
+  ({ type: "text", text: t, align, color, fontSize: 17, lineHeight: 1.7 } as SectionContent);
+const gBtn = (label: string, o: { align?: Align; bg?: string; fg?: string; variant?: "solid" | "outline"; hover?: string }): SectionContent =>
+  ({ type: "button", label, href: "#", align: o.align ?? "center", size: "lg", variant: o.variant ?? "solid", bgColor: o.bg, textColor: o.fg ?? "#ffffff", hover: o.hover ?? "lift" } as SectionContent);
+const gImg = (rounding = 14): SectionContent => ({ type: "image", url: "", alt: "", objectFit: "cover", rounding } as SectionContent);
+
+// Header: wordmark logo · menu (with a submenu) · login/CTA button.
+function header(id: string, name: string, blurb: string, p: Pal, o: { login: string; loginVariant?: "solid" | "outline"; hairline?: boolean }): PrebuiltTemplate {
+  const menu: SectionContent = {
+    type: "menu", orientation: "horizontal", align: "center", color: p.text, activeColor: p.accent,
+    submenuBg: p.bg, submenuColor: p.text, submenuHoverBg: p.soft,
+    items: [
+      { label: "Home", href: "/" },
+      { label: "Services", href: "/services", children: [{ label: "Consulting", href: "#" }, { label: "Design", href: "#" }, { label: "Support", href: "#" }] },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+  } as SectionContent;
+  return {
+    id, name, blurb, category: "Headers", icon: "▭",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
+      _style: { bg: p.bg, pt: 16, pb: 16, paddingX: 24, ...(o.hairline ? { borderStyle: "solid", borderWidth: 1, borderColor: p.hair } : {}) },
+      colStyles: [{ itemsAlign: "start" }, { itemsAlign: "center" }, { itemsAlign: "end" }] as any,
+      children: [
+        [{ type: "heading", text: "Brand", level: "h3", align: "left", color: p.text, fontWeight: "700" } as SectionContent],
+        [menu],
+        [gBtn(o.login, { align: "right", bg: p.accent, variant: o.loginVariant ?? "solid", hover: "lift" })],
+      ],
+    }] as SectionContent[],
+  };
+}
+
+// Photo + text-column split. photoLeft swaps sides; full → full-width band.
+function split(id: string, name: string, blurb: string, p: Pal, o: { photoLeft: boolean; full?: boolean; eyebrow: string; title: string; body: string; btn: string }): PrebuiltTemplate {
+  const col: SectionContent[] = [gEyebrow(o.eyebrow, p.accent, "left"), gH(o.title, p.text, "h2", "left"), gT(o.body, p.sub, "left"), gBtn(o.btn, { align: "left", bg: p.accent })];
+  const img: SectionContent[] = [gImg(o.full ? 0 : 16)];
+  return {
+    id, name, blurb, category: "Split / Photo", icon: "▱",
+    sections: [{
+      type: "row", columns: 2, contentWidth: o.full ? "full" : "boxed", gap: 44, valign: "center", widths: [0.5, 0.5],
+      reverseOnMobile: true,
+      _style: { bg: p.bg, pt: 88, pb: 88, paddingX: o.full ? 56 : 24 }, _anim: { entrance: "fade-up" },
+      children: o.photoLeft ? [img, col] : [col, img],
+    }] as SectionContent[],
+  };
+}
+
+// Heading band + three icon cards (Who We Serve / Our Services / What We Do).
+function cards3(id: string, name: string, blurb: string, cat: PrebuiltCategory, p: Pal, o: { eyebrow: string; title: string; cards: { icon: string; t: string; d: string }[] }): PrebuiltTemplate {
+  const card = { bg: p.soft, borderStyle: "solid", borderWidth: 1, borderColor: p.hair, radius: 14, shadow: "soft", pt: 30, pb: 30, pl: 26, pr: 26 };
+  return {
+    id, name, blurb, category: cat, icon: "▦",
+    sections: [
+      { type: "row", columns: 1, contentWidth: "boxed", _style: { bg: p.bg, pt: 84, pb: 28, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+        children: [[gEyebrow(o.eyebrow, p.accent), gH(o.title, p.text)]] } as SectionContent,
+      { type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [1 / 3, 1 / 3, 1 / 3],
+        _style: { bg: p.bg, pt: 0, pb: 84, paddingX: 24 }, _anim: { entrance: "fade-up" }, colStyles: [card, card, card] as any,
+        children: o.cards.map((c) => [{ type: "icon", icon: c.icon, heading: c.t, text: c.d, size: 30, align: "left", color: p.accent } as SectionContent]) } as SectionContent,
+    ] as SectionContent[],
+  };
+}
+
+// Centered call-to-action band.
+function ctaBand(id: string, name: string, blurb: string, p: Pal, o: { title: string; body: string; btn: string }): PrebuiltTemplate {
+  return {
+    id, name, blurb, category: "Conversion", icon: "◈",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 16, valign: "center", widths: [1],
+      _style: { bg: p.bg, pt: 96, pb: 96, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+      children: [[gH(o.title, p.text), gT(o.body, p.sub), gBtn(o.btn, { bg: p.accent, hover: "lift" })]],
+    }] as SectionContent[],
+  };
+}
+
+// Footer.
+function footer(id: string, name: string, blurb: string, p: Pal): PrebuiltTemplate {
+  return {
+    id, name, blurb, category: "Footers", icon: "▬",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 12, valign: "center", widths: [1],
+      _style: { bg: p.bg, pt: 56, pb: 48, paddingX: 24, align: "center" },
+      children: [[
+        { type: "heading", text: "Brand", level: "h3", align: "center", color: p.text, fontWeight: "700" } as SectionContent,
+        { type: "text", text: "A short tagline about your company and what you do.", align: "center", color: p.sub, fontSize: 15 } as SectionContent,
+        { type: "text", text: "Home   ·   Services   ·   About   ·   Contact   ·   Privacy", align: "center", color: p.sub, fontSize: 14 } as SectionContent,
+        { type: "divider", thickness: 1, color: p.hair, widthPct: 40 } as SectionContent,
+        { type: "text", text: "© Your Company — All rights reserved.", align: "center", color: p.sub, fontSize: 13 } as SectionContent,
+      ]],
+    }] as SectionContent[],
+  };
+}
+
+const GENERIC_TEMPLATES: PrebuiltTemplate[] = [
+  // ── Headers ───────────────────────────────────────────────────────────────────
+  header("hdr-light", "Header — Classic", "Logo · menu · login (light)", PAL.light, { login: "Login", loginVariant: "outline", hairline: true }),
+  header("hdr-cta", "Header — With CTA", "Logo · menu · Get Started", PAL.light, { login: "Get Started", hairline: true }),
+  header("hdr-dark", "Header — Dark", "Logo · menu · login (dark)", PAL.dark, { login: "Login" }),
+  header("hdr-tint", "Header — Tinted", "Logo · menu · sign up", PAL.tint, { login: "Sign Up" }),
+
+  // ── Heroes (light / dark / tinted) ──────────────────────────────────────────────
+  {
+    id: "hero-left-light", name: "Hero — Left, Light", category: "Hero", icon: "◧", blurb: "Left-aligned headline + CTAs",
+    sections: [{ type: "row", columns: 1, contentWidth: "boxed", gap: 16, valign: "center", widths: [1], minHeight: 460,
+      _style: { bg: PAL.light.bg, pt: 110, pb: 110, paddingX: 24, align: "left" }, _anim: { entrance: "fade-up" },
+      children: [[gEyebrow("Welcome", PAL.light.accent, "left"), gH("A smarter way to grow your business.", PAL.light.text, "h1", "left"),
+        gT("Attract, convert and delight your clients — all from one beautifully simple platform.", PAL.light.sub, "left"),
+        gBtn("Get started", { align: "left", bg: PAL.light.accent })]] }] as SectionContent[],
+  },
+  {
+    id: "hero-dark-center", name: "Hero — Dark Centered", category: "Hero", icon: "◼", blurb: "Bold dark hero",
+    sections: [{ type: "row", columns: 1, contentWidth: "boxed", gap: 16, valign: "center", widths: [1], minHeight: 520,
+      _style: { bg: PAL.dark.bg, pt: 128, pb: 128, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+      children: [[gEyebrow("Now live", PAL.dark.accent), gH("Build something people remember.", PAL.dark.text, "h1"),
+        gT("Everything you need to launch, grow and scale — in one place.", PAL.dark.sub),
+        gBtn("Start free trial", { bg: PAL.dark.accent })]] }] as SectionContent[],
+  },
+  {
+    id: "hero-tint-split", name: "Hero — Tinted Split", category: "Hero", icon: "◨", blurb: "Copy + photo on a tint",
+    sections: [{ type: "row", columns: 2, contentWidth: "boxed", gap: 44, valign: "center", widths: [0.55, 0.45], reverseOnMobile: true,
+      _style: { bg: PAL.tint.bg, pt: 96, pb: 96, paddingX: 24 }, _anim: { entrance: "fade-up" },
+      children: [[gEyebrow("Modern platform", PAL.tint.accent, "left"), gH("Where your next chapter starts.", PAL.tint.text, "h1", "left"),
+        gT("Handpicked, ready to tour, and matched to your lifestyle.", PAL.tint.sub, "left"), gBtn("Browse now", { align: "left", bg: PAL.tint.accent })],
+        [gImg(18)]] }] as SectionContent[],
+  },
+
+  // ── Split / Photo (switch photo side · light/dark/tint · full/boxed) ─────────────
+  split("split-pl-light", "Split — Photo Left, Light", "Photo left, copy right", PAL.light, { photoLeft: true, eyebrow: "About us", title: "Built around your goals.", body: "We treat every client like family — clear communication, real expertise, and results that matter.", btn: "Learn more" }),
+  split("split-pr-light", "Split — Photo Right, Light", "Copy left, photo right", PAL.light, { photoLeft: false, eyebrow: "Our approach", title: "Simple, considered, effective.", body: "From first conversation to final delivery, a single coherent vision carried through.", btn: "How it works" }),
+  split("split-pl-dark", "Split — Photo Left, Dark", "Photo left on dark", PAL.dark, { photoLeft: true, eyebrow: "Why us", title: "Crafted to stand out.", body: "Thoughtful design and dependable delivery, every single time.", btn: "See our work" }),
+  split("split-pr-tint", "Split — Photo Right, Tinted", "Copy left, photo right (tint)", PAL.tint, { photoLeft: false, eyebrow: "What we offer", title: "Everything in one place.", body: "A complete toolkit so you can focus on what you do best.", btn: "Explore features" }),
+  split("split-pl-full", "Split — Full Width, Photo Left", "Edge-to-edge, photo left", PAL.light, { photoLeft: true, full: true, eyebrow: "Featured", title: "A space that inspires.", body: "Discover work and ideas designed to move you forward.", btn: "View gallery" }),
+  split("split-pr-full-dark", "Split — Full Width, Photo Right (Dark)", "Edge-to-edge dark, photo right", PAL.dark, { photoLeft: false, full: true, eyebrow: "Spotlight", title: "Make a lasting impression.", body: "Bold visuals and clear messaging that convert.", btn: "Get in touch" }),
+
+  // ── About & Services ────────────────────────────────────────────────────────────
+  split("about-us", "About Us", "Photo + about copy", PAL.light, { photoLeft: true, eyebrow: "About us", title: "Meet the team behind the work.", body: "We're a dedicated group of professionals on a simple mission: make your next move smooth, confident and even enjoyable.", btn: "Our story" }),
+  cards3("who-we-serve", "Who We Serve", "Three audience cards", "About & Services", PAL.light, { eyebrow: "Who we serve", title: "Built for people like you.", cards: [
+    { icon: "🏠", t: "Homeowners", d: "Guidance and care from first showing to closing day." },
+    { icon: "📈", t: "Investors", d: "Data-driven opportunities to build long-term wealth." },
+    { icon: "🤝", t: "Businesses", d: "Tailored solutions that scale with your growth." },
+  ] }),
+  cards3("what-we-do", "What We Do", "Three capability cards", "About & Services", PAL.light, { eyebrow: "What we do", title: "Everything you need, done right.", cards: [
+    { icon: "✏️", t: "Strategy", d: "Clear plans grounded in your goals and market." },
+    { icon: "🎨", t: "Design", d: "Beautiful, on-brand experiences that convert." },
+    { icon: "🚀", t: "Delivery", d: "Reliable execution, on time and on budget." },
+  ] }),
+  cards3("our-services", "Our Services", "Three service cards (dark)", "About & Services", PAL.dark, { eyebrow: "Our services", title: "How we can help.", cards: [
+    { icon: "🔍", t: "Consulting", d: "Expert advice tailored to your situation." },
+    { icon: "🛠️", t: "Implementation", d: "We build it, test it, and launch it for you." },
+    { icon: "💬", t: "Support", d: "Responsive help whenever you need it." },
+  ] }),
+  cards3("why-choose-us", "Why Choose Us", "Three reasons (tinted)", "About & Services", PAL.tint, { eyebrow: "Why choose us", title: "Reasons clients stay.", cards: [
+    { icon: "⭐", t: "Proven results", d: "Hundreds of happy clients and counting." },
+    { icon: "⚡", t: "Fast & reliable", d: "We move at your pace, without surprises." },
+    { icon: "❤️", t: "Genuinely caring", d: "Your success is the only metric that matters." },
+  ] }),
+
+  // ── More CTAs (light / dark / tint) ──────────────────────────────────────────────
+  ctaBand("cta-center-light", "CTA — Centered, Light", "Simple centered CTA", PAL.light, { title: "Ready to get started?", body: "Your first consultation is on us — no pressure, no obligation.", btn: "Book a free call" }),
+  ctaBand("cta-center-dark", "CTA — Centered, Dark", "High-contrast CTA", PAL.dark, { title: "Let's build something great.", body: "Tell us about your goals and see what's possible.", btn: "Start now" }),
+  ctaBand("cta-center-tint", "CTA — Centered, Tinted", "Soft tinted CTA", PAL.tint, { title: "Make your move today.", body: "Join the clients who trust us with what matters most.", btn: "Get in touch" }),
+
+  // ── Footers ──────────────────────────────────────────────────────────────────────
+  footer("footer-light", "Footer — Simple, Light", "Brand · links · copyright", PAL.light),
+  footer("footer-dark", "Footer — Simple, Dark", "Dark brand · links · copyright", PAL.dark),
+];
+
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   ...LUXURY_TEMPLATES,
+  ...GENERIC_TEMPLATES,
   // ── HERO ────────────────────────────────────────────────────────────────────
   {
     id: "hero-lead", name: "Hero — Lead Capture", category: "Hero", icon: "🚀",
@@ -429,4 +635,4 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
   return sections.map(walk);
 }
 
-export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Hero", "Content", "Social Proof", "Conversion"];
+export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Content", "Social Proof", "Conversion", "Footers"];

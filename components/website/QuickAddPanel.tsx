@@ -64,7 +64,7 @@ const ELEMENT_GROUPS: Group[] = [
   { group: "Custom", items: [{ label: "Custom HTML", icon: I.code, type: "html" }, { label: "Code", icon: I.code, type: "html" }, { label: "SVG", icon: I.code, soon: true }] },
 ];
 
-const ROWS_GROUP: Group = { group: "Rows", items: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `${n} Column`, icon: I.cols, type: "row" as SectionType, cols: n })) };
+const ROWS_GROUP: Group = { group: "Rows", items: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ label: `${n} Column`, icon: I.cols, type: "row" as SectionType, cols: n })) };
 
 const SECTION_PRESETS: Group = { group: "Add a Section", items: [
   { label: "Full Width", icon: I.cols, type: "row", cols: 1 }, { label: "Wide", icon: I.cols, type: "row", cols: 1 },
