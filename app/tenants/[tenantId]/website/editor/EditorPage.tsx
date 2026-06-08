@@ -337,7 +337,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
               This page cannot be published until all sections are valid.
             </div>
           )}
-          <Canvas tenantId={tenantId} selectedPageId={selectedPageId} selectedPage={selectedPage} reloadKey={reloadKey} themeKey={themeKey} onValidityChange={setCanPublish}
+          <Canvas tenantId={tenantId} websiteId={websiteId} selectedPageId={selectedPageId} selectedPage={selectedPage} reloadKey={reloadKey} themeKey={themeKey} onValidityChange={setCanPublish}
             addSignal={addSignal} addType={addType} addCols={addCols} addSectionsSignal={addSectionsSignal} addSections={addSections} onRequestAdd={() => { setMode("add"); setLeftOpen(true); }}
             saveSignal={saveSignal} onDirtyChange={(d) => setDirty((p) => (p === d ? p : d))} onSaveStateChange={handleSaveState}
             onStructureChange={setStructure} selectSignal={selectSignal} selectTarget={selectTarget}

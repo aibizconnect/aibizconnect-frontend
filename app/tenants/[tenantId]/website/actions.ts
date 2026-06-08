@@ -539,16 +539,21 @@ export async function createGlobalBlock(
   tenantId: string,
   name: string,
   type: SectionType,
-  content: any
+  content: any,
+  websiteId?: string | null
 ): Promise<GlobalBlock> {
   if (!sectionTypes.includes(type)) throw new Error("Unknown section type.");
   if (!sectionSchemas[type].safeParse(content).success) {
     throw new Error("Block content is invalid for its type.");
   }
   const supabase = createSupabaseServiceClient();
+  // Scope to the current website so it shows in this site's Global Sections (and doesn't
+  // leak into other websites). website_id may be NOT NULL on some schemas — always set it.
+  const row: Record<string, any> = { tenant_id: tenantId, name, type, content };
+  if (websiteId) row.website_id = websiteId;
   const { data, error } = await supabase
     .from("website_global_blocks")
-    .insert({ tenant_id: tenantId, name, type, content })
+    .insert(row)
     .select("id, tenant_id, name, type, content, draft_content")
     .single();
   if (error) throw new Error(error.message);

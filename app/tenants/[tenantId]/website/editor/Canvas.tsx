@@ -46,6 +46,7 @@ import { notify, notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 interface CanvasProps {
   tenantId: string;
+  websiteId?: string | null;
   selectedPageId: string | null;
   selectedPage?: { id: string; title: string; slug: string } | null;
   reloadKey?: number;
@@ -83,6 +84,7 @@ function newUid(): string {
 
 export default function Canvas({
   tenantId,
+  websiteId,
   selectedPageId,
   selectedPage,
   reloadKey,
@@ -958,7 +960,7 @@ export default function Canvas({
     // convert the section into a synced reference. saveNow routes _global items to the block
     // store (not draft_sections), so we persist the page draft immediately here too.
     const clean = stripGlobal(raw);
-    const block = await createGlobalBlock(tenantId, name, clean.type, clean);
+    const block = await createGlobalBlock(tenantId, name, clean.type, clean, websiteId);
     await attachBlockToPage(selectedPageId, tenantId, block.id);
     globalBaseline.current[block.id] = JSON.stringify(clean);
     const ref = { ...clean, _global: block.id, _globalName: name } as SectionContent;
