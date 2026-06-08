@@ -66,7 +66,7 @@ export async function importLocalBackgrounds(dir: string): Promise<ImportLocalRe
       const idx = (counters.get(label) ?? 0) + 1; counters.set(label, idx);
       const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bg/${base}-${i}.${ext}`;
 
-      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true });
+      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true, cacheControl: "31536000" });
       if (up.error) { errors.push({ file: f, error: up.error.message }); continue; }
       const { data: pub } = supabase.storage.from("website-media").getPublicUrl(storagePath);
       const filename = `${label} ${idx}.${ext}`;

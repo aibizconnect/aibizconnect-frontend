@@ -415,7 +415,7 @@ export async function imagenGenerateAndImport(
     }
     const ext = outMime.includes("jpeg") ? "jpg" : outMime.includes("webp") ? "webp" : "png";
     const path = `${tenantId}/uploads/ai/${ts}/${i}.${ext}`;
-    const up = await supabase.storage.from("website-media").upload(path, bytes, { contentType: outMime, upsert: true });
+    const up = await supabase.storage.from("website-media").upload(path, bytes, { contentType: outMime, upsert: true, cacheControl: "31536000" });
     if (up.error) continue;
     const { data: pub } = supabase.storage.from("website-media").getPublicUrl(path);
     const { data: row } = await supabase.from("website_media").insert({

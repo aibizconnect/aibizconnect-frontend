@@ -1876,7 +1876,8 @@ export async function uploadMedia(
 
   const { error: upErr } = await supabase.storage
     .from(MEDIA_BUCKET)
-    .upload(storagePath, file, { contentType: file.type });
+    // 1-year immutable cache → browsers/CDN stop re-fetching the same asset (cuts egress hard).
+    .upload(storagePath, file, { contentType: file.type, cacheControl: "31536000" });
   if (upErr) throw new Error(upErr.message);
 
   const { data: pub } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
@@ -2203,7 +2204,7 @@ export async function bulkUploadSystemMedia(formData: FormData): Promise<BulkUpl
 
       const leaf = await ensureLeaf(folderPath);
       const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bulk/${base}-${i}.${ext}`;
-      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true });
+      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true, cacheControl: "31536000" });
       if (up.error) { errors.push({ name: file.name, error: up.error.message }); continue; }
       const { data: pub } = supabase.storage.from("website-media").getPublicUrl(storagePath);
       const { error: rowErr } = await supabase.from("website_media").insert({
