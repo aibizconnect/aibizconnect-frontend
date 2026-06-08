@@ -636,7 +636,7 @@ export async function generateWizardPages(
         if (srcHtml && srcUrl) {
           // Carry the source page's real SEO/GEO meta (title, description, canonical, schema) forward.
           let _seo: Record<string, unknown> | null = null;
-          try { _seo = extractSeo(srcHtml); } catch { /* synthetic SEO fallback */ }
+          try { _seo = extractSeo(srcHtml) as Record<string, unknown>; } catch { /* synthetic SEO fallback */ }
           if (exact) {
             const sec = await buildExactCopyIframe(srcHtml, srcUrl);
             if (sec) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, _seo, sections: [{ content: sec }] }); continue; }

@@ -12,13 +12,37 @@
 // Real browser UA — "bot" UAs get blocked by Cloudflare/WAF, which would break importing the site.
 const UA = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", accept: "text/html,application/xhtml+xml" };
 
+/** True when the fetched HTML is just a client-rendered SPA shell (empty #root/#app/#__next mount
+ *  with no real content) — meaning the visible page is painted by JS and a raw fetch saw nothing. */
+function looksLikeSpaShell(html: string): boolean {
+  if (!html) return true;
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
+  const body = bodyMatch ? bodyMatch[1] : html;
+  const hasEmptyMount = /<div[^>]+id=["'](?:root|app|__next)["']\s*>\s*<\/div>/i.test(html);
+  const hasStructure = /<(?:section|article|main|header|footer|h1)\b/i.test(body);
+  const textLen = body.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
+  return hasEmptyMount || (!hasStructure && textLen < 300);
+}
+
 export async function fetchPage(url: string, maxBytes = 600_000): Promise<string | null> {
+  const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  let raw: string | null = null;
   try {
-    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
-    const res = await fetch(u.toString(), { headers: UA, signal: AbortSignal.timeout(12000), redirect: "follow" });
-    if (!res.ok) return null;
-    return (await res.text()).slice(0, maxBytes);
-  } catch { return null; }
+    const res = await fetch(new URL(target).toString(), { headers: UA, signal: AbortSignal.timeout(12000), redirect: "follow" });
+    if (res.ok) raw = (await res.text()).slice(0, maxBytes);
+  } catch { /* fall through to render bridge */ }
+
+  // If the raw HTML is a JS-only SPA shell (or the fetch failed), and a local render bridge is
+  // configured, render the page in a real browser and use that DOM instead. Opt-in via env →
+  // a complete no-op in production / when unset, so existing behaviour is unchanged.
+  const bridge = process.env.SITE_RENDER_URL;
+  if (bridge && (raw === null || looksLikeSpaShell(raw))) {
+    try {
+      const r = await fetch(`${bridge.replace(/\/+$/, "")}/render?url=${encodeURIComponent(target)}`, { signal: AbortSignal.timeout(60000) });
+      if (r.ok) { const rendered = (await r.text()).slice(0, maxBytes); if (rendered && rendered.length > (raw?.length ?? 0)) return rendered; }
+    } catch { /* keep raw */ }
+  }
+  return raw;
 }
 
 function originOf(url: string): string {
