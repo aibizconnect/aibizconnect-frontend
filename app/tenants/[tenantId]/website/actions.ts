@@ -1872,17 +1872,20 @@ export async function uploadMedia(
   const supabase = createSupabaseServiceClient();
   await ensureMediaBucket();
 
-  const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-  const storagePath = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
+  // Downscale + WebP-encode raster images on upload (smaller files → less storage/egress).
+  const { optimizeImage } = await import("@/lib/media/optimize");
+  const inputBuf = Buffer.from(await file.arrayBuffer());
+  const opt = await optimizeImage(inputBuf, file.type, file.name);
+  const storagePath = `${tenantId}/${folder}/${crypto.randomUUID()}.${opt.ext}`;
 
   // Routes to Cloudflare R2 (zero egress) when configured, else Supabase. 1yr immutable cache.
-  const put = await putObject(storagePath, file, file.type);
+  const put = await putObject(storagePath, opt.buf, opt.mime);
   if (!put.ok) throw new Error(put.error || "Upload failed.");
 
   const hasFolder = await mediaHasFolderId();
   const row: Record<string, any> = {
     tenant_id: tenantId, url: put.publicUrl, storage_path: storagePath,
-    filename: file.name, mime_type: file.type, size_bytes: file.size,
+    filename: file.name, mime_type: opt.mime, size_bytes: opt.buf.length,
   };
   if (hasFolder && folderId) row.folder_id = folderId;
   if (hasFolder && websiteId) row.website_id = websiteId;
@@ -2199,12 +2202,14 @@ export async function bulkUploadSystemMedia(formData: FormData): Promise<BulkUpl
       }
 
       const leaf = await ensureLeaf(folderPath);
-      const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bulk/${base}-${i}.${ext}`;
-      const up = await putObject(storagePath, buf, mime);
+      const { optimizeImage } = await import("@/lib/media/optimize");
+      const optb = await optimizeImage(buf, mime, file.name);
+      const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bulk/${base}-${i}.${optb.ext}`;
+      const up = await putObject(storagePath, optb.buf, optb.mime);
       if (!up.ok) { errors.push({ name: file.name, error: up.error || "upload failed" }); continue; }
       const { error: rowErr } = await supabase.from("website_media").insert({
         tenant_id: SYSTEM_TENANT_ID, url: up.publicUrl, storage_path: storagePath,
-        filename: `${displayName || "Asset"}.${ext}`, mime_type: mime, size_bytes: buf.length, folder_id: leaf,
+        filename: `${displayName || "Asset"}.${ext}`, mime_type: optb.mime, size_bytes: optb.buf.length, folder_id: leaf,
         ...(hasTags ? { tags: rowTags } : {}),
       });
       if (rowErr) { errors.push({ name: file.name, error: rowErr.message }); continue; }

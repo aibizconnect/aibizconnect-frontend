@@ -1,157 +1,137 @@
-Ali — this is an excellent decision record. It captures the problem, root cause, fix, architecture, and migration path cleanly.
-Below is the finalized project‑record version, with four additions I strongly recommend for long‑term stability: CORS, lifecycle rules, image resizing, and fallback strategy.
+Ali — this is a clean, production‑grade migration record, and it’s exactly the kind of thing future you (and future engineers) will be grateful for.
+Here’s the finalized documentation entry, with only the additions that materially strengthen the long‑term architecture — nothing noisy, nothing speculative.
 
-Everything else is solid.
-
-✅ PROJECT RECORD — Media Storage & Supabase Egress Architecture (Final)
+⭐ PROJECT RECORD — Media on Cloudflare R2 (Completed & Live)
 
 (Builder → Copilot: logged for the permanent engineering record)
 
-Problem
+Summary
 
-Supabase Cached Egress exceeded quota (6.6 / 5 GB, 133%).
-Cause: all tenant media (uploads, AI images, system assets) lived in a public Supabase Storage bucket (website-media) and were served via public URLs with no cacheControl.
-Browsers + CDN re-fetched assets constantly, especially inside:
+Media storage has been fully migrated from Supabase Storage to Cloudflare R2 with a permanent custom domain (media.aibizconnect.app).
+All media operations now route through a unified abstraction and are CDN‑optimized with 1‑year immutability.
+Migration of all existing objects + URL rewriting is complete and verified.
 
-tenant websites
+This closes the Supabase egress issue permanently.
 
-the editor
+What’s Live Now
+1. Unified Media Layer
 
-the Media Library
+All media operations (putObject, copyObject, removeObjects, downloadObject, publicUrlFor) now route through:
 
-Importer is not the cause — imported sites keep external image URLs.
+Cloudflare R2 when R2_* env vars are present
 
-Fix Shipped
+Supabase Storage as fallback
 
-(commits 5980a57, 2c3378a, b2d3ef6)
+This abstraction is the new canonical interface for all media.
 
-1. 1‑year immutable cacheControl on all uploads
+2. Permanent Media Domain
 
-cacheControl: "31536000" applied to:
+All public media is served from:
 
-uploadMedia
+https://media.aibizconnect.app/<path>
 
-bulk uploads
+Cloudflare custom domain
 
-system imports
+Proxied CNAME → R2 public endpoint
 
-AI images
+Ensures permanent, stable URLs regardless of future provider changes
 
-Result: browsers stop re-fetching → massive egress reduction.
+Same permanence model as tenant site subdomains
 
-2. New unified media abstraction (lib/media/storage.ts)
+3. CDN Optimization
 
-All media operations now go through:
+Every upload uses 1‑year immutable Cache‑Control
 
-putObject
+Cloudflare Edge Cache Rule:
 
-copyObject
+Host = media.aibizconnect.app
 
-removeObjects
+Cache Everything
 
-downloadObject
+Edge TTL = 1 year
 
-publicUrlFor
+Browser TTL = 1 year
 
-This abstraction routes to:
+Result: repeat loads never hit R2 → zero egress cost.
 
-Cloudflare R2 (zero egress) when configured
+4. Migration Completed
 
-Supabase Storage otherwise
+444 objects migrated
 
-All call sites refactored.
-Dependency added: aws4fetch (S3-compatible client).
-
-3. Migration script: scripts/migrate-media-to-r2.mjs
-
-Does:
-
-Copies every Supabase object → R2
-
-Rewrites embedded URLs in:
+All embedded URLs rewritten across:
 
 website_pages.draft_sections
 
 website_page_sections.content
 
-website_global_blocks.content/draft_content
+website_global_blocks.content + draft_content
 
 website_brand_settings.theme
 
-websites.wizard/seo_defaults
+websites.wizard + seo_defaults
 
-Idempotent.
-Dry-run by default; --apply to execute.
+Script is idempotent
 
-R2 Configuration
+Verified 200 responses from media.aibizconnect.app
 
-Environment variables:
+5. Deletion Safety
 
-R2_ACCOUNT_ID
+deleteWebsite now:
 
-R2_ACCESS_KEY_ID
+Cascade‑deletes website‑scoped media
 
-R2_SECRET_ACCESS_KEY
+Never touches shared/system assets
 
-R2_BUCKET=aibizconnect-media
+Cleans up folders + rows + blocks + brand settings
 
-R2_PUBLIC_BASE=https://media.aibizconnect.app
+6. Documentation
 
-Permanent Address Decision (Critical)
+docs/media-storage.md committed.
+Commits: 5980a57, 2c3378a, b2d3ef6, d1051a4, 0517442.
 
-All public media will be served from:
+⭐ Next (In Progress)
+(a) Sharp-based upload resizing
 
-https://media.aibizconnect.app/<storage_path>
+Max width 1920px for hero
 
-This is a custom Cloudflare domain attached to the R2 bucket.
+Convert to WebP
 
-Rationale:
+Skip SVG/GIF
 
-URL stays permanent even if:
+Reduces storage + improves performance
 
-R2 bucket changes
+(b) R2-down fallback
 
-R2 account changes
+If R2 PUT fails:
 
-provider changes
+Upload to Supabase Storage
 
-Only the DNS + Cloudflare binding changes
+Return Supabase public URL
 
-Same principle as tenant site subdomains (businessname.aibizconnect.app)
+Ensures no broken uploads during outages
 
-This ensures media URLs never break.
+After these: media re-locked.
 
-Status
+⭐ Future (Planned)
+Tenant Media Connectors
 
-Code merged
+Google Drive import
 
-Awaiting Ali’s Cloudflare setup:
+Canva import
 
-Create R2 bucket
+Assets pulled into tenant’s media library
 
-Attach media.aibizconnect.app
+Stored in R2 under tenant’s namespace
 
-Create R2 API token
-
-Add env vars to .env.local + Vercel
-
-Then run migration:
-
-Dry-run
-
---apply
-
-Media temporarily unlocked for migration; will re-lock after cutover.
+Full audit + quota tracking
 
 ⭐ Recommended Additions (Copilot’s review)
 
-These are not required for correctness, but they complete the architecture and prevent future issues.
+These are the only items I’d add to the record for completeness and long‑term stability.
 
 1. R2 CORS Policy (Required for Editor + Media Library)
 
-Add a CORS rule to R2:
-
-Allowed origins:
+Add CORS rules to allow:
 
 https://aibizconnect.app
 
@@ -159,99 +139,53 @@ https://*.aibizconnect.app
 
 http://localhost:3000 (dev)
 
-Allowed methods:
+Methods: GET, PUT, DELETE, HEAD
+Headers: content-type, authorization, x-amz-acl
 
-GET, PUT, HEAD, DELETE
+2. R2 Lifecycle Rules
 
-Allowed headers:
-
-content-type, authorization, x-amz-acl
-
-Without this, uploads or previews may fail in the editor.
-
-2. R2 Lifecycle Rules (Strongly Recommended)
-
-Add lifecycle rules to reduce storage bloat:
-
-Auto-delete AI-generated images older than X days (optional)
+Optional but recommended:
 
 Auto-delete temporary uploads
 
-Auto-delete unused thumbnails
+Auto-clean unused thumbnails
 
 Auto-transition large assets to cheaper storage class (if needed)
 
-This keeps R2 costs predictable.
+3. Monitoring
 
-3. Image Resizing on Upload (Sharp) — Optional but High ROI
+Add alerts for:
 
-Add a sharp pipeline for:
+R2 storage growth
 
-max width 1920px for hero
+R2 error rates
 
-1200px for content
+Supabase fallback usage
 
-600px for thumbnails
+Media migration anomalies
 
-convert to WebP/AVIF
+4. Media Path Convention
 
-This reduces:
+Document the canonical path format:
 
-storage
+<tenantId>/<uuid>.<ext>
 
-egress
-
-page load time
-
-Media Library load time
-
-You already have the abstraction layer — adding resizing is trivial now.
-
-4. Fallback Strategy if R2 or media domain is down
-
-Add a fallback in publicUrlFor:
-
-If R2 fails:
-
-fallback to Supabase public URL
-
-OR return a signed URL from R2
-
-OR return a placeholder image
-
-This prevents broken images on tenant sites.
-
-5. Monitoring & Alerts
-
-Add:
-
-Supabase egress alert
-
-R2 storage alert
-
-Media migration audit logs
-
-Error logs for failed R2 uploads
-
-This prevents silent failures.
+This ensures predictable organization and future multi-region replication.
 
 ⭐ Final Verdict
 
-Your architecture is correct, future-proof, and production-grade.
-The only additions I recommend for the project record are:
+This is a textbook-perfect migration: zero downtime, permanent URLs, CDN‑optimized, future‑proof, and fully abstracted behind a clean interface.
+
+The only additions worth logging are:
 
 R2 CORS
 
-R2 lifecycle rules
+Lifecycle rules
 
-optional image resizing
+Monitoring
 
-fallback strategy
-
-monitoring/alerts
+Path convention
 
 Everything else is already excellent.
-
-If you want, I can generate a SETUP.md or ARCHITECTURE.md section for the repo based on this.
 
 Edit in a page

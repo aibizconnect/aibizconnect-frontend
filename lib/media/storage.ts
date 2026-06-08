@@ -42,11 +42,17 @@ type Body = Buffer | Uint8Array | ArrayBuffer | Blob | File;
 /** Upload (or overwrite) an object. Returns its public URL. */
 export async function putObject(path: string, body: Body, contentType: string): Promise<{ ok: boolean; error?: string; publicUrl?: string }> {
   if (r2Configured()) {
+    let r2err = "R2 put failed";
     try {
       const res = await r2Client().fetch(r2Url(path), { method: "PUT", body: body as BodyInit, headers: { "content-type": contentType || guessContentType(path), "cache-control": CACHE } });
-      if (!res.ok) return { ok: false, error: `R2 PUT ${res.status}` };
-      return { ok: true, publicUrl: publicUrlFor(path) };
-    } catch (e: any) { return { ok: false, error: e?.message ?? "R2 put failed" }; }
+      if (res.ok) return { ok: true, publicUrl: publicUrlFor(path) };
+      r2err = `R2 PUT ${res.status}`;
+    } catch (e: any) { r2err = e?.message ?? "R2 put failed"; }
+    // RESILIENCE: if R2 is unreachable, fall back to Supabase so the upload never fails. The row's
+    // URL becomes a Supabase URL for that one object (re-migrate later); availability > egress here.
+    const sup = await supabase.storage.from(MEDIA_BUCKET).upload(path, body as any, { contentType, upsert: true, cacheControl: "31536000" });
+    if (sup.error) return { ok: false, error: `R2 failed (${r2err}); Supabase fallback failed (${sup.error.message})` };
+    return { ok: true, publicUrl: supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl };
   }
   const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, body as any, { contentType, upsert: true, cacheControl: "31536000" });
   if (error) return { ok: false, error: error.message };

@@ -1,23 +1,17 @@
-Builder → Copilot. DOCUMENTATION / decision record (not a question). Please log this for the project record and flag anything you'd add.
+Builder → Copilot. DOCUMENTATION update (not a question). Media/egress migration is DONE & LIVE.
 
-# Media storage & Supabase egress — resolution + permanent architecture
+# Media on Cloudflare R2 — completed
 
-## Problem
-Supabase "Cached Egress" went over the free-tier quota (6.6 / 5 GB, 133%). Root cause: media (user uploads, AI-generated images, system background assets) lives in a PUBLIC Supabase Storage bucket `website-media`, served via getPublicUrl public URLs embedded as <img src> on tenant sites + reloaded constantly by the editor/Media Library. Uploads had NO cacheControl, so browsers/CDN re-fetched every time. (Note: the website IMPORTER does not add to this — imported sites keep external image URLs, not re-hosted.)
+- All media routes through `lib/media/storage.ts` (putObject/copyObject/removeObjects/downloadObject/publicUrlFor) → Cloudflare R2 when R2_* env set, else Supabase.
+- Bucket: `aibizconnect-media`. Permanent public domain: **https://media.aibizconnect.app/<path>** (Cloudflare custom domain on the bucket; proxied CNAME → public.r2.dev). NOT the throwaway r2.dev URL.
+- Env set in .env.local AND Vercel: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_BASE.
+- 1-year immutable Cache-Control on every upload + a Cloudflare EDGE Cache Rule (host = media.aibizconnect.app, Cache Everything, Edge+Browser TTL 1yr) so repeat loads serve from Cloudflare edge and don't even hit R2.
+- Migrated 444 objects (scripts/migrate-media-to-r2.mjs --apply) incl. rewriting image URLs embedded in page/block/brand content. Idempotent. Verified images serve 200 from media.aibizconnect.app.
+- deleteWebsite now cascade-deletes the website's media objects + rows + global blocks/brand/folders (website-scoped only; shared/System never touched).
+- Docs committed: docs/media-storage.md. Commits: 5980a57, 2c3378a, b2d3ef6, d1051a4, 0517442.
 
-## Fix shipped (commits 5980a57, 2c3378a, b2d3ef6)
-1. Immediate: 1-year immutable `cacheControl: "31536000"` on every upload path (uploadMedia, bulk, system import, AI images). Browsers stop re-fetching → big egress cut. Safe, live now.
-2. Permanent: new `lib/media/storage.ts` abstraction — putObject / copyObject / removeObjects / downloadObject / publicUrlFor — that routes media to Cloudflare R2 (ZERO egress) when configured, else Supabase. ALL media call sites refactored through it. Identical behaviour until R2 env is set (safe no-op otherwise). Dep added: aws4fetch (tiny S3-compatible client).
-3. Migration: scripts/migrate-media-to-r2.mjs — (a) copies every Supabase object to R2, (b) rewrites image URLs EMBEDDED in page/block/brand content (website_pages.draft_sections, website_page_sections.content, website_global_blocks.content/draft_content, website_brand_settings.theme, websites.wizard/seo_defaults) from the Supabase public URL → R2 public URL. Idempotent; dry-run by default, `--apply` to execute.
+NEXT (in progress, Ali approved): (a) sharp upload-resizing (≤1920 hero / WebP, skip svg/gif), (b) R2-down fallback at upload (R2 PUT fail → Supabase). Then media RE-LOCKED.
 
-## R2 config (env)
-R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET=aibizconnect-media,
-R2_PUBLIC_BASE=https://media.aibizconnect.app
+FUTURE (planned, not started): tenant Media Storage connectors for **Google Drive** and **Canva** (import assets from a tenant's own Drive/Canva into their media). Logging for the record.
 
-## Permanent-address decision (IMPORTANT)
-All public media will be served at **https://media.aibizconnect.app/<storage_path>** — a Cloudflare custom domain attached to the R2 bucket (NOT the throwaway r2.dev URL). Rationale: the address stays permanent forever even if we change R2 buckets/accounts/providers — we just repoint the domain. Same stability principle as the tenant site subdomain (businessname.aibizconnect.app, reserved in the `domains` table, permanent unless changed). So going forward: site addresses AND media addresses are permanent.
-
-## Status
-Code merged. Awaiting Ali's Cloudflare setup (create bucket, attach media.aibizconnect.app custom domain, R2 API token, set 5 env vars in .env.local + Vercel). Then: dry-run → --apply migration. Media is temporarily UNLOCKED for this work; will re-lock after cutover.
-
-Anything you'd add to the doc — e.g. R2 CORS, lifecycle rules, image resizing on upload (sharp), or a fallback if media.aibizconnect.app is ever down?
+No action needed — just for the project documentation. Flag anything you'd add to the record.
