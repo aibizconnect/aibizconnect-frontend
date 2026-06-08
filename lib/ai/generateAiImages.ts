@@ -12,6 +12,7 @@
 import { getPresetById, type AiGenPreset } from "@/config/aiPresets";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
+import { putObject } from "@/lib/media/storage";
 
 /** Aspect ratio per category (Imagen supports 1:1, 3:4, 4:3, 9:16, 16:9). */
 function aspectFor(category: AiGenPreset["category"]): string {
@@ -415,14 +416,13 @@ export async function imagenGenerateAndImport(
     }
     const ext = outMime.includes("jpeg") ? "jpg" : outMime.includes("webp") ? "webp" : "png";
     const path = `${tenantId}/uploads/ai/${ts}/${i}.${ext}`;
-    const up = await supabase.storage.from("website-media").upload(path, bytes, { contentType: outMime, upsert: true, cacheControl: "31536000" });
-    if (up.error) continue;
-    const { data: pub } = supabase.storage.from("website-media").getPublicUrl(path);
+    const up = await putObject(path, bytes, outMime);
+    if (!up.ok) continue;
     const { data: row } = await supabase.from("website_media").insert({
-      tenant_id: tenantId, url: pub.publicUrl, storage_path: path,
+      tenant_id: tenantId, url: up.publicUrl, storage_path: path,
       filename: `${opts?.namePrefix ?? "AI image"} ${i + 1}.${ext}`, mime_type: outMime, size_bytes: bytes.length,
     }).select("id").single();
-    if (row?.id) images.push({ id: row.id, url: pub.publicUrl });
+    if (row?.id) images.push({ id: row.id, url: up.publicUrl ?? "" });
   }
   return { images, usedModel };
 }

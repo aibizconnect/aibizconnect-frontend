@@ -9,6 +9,7 @@ import path from "path";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
 import { ensureSystemFolderPath } from "@/lib/media/systemFolders";
+import { putObject } from "@/lib/media/storage";
 
 /** Map a (long, descriptive) filename to a tidy { folder, label } for the System library. */
 function classify(name: string): { folder: string; label: string } {
@@ -66,12 +67,11 @@ export async function importLocalBackgrounds(dir: string): Promise<ImportLocalRe
       const idx = (counters.get(label) ?? 0) + 1; counters.set(label, idx);
       const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bg/${base}-${i}.${ext}`;
 
-      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true, cacheControl: "31536000" });
-      if (up.error) { errors.push({ file: f, error: up.error.message }); continue; }
-      const { data: pub } = supabase.storage.from("website-media").getPublicUrl(storagePath);
+      const up = await putObject(storagePath, buf, mime);
+      if (!up.ok) { errors.push({ file: f, error: up.error || "upload failed" }); continue; }
       const filename = `${label} ${idx}.${ext}`;
       const { error: rowErr } = await supabase.from("website_media").insert({
-        tenant_id: SYSTEM_TENANT_ID, url: pub.publicUrl, storage_path: storagePath,
+        tenant_id: SYSTEM_TENANT_ID, url: up.publicUrl, storage_path: storagePath,
         filename, mime_type: mime, size_bytes: buf.length, folder_id: leaf,
       });
       if (rowErr) { errors.push({ file: f, error: rowErr.message }); continue; }

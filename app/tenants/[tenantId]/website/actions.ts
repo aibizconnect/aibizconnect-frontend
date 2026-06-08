@@ -3,6 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
+import { putObject, copyObject, removeObjects, downloadObject, publicUrlFor } from "@/lib/media/storage";
 import { imagenGenerateAndImport, imageGenEnabled as aiImageGenEnabled, hasKey as aiHasImageKey } from "@/lib/ai/generateAiImages";
 import {
   sectionSchema,
@@ -1874,17 +1875,13 @@ export async function uploadMedia(
   const ext = (file.name.split(".").pop() || "bin").toLowerCase();
   const storagePath = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
 
-  const { error: upErr } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    // 1-year immutable cache → browsers/CDN stop re-fetching the same asset (cuts egress hard).
-    .upload(storagePath, file, { contentType: file.type, cacheControl: "31536000" });
-  if (upErr) throw new Error(upErr.message);
-
-  const { data: pub } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+  // Routes to Cloudflare R2 (zero egress) when configured, else Supabase. 1yr immutable cache.
+  const put = await putObject(storagePath, file, file.type);
+  if (!put.ok) throw new Error(put.error || "Upload failed.");
 
   const hasFolder = await mediaHasFolderId();
   const row: Record<string, any> = {
-    tenant_id: tenantId, url: pub.publicUrl, storage_path: storagePath,
+    tenant_id: tenantId, url: put.publicUrl, storage_path: storagePath,
     filename: file.name, mime_type: file.type, size_bytes: file.size,
   };
   if (hasFolder && folderId) row.folder_id = folderId;
@@ -1992,12 +1989,11 @@ export async function importSystemAssetToTenant(tenantId: string, systemMediaId:
   const ext = (src.filename ?? "asset").split(".").pop() || "png";
   const destPath = `${tenantId}/uploads/system-${systemMediaId.slice(0, 8)}-${Date.now()}.${ext}`;
   // Copy the underlying storage object (system original is never mutated).
-  const { error: copyErr } = await supabase.storage.from("website-media").copy(src.storage_path, destPath);
-  if (copyErr) throw new Error(copyErr.message);
-  const { data: pub } = supabase.storage.from("website-media").getPublicUrl(destPath);
+  const cp = await copyObject(src.storage_path, destPath);
+  if (!cp.ok) throw new Error(cp.error || "Copy failed.");
 
   const { data: row, error: e2 } = await supabase.from("website_media").insert({
-    tenant_id: tenantId, url: pub.publicUrl, storage_path: destPath,
+    tenant_id: tenantId, url: cp.publicUrl, storage_path: destPath,
     filename: src.filename, mime_type: src.mime_type, size_bytes: src.size_bytes,
   }).select(MEDIA_COLS).single();
   if (e2 || !row) throw new Error(e2?.message ?? "Could not import system asset.");
@@ -2118,7 +2114,7 @@ export async function declutterSystemMedia(opts?: { dryRun?: boolean }): Promise
   // Remove storage objects in chunks, then the rows.
   const paths = targets.map((r) => r.storage_path).filter((p): p is string => !!p);
   for (let i = 0; i < paths.length; i += 100) {
-    await supabase.storage.from("website-media").remove(paths.slice(i, i + 100));
+    await removeObjects(paths.slice(i, i + 100));
   }
   let removed = 0;
   const ids = targets.map((r) => r.id);
@@ -2204,11 +2200,10 @@ export async function bulkUploadSystemMedia(formData: FormData): Promise<BulkUpl
 
       const leaf = await ensureLeaf(folderPath);
       const storagePath = `${SYSTEM_TENANT_ID}/uploads/system-bulk/${base}-${i}.${ext}`;
-      const up = await supabase.storage.from("website-media").upload(storagePath, buf, { contentType: mime, upsert: true, cacheControl: "31536000" });
-      if (up.error) { errors.push({ name: file.name, error: up.error.message }); continue; }
-      const { data: pub } = supabase.storage.from("website-media").getPublicUrl(storagePath);
+      const up = await putObject(storagePath, buf, mime);
+      if (!up.ok) { errors.push({ name: file.name, error: up.error || "upload failed" }); continue; }
       const { error: rowErr } = await supabase.from("website_media").insert({
-        tenant_id: SYSTEM_TENANT_ID, url: pub.publicUrl, storage_path: storagePath,
+        tenant_id: SYSTEM_TENANT_ID, url: up.publicUrl, storage_path: storagePath,
         filename: `${displayName || "Asset"}.${ext}`, mime_type: mime, size_bytes: buf.length, folder_id: leaf,
         ...(hasTags ? { tags: rowTags } : {}),
       });
@@ -2313,11 +2308,8 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
       const ext = (r.filename?.split(".").pop() || "png").toLowerCase();
       if (r.storage_path) {
         const dest = `${SYSTEM_TENANT_ID}/uploads/promoted/${base}-${i}.${ext}`;
-        const copy = await supabase.storage.from("website-media").copy(r.storage_path, dest);
-        if (!copy.error) {
-          storagePath = dest;
-          url = supabase.storage.from("website-media").getPublicUrl(dest).data.publicUrl;
-        }
+        const copy = await copyObject(r.storage_path, dest);
+        if (copy.ok) { storagePath = dest; url = copy.publicUrl || url; }
         // If copy fails (e.g. cross-path perms), fall back to referencing the original URL.
       }
 
@@ -2328,7 +2320,7 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
         const { aiCategorizeImage } = await import("@/lib/ai/generateAiImages");
         const { ensureSystemFolderPath } = await import("@/lib/media/systemFolders");
         let buf: Buffer | null = null;
-        if (storagePath) { const dl = await supabase.storage.from("website-media").download(storagePath); if (dl.data) buf = Buffer.from(await dl.data.arrayBuffer()); }
+        if (storagePath) { buf = await downloadObject(storagePath); }
         if (!buf) { const resp = await fetch(url); if (resp.ok) buf = Buffer.from(await resp.arrayBuffer()); }
         if (buf) {
           const cat = await aiCategorizeImage(buf, r.mime_type || "image/png");
@@ -2379,7 +2371,7 @@ export async function deleteSystemMedia(mediaId: string): Promise<void> {
   const supabase = createSupabaseServiceClient();
   const { data: row } = await supabase
     .from("website_media").select("storage_path").eq("tenant_id", SYSTEM_TENANT_ID).eq("id", mediaId).single();
-  if (row?.storage_path) await supabase.storage.from("website-media").remove([row.storage_path]);
+  if (row?.storage_path) await removeObjects([row.storage_path]);
   const { error } = await supabase.from("website_media").delete().eq("tenant_id", SYSTEM_TENANT_ID).eq("id", mediaId);
   if (error) throw new Error(error.message);
   const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
@@ -2507,7 +2499,7 @@ export async function deleteFolder(folderId: string, tenantId: string, deleteIma
     if (images.length > 0) {
       // Consent given — permanently remove the images (storage objects + rows).
       const paths = images.map((i) => i.storage_path).filter(Boolean);
-      if (paths.length) { try { await supabase.storage.from("website-media").remove(paths); } catch { /* ignore storage gaps */ } }
+      if (paths.length) { try { await removeObjects(paths); } catch { /* ignore storage gaps */ } }
       await supabase.from("website_media").delete().eq("tenant_id", tenantId).in("id", images.map((i) => i.id));
     }
   }
@@ -2545,7 +2537,7 @@ export async function deleteMedia(mediaId: string, tenantId: string): Promise<vo
   const source = deriveSource(row?.storage_path ?? "");
   // Only remove a stored object for owned sources. Stock has no object; system is read-only.
   if (row?.storage_path && source !== "stock" && source !== "system") {
-    await supabase.storage.from(MEDIA_BUCKET).remove([row.storage_path]);
+    await removeObjects([row.storage_path]);
   }
   const { error } = await supabase
     .from("website_media")

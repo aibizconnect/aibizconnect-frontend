@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+    "aws4fetch": "^1.0.20",
     "chart.js": "^4.5.1",
     "next": "16.2.6",
     "node-html-parser": "^6.1.13",
