@@ -17,6 +17,7 @@ const CALLBACK: Record<string, string> = {
   google_calendar_platform_app: "/api/calendar/google/callback",
   microsoft_calendar_platform_app: "/api/calendar/microsoft/callback",
   google_drive_platform_app: "/api/drive/callback",
+  canva_platform_app: "/api/canva/callback",
 };
 const DOCS: Record<string, string> = {
   facebook_platform_app: "https://developers.facebook.com/apps",
@@ -29,6 +30,7 @@ const DOCS: Record<string, string> = {
   google_calendar_platform_app: "https://console.cloud.google.com/apis/credentials",
   microsoft_calendar_platform_app: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
   google_drive_platform_app: "https://console.cloud.google.com/apis/credentials",
+  canva_platform_app: "https://www.canva.com/developers/integrations/connect-api",
   cloudflare_platform: "https://dash.cloudflare.com/profile/api-tokens",
 };
 // Webhook (not OAuth callback) endpoints to register in the provider's dashboard.

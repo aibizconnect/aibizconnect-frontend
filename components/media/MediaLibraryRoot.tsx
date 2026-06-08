@@ -11,6 +11,7 @@ import {
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
 import { listWebsites, type Website } from "@/app/tenants/[tenantId]/website/website-actions";
 import DriveTab from "./DriveTab";
+import CanvaTab from "./CanvaTab";
 
 const isImage = (m: { mime_type?: string | null; filename?: string | null }) =>
   (m.mime_type ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(m.filename ?? "");
@@ -189,6 +190,8 @@ export default function MediaLibraryRoot({
     const p = new URLSearchParams(window.location.search);
     if (p.get("drive_connected")) { setTab("drive"); notify(`Google Drive connected${p.get("drive_connected") !== "1" ? ` (${p.get("drive_connected")})` : ""}.`, "ok"); window.history.replaceState({}, "", window.location.pathname); }
     else if (p.get("drive_error")) { setTab("drive"); notify(`Drive: ${p.get("drive_error")}`, "err"); window.history.replaceState({}, "", window.location.pathname); }
+    else if (p.get("canva_connected")) { notify(`Canva connected${p.get("canva_connected") !== "1" ? ` (${p.get("canva_connected")})` : ""}.`, "ok"); window.history.replaceState({}, "", window.location.pathname); }
+    else if (p.get("canva_error")) { notify(`Canva: ${p.get("canva_error")}`, "err"); window.history.replaceState({}, "", window.location.pathname); }
     // eslint-disable-next-line
   }, []);
 
@@ -861,11 +864,7 @@ export default function MediaLibraryRoot({
           {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Imported from Drive</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
         </>);
         if (isCanva) return (<>
-          <div className="rounded-lg border border-violet-200 bg-violet-50 p-6 text-center">
-            <p className="text-sm font-semibold text-violet-800">Canva</p>
-            <p className="mx-auto mt-1 max-w-md text-xs text-violet-600">Canva connect (OAuth import) is coming next. For now, export from Canva and drop the file into this folder.</p>
-            <div className="mt-3"><Dropzone asSource="canva" hint="Drop a Canva export here" /></div>
-          </div>
+          <CanvaTab tenantId={tenantId} importFolderId={folderId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />
           {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">From Canva</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
         </>);
         return (<><Dropzone asSource="upload" hint="Drag & drop files here to upload" />{Toolbar}{BulkBar}
