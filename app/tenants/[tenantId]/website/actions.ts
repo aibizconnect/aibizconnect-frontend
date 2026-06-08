@@ -2426,14 +2426,36 @@ export async function createFolder(tenantId: string, name: string, parentId?: st
  * same empty set — they fill them by creating, uploading, or importing from System. Matching
  * is case-insensitive so we never duplicate an existing folder. Best-effort; never throws.
  */
-const DEFAULT_MEDIA_FOLDERS = ["Google Drive", "Canva", "Logos", "Photos", "Icons", "Backgrounds", "Landscapes", "Graphics", "Charts"];
+const DEFAULT_MEDIA_FOLDERS = ["Google Drive", "Canva", "AI Images", "Logos", "Photos", "Icons", "Backgrounds", "Landscapes", "Graphics", "Charts"];
+/** System connector/AI folders that the tenant must NOT rename or delete. */
+export function isProtectedFolderName(name?: string | null): boolean {
+  return /^(google\s*drive|canva|canava|ai\s*images)$/i.test((name || "").trim());
+}
 export async function ensureDefaultMediaFolders(tenantId: string): Promise<void> {
   await requireTenantAccess(tenantId);
   try {
     const supabase = createSupabaseServiceClient();
     const { data: existing } = await supabase
-      .from("media_folders").select("name").eq("tenant_id", tenantId).is("parent_id", null);
-    const have = new Set((existing ?? []).map((f: any) => (f.name || "").toLowerCase()));
+      .from("media_folders").select("id, name").eq("tenant_id", tenantId).is("parent_id", null);
+    const rows = (existing ?? []) as { id: string; name: string }[];
+    const have = new Set(rows.map((f) => (f.name || "").toLowerCase()));
+
+    // One-time cleanup: merge the old mis-spelled "Canava" folder into "Canva" (move its media,
+    // then delete the empty duplicate). Idempotent.
+    const canava = rows.find((f) => (f.name || "").toLowerCase() === "canava");
+    if (canava) {
+      try {
+        let canva = rows.find((f) => (f.name || "").toLowerCase() === "canva");
+        if (!canva) {
+          const { data: made } = await supabase.from("media_folders").insert({ tenant_id: tenantId, name: "Canva", parent_id: null, website_id: null }).select("id, name").single();
+          if (made) canva = made as any;
+        }
+        if (canva && await mediaHasFolderId()) await supabase.from("website_media").update({ folder_id: canva.id }).eq("tenant_id", tenantId).eq("folder_id", canava.id);
+        await supabase.from("media_folders").delete().eq("tenant_id", tenantId).eq("id", canava.id);
+        have.add("canva");
+      } catch { /* non-fatal */ }
+    }
+
     const missing = DEFAULT_MEDIA_FOLDERS.filter((n) => !have.has(n.toLowerCase()));
     if (missing.length) {
       await supabase.from("media_folders").insert(
@@ -2445,6 +2467,8 @@ export async function ensureDefaultMediaFolders(tenantId: string): Promise<void>
 
 export async function renameFolder(folderId: string, tenantId: string, name: string): Promise<void> {
   const supabase = createSupabaseServiceClient();
+  const { data: cur } = await supabase.from("media_folders").select("name").eq("id", folderId).eq("tenant_id", tenantId).maybeSingle();
+  if (isProtectedFolderName((cur as any)?.name)) throw new Error("This folder can't be renamed.");
   const { error } = await supabase.from("media_folders").update({ name: (name || "").trim() || "Folder" }).eq("id", folderId).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
 }
@@ -2493,6 +2517,8 @@ export async function moveFolder(folderId: string, tenantId: string, newParentId
 export async function deleteFolder(folderId: string, tenantId: string, deleteImages = false): Promise<void> {
   await requireTenantAccess(tenantId);
   const supabase = createSupabaseServiceClient();
+  const { data: cur } = await supabase.from("media_folders").select("name").eq("id", folderId).eq("tenant_id", tenantId).maybeSingle();
+  if (isProtectedFolderName((cur as any)?.name)) throw new Error("This folder can't be deleted.");
   const ids = await descendantFolderIds(supabase, tenantId, folderId);
 
   if (await mediaHasFolderId()) {

@@ -1288,13 +1288,16 @@ function FolderTreeRail({
   onDropFile: (folderId: string | null, e: React.DragEvent) => void;
 }) {
   const childrenOf = (pid: string | null) => folders.filter((f) => (f.parent_id ?? null) === pid);
-  // Pin the connector folders (Google Drive, Canva) to the very top of the rail.
-  const specialRank = (name?: string) => { const n = (name || "").toLowerCase(); return /google\s*drive/.test(n) ? 0 : /canva|canava/.test(n) ? 1 : 99; };
+  // Pin the connector/AI folders (Google Drive, Canva, AI Images) to the very top of the rail,
+  // give them branded icons, and make them non-renamable / non-deletable.
+  const specialRank = (name?: string) => { const n = (name || "").toLowerCase(); return /google\s*drive/.test(n) ? 0 : /canva|canava/.test(n) ? 1 : /ai\s*images/.test(n) ? 2 : 99; };
+  const isProtected = (name?: string) => /^(google\s*drive|canva|canava|ai\s*images)$/i.test((name || "").trim());
   const rootFolders = [...childrenOf(null)].sort((a, b) => specialRank(a.name) - specialRank(b.name));
   const FolderIcon = ({ name }: { name?: string }) => {
     const n = (name || "").toLowerCase();
     if (/google\s*drive/.test(n)) return (<svg width="14" height="14" viewBox="0 0 48 48" aria-hidden><path fill="#188038" d="M14 38h20l-5-8H19z" /><path fill="#1a73e8" d="M9 30l5 8 10-17-5-9z" /><path fill="#fbbc04" d="M39 30 29 12H19l10 18z" /></svg>);
     if (/canva|canava/.test(n)) return (<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="11" fill="#7d2ae8" /><text x="12" y="16.5" textAnchor="middle" fontSize="13" fontWeight="700" fill="#fff" fontFamily="sans-serif">C</text></svg>);
+    if (/ai\s*images/.test(n)) return (<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden><path fill="#6366f1" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z" /><circle cx="18.5" cy="17.5" r="2.2" fill="#a855f7" /></svg>);
     return <span className="text-base leading-none text-slate-400">📁</span>;
   };
   // polished drop-target: highlight while a FILE or a FOLDER hovers over a folder/root.
@@ -1315,15 +1318,17 @@ function FolderTreeRail({
   const Row = ({ f, depth }: { f: MediaFolder; depth: number }) => (
     <div>
       <div {...dropProps(f.id)}
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/abc-folder", f.id); }}
-        className={`group flex cursor-grab items-center gap-1 rounded px-2 py-1 text-sm ${hot(f.id)} ${current === f.id ? "bg-[#1e3a8a]/10 text-[#1e3a8a]" : "text-slate-600 hover:bg-slate-100"}`}
+        draggable={!isProtected(f.name)}
+        onDragStart={(e) => { if (isProtected(f.name)) { e.preventDefault(); return; } e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/abc-folder", f.id); }}
+        className={`group flex items-center gap-1 rounded px-2 py-1 text-sm ${isProtected(f.name) ? "" : "cursor-grab"} ${hot(f.id)} ${current === f.id ? "bg-[#1e3a8a]/10 text-[#1e3a8a]" : "text-slate-600 hover:bg-slate-100"}`}
         style={{ paddingLeft: 8 + depth * 12 }}>
         <button onClick={() => onSelect(f.id)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <FolderIcon name={f.name} /><span className="truncate">{f.name}</span>
         </button>
-        <button onClick={() => onRename(f)} className="opacity-0 group-hover:opacity-100" title="Rename">✎</button>
-        <button onClick={() => onDelete(f)} className="text-red-500 opacity-0 group-hover:opacity-100" title="Delete">🗑</button>
+        {!isProtected(f.name) && <>
+          <button onClick={() => onRename(f)} className="opacity-0 group-hover:opacity-100" title="Rename">✎</button>
+          <button onClick={() => onDelete(f)} className="text-red-500 opacity-0 group-hover:opacity-100" title="Delete">🗑</button>
+        </>}
       </div>
       {childrenOf(f.id).map((c) => <Row key={c.id} f={c} depth={depth + 1} />)}
     </div>
