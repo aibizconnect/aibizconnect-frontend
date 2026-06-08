@@ -74,6 +74,31 @@ function cssVarColors(html: string): ExtractedTheme["colors"] {
   return colors;
 }
 
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100; l /= 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = (x: number) => Math.max(0, Math.min(255, Math.round(255 * x))).toString(16).padStart(2, "0");
+  return "#" + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+/** Tailwind/shadcn store brand colors as bare HSL triplets, e.g. `--primary: 222 47% 11%`. */
+function hslVarColors(html: string): ExtractedTheme["colors"] {
+  const colors: ExtractedTheme["colors"] = {};
+  const re = /--([a-z0-9-]*(?:primary|secondary|accent|background|foreground|brand)[a-z0-9-]*)\s*:\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const name = m[1].toLowerCase();
+    const hex = hslToHex(parseFloat(m[2]), parseFloat(m[3]), parseFloat(m[4]));
+    if (/foreground/.test(name)) { if (!colors.text) colors.text = hex; }
+    else if (/(primary|brand)/.test(name) && !isNeutral(hex)) { if (!colors.primary) colors.primary = hex; }
+    else if (/secondary/.test(name)) { if (!colors.secondary) colors.secondary = hex; }
+    else if (/accent/.test(name) && !isNeutral(hex)) { if (!colors.accent) colors.accent = hex; }
+    else if (/background/.test(name)) { if (!colors.background) colors.background = hex; }
+  }
+  return colors;
+}
+
 export function extractTheme(html: string): ExtractedTheme {
   const theme: ExtractedTheme = { fonts: {}, colors: {} };
   try {
@@ -82,6 +107,9 @@ export function extractTheme(html: string): ExtractedTheme {
     if (fams[1]) theme.fonts.body = fams[1]; else if (fams[0]) theme.fonts.body = fams[0];
 
     theme.colors = cssVarColors(html);
+    // Fill any gaps from Tailwind/shadcn HSL-triplet vars (e.g. `--primary: 222 47% 11%`).
+    const hslColors = hslVarColors(html);
+    for (const [k, v] of Object.entries(hslColors)) if (v && !(theme.colors as any)[k]) (theme.colors as any)[k] = v;
 
     // theme-color meta → primary fallback
     if (!theme.colors.primary) {

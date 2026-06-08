@@ -36,7 +36,8 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
   const abs = (u?: string | null): string => { try { return u ? new URL(u, base).toString() : ""; } catch { return u || ""; } };
 
   const main = root.querySelector("main") || root.querySelector("body") || root;
-  const out: Record<string, unknown>[] = [];
+  // Reassignable so collectBlocks() can harvest a fresh block list per section band.
+  let out: Record<string, unknown>[] = [];
 
   // Buffer consecutive images so 3+ become a gallery, fewer stay as image blocks.
   let imgRun: string[] = [];
@@ -45,7 +46,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     else for (const url of imgRun) out.push({ type: "image", url });
     imgRun = [];
   };
-  const seenText = new Set<string>();
+  let seenText = new Set<string>();
   const pushText = (text: string, italic = false, el?: HTMLElement) => {
     const t = clean(text);
     if (t.length < 2) return;
@@ -165,9 +166,51 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     }
   };
 
+  // Harvest a FRESH ordered block list from a subtree (resets the shared walk state).
+  const collectBlocks = (node: HTMLElement): Record<string, unknown>[] => {
+    out = []; imgRun = []; seenText = new Set<string>();
+    walk(node); flushImgs();
+    return out;
+  };
+  const elementChildren = (node: HTMLElement): HTMLElement[] =>
+    (node.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
+  const bandName = (blocks: Record<string, unknown>[]): string => {
+    const h = blocks.find((b) => b.type === "heading");
+    return h ? clean(String(h.text || "")).slice(0, 40) || "Section" : "Section";
+  };
+
+  // 1) Hero band first (detected + removed so it isn't re-emitted below).
+  const result: Record<string, unknown>[] = [];
   const hero = detectHero(main);
-  if (hero) out.push(hero);
-  walk(main);
-  flushImgs();
-  return out.slice(0, 80);
+  if (hero) result.push(hero);
+
+  // 2) Find the container whose direct children are the page's section bands (descend through a
+  //    single wrapper div until we hit <section>s or multiple children).
+  let container = main;
+  for (let i = 0; i < 3; i++) {
+    const kids = elementChildren(container);
+    if (kids.some((k) => tagOf(k) === "section")) break;
+    if (kids.length === 1 && tagOf(kids[0]) !== "section" && !DROP.has(tagOf(kids[0]))) container = kids[0];
+    else break;
+  }
+
+  // 3) Wrap each top-level band into a 1-column row carrying that band's captured _style
+  //    (bg + padding). Leaf blocks stay inside as editable children. No deep recursion (v1).
+  for (const band of elementChildren(container)) {
+    if (DROP.has(tagOf(band))) continue;
+    const blocks = collectBlocks(band);
+    if (!blocks.length) continue;
+    // Content stays boxed/centered; the row wrapper carries the band's bg + padding so a coloured
+    // band reads full-width with centered content (Copilot's outer-band / inner-boxed pattern).
+    const row = applyCapturedStyle({
+      type: "row", columns: 1, contentWidth: "boxed", _name: bandName(blocks), children: [blocks],
+    }, band.getAttribute("data-cs")) as Record<string, unknown>;
+    result.push(row);
+    if (result.length >= 60) break;
+  }
+
+  // 4) Fallback: if no bands were wrapped (unusual markup), emit the flat block list.
+  if (!result.some((r) => r.type === "row")) result.push(...collectBlocks(main));
+
+  return result.slice(0, 60);
 }
