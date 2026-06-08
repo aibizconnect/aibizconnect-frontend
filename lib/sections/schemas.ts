@@ -200,7 +200,7 @@ export const htmlSchema = z.object({ type: z.literal("html"), code: z.string() }
 
 // ---- Extended best-in-class elements (functional, no external paid keys) ----
 export const bulletListSchema = z.object({ type: z.literal("bullet-list"), items: z.array(z.object({ text: z.string() })).default([]), bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number"]).optional(), color: z.string().optional(), direction: z.enum(["ltr", "rtl"]).optional() });
-export const numberCounterSchema = z.object({ type: z.literal("number-counter"), value: z.string(), label: z.string().optional(), prefix: z.string().optional(), suffix: z.string().optional() });
+export const numberCounterSchema = z.object({ type: z.literal("number-counter"), value: z.string(), start: z.coerce.number().optional(), end: z.coerce.number().optional(), duration: z.coerce.number().optional(), label: z.string().optional(), prefix: z.string().optional(), suffix: z.string().optional() });
 export const progressBarSchema = z.object({ type: z.literal("progress-bar"), label: z.string().optional(), percent: z.number().min(0).max(100).default(50) });
 export const pricingSchema = z.object({ type: z.literal("pricing"), plans: z.array(z.object({ name: z.string(), price: z.string(), period: z.string().optional(), features: z.array(z.object({ text: z.string() })).default([]), ctaLabel: z.string().optional(), ctaHref: z.string().optional() })).default([]) });
 export const faqSchema = z.object({ type: z.literal("faq"), items: z.array(z.object({ q: z.string(), a: z.string() })).default([]) });
@@ -578,7 +578,7 @@ export function defaultContentFor(type: SectionType): SectionContent {
     case "bullet-list":
       return { type: "bullet-list", items: [{ text: "First point" }, { text: "Second point" }, { text: "Third point" }] };
     case "number-counter":
-      return { type: "number-counter", value: "100", suffix: "+", label: "Happy Clients" };
+      return { type: "number-counter", value: "100", start: 0, end: 100, duration: 2, suffix: "+", label: "Happy Clients" };
     case "progress-bar":
       return { type: "progress-bar", label: "Progress", percent: 75 };
     case "pricing":

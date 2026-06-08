@@ -96,14 +96,30 @@
   </div>
 </div></section>
 
-<!-- STATS (ivory, hairline) -->
+<!-- STATS (ivory, hairline) — animated Number Counters: start → end over duration -->
 <section class="stats band-ivory"><div class="wrap">
   <div class="grid3 stats-row">
-    <div class="stat"><div class="n">120+</div><div class="l">Residences</div></div>
-    <div class="stat"><div class="n">18</div><div class="l">Years of craft</div></div>
-    <div class="stat"><div class="n">100%</div><div class="l">Bespoke</div></div>
+    <div class="stat"><div class="n" data-count data-start="0" data-end="120" data-dur="2" data-suffix="+">0+</div><div class="l">Residences</div></div>
+    <div class="stat"><div class="n" data-count data-start="0" data-end="18" data-dur="2" data-suffix="">0</div><div class="l">Years of craft</div></div>
+    <div class="stat"><div class="n" data-count data-start="0" data-end="100" data-dur="2" data-suffix="%">0%</div><div class="l">Bespoke</div></div>
   </div>
 </div></section>
+
+<script>
+  // Mirrors components/sections/Counter.tsx: ease-out count from start→end over `dur` seconds,
+  // triggered once when the element scrolls into view (IntersectionObserver, threshold 0.4).
+  function runCounter(el){
+    var from=parseFloat(el.dataset.start||"0"), to=parseFloat(el.dataset.end||"0");
+    var dur=(parseFloat(el.dataset.dur||"2"))*1000, suf=el.dataset.suffix||"", pre=el.dataset.prefix||"";
+    var t0=0;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/dur); var eased=1-Math.pow(1-p,3);
+      var v=from+(to-from)*eased; el.textContent=pre+Math.round(v).toLocaleString()+suf;
+      if(p<1) requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  }
+  var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ runCounter(e.target); io.unobserve(e.target); } }); },{threshold:0.4});
+  document.querySelectorAll('[data-count]').forEach(function(el){ io.observe(el); });
+</script>
 
 <!-- TESTIMONIAL (white) -->
 <section class="testi band-white"><div class="wrap">

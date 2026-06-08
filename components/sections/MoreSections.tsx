@@ -65,7 +65,7 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
 }
 
 export function NumberCounterSection({ content, theme }: { content: NumberCounterContent; theme?: ThemeTokens }) {
-  return <Counter value={content.value} prefix={content.prefix} suffix={content.suffix} label={content.label} color={primary(theme)} />;
+  return <Counter value={content.value} start={content.start} end={content.end} duration={content.duration} prefix={content.prefix} suffix={content.suffix} label={content.label} color={primary(theme)} />;
 }
 
 export function ProgressBarSection({ content, theme }: { content: ProgressBarContent; theme?: ThemeTokens }) {

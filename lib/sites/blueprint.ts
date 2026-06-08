@@ -73,9 +73,9 @@ function sectionForArchetype(arch: Archetype, p: BusinessProfile): Record<string
     }
     case "stats":
       return { type: "row", columns: 3, _name: "Highlights", contentWidth: "boxed", children: [
-        [{ type: "number-counter", value: 100, suffix: "+", label: "Clients served" }],
-        [{ type: "number-counter", value: 10, suffix: "+", label: "Years experience" }],
-        [{ type: "number-counter", value: 100, suffix: "%", label: "Commitment" }],
+        [{ type: "number-counter", value: "100", start: 0, end: 100, duration: 2, suffix: "+", label: "Clients served" }],
+        [{ type: "number-counter", value: "10", start: 0, end: 10, duration: 2, suffix: "+", label: "Years experience" }],
+        [{ type: "number-counter", value: "100", start: 0, end: 100, duration: 2, suffix: "%", label: "Commitment" }],
       ] };
     case "logos": return { type: "logos", _name: "Trusted by", images: [] };
     case "gallery": return { type: "gallery", _name: "Gallery", images: [] };

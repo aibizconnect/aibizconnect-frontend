@@ -220,7 +220,10 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "array", key: "items", label: "Items", itemLabel: "Item", itemFields: [{ kind: "text", key: "text", label: "Text" }] },
   ],
   "number-counter": [
-    { kind: "text", key: "value", label: "Number" }, { kind: "text", key: "prefix", label: "Prefix (optional)" },
+    { kind: "number", key: "start", label: "Start number" },
+    { kind: "number", key: "end", label: "End number" },
+    { kind: "number", key: "duration", label: "Duration (seconds)", min: 0, step: 0.5 },
+    { kind: "text", key: "prefix", label: "Prefix (optional)" },
     { kind: "text", key: "suffix", label: "Suffix (optional)" }, { kind: "text", key: "label", label: "Label" },
   ],
   "progress-bar": [{ kind: "text", key: "label", label: "Label" }, { kind: "number", key: "percent", label: "Percent", min: 0, max: 100, step: 1, unit: "%" }],
