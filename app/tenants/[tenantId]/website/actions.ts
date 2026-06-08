@@ -631,6 +631,33 @@ export async function saveGlobalBlockNow(
 }
 
 /**
+ * Set the site-wide GLOBAL Header / Footer for a website from imported chrome. Ensures the two
+ * global blocks exist (creating defaults if needed) and overwrites whichever of header/footer was
+ * successfully parsed from the source site. Each is a `row` section carrying its own elements
+ * (logo, menu, button, social, link columns) — shared once across every page (no duplicates).
+ * Best-effort: invalid/missing content is skipped, never thrown.
+ */
+export async function setWebsiteChrome(
+  tenantId: string,
+  websiteId: string,
+  tenantName: string,
+  header?: unknown,
+  footer?: unknown,
+): Promise<{ headerSet: boolean; footerSet: boolean }> {
+  let headerSet = false, footerSet = false;
+  try {
+    const { headerId, footerId } = await ensureGlobalBlocks(tenantId, tenantName, websiteId);
+    if (header && sectionSchemas.row.safeParse(header).success) {
+      try { await saveGlobalBlockNow(tenantId, headerId, header, "row"); headerSet = true; } catch { /* keep default */ }
+    }
+    if (footer && sectionSchemas.row.safeParse(footer).success) {
+      try { await saveGlobalBlockNow(tenantId, footerId, footer, "row"); footerSet = true; } catch { /* keep default */ }
+    }
+  } catch { /* globals unavailable — non-fatal */ }
+  return { headerSet, footerSet };
+}
+
+/**
  * List the pages that REFERENCE the given global block(s) — i.e. the pages that a
  * global Header/Footer edit will change. Powers the "this affects N pages" consent
  * modal. Returns distinct page titles (live or draft title), ordered.

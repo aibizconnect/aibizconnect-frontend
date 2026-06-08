@@ -1,10 +1,11 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { createPage, saveDraft } from "./actions";
+import { createPage, saveDraft, setWebsiteChrome } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
 import { htmlToSections } from "@/lib/sites/html-importer";
+import { importChrome, type ImportedChrome } from "@/lib/sites/chrome-importer";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -573,6 +574,9 @@ export async function generateWizardPages(
     ? wizard.plannedPages.map((t: any) => String(t || "").trim()).filter(Boolean) : [];
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
+  // Imported site chrome (header/footer) → shared global blocks, set once after pages exist.
+  let importedChrome: ImportedChrome | null = null;
+
   let chosen: any[];
   if (plannedTitles.length) {
     // Build EXACTLY the user's planned pages. Priority per page:
@@ -582,6 +586,8 @@ export async function generateWizardPages(
     const hasSite = !!(wizard.hasWebsite && wizard.existingUrl);
     const exact = wizard.importMode === "exact";
     const homeHtml = hasSite ? await fetchPage(wizard.existingUrl) : null;
+    // Recognise the source site's header + footer → editable global Header/Footer blocks.
+    if (homeHtml) { try { importedChrome = importChrome(homeHtml, baseUrl); } catch { /* keep defaults */ } }
     // Sitemap discovery → copy EVERY page, not just homepage-linked ones.
     const sitemapUrls = hasSite ? await discoverSitemapUrls(baseUrl) : [];
     const htmlCache = new Map<string, string | null>();
@@ -664,6 +670,15 @@ export async function generateWizardPages(
       created++;
     } catch { /* skip the page that failed; keep the rest */ }
   }
+
+  // Apply the imported header/footer as the site-wide global blocks (once, shared across all pages).
+  if (importedChrome && (importedChrome.header || importedChrome.footer)) {
+    try {
+      await setWebsiteChrome(tenantId, websiteId, String(wizard.businessName || wizard.companyName || "Site"),
+        importedChrome.header ?? undefined, importedChrome.footer ?? undefined);
+    } catch { /* non-fatal — pages keep the default global blocks */ }
+  }
+
   return created;
 }
 
