@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!parsed) return NextResponse.redirect(`${base}/?canva_error=invalid_or_expired_state`, 302);
   const { tenantId, nonce } = parsed;
   const dest = (qs: string) => {
-    const r = NextResponse.redirect(`${base}/tenants/${tenantId}/website/media?${qs}`, 302);
+    const r = NextResponse.redirect(`${base}/tenants/${tenantId}/media?${qs}`, 302);
     r.cookies.delete("canva_pkce"); // one-time use
     return r;
   };

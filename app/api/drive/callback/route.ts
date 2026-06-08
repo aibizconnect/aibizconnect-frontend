@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const parsed = state ? readDriveState(state) : null;
   if (!parsed) return NextResponse.redirect(`${base}/?drive_error=invalid_or_expired_state`, 302);
   const { tenantId } = parsed;
-  const dest = (qs: string) => NextResponse.redirect(`${base}/tenants/${tenantId}/website/media?${qs}`, 302);
+  const dest = (qs: string) => NextResponse.redirect(`${base}/tenants/${tenantId}/media?${qs}`, 302);
 
   if (err) return dest(`drive_error=${encodeURIComponent(err)}`);
   if (!code) return dest("drive_error=missing_code");
