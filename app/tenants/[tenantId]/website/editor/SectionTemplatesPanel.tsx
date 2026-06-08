@@ -17,6 +17,7 @@ import {
 interface SectionTemplatesPanelProps {
   tenantId: string;
   selectedPageId: string | null;
+  websiteId?: string | null;
   onApplied?: () => void;
 }
 
@@ -30,6 +31,7 @@ type GlobalBlock = { id: string; name: string; type: string | null; content?: an
 export default function SectionTemplatesPanel({
   tenantId,
   selectedPageId,
+  websiteId,
   onApplied,
 }: SectionTemplatesPanelProps) {
   const supabase = createClient();
@@ -48,16 +50,19 @@ export default function SectionTemplatesPanel({
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
       if (data) setTemplates(data as SectionTemplate[]);
-      const { data: gb } = await supabase
+      // Scope global Header/Footer/etc. to the CURRENT website (plus any tenant-level shared
+      // blocks with no website_id) — otherwise every website's header/footer stacks up here.
+      let gq = supabase
         .from("website_global_blocks")
         .select("id, name, type, content, draft_content")
-        .eq("tenant_id", tenantId)
-        .order("updated_at", { ascending: false });
+        .eq("tenant_id", tenantId);
+      if (websiteId) gq = gq.or(`website_id.eq.${websiteId},website_id.is.null`);
+      const { data: gb } = await gq.order("updated_at", { ascending: false });
       if (gb) setGlobals(gb as GlobalBlock[]);
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+  }, [tenantId, websiteId]);
 
   async function handleCreateFromPage() {
     if (!selectedPageId) { alert("Select a page first."); return; }

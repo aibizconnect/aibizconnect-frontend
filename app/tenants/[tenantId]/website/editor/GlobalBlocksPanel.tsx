@@ -20,12 +20,14 @@ import SectionEditor from "./SectionEditor";
 interface GlobalBlocksPanelProps {
   tenantId: string;
   selectedPageId: string | null;
+  websiteId?: string | null;
   onChanged?: () => void;
 }
 
 export default function GlobalBlocksPanel({
   tenantId,
   selectedPageId,
+  websiteId,
   onChanged,
 }: GlobalBlocksPanelProps) {
   const [blocks, setBlocks] = useState<GlobalBlock[]>([]);
@@ -34,12 +36,12 @@ export default function GlobalBlocksPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   async function refresh() {
-    setBlocks(await listGlobalBlocks(tenantId));
+    setBlocks(await listGlobalBlocks(tenantId, websiteId));
   }
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+  }, [tenantId, websiteId]);
 
   async function handleCreate() {
     if (!newName.trim()) return;

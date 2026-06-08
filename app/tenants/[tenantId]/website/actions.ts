@@ -519,14 +519,18 @@ export interface ResolvedBlock {
 }
 
 export async function listGlobalBlocks(
-  tenantId: string
+  tenantId: string,
+  websiteId?: string | null,
 ): Promise<GlobalBlock[]> {
   const supabase = createSupabaseServiceClient();
-  const { data } = await supabase
+  let q = supabase
     .from("website_global_blocks")
     .select("id, tenant_id, name, type, content, draft_content")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
+    .eq("tenant_id", tenantId);
+  // Scope to the current website (+ tenant-level shared blocks) so other websites'
+  // Header/Footer don't pile up in the Global Sections list.
+  if (websiteId) q = q.or(`website_id.eq.${websiteId},website_id.is.null`);
+  const { data } = await q.order("created_at", { ascending: false });
   return (data ?? []) as GlobalBlock[];
 }
 

@@ -24,11 +24,12 @@ const tabBtn = (active: boolean) =>
 
 /** Add Elements — Elements/Rows (Quick Add) + Prebuilt & Saved Assets (Templates). */
 export function AddElementsPanel({
-  onPick, tenantId, selectedPageId, onApplied, onInsertSections,
+  onPick, tenantId, selectedPageId, websiteId, onApplied, onInsertSections,
 }: {
   onPick: (t: SectionType, cols?: number) => void;
   tenantId: string;
   selectedPageId: string | null;
+  websiteId?: string | null;
   onApplied: () => void;
   onInsertSections?: (sections: SectionContent[]) => void;
 }) {
@@ -42,9 +43,9 @@ export function AddElementsPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {tab === "elements" ? (
           <QuickAddPanel onPick={onPick} onInsertSections={onInsertSections} tenantId={tenantId}
-            savedSlot={<SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} onApplied={onApplied} />} />
+            savedSlot={<SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={onApplied} />} />
         ) : (
-          <SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} onApplied={onApplied} />
+          <SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={onApplied} />
         )}
       </div>
     </div>

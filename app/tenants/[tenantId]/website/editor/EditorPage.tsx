@@ -212,7 +212,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
 
   const LeftPanelBody = () => {
     switch (mode) {
-      case "add": return <AddElementsPanel onPick={pickElement} onInsertSections={pickSections} tenantId={tenantId} selectedPageId={selectedPageId} onApplied={() => setReloadKey((k) => k + 1)} />;
+      case "add": return <AddElementsPanel onPick={pickElement} onInsertSections={pickSections} tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={() => setReloadKey((k) => k + 1)} />;
       case "layers": return <LayersPanel sections={structure} globals={globalInputs} selected={layerSel} onSelect={(s) => { setLayerSel(s); setSelectTarget(s); setSelectSignal((n) => n + 1); }} onOpenGlobal={() => { setMode("blocks"); setLeftOpen(true); }} />;
       case "editor": return <PageList tenantId={tenantId} websiteId={websiteId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
       case "tracking": return <TrackingCodePanel tenantId={tenantId} websiteId={websiteId ?? undefined} />;
@@ -225,11 +225,11 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       case "previewcode": return <PreviewCustomCodePanel tenantId={tenantId} selectedPageId={selectedPageId} />;
       case "cookie": return <CookieConsentPanel tenantId={tenantId} websiteId={websiteId ?? undefined} />;
       // hidden / programmatic modes
-      case "templates": return <SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} onApplied={() => setReloadKey((k) => k + 1)} />;
+      case "templates": return <SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={() => setReloadKey((k) => k + 1)} />;
       case "navigation": return <NavigationPanel tenantId={tenantId} reloadKey={reloadKey} />;
       case "settings": return <SettingsPanel tenantId={tenantId} selectedPageId={selectedPageId} onChanged={() => setReloadKey((k) => k + 1)} />;
       case "media": return <MediaPanel tenantId={tenantId} />;
-      case "blocks": return <GlobalBlocksPanel tenantId={tenantId} selectedPageId={selectedPageId} onChanged={() => setReloadKey((k) => k + 1)} />;
+      case "blocks": return <GlobalBlocksPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onChanged={() => setReloadKey((k) => k + 1)} />;
       case "design": return <BrandPanel tenantId={tenantId} websiteId={websiteId ?? undefined} reloadKey={reloadKey} />;
       default: return <PageList tenantId={tenantId} websiteId={websiteId} reloadKey={reloadKey} onSelectPage={handleSelectPage} canLeavePage={canLeavePage} currentPageId={selectedPageId} />;
     }
