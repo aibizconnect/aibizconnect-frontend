@@ -16,6 +16,7 @@ const CALLBACK: Record<string, string> = {
   shopify_platform_app: "/api/shopify/callback",
   google_calendar_platform_app: "/api/calendar/google/callback",
   microsoft_calendar_platform_app: "/api/calendar/microsoft/callback",
+  google_drive_platform_app: "/api/drive/callback",
 };
 const DOCS: Record<string, string> = {
   facebook_platform_app: "https://developers.facebook.com/apps",
@@ -27,6 +28,7 @@ const DOCS: Record<string, string> = {
   stripe_identity_platform_app: "https://dashboard.stripe.com/identity",
   google_calendar_platform_app: "https://console.cloud.google.com/apis/credentials",
   microsoft_calendar_platform_app: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+  google_drive_platform_app: "https://console.cloud.google.com/apis/credentials",
   cloudflare_platform: "https://dash.cloudflare.com/profile/api-tokens",
 };
 // Webhook (not OAuth callback) endpoints to register in the provider's dashboard.

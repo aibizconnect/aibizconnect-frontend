@@ -36,6 +36,7 @@ const APPS: PlatformAppDef[] = [
   { key: "stripe_identity_platform_app", label: "Stripe Identity (KYC)", fields: [{ name: "secret_key", label: "Secret Key (sk_…)", secret: true }, { name: "webhook_secret", label: "Webhook Signing Secret (whsec_…)", secret: true }] },
   { key: "google_calendar_platform_app", label: "Google Calendar", fields: [{ name: "client_id", label: "Client ID", secret: false }, { name: "client_secret", label: "Client Secret", secret: true }] },
   { key: "microsoft_calendar_platform_app", label: "Outlook Calendar (Microsoft)", fields: [{ name: "client_id", label: "Application (client) ID", secret: false }, { name: "client_secret", label: "Client Secret", secret: true }] },
+  { key: "google_drive_platform_app", label: "Google Drive (media import)", fields: [{ name: "client_id", label: "Client ID", secret: false }, { name: "client_secret", label: "Client Secret", secret: true }] },
   { key: "cloudflare_platform", label: "Cloudflare (DNS)", fields: [{ name: "zone_id", label: "Zone ID", secret: false }, { name: "api_token", label: "API Token", secret: true }] },
 ];
 

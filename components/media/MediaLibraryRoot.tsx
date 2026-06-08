@@ -10,6 +10,7 @@ import {
 } from "@/app/tenants/[tenantId]/website/actions";
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
 import { listWebsites, type Website } from "@/app/tenants/[tenantId]/website/website-actions";
+import DriveTab from "./DriveTab";
 
 const isImage = (m: { mime_type?: string | null; filename?: string | null }) =>
   (m.mime_type ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(m.filename ?? "");
@@ -182,6 +183,15 @@ export default function MediaLibraryRoot({
     setItems(all.filter((m) => !m.is_system));
     setSystemMedia(all.filter((m) => m.is_system));
   }).catch(() => {});
+  // Land on the Drive tab after the Google Drive OAuth round-trip (and surface any error).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("drive_connected")) { setTab("drive"); notify(`Google Drive connected${p.get("drive_connected") !== "1" ? ` (${p.get("drive_connected")})` : ""}.`, "ok"); window.history.replaceState({}, "", window.location.pathname); }
+    else if (p.get("drive_error")) { setTab("drive"); notify(`Drive: ${p.get("drive_error")}`, "err"); window.history.replaceState({}, "", window.location.pathname); }
+    // eslint-disable-next-line
+  }, []);
+
   useEffect(() => {
     reloadMedia(); getSystemAssets().then(setSystem); reloadUsage();
     // Seed the default starter folders (Logos, Photos, …) once, then show the rail.
@@ -839,9 +849,7 @@ export default function MediaLibraryRoot({
       {tab === "upload" && (<><Dropzone asSource="upload" hint="Drag & drop files here to upload" />{Toolbar}{BulkBar}
         {filtered.length === 0 ? <p className="py-6 text-center text-sm text-slate-400">No uploads yet.</p> : <Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid>}</>)}
 
-      {tab === "drive" && (<>
-        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-center"><p className="text-sm font-medium text-slate-700">Google Drive import</p><p className="mx-auto mt-1 max-w-md text-xs text-slate-500">Google Drive connects via OAuth in <b>Settings → Integrations</b> (coming soon) and never auto-connects. For now, download from Drive and drop the file here.</p></div>
-        <Dropzone asSource="upload" hint="Upload a file from Google Drive" />{Toolbar}{BulkBar}</>)}
+      {tab === "drive" && (<DriveTab tenantId={tenantId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />)}
 
       {tab === "stock" && (<>
         <ProviderSearch provider={stockProvider} setProvider={setStockProvider} onPick={(url) => insert ? pick(url) : copyLink(url, url)} />
