@@ -2427,8 +2427,9 @@ export async function createFolder(tenantId: string, name: string, parentId?: st
  * is case-insensitive so we never duplicate an existing folder. Best-effort; never throws.
  */
 const DEFAULT_MEDIA_FOLDERS = ["Google Drive", "Canva", "AI Images", "Logos", "Photos", "Icons", "Backgrounds", "Landscapes", "Graphics", "Charts"];
-/** System connector/AI folders that the tenant must NOT rename or delete. */
-export function isProtectedFolderName(name?: string | null): boolean {
+/** System connector/AI folders that the tenant must NOT rename or delete. (Internal — not exported:
+ *  this is a "use server" module where every EXPORT must be an async function.) */
+function isProtectedFolderName(name?: string | null): boolean {
   return /^(google\s*drive|canva|canava|ai\s*images)$/i.test((name || "").trim());
 }
 export async function ensureDefaultMediaFolders(tenantId: string): Promise<void> {
