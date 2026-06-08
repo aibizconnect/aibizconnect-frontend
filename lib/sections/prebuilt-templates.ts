@@ -123,6 +123,21 @@ const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
       ]],
     }],
   },
+  {
+    id: "lux-footer", name: "Luxury — Footer", category: "Contemporary Luxury", icon: "▭",
+    blurb: "Dark ink footer with brand, links & copyright",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 14, widths: [1], valign: "center",
+      _style: { bg: LX.ink, pt: 64, pb: 52, paddingX: 24, align: "center" },
+      children: [[
+        { type: "heading", text: "Aurelia & Co.", level: "h3", align: "center", color: LX.ivory, fontFamily: SERIF, fontWeight: "600", letterSpacing: 0.3 } as SectionContent,
+        { type: "text", text: "Bespoke interiors crafted to endure.", align: "center", color: "#CFC7BB", fontFamily: SANS, fontSize: 15 } as SectionContent,
+        { type: "text", text: "Home   ·   Services   ·   About   ·   Journal   ·   Contact", align: "center", color: "#CFC7BB", fontFamily: SANS, fontSize: 14, letterSpacing: 0.5 } as SectionContent,
+        { type: "divider", thickness: 1, color: "#3A352F", widthPct: 36 } as SectionContent,
+        { type: "text", text: "© Aurelia & Co. — All rights reserved.", align: "center", color: "#8A8278", fontFamily: SANS, fontSize: 13 } as SectionContent,
+      ]],
+    }],
+  },
 ];
 
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
