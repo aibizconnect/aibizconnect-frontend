@@ -3,13 +3,14 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft, setWebsiteChrome } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
-import { generatedSectionsFor, extractPageContent, contentToBlocks } from "@/lib/sites/page-generate";
+import { generatedSectionsFor, extractPageContent, contentToBlocks, type BusinessProfile } from "@/lib/sites/page-generate";
 import { htmlToSections } from "@/lib/sites/html-importer";
 import { importChrome, type ImportedChrome } from "@/lib/sites/chrome-importer";
 import { extractTheme, type ExtractedTheme } from "@/lib/sites/theme-importer";
 import { extractSeo } from "@/lib/sites/seo-importer";
 import { extractImportedCss } from "@/lib/sites/style-capture";
 import { buildScratchSections } from "@/lib/sites/blueprint";
+import { pickAesthetic, themeForAesthetic, applyDnaToSections, type Aesthetic } from "@/lib/sites/design-dna";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -586,6 +587,39 @@ async function applyImportedTheme(tenantId: string, websiteId: string, t: Extrac
   catch { try { await sb.from("website_brand_settings").upsert({ tenant_id: tenantId, website_id: websiteId, theme }, { onConflict: "tenant_id,website_id" }); } catch { /* ignore */ } }
 }
 
+/**
+ * FROM-SCRATCH styling: persist a curated Design DNA aesthetic (palette + real type scale +
+ * font @import) to the website's brand theme so a no-source-site build looks intentional and
+ * high-end instead of the flat default. Merges over any existing theme; the user's later
+ * Typography/Brand edits still win. Best-effort.
+ */
+async function applyAestheticTheme(tenantId: string, websiteId: string, a: Aesthetic, profile: BusinessProfile): Promise<void> {
+  const t = themeForAesthetic(a, profile);
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("website_brand_settings").select("theme")
+    .eq("tenant_id", tenantId).eq("website_id", websiteId).maybeSingle();
+  const prev: Record<string, any> = (data?.theme && typeof data.theme === "object") ? { ...data.theme } : {};
+  const theme: Record<string, any> = {
+    ...prev,
+    colors: { ...(prev.colors || {}), ...t.colors },
+    fonts: { ...(prev.fonts || {}), ...t.fonts },
+    typography: { ...(prev.typography || {}), ...t.typography },
+    radii: t.radii, spacing: t.spacing,
+  };
+  // Inject the aesthetic's Google-Fonts @import so headings/body actually load (editor + public).
+  const prevCss = String(prev.site?.siteCustomCss || "");
+  theme.site = { ...(prev.site || {}), siteCustomCss: prevCss.includes(a.fontsImportCss) ? prevCss : `${a.fontsImportCss}\n${prevCss}`.trim() };
+  theme.pageBackground = { ...(prev.pageBackground || {}), bg: t.colors.background };
+
+  const patch: Record<string, any> = {
+    tenant_id: tenantId, website_id: websiteId, theme,
+    primary_color: t.colors.primary, secondary_color: t.colors.secondary, accent_color: t.colors.accent,
+    font_heading: t.fonts.heading, font_body: t.fonts.body,
+  };
+  try { await sb.from("website_brand_settings").upsert(patch, { onConflict: "tenant_id,website_id" }); }
+  catch { try { await sb.from("website_brand_settings").upsert({ tenant_id: tenantId, website_id: websiteId, theme }, { onConflict: "tenant_id,website_id" }); } catch { /* ignore */ } }
+}
+
 export async function generateWizardPages(
   tenantId: string, websiteId: string, wizard: Record<string, any>
 ): Promise<number> {
@@ -662,8 +696,18 @@ export async function generateWizardPages(
       //     the top-3 similar sites, filled with the tenant's profile (theme applies their brand).
       if (!hasSite && isHome && Array.isArray(wizard.benchmarkedBlueprint) && wizard.benchmarkedBlueprint.length) {
         try {
-          const secs = buildScratchSections(wizard.benchmarkedBlueprint as any, profile);
-          if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, sections: secs.map((content) => ({ content })) }); continue; }
+          const blueprint = wizard.benchmarkedBlueprint as any;
+          const base = buildScratchSections(blueprint, profile);
+          if (base.length) {
+            // Compose with a curated Design DNA aesthetic: persist its theme (palette + type
+            // scale + fonts) and attach per-section styling/motion so the from-scratch home
+            // looks intentional and high-end, not a flat wireframe. All values stay editable.
+            const aesthetic = pickAesthetic(profile, wizard.aesthetic);
+            try { await applyAestheticTheme(tenantId, websiteId, aesthetic, profile); } catch { /* keep default theme */ }
+            const secs = applyDnaToSections(blueprint, base, aesthetic);
+            chosen.push({ title, slug: slugifyTitle(title), isHome, sections: secs.map((content) => ({ content })) });
+            continue;
+          }
         } catch { /* fall through to AI/deterministic */ }
       }
       // 2) AI sections where a title matches the site plan.
