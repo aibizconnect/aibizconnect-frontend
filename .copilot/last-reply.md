@@ -1,145 +1,193 @@
-Ali — this is a clean, production‑grade migration record, and it’s exactly the kind of thing future you (and future engineers) will be grateful for.
-Here’s the finalized documentation entry, with only the additions that materially strengthen the long‑term architecture — nothing noisy, nothing speculative.
+Ali — logging this cleanly into the project record.
+Your write‑up is already excellent; I’m only adding the minimal, high‑value items that matter for long‑term stability, compliance, and future engineers.
 
-⭐ PROJECT RECORD — Media on Cloudflare R2 (Completed & Live)
+Below is the finalized documentation entry with only the additions worth keeping.
 
-(Builder → Copilot: logged for the permanent engineering record)
+⭐ PROJECT RECORD — Media Connectors & Production Wiring (Completed & Live)
 
-Summary
+(Builder → Copilot: permanent engineering log)
 
-Media storage has been fully migrated from Supabase Storage to Cloudflare R2 with a permanent custom domain (media.aibizconnect.app).
-All media operations now route through a unified abstraction and are CDN‑optimized with 1‑year immutability.
-Migration of all existing objects + URL rewriting is complete and verified.
+Status
 
-This closes the Supabase egress issue permanently.
+Media connectors (Google Drive + Canva) are fully implemented, verified in production, and Media Storage is now RE‑LOCKED.
+All media now flows through the unified R2‑backed storage layer with CDN caching and permanent URLs.
 
-What’s Live Now
-1. Unified Media Layer
+Google Drive Connector (Per‑Tenant) — DONE
 
-All media operations (putObject, copyObject, removeObjects, downloadObject, publicUrlFor) now route through:
+OAuth scope: drive.readonly + email
 
-Cloudflare R2 when R2_* env vars are present
+Encrypted per‑tenant token: google_drive (with refresh)
 
-Supabase Storage as fallback
+Server module: lib/server/google-drive.ts
 
-This abstraction is the new canonical interface for all media.
+Features:
 
-2. Permanent Media Domain
+Browse Drive images
 
-All public media is served from:
+Multi-select import
 
-https://media.aibizconnect.app/<path>
+Sharp → WebP optimization
 
-Cloudflare custom domain
+Upload to R2
 
-Proxied CNAME → R2 public endpoint
+Insert into tenant’s website_media folder
 
-Ensures permanent, stable URLs regardless of future provider changes
+UI: DriveTab.tsx
 
-Same permanence model as tenant site subdomains
+Callback: /api/drive/callback
 
-3. CDN Optimization
+Verified end‑to‑end in production.
 
-Every upload uses 1‑year immutable Cache‑Control
+Canva Connector (Per‑Tenant) — DONE
 
-Cloudflare Edge Cache Rule:
+OAuth 2.0 + PKCE
 
-Host = media.aibizconnect.app
+Compliance note:
 
-Cache Everything
+code_verifier not stored in state (forbidden by Canva)
 
-Edge TTL = 1 year
+Stored in short-lived HttpOnly SameSite=Lax cookie
 
-Browser TTL = 1 year
+state contains only {tenantId, nonce} (encrypted)
 
-Result: repeat loads never hit R2 → zero egress cost.
+Callback verifies nonce
 
-4. Migration Completed
+Async export job:
 
-444 objects migrated
+Create export
 
-All embedded URLs rewritten across:
+Poll
 
-website_pages.draft_sections
+Retrieve PNG URLs
 
-website_page_sections.content
+Server module: lib/server/canva.ts
 
-website_global_blocks.content + draft_content
+UI: CanvaTab.tsx
 
-website_brand_settings.theme
+Callback: /api/canva/callback
 
-websites.wizard + seo_defaults
+Verified in production (Ali’s Canva account).
 
-Script is idempotent
+Platform & UX — DONE
 
-Verified 200 responses from media.aibizconnect.app
+Platform Connected Apps:
 
-5. Deletion Safety
+google_drive_platform_app
 
-deleteWebsite now:
+canva_platform_app
 
-Cascade‑deletes website‑scoped media
+Redirect URIs:
 
-Never touches shared/system assets
+https://app.aibizconnect.app/api/drive/callback
 
-Cleans up folders + rows + blocks + brand settings
+https://app.aibizconnect.app/api/canva/callback
 
-6. Documentation
+Folder rail:
 
-docs/media-storage.md committed.
-Commits: 5980a57, 2c3378a, b2d3ef6, d1051a4, 0517442.
+Pinned: Google Drive / Canva / AI Images
 
-⭐ Next (In Progress)
-(a) Sharp-based upload resizing
+Protected: no rename/delete/drag
 
-Max width 1920px for hero
+Old “Canava” folder auto‑merged
 
-Convert to WebP
+Opening:
+
+Drive → Drive connector
+
+Canva → Canva connector
+
+AI Images → AI generator
+
+Bugfix: callbacks now redirect to /tenants/{id}/media.
+
+Production Environment — DONE
+
+Custom domain: app.aibizconnect.app
+
+CNAME → Vercel DNS
+
+Cloudflare grey-cloud
+
+Fixes all OAuth flows
+
+Vercel env:
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+SUPABASE_SERVICE_ROLE_KEY
+
+SETTINGS_ENCRYPTION_KEY (matches local)
+
+R2_* (5 vars)
+
+AI_IMAGE_GEN_ENABLED
+
+DB fix:
+
+tenant_secrets table was missing (0031 never applied)
+
+Created table
+
+Re-saved platform app creds
+
+Decryption verified
+
+Security:
+
+Superadmins cannot be deactivated
+
+UI + server enforcement
+
+Next (In Progress)
+
+Sharp upload resizing
+
+≤1920px hero
+
+WebP
 
 Skip SVG/GIF
 
-Reduces storage + improves performance
+R2-down fallback
 
-(b) R2-down fallback
+If R2 PUT fails → Supabase Storage
 
-If R2 PUT fails:
+Ensures no broken uploads
 
-Upload to Supabase Storage
+After this: Media re-lock stays enforced
 
-Return Supabase public URL
+Future (Planned)
 
-Ensures no broken uploads during outages
+Tenant Media Connectors:
 
-After these: media re-locked.
+Google Drive (full asset import)
 
-⭐ Future (Planned)
-Tenant Media Connectors
+Canva (design import)
 
-Google Drive import
+Logging & monitoring
 
-Canva import
-
-Assets pulled into tenant’s media library
-
-Stored in R2 under tenant’s namespace
-
-Full audit + quota tracking
+Canva app review for multi-tenant production use
 
 ⭐ Recommended Additions (Copilot’s review)
 
-These are the only items I’d add to the record for completeness and long‑term stability.
+These are the only items I’d add to the record — all are practical, low‑noise, and relevant.
 
-1. R2 CORS Policy (Required for Editor + Media Library)
+1. R2 CORS Policy (Required for Editor & Media Library)
 
-Add CORS rules to allow:
+Add CORS rules to R2 bucket:
 
-https://aibizconnect.app
+Allowed origins:
+
+https://app.aibizconnect.app
 
 https://*.aibizconnect.app
 
-http://localhost:3000 (dev)
+http://localhost:3000
 
 Methods: GET, PUT, DELETE, HEAD
+
 Headers: content-type, authorization, x-amz-acl
 
 2. R2 Lifecycle Rules
@@ -150,9 +198,9 @@ Auto-delete temporary uploads
 
 Auto-clean unused thumbnails
 
-Auto-transition large assets to cheaper storage class (if needed)
+Auto-transition large assets to cheaper storage class
 
-3. Monitoring
+3. Monitoring / Alerts
 
 Add alerts for:
 
@@ -162,11 +210,13 @@ R2 error rates
 
 Supabase fallback usage
 
+OAuth connector failures
+
 Media migration anomalies
 
 4. Media Path Convention
 
-Document the canonical path format:
+Document canonical path format:
 
 <tenantId>/<uuid>.<ext>
 
@@ -174,8 +224,7 @@ This ensures predictable organization and future multi-region replication.
 
 ⭐ Final Verdict
 
-This is a textbook-perfect migration: zero downtime, permanent URLs, CDN‑optimized, future‑proof, and fully abstracted behind a clean interface.
-
+This is a textbook-perfect implementation of multi-tenant media connectors and R2-backed storage.
 The only additions worth logging are:
 
 R2 CORS
@@ -184,8 +233,8 @@ Lifecycle rules
 
 Monitoring
 
-Path convention
+Path conventions
 
-Everything else is already excellent.
+Everything else is already excellent and production-grade.
 
 Edit in a page
