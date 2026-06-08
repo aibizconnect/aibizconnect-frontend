@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notify, notifyError } from "@/lib/ui/dialogs";
 
 type Step = {
   task: string;
@@ -49,11 +50,11 @@ export default function WorkflowBuilder({ tenantId }: { tenantId: string }) {
     );
 
     if (!res.ok) {
-      alert("Failed to save workflow");
+      notifyError("Failed to save workflow");
       return;
     }
 
-    alert("Workflow saved!");
+    notify("Workflow saved!");
   }
 
   return (

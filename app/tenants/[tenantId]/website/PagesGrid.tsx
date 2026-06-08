@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { notifyError, confirmDialog, promptDialog } from "@/lib/ui/dialogs";
 import {
   listSitePages, createPage, deletePage, duplicatePage, renamePageDraft, setHomePage,
   type SitePage,
@@ -108,8 +109,8 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
 
   const refresh = () => start(async () => setPages(await listSitePages(tenantId, websiteId)));
 
-  const add = () => {
-    const title = window.prompt("New page title?");
+  const add = async () => {
+    const title = await promptDialog("New page title?");
     if (!title) return;
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     start(async () => {
@@ -117,14 +118,14 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
         const p = await createPage(tenantId, { title, slug, websiteId });
         setPages(await listSitePages(tenantId, websiteId));
         router.push(`/tenants/${tenantId}/website/builder?pageId=${p.id}`);
-      } catch (e) { window.alert((e as Error).message); }
+      } catch (e) { notifyError((e as Error).message); }
     });
   };
 
   const edit = (id: string) => router.push(`/tenants/${tenantId}/website/builder?pageId=${id}`);
 
-  const rename = (p: SitePage) => {
-    const title = window.prompt("Rename page", p.title);
+  const rename = async (p: SitePage) => {
+    const title = await promptDialog("Rename page", { defaultValue: p.title });
     setMenuFor(null);
     if (!title || title === p.title) return;
     start(async () => { await renamePageDraft(p.id, tenantId, title); setPages(await listSitePages(tenantId, websiteId)); });
@@ -132,9 +133,9 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
 
   const dup = (p: SitePage) => { setMenuFor(null); start(async () => { await duplicatePage(p.id, tenantId); setPages(await listSitePages(tenantId, websiteId)); }); };
   const home = (p: SitePage) => { setMenuFor(null); start(async () => { await setHomePage(p.id, tenantId); setPages(await listSitePages(tenantId, websiteId)); }); };
-  const del = (p: SitePage) => {
+  const del = async (p: SitePage) => {
     setMenuFor(null);
-    if (!window.confirm(`Delete "${p.title}" and all its sections?`)) return;
+    if (!(await confirmDialog(`Delete "${p.title}" and all its sections?`, { danger: true, confirmText: "Delete" }))) return;
     start(async () => { await deletePage(p.id, tenantId); setPages((prev) => prev.filter((x) => x.id !== p.id)); });
   };
 

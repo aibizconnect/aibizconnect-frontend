@@ -11,6 +11,7 @@ import { injectCustomFont } from "@/lib/fonts";
 import { saveTypography, resetTextStyles, getSiteSettings, saveSiteSettings, type SiteSettings, getPopups, upsertPopup, removePopup } from "../actions";
 import type { SectionType, SectionContent } from "@/lib/sections/schemas";
 import type { Popup, PopupContent } from "@/lib/popups";
+import { notify, notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 /**
  * Left-toolbar panels for the revised IA. "Add Elements" consolidates Elements +
@@ -175,7 +176,7 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
       await saveTypography(tenantId, { typography: nextTypo as any, customFonts: nextCustom }, websiteId);
       onChanged?.();
     } catch (e: any) {
-      alert(e?.message ?? "Failed to save fonts. Please try again.");
+      notifyError(e?.message ?? "Failed to save fonts. Please try again.");
     }
   }
   // Merge a partial style into a role; clearing a value (undefined) removes it.
@@ -186,18 +187,18 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
   }
 
   async function handleReset() {
-    if (!confirm("Reset every text element on the whole site to these Typography settings? This clears any per-element font/size/style overrides in your page drafts.")) return;
+    if (!(await confirmDialog("Reset every text element on the whole site to these Typography settings? This clears any per-element font/size/style overrides in your page drafts.", { danger: true, confirmText: "Reset" }))) return;
     setResetting(true);
     try { await resetTextStyles(tenantId); onResetAll?.(); }
-    catch (e: any) { alert(e?.message ?? "Reset failed."); }
+    catch (e: any) { notifyError(e?.message ?? "Reset failed."); }
     finally { setResetting(false); }
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!own) { alert("Please confirm you own or have the rights to use this font first."); e.target.value = ""; return; }
-    if (file.size > 1_500_000) { alert("Font file is too large (max ~1.5 MB). Please upload a .woff2."); e.target.value = ""; return; }
+    if (!own) { notify("Please confirm you own or have the rights to use this font first."); e.target.value = ""; return; }
+    if (file.size > 1_500_000) { notify("Font file is too large (max ~1.5 MB). Please upload a .woff2."); e.target.value = ""; return; }
     setBusy(true);
     const reader = new FileReader();
     reader.onload = () => {
@@ -336,11 +337,11 @@ export function PopupSettingsPanel({ tenantId }: { tenantId: string }) {
     setBusy(true);
     const r = await upsertPopup(tenantId, editing.name || "Popup", editing.content, editing.id || undefined);
     setBusy(false);
-    if (!r.ok) { alert(r.error ?? "Could not save popup."); return; }
+    if (!r.ok) { notifyError(r.error ?? "Could not save popup."); return; }
     setEditing(null); reload();
   }
   async function del(id: string) {
-    if (!confirm("Delete this popup?")) return;
+    if (!(await confirmDialog("Delete this popup?", { danger: true, confirmText: "Delete" }))) return;
     await removePopup(tenantId, id); reload();
   }
   async function toggle(p: Popup) {

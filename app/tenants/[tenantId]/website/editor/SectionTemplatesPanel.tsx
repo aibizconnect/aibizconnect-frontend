@@ -13,6 +13,7 @@ import {
   makeGlobalEditable,
   type SectionTemplate,
 } from "../actions";
+import { notify, notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 interface SectionTemplatesPanelProps {
   tenantId: string;
@@ -65,8 +66,8 @@ export default function SectionTemplatesPanel({
   }, [tenantId, websiteId]);
 
   async function handleCreateFromPage() {
-    if (!selectedPageId) { alert("Select a page first."); return; }
-    if (!newName.trim()) { alert("Give the saved section a name."); return; }
+    if (!selectedPageId) { notify("Select a page first."); return; }
+    if (!newName.trim()) { notify("Give the saved section a name."); return; }
     setBusy(true);
     try {
       const { data: rows } = await supabase
@@ -80,25 +81,25 @@ export default function SectionTemplatesPanel({
       setTemplates((prev) => [created, ...prev]);
       setNewName("");
     } catch (e: any) {
-      alert(e?.message ?? "Failed to save section.");
+      notifyError(e?.message ?? "Failed to save section.");
     } finally {
       setBusy(false);
     }
   }
 
   async function handleApply(id: string) {
-    if (!selectedPageId) { alert("Select a page to apply to."); return; }
-    if (!confirm("Apply this template? It will REPLACE the current page's sections.")) return;
+    if (!selectedPageId) { notify("Select a page to apply to."); return; }
+    if (!(await confirmDialog("Apply this template? It will REPLACE the current page's sections.", { danger: true, confirmText: "Apply" }))) return;
     setBusy(true);
     try { await applyTemplateToPage(id, selectedPageId, tenantId); onApplied?.(); }
-    catch (e: any) { alert(e?.message ?? "Failed to apply."); }
+    catch (e: any) { notifyError(e?.message ?? "Failed to apply."); }
     finally { setBusy(false); }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this saved section?")) return;
+    if (!(await confirmDialog("Delete this saved section?", { danger: true, confirmText: "Delete" }))) return;
     setTemplates((prev) => prev.filter((t) => t.id !== id));
-    try { await deleteTemplate(id, tenantId); } catch (e: any) { alert(e?.message ?? "Delete failed."); }
+    try { await deleteTemplate(id, tenantId); } catch (e: any) { notifyError(e?.message ?? "Delete failed."); }
   }
 
   async function commitRename(id: string, name: string) {
@@ -109,9 +110,9 @@ export default function SectionTemplatesPanel({
   }
 
   async function deleteGlobal(id: string) {
-    if (!confirm("Delete this saved global section? It will be removed from every page.")) return;
+    if (!(await confirmDialog("Delete this saved global section? It will be removed from every page.", { danger: true, confirmText: "Delete" }))) return;
     setGlobals((prev) => prev.filter((g) => g.id !== id));
-    try { await deleteGlobalBlock(tenantId, id); } catch (e: any) { alert(e?.message ?? "Delete failed."); }
+    try { await deleteGlobalBlock(tenantId, id); } catch (e: any) { notifyError(e?.message ?? "Delete failed."); }
   }
 
   async function commitRenameGlobal(id: string, name: string) {
@@ -190,17 +191,17 @@ export default function SectionTemplatesPanel({
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={async () => {
-                      if (!selectedPageId) { alert("Select a page first."); return; }
+                      if (!selectedPageId) { notify("Select a page first."); return; }
                       try { await attachBlockToPage(selectedPageId, tenantId, g.id); onApplied?.(); }
-                      catch (e: any) { alert(e?.message ?? "Could not insert."); }
+                      catch (e: any) { notifyError(e?.message ?? "Could not insert."); }
                     }}
                     className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-medium text-white">Insert on page</button>
                   {g.type !== "row" && (
                     <button
                       onClick={async () => {
-                        if (!confirm("Convert this into editable rows? Your text is kept.")) return;
+                        if (!(await confirmDialog("Convert this into editable rows? Your text is kept."))) return;
                         const r = await makeGlobalEditable(tenantId, g.id);
-                        if (!r.ok) { alert(r.error ?? "Could not convert."); return; }
+                        if (!r.ok) { notifyError(r.error ?? "Could not convert."); return; }
                         setGlobals((prev) => prev.map((x) => x.id === g.id ? { ...x, type: "row" } : x));
                         onApplied?.();
                       }}

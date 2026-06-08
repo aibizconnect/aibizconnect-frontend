@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { addStepAction, deleteStepAction, reorderStepAction, generateFunnelAction, cloneStepAction, publishStepAction, unpublishStepAction } from "@/app/tenants/[tenantId]/sites/funnels/actions";
 import { STEP_TYPES, STEP_LABEL, type Funnel, type FunnelStep, type StepType } from "@/lib/funnels";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 /**
  * Funnel v2 — polished: step list (left) + step-detail pane (right) with
@@ -106,7 +107,7 @@ export default function FunnelCanvas({ tenantId, initial }: { tenantId: string; 
                       <button onClick={() => apply(cloneStepAction(tenantId, funnel.id, sel.id))} disabled={pending} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Clone step</button>
                       <button onClick={() => apply(reorderStepAction(tenantId, funnel.id, sel.id, "up"))} disabled={pending} className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:opacity-30">▲</button>
                       <button onClick={() => apply(reorderStepAction(tenantId, funnel.id, sel.id, "down"))} disabled={pending} className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:opacity-30">▼</button>
-                      <button onClick={() => { if (confirm("Delete this step?")) apply(deleteStepAction(tenantId, funnel.id, sel.id)); }} className="ml-auto rounded-lg border border-slate-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
+                      <button onClick={async () => { if (await confirmDialog("Delete this step?", { danger: true, confirmText: "Delete" })) apply(deleteStepAction(tenantId, funnel.id, sel.id)); }} className="ml-auto rounded-lg border border-slate-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
                     </div>
                   </div>
                 )}

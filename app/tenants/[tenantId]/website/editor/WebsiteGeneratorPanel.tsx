@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { generateWebsitePlan, generateWebsiteDraft } from "../actions";
 import type { SitePreviewPage } from "@/lib/agent/website-generator";
+import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 /**
  * AI Website Generator (Path B — draft-only). Flow: brief -> Generate (plan PREVIEW) ->
@@ -22,18 +23,18 @@ export default function WebsiteGeneratorPanel({
     try {
       const p = await generateWebsitePlan(tenantId, brief);
       setPreview(p);
-    } catch (e: any) { alert(e?.message ?? "Could not generate a plan."); }
+    } catch (e: any) { notifyError(e?.message ?? "Could not generate a plan."); }
     finally { setBusy(false); }
   }
 
   async function onCreate() {
     if (!preview) return;
-    if (!window.confirm(`Create ${preview.pages.length} draft page${preview.pages.length === 1 ? "" : "s"}? Nothing is published — you can edit everything first.`)) return;
+    if (!(await confirmDialog(`Create ${preview.pages.length} draft page${preview.pages.length === 1 ? "" : "s"}? Nothing is published — you can edit everything first.`))) return;
     setBusy(true);
     try {
       const r = await generateWebsiteDraft(tenantId, { pages: preview.pages });
       setDone(r); setPreview(null); onApplied?.();
-    } catch (e: any) { alert(e?.message ?? "Could not create the draft pages."); }
+    } catch (e: any) { notifyError(e?.message ?? "Could not create the draft pages."); }
     finally { setBusy(false); }
   }
 

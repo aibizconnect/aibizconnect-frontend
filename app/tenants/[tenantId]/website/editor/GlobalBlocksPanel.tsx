@@ -16,6 +16,7 @@ import {
   type SectionType,
 } from "@/lib/sections/schemas";
 import SectionEditor from "./SectionEditor";
+import { notify, notifyError } from "@/lib/ui/dialogs";
 
 interface GlobalBlocksPanelProps {
   tenantId: string;
@@ -57,7 +58,7 @@ export default function GlobalBlocksPanel({
 
   async function handleAttach(blockId: string) {
     if (!selectedPageId) {
-      alert("Select a page first.");
+      notify("Select a page first.");
       return;
     }
     await attachBlockToPage(selectedPageId, tenantId, blockId);
@@ -70,7 +71,7 @@ export default function GlobalBlocksPanel({
       await refresh();
       onChanged?.();
     } catch (e: any) {
-      alert(e?.message ?? "Failed to publish block.");
+      notifyError(e?.message ?? "Failed to publish block.");
     }
   }
 

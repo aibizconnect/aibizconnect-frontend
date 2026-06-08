@@ -7,6 +7,7 @@ import {
   SAFE_FONTS,
   type ThemeTokens,
 } from "@/lib/sections/theme";
+import { notifyError } from "@/lib/ui/dialogs";
 
 export default function DesignSystemPanel({ tenantId }: { tenantId: string }) {
   const [theme, setTheme] = useState<ThemeTokens>(DEFAULT_THEME);
@@ -21,7 +22,7 @@ export default function DesignSystemPanel({ tenantId }: { tenantId: string }) {
       const next = await updateTheme(tenantId, p);
       setTheme(next);
     } catch (e: any) {
-      alert(e?.message ?? "Failed to update theme.");
+      notifyError(e?.message ?? "Failed to update theme.");
       getTheme(tenantId).then(setTheme); // revert to server state
     }
   }

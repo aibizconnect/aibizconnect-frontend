@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { listSitePages, createPage, duplicatePage, deletePage, renamePageDraft, canDeletePages, type SitePage } from "../actions";
+import { notifyError, confirmDialog, promptDialog } from "@/lib/ui/dialogs";
 
 /**
  * polished Pages panel (editor left column). Clean list: drag handle · file icon ·
@@ -14,7 +15,7 @@ interface PageListProps {
   websiteId?: string | null;
   reloadKey?: number;
   onSelectPage?: (pageId: string | null, page?: { id: string; slug: string; title: string; is_public?: boolean } | null) => void;
-  canLeavePage?: () => boolean; // returns false to block switching (unsaved-changes guard)
+  canLeavePage?: () => boolean | Promise<boolean>; // returns false to block switching (unsaved-changes guard)
   currentPageId?: string | null; // the page currently open in the editor
 }
 
@@ -31,40 +32,40 @@ export default function PageList({ tenantId, websiteId, reloadKey, onSelectPage,
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [tenantId, reloadKey]);
   useEffect(() => { canDeletePages(tenantId).then(setCanDelete).catch(() => setCanDelete(false)); }, [tenantId]);
 
-  function select(p: SitePage) {
+  async function select(p: SitePage) {
     if (p.id === selectedId) return;
     // Unsaved-changes guard: confirm before leaving the current page.
-    if (selectedId && canLeavePage && !canLeavePage()) return;
+    if (selectedId && canLeavePage && !(await canLeavePage())) return;
     setSelectedId(p.id);
     onSelectPage?.(p.id, { id: p.id, slug: p.slug, title: p.title, is_public: p.is_public });
   }
 
-  function add() {
-    const title = window.prompt("New page title?");
+  async function add() {
+    const title = await promptDialog("New page title?");
     if (!title) return;
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     start(async () => {
       try { const p = await createPage(tenantId, { title, slug, websiteId: websiteId ?? undefined }); setPages(await listSitePages(tenantId, websiteId ?? undefined)); select({ ...p, is_public: false, hasDraft: true } as SitePage); }
-      catch (e) { window.alert((e as Error).message); }
+      catch (e) { notifyError((e as Error).message); }
     });
   }
-  function rename(p: SitePage) {
+  async function rename(p: SitePage) {
     setMenuFor(null);
-    const title = window.prompt("Rename page", p.title);
+    const title = await promptDialog("Rename page", { defaultValue: p.title });
     if (!title || title === p.title) return;
     start(async () => { await renamePageDraft(p.id, tenantId, title); setPages(await listSitePages(tenantId, websiteId ?? undefined)); });
   }
   function dup(p: SitePage) { setMenuFor(null); start(async () => { await duplicatePage(p.id, tenantId); setPages(await listSitePages(tenantId, websiteId ?? undefined)); }); }
-  function del(p: SitePage) {
+  async function del(p: SitePage) {
     setMenuFor(null);
-    if (!window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog(`Delete "${p.title}"? This cannot be undone.`, { danger: true, confirmText: "Delete" }))) return;
     start(async () => {
       try {
         await deletePage(p.id, tenantId); // secure-delete guard runs server-side
         setPages((prev) => prev.filter((x) => x.id !== p.id));
         if (selectedId === p.id) onSelectPage?.(null, null);
       } catch (e: any) {
-        alert(e?.message ?? "You can't delete this page.");
+        notifyError(e?.message ?? "You can't delete this page.");
       }
     });
   }

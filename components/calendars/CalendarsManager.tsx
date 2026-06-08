@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getCalendarConnections, getCalendarConnectUrl, connectIcalAction, disconnectProviderAction } from "@/app/tenants/[tenantId]/calendars/actions";
 import type { Calendar, Appointment } from "@/lib/calendars";
+import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -17,7 +18,7 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
   const [appts, setAppts] = useState<Appointment[]>([]);
 
   const create = () => start(async () => { const r = await createCalendarAction(tenantId, { name: name || "Discovery Call", durationMin: dur, assignedToEmail: agent.trim() || undefined }); if (r.ok) { setName(""); setAgent(""); setCals(r.calendars); } });
-  const del = (id: string) => { if (confirm("Delete this calendar and its appointments?")) start(async () => setCals((await deleteCalendarAction(tenantId, id)).calendars)); };
+  const del = async (id: string) => { if (await confirmDialog("Delete this calendar and its appointments?", { danger: true, confirmText: "Delete" })) start(async () => setCals((await deleteCalendarAction(tenantId, id)).calendars)); };
   const viewAppts = (id: string) => start(async () => { setOpenId(openId === id ? null : id); if (openId !== id) setAppts(await listAppointmentsAction(tenantId, id)); });
   const saveCal = (id: string, patch: Parameters<typeof updateCalendarAction>[2]) => start(async () => { const r = await updateCalendarAction(tenantId, id, patch); if (r.ok) setCals(r.calendars); });
 
@@ -88,8 +89,8 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
   const [ical, setIcal] = useState("");
   const reloadConns = () => getCalendarConnections(tenantId, cal.id).then(setConns).catch(() => setConns({ googleReady: false, microsoftReady: false, connections: [] }));
   useEffect(() => { reloadConns(); /* eslint-disable-next-line */ }, [tenantId, cal.id]);
-  const connectOAuth = async (provider: "google" | "microsoft") => { setBusyP(provider); const r = await getCalendarConnectUrl(tenantId, cal.id, provider); setBusyP(null); if (r.ok && r.url) window.open(r.url, "_blank", "noopener,noreferrer"); else alert(r.error || "Could not start connection."); };
-  const connectIcal = async () => { setBusyP("ical"); const r = await connectIcalAction(tenantId, cal.id, ical); setBusyP(null); if (r.ok) { setIcal(""); reloadConns(); } else alert(r.error || "Could not add iCal feed."); };
+  const connectOAuth = async (provider: "google" | "microsoft") => { setBusyP(provider); const r = await getCalendarConnectUrl(tenantId, cal.id, provider); setBusyP(null); if (r.ok && r.url) window.open(r.url, "_blank", "noopener,noreferrer"); else notifyError(r.error || "Could not start connection."); };
+  const connectIcal = async () => { setBusyP("ical"); const r = await connectIcalAction(tenantId, cal.id, ical); setBusyP(null); if (r.ok) { setIcal(""); reloadConns(); } else notifyError(r.error || "Could not add iCal feed."); };
   const disc = async (provider: string) => { setBusyP(provider); await disconnectProviderAction(tenantId, cal.id, provider); setBusyP(null); reloadConns(); };
   const conn = (p: string) => conns?.connections.find((c) => c.provider === p);
 

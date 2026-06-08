@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { saveDraft, generateSeoAI } from "../actions";
 import MediaPickerModal from "./MediaPickerModal";
 import { scoreSeo, type SeoReport } from "@/lib/seo/geo-score";
+import { notifyError } from "@/lib/ui/dialogs";
 
 interface SeoPanelProps {
   tenantId: string;
@@ -97,7 +98,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
 
   async function commit(next: SeoState) {
     try { await saveDraft(selectedPageId!, tenantId, { draft_seo: next as unknown as Record<string, unknown> }); }
-    catch (e: any) { alert(e?.message ?? "Failed to save SEO."); }
+    catch (e: any) { notifyError(e?.message ?? "Failed to save SEO."); }
   }
   const upd = (patch: Partial<SeoState>) => { const next = { ...seo, ...patch }; setSeo(next); commit(next); };
 
@@ -118,7 +119,7 @@ export default function SeoPanel({ tenantId, selectedPageId }: SeoPanelProps) {
           };
       upd(patch);
     } catch (e: any) {
-      alert(e?.message ?? "AI generation failed.");
+      notifyError(e?.message ?? "AI generation failed.");
     } finally {
       setBusy(null);
     }

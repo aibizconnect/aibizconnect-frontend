@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { notifyError } from "@/lib/ui/dialogs";
 
 export type SaveMode = "template" | "global";
 
@@ -43,7 +44,7 @@ export default function SaveAssetModal({
     if (!name.trim() || busy) return;
     setBusy(true);
     try { await onSave(name.trim(), "", mode); setDone(true); setTimeout(onClose, 900); }
-    catch (e: any) { alert(e?.message ?? "Could not save."); setBusy(false); }
+    catch (e: any) { notifyError(e?.message ?? "Could not save."); setBusy(false); }
   }
 
   const Card = ({ m, title, blurb, icon, color, disabled }: { m: SaveMode; title: string; blurb: string; icon: string; color: string; disabled?: boolean }) => (

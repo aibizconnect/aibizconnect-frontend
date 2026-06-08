@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createWorkflowAction, deleteWorkflowAction, generateWorkflowAction } from "@/app/tenants/[tenantId]/automations/actions";
 import type { Workflow } from "@/lib/workflows";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 export default function WorkflowsList({ tenantId, initial }: { tenantId: string; initial: Workflow[] }) {
   const [wfs, setWfs] = useState<Workflow[]>(initial);
@@ -12,7 +13,7 @@ export default function WorkflowsList({ tenantId, initial }: { tenantId: string;
 
   const create = () => start(async () => { const r = await createWorkflowAction(tenantId, name || "New workflow"); if (r.ok) { setName(""); setWfs(r.workflows); } });
   const gen = (k: "nurture" | "scoring" | "booking") => start(async () => setWfs((await generateWorkflowAction(tenantId, k)).workflows));
-  const del = (id: string) => { if (confirm("Delete this workflow?")) start(async () => setWfs((await deleteWorkflowAction(tenantId, id)).workflows)); };
+  const del = async (id: string) => { if (await confirmDialog("Delete this workflow?", { danger: true, confirmText: "Delete" })) start(async () => setWfs((await deleteWorkflowAction(tenantId, id)).workflows)); };
 
   return (
     <div className="mx-auto max-w-5xl">

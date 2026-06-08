@@ -42,6 +42,7 @@ import {
 import { decomposePage } from "@/lib/sections/decompose";
 import { ensureGoogleFont, injectCustomFont } from "@/lib/fonts";
 import { backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
+import { notify, notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 interface CanvasProps {
   tenantId: string;
@@ -162,7 +163,7 @@ export default function Canvas({
   // end of the page. (Dragging a prebuilt tile uses the text/abc-template drop path instead.)
   useEffect(() => {
     if (!addSectionsSignal || !addSections?.length) return;
-    if (!selectedPageId) { alert("Select a page first."); return; }
+    if (!selectedPageId) { notify("Select a page first."); return; }
     const newItems: Item[] = addSections.map((c) => ({ uid: newUid(), content: JSON.parse(JSON.stringify(c)) as SectionContent }));
     commit([...itemsRef.current, ...newItems]);
     setSelectedUid(newItems[0].uid);
@@ -219,7 +220,7 @@ export default function Canvas({
       }
       setAiOpen(false);
     } catch (e: any) {
-      alert(e?.message ?? "AI generation failed.");
+      notifyError(e?.message ?? "AI generation failed.");
     } finally {
       setAiBusy(false);
     }
@@ -499,7 +500,7 @@ export default function Canvas({
 
   function addSectionOfType(type: SectionType) {
     if (!selectedPageId) {
-      alert("Select a page first.");
+      notify("Select a page first.");
       return;
     }
     const item: Item = { uid: newUid(), content: defaultContentFor(type) };
@@ -967,8 +968,8 @@ export default function Canvas({
     setDirty(false);
   }
 
-  function deleteSection(index: number) {
-    if (!confirm("Delete this section?")) return;
+  async function deleteSection(index: number) {
+    if (!(await confirmDialog("Delete this section?", { danger: true, confirmText: "Delete" }))) return;
     const removed = items[index];
     const next = items.filter((_, i) => i !== index);
     commit(next);

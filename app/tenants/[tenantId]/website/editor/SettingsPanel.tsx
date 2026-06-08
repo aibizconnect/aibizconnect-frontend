@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { updatePageSettings, saveDraft, type PageSettings } from "../actions";
+import { notifyError } from "@/lib/ui/dialogs";
 
 interface SettingsPanelProps {
   tenantId: string;
@@ -53,7 +54,7 @@ export default function SettingsPanel({
       await updatePageSettings(selectedPageId!, tenantId, patch);
       onChanged?.();
     } catch (e: any) {
-      alert(e?.message ?? "Failed to save settings.");
+      notifyError(e?.message ?? "Failed to save settings.");
     }
   }
 
@@ -62,7 +63,7 @@ export default function SettingsPanel({
     try {
       await saveDraft(selectedPageId!, tenantId, { draft_slug: slug });
     } catch (e: any) {
-      alert(e?.message ?? "Failed to save slug.");
+      notifyError(e?.message ?? "Failed to save slug.");
     }
   }
 

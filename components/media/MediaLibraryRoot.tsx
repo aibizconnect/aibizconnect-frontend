@@ -12,6 +12,7 @@ import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
 import { listWebsites, type Website } from "@/app/tenants/[tenantId]/website/website-actions";
 import DriveTab from "./DriveTab";
 import CanvaTab from "./CanvaTab";
+import { promptDialog } from "@/lib/ui/dialogs";
 
 const isImage = (m: { mime_type?: string | null; filename?: string | null }) =>
   (m.mime_type ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(m.filename ?? "");
@@ -210,13 +211,13 @@ export default function MediaLibraryRoot({
   }, [tenantId]);
 
   async function newFolder() {
-    const name = window.prompt("Folder name");
+    const name = await promptDialog("New folder name", { title: "Create folder", placeholder: "e.g. People", confirmText: "Create" });
     if (!name) return;
     try { await createFolder(tenantId, name, folderId); reloadFolders(); }
     catch (e: any) { notify(e?.message ?? "Could not create folder."); }
   }
   async function renameF(f: MediaFolder) {
-    const name = window.prompt("Rename folder", f.name);
+    const name = await promptDialog("Rename folder", { defaultValue: f.name });
     if (!name || name === f.name) return;
     try { await renameFolder(f.id, tenantId, name); reloadFolders(); } catch (e: any) { notify(e?.message); }
   }

@@ -7,6 +7,7 @@ import {
   deleteMedia,
   type MediaItem,
 } from "../actions";
+import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 export default function MediaPanel({ tenantId }: { tenantId: string }) {
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -22,19 +23,19 @@ export default function MediaPanel({ tenantId }: { tenantId: string }) {
       const item = await uploadMedia(tenantId, file);
       setItems((prev) => [item, ...prev]);
     } catch (e: any) {
-      alert(e?.message ?? "Upload failed.");
+      notifyError(e?.message ?? "Upload failed.");
     } finally {
       setBusy(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this asset?")) return;
+    if (!(await confirmDialog("Delete this asset?", { danger: true, confirmText: "Delete" }))) return;
     try {
       await deleteMedia(id, tenantId);
       setItems((prev) => prev.filter((m) => m.id !== id));
     } catch (e: any) {
-      alert(e?.message ?? "Delete failed.");
+      notifyError(e?.message ?? "Delete failed.");
     }
   }
 

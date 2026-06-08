@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createPageAction, duplicatePageAction, deletePageAction, type SitePage } from "@/app/tenants/[tenantId]/sites/actions";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 /**
  * polished Sites → Websites page-management grid. Cards per page (thumbnail, status,
@@ -81,7 +82,7 @@ export default function SitesGrid({ tenantId, initialPages }: { tenantId: string
               {menuFor === p.id && (
                 <div className="absolute right-3 top-12 z-10 w-36 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                   <button onClick={() => act(() => duplicatePageAction(tenantId, p.id))} className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Duplicate</button>
-                  <button onClick={() => { if (confirm(`Delete "${p.title}"? This cannot be undone.`)) act(() => deletePageAction(tenantId, p.id)); }}
+                  <button onClick={async () => { if (await confirmDialog(`Delete "${p.title}"? This cannot be undone.`, { danger: true, confirmText: "Delete" })) act(() => deletePageAction(tenantId, p.id)); }}
                     className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete</button>
                 </div>
               )}

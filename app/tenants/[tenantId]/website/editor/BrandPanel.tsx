@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import DesignSystemPanel from "./DesignSystemPanel";
 import { mergeBrandRows } from "@/lib/sections/theme";
 import { updateBrandColumns } from "../actions";
+import { notifyError } from "@/lib/ui/dialogs";
 
 interface BrandPanelProps {
   tenantId: string;
@@ -65,7 +66,7 @@ export default function BrandPanel({ tenantId, websiteId, reloadKey }: BrandPane
         tone: updated.tone,
       }, websiteId);
     } catch (e: any) {
-      alert(e?.message ?? "Failed to save brand settings.");
+      notifyError(e?.message ?? "Failed to save brand settings.");
     }
   }
 

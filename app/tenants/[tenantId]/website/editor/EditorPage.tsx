@@ -22,6 +22,7 @@ import PageBackgroundPanel from "./PageBackgroundPanel";
 import type { SectionType, SectionContent } from "@/lib/sections/schemas";
 import { publishPage, unpublishPage, getPageForEditor, type ResolvedBlock } from "../actions";
 import type { GlobalBlockInput } from "@/lib/sections/layers";
+import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 interface EditorPageProps {
   tenantId: string;
@@ -154,9 +155,13 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       if (!href || href.startsWith("#") || a.target === "_blank" || a.hasAttribute("download")) return;
       if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
       if (/^https?:\/\//i.test(href) && !href.includes(window.location.host)) return; // external
-      const ok = window.confirm("You have unsaved changes on this page.\n\nLeave without saving? Click OK to discard your edits, or Cancel to stay and save first.");
-      if (!ok) { e.preventDefault(); e.stopPropagation(); }
-      else setDirty(false);
+      // The dialog is async, but native navigation can't be awaited — block it now,
+      // then follow the link ourselves only if the user confirms discarding edits.
+      e.preventDefault();
+      e.stopPropagation();
+      confirmDialog("You have unsaved changes on this page.\n\nLeave without saving? Click OK to discard your edits, or Cancel to stay and save first.").then((ok) => {
+        if (ok) { setDirty(false); window.location.assign(href); }
+      });
     };
     document.addEventListener("click", onClickCapture, true);
     return () => document.removeEventListener("click", onClickCapture, true);
@@ -164,9 +169,9 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
 
   // Guard used by the Pages panel: block switching pages if the current page has
   // unsaved edits, unless the user confirms losing them.
-  function canLeavePage(): boolean {
+  async function canLeavePage(): Promise<boolean> {
     if (!GUARD_ENABLED || !dirty) return true;
-    const ok = window.confirm("You have unsaved changes on this page.\n\nClick OK to discard them and switch pages, or Cancel to stay.");
+    const ok = await confirmDialog("You have unsaved changes on this page.\n\nClick OK to discard them and switch pages, or Cancel to stay.");
     if (ok) setDirty(false);
     return ok;
   }
@@ -195,7 +200,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       // drop the dirty flag so a stale in-memory draft can't be re-saved over the publish.
       setDirty(false);
       setReloadKey((k) => k + 1);
-    } catch (e: any) { alert(e?.message ?? "Failed to publish."); }
+    } catch (e: any) { notifyError(e?.message ?? "Failed to publish."); }
     finally { setPublishBusy(false); }
   }
 
@@ -203,7 +208,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
     if (!selectedPage) return;
     setPublishBusy(true);
     try { await unpublishPage(selectedPage.id, tenantId); setPublished(false); }
-    catch (e: any) { alert(e?.message ?? "Failed to unpublish."); }
+    catch (e: any) { notifyError(e?.message ?? "Failed to unpublish."); }
     finally { setPublishBusy(false); }
   }
 

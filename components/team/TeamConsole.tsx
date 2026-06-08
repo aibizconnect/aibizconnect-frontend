@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { TeamMember } from "@/lib/auth/team";
 import { createTeamMemberAction, setTeamRoleAction, setTeamActiveAction, listTeamAction } from "@/app/tenants/[tenantId]/team/actions";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 const ROLES = ["superadmin", "admin", "staff"] as const;
 const ROLE_BADGE: Record<string, string> = {
@@ -42,7 +43,7 @@ export default function TeamConsole({ initial, isOwner = false }: { initial: Tea
 
   async function toggleActive(m: TeamMember) {
     const next = !m.active;
-    if (!next && !confirm(`Deactivate ${m.email}? They won't be able to sign in.`)) return;
+    if (!next && !(await confirmDialog(`Deactivate ${m.email}? They won't be able to sign in.`, { danger: true, confirmText: "Deactivate" }))) return;
     setTeam((t) => t.map((x) => (x.id === m.id ? { ...x, active: next } : x)));
     const r = await setTeamActiveAction(m.id, m.email, next);
     if (!r.ok) { setErr(r.message ?? "Failed."); refresh(); }

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createFunnelAction, deleteFunnelAction } from "@/app/tenants/[tenantId]/sites/funnels/actions";
 import type { Funnel } from "@/lib/funnels";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 export default function FunnelsList({ tenantId, initial }: { tenantId: string; initial: Funnel[] }) {
   const [funnels, setFunnels] = useState<Funnel[]>(initial);
@@ -11,7 +12,7 @@ export default function FunnelsList({ tenantId, initial }: { tenantId: string; i
   const [pending, start] = useTransition();
 
   const create = () => start(async () => { const r = await createFunnelAction(tenantId, name || "New funnel"); if (r.ok) { setName(""); setFunnels(r.funnels); } });
-  const del = (id: string) => { if (confirm("Delete this funnel and its steps?")) start(async () => setFunnels((await deleteFunnelAction(tenantId, id)).funnels)); };
+  const del = async (id: string) => { if (await confirmDialog("Delete this funnel and its steps?", { danger: true, confirmText: "Delete" })) start(async () => setFunnels((await deleteFunnelAction(tenantId, id)).funnels)); };
 
   return (
     <div className="mx-auto max-w-5xl">

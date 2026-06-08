@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createCourseAction, generateCourseAction, setCourseStatusAction, deleteCourseAction, addLessonAction, updateLessonAction, deleteLessonAction } from "@/app/tenants/[tenantId]/memberships/actions";
 import type { Course } from "@/lib/memberships";
+import { confirmDialog } from "@/lib/ui/dialogs";
 
 export default function MembershipsManager({ tenantId, initial }: { tenantId: string; initial: Course[] }) {
   const [courses, setCourses] = useState<Course[]>(initial);
@@ -16,7 +17,7 @@ export default function MembershipsManager({ tenantId, initial }: { tenantId: st
   const gen = () => start(async () => { setCourses(await generateCourseAction(tenantId, topic)); setTopic(""); });
   const create = () => start(async () => setCourses(await createCourseAction(tenantId, "New Course")));
   const toggle = (c: Course) => start(async () => setCourses(await setCourseStatusAction(tenantId, c.id, c.status === "published" ? "draft" : "published")));
-  const del = (id: string) => { if (confirm("Delete this course and its lessons?")) start(async () => setCourses(await deleteCourseAction(tenantId, id))); };
+  const del = async (id: string) => { if (await confirmDialog("Delete this course and its lessons?", { danger: true, confirmText: "Delete" })) start(async () => setCourses(await deleteCourseAction(tenantId, id))); };
   const addL = (courseId: string) => start(async () => { refreshCourse(await addLessonAction(tenantId, courseId, newLesson || "New lesson")); setNewLesson(""); });
   const saveL = (courseId: string) => { if (!edit) return; start(async () => { refreshCourse(await updateLessonAction(tenantId, courseId, edit.id, { title: edit.title, body: edit.body })); setEdit(null); }); };
   const delL = (courseId: string, id: string) => start(async () => refreshCourse(await deleteLessonAction(tenantId, courseId, id)));
