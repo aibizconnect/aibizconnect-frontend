@@ -148,7 +148,7 @@ export default function SectionTemplatesPanel({
           <button
             onClick={handleCreateFromPage}
             disabled={busy || !selectedPageId}
-            className="shrink-0 rounded-lg bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
           >Save</button>
         </div>
       </div>
@@ -165,10 +165,10 @@ export default function SectionTemplatesPanel({
                 key={g.id}
                 draggable={!isEditing && !!content}
                 onDragStart={(e) => content && dragSections(e, [content])}
-                className="group relative flex cursor-grab flex-col gap-1 rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:border-[#1e3a8a]/40 hover:shadow-sm active:cursor-grabbing"
+                className="group relative flex cursor-grab flex-col gap-1 rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing"
               >
                 <div className="flex items-center gap-2 pr-12">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 text-violet-700">🔗</span>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-900">🔗</span>
                   {isEditing ? (
                     <input
                       autoFocus defaultValue={g.name || ""}
@@ -195,7 +195,7 @@ export default function SectionTemplatesPanel({
                       try { await attachBlockToPage(selectedPageId, tenantId, g.id); onApplied?.(); }
                       catch (e: any) { notifyError(e?.message ?? "Could not insert."); }
                     }}
-                    className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-medium text-white">Insert on page</button>
+                    className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">Insert on page</button>
                   {g.type !== "row" && (
                     <button
                       onClick={async () => {
@@ -231,10 +231,10 @@ export default function SectionTemplatesPanel({
               key={t.id}
               draggable={!isEditing}
               onDragStart={(e) => dragSections(e, sections)}
-              className="group relative flex cursor-grab flex-col gap-1 rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:border-[#1e3a8a]/40 hover:shadow-sm active:cursor-grabbing"
+              className="group relative flex cursor-grab flex-col gap-1 rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing"
             >
               <div className="flex items-center gap-2 pr-12">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#2563eb]/10 to-[#22d3ee]/10 text-[#1e3a8a]">{ICON}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-900">{ICON}</span>
                 {isEditing ? (
                   <input
                     autoFocus defaultValue={t.name}
