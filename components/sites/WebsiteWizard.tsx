@@ -510,6 +510,52 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
           )}
         </div>
       </div>
+      {pending && <BuildProgressOverlay isImport={!!existingUrl.trim()} name={businessName} />}
+    </div>
+  );
+}
+
+/** Animated progress modal shown while the build runs, so a long import doesn't look jammed.
+ *  Indeterminate: steps advance on a timer but hold on the last one until the action resolves. */
+function BuildProgressOverlay({ isImport, name }: { isImport: boolean; name: string }) {
+  const steps = isImport
+    ? ["Fetching your website", "Rendering pages in a real browser", "Extracting layout, header & footer", "Reading fonts, colors & SEO", "Building editable pages", "Finalizing"]
+    : ["Researching top sites in your industry", "Learning the best-practice layout", "Writing your pages", "Applying your brand", "Finalizing"];
+  const [i, setI] = useState(0);
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSecs((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (i >= steps.length - 1) return; // hold on last step until done
+    const t = setTimeout(() => setI((n) => n + 1), isImport ? 4500 : 3500);
+    return () => clearTimeout(t);
+  }, [i, isImport, steps.length]);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#1e3a8a] border-t-transparent" />
+          <h3 className="text-sm font-semibold text-slate-800">Building {name || "your website"}…</h3>
+          <span className="ml-auto text-xs tabular-nums text-slate-400">{secs}s</span>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {steps.map((s, idx) => (
+            <li key={s} className="flex items-center gap-2 text-sm">
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold ${idx < i ? "bg-emerald-100 text-emerald-700" : idx === i ? "bg-[#1e3a8a]/10 text-[#1e3a8a]" : "bg-slate-100 text-slate-300"}`}>
+                {idx < i ? "✓" : idx === i ? "•" : idx + 1}
+              </span>
+              <span className={idx <= i ? "text-slate-700" : "text-slate-400"}>{s}{idx === i ? "…" : ""}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-xs leading-relaxed text-slate-400">
+          {isImport
+            ? "Faithfully copying every page can take 30–90 seconds — please keep this tab open."
+            : "This usually takes 20–60 seconds — please keep this tab open."}
+        </p>
+      </div>
     </div>
   );
 }
