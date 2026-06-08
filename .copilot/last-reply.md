@@ -1,209 +1,257 @@
-Ali — here is the crisp, no‑nonsense, ship‑today plan.
-This is the leanest possible path to “import → looks right → fully editable” without diving into the full container‑structure engine yet.
+Ali — this is an excellent decision record. It captures the problem, root cause, fix, architecture, and migration path cleanly.
+Below is the finalized project‑record version, with four additions I strongly recommend for long‑term stability: CORS, lifecycle rules, image resizing, and fallback strategy.
 
-I’m giving you exactly what to do, in order, with the minimum viable logic.
+Everything else is solid.
 
-⭐ 1) PRIORITY RANKING (impact → effort → ship‑today feasibility)
-#1 — (b) Wrap ONLY top‑level <section>s into 1‑col rows
+✅ PROJECT RECORD — Media Storage & Supabase Egress Architecture (Final)
 
-Impact: 70%  
-Effort: Medium  
-This is the single biggest fidelity win you can ship today.
+(Builder → Copilot: logged for the permanent engineering record)
 
-One wrapper per <section>
+Problem
 
-Apply the section’s captured _style (bg + padding + align)
+Supabase Cached Egress exceeded quota (6.6 / 5 GB, 133%).
+Cause: all tenant media (uploads, AI images, system assets) lived in a public Supabase Storage bucket (website-media) and were served via public URLs with no cacheControl.
+Browsers + CDN re-fetched assets constantly, especially inside:
 
-Put your existing leaf blocks inside
+tenant websites
 
-No recursion
+the editor
 
-No flex/grid detection
+the Media Library
 
-No columns
+Importer is not the cause — imported sites keep external image URLs.
 
-No deep tree walking
+Fix Shipped
 
-This alone restores the “banded” look of modern sites (hero → features → CTA → testimonials → footer).
+(commits 5980a57, 2c3378a, b2d3ef6)
 
-#2 — (a) Parse HSL CSS vars → theme palette
+1. 1‑year immutable cacheControl on all uploads
 
-Impact: 20%  
-Effort: Tiny  
-Do it.
+cacheControl: "31536000" applied to:
 
-Convert --primary: 222 47% 11% → hex
+uploadMedia
 
-Set theme.colors.primary
+bulk uploads
 
-Makes imported sites instantly “on‑brand”
+system imports
 
-Helps editor color pickers
+AI images
 
-Zero risk
+Result: browsers stop re-fetching → massive egress reduction.
 
-#3 — (d) System/user style split
+2. New unified media abstraction (lib/media/storage.ts)
 
-Impact: 5% today  
-Effort: Medium  
-Defer.
+All media operations now go through:
 
-You don’t need it for “looks right + editable”.
-Just don’t re-import over existing pages for now.
+putObject
 
-#4 — (c) Full recursive flex/grid → columns
+copyObject
 
-Impact: 5% today  
-Effort: Large  
-Defer to v2.
+removeObjects
 
-This is the “correct” long‑term solution, but not needed for a faithful MVP.
+downloadObject
 
-⭐ 2) Is (b) enough for 80% fidelity?
+publicUrlFor
 
-YES. Absolutely.
+This abstraction routes to:
 
-Modern marketing sites are structured like:
+Cloudflare R2 (zero egress) when configured
 
-Code
-Copy
-<section>  hero
-<section>  features
-<section>  CTA band
-<section>  testimonials
-<section>  gallery
-<section>  pricing
-<section>  FAQ
+Supabase Storage otherwise
 
+All call sites refactored.
+Dependency added: aws4fetch (S3-compatible client).
 
-If you wrap each <section> as a row with:
+3. Migration script: scripts/migrate-media-to-r2.mjs
 
-background color
+Does:
 
-vertical padding
+Copies every Supabase object → R2
 
-contentWidth (full or boxed)
+Rewrites embedded URLs in:
 
-alignment
+website_pages.draft_sections
 
-…you instantly restore the visual rhythm of the site.
+website_page_sections.content
 
-Cheap heuristic for wrapping:
+website_global_blocks.content/draft_content
 
-Wrap a <section> if:
+website_brand_settings.theme
 
-it has background-color != transparent, OR
+websites.wizard/seo_defaults
 
-it has padding-top or padding-bottom ≥ 40px, OR
+Idempotent.
+Dry-run by default; --apply to execute.
 
-it is a direct child of <main>
+R2 Configuration
 
-This gives you 80% fidelity with almost no logic.
+Environment variables:
 
-⭐ 3) FAST shortcut for body import
+R2_ACCOUNT_ID
 
-Yes — use this:
+R2_ACCESS_KEY_ID
 
-Shortcut: wrap each direct <section> child of <main> as a row, then run your existing htmlToSections on its children.
+R2_SECRET_ACCESS_KEY
 
-Pseudo:
+R2_BUCKET=aibizconnect-media
 
-Code
-Copy
-for each <section> in main.children:
-    row = createRow()
-    row._style = captured section style
-    row.children = htmlToSections(section.children)
+R2_PUBLIC_BASE=https://media.aibizconnect.app
 
+Permanent Address Decision (Critical)
 
-No deep DOM walking.
-No flex/grid detection.
-No column inference.
-No recursion.
+All public media will be served from:
 
-This is the fastest path to “looks right”.
+https://media.aibizconnect.app/<storage_path>
 
-⭐ 4) Editing concerns — are leaf blocks already editable?
+This is a custom Cloudflare domain attached to the R2 bucket.
 
-YES — if they are already standard block types with _style, they are fully editable.
+Rationale:
 
-Checklist to verify:
+URL stays permanent even if:
 
-Each leaf block maps to a known section type (heading, text, image, gallery, button, list, form, video).
+R2 bucket changes
 
-Each block has content + _style.
+R2 account changes
 
-No unknown block types.
+provider changes
 
-No missing required fields in the schema.
+Only the DNS + Cloudflare binding changes
 
-No nested blocks inside blocks (your flattening already prevents this).
+Same principle as tenant site subdomains (businessname.aibizconnect.app)
 
-If all that is true, editing works out of the box.
+This ensures media URLs never break.
 
-The only thing that could break editing is:
+Status
 
-A block type missing a required field
+Code merged
 
-A block type not registered in the editor
+Awaiting Ali’s Cloudflare setup:
 
-A block type with invalid _style keys
+Create R2 bucket
 
-But your current importer already avoids these.
+Attach media.aibizconnect.app
 
-⭐ 5) What to safely defer to v2
+Create R2 API token
 
-These can wait without hurting “looks right + editable”:
+Add env vars to .env.local + Vercel
 
-Full flex/grid → multi‑column detection
+Then run migration:
 
-Deep recursion
+Dry-run
 
-System/user style split
+--apply
 
-Auto‑naming sections (“Features”, “CTA”, etc.)
+Media temporarily unlocked for migration; will re-lock after cutover.
 
-Palette inference beyond primary/secondary
+⭐ Recommended Additions (Copilot’s review)
 
-Smart contentWidth inference
+These are not required for correctness, but they complete the architecture and prevent future issues.
 
-Updating existing pages on re-import
+1. R2 CORS Policy (Required for Editor + Media Library)
 
-Detecting “feature grids” vs “card lists”
+Add a CORS rule to R2:
 
-Converting inline styles to theme tokens
+Allowed origins:
 
-Responsive breakpoint inference
+https://aibizconnect.app
 
-None of these are required for a good MVP.
+https://*.aibizconnect.app
 
-⭐ FINAL: Your 5‑step “SHIP TODAY” plan
-1. Parse HSL CSS vars → theme palette
+http://localhost:3000 (dev)
 
-Tiny change, big brand fidelity.
+Allowed methods:
 
-2. Wrap each <section> under <main> into a 1‑col row
+GET, PUT, HEAD, DELETE
 
-Apply section-level _style (bg + padding).
-Put leaf blocks inside.
+Allowed headers:
 
-3. Use simple heuristics to decide wrapping
+content-type, authorization, x-amz-acl
 
-Wrap if bg != transparent OR paddingY ≥ 40px OR direct child of <main>.
+Without this, uploads or previews may fail in the editor.
 
-4. Keep leaf blocks exactly as they are
+2. R2 Lifecycle Rules (Strongly Recommended)
 
-They’re already editable.
-No schema changes needed.
+Add lifecycle rules to reduce storage bloat:
 
-5. Defer everything else
+Auto-delete AI-generated images older than X days (optional)
 
-No recursion.
-No columns.
-No system/user style split.
-No re-import logic.
+Auto-delete temporary uploads
 
-Ali — this is the fastest possible path to a faithful, editable import that looks right today.
-Implement steps 1–5 and you’ll have a shockingly good importer by end of day.
+Auto-delete unused thumbnails
+
+Auto-transition large assets to cheaper storage class (if needed)
+
+This keeps R2 costs predictable.
+
+3. Image Resizing on Upload (Sharp) — Optional but High ROI
+
+Add a sharp pipeline for:
+
+max width 1920px for hero
+
+1200px for content
+
+600px for thumbnails
+
+convert to WebP/AVIF
+
+This reduces:
+
+storage
+
+egress
+
+page load time
+
+Media Library load time
+
+You already have the abstraction layer — adding resizing is trivial now.
+
+4. Fallback Strategy if R2 or media domain is down
+
+Add a fallback in publicUrlFor:
+
+If R2 fails:
+
+fallback to Supabase public URL
+
+OR return a signed URL from R2
+
+OR return a placeholder image
+
+This prevents broken images on tenant sites.
+
+5. Monitoring & Alerts
+
+Add:
+
+Supabase egress alert
+
+R2 storage alert
+
+Media migration audit logs
+
+Error logs for failed R2 uploads
+
+This prevents silent failures.
+
+⭐ Final Verdict
+
+Your architecture is correct, future-proof, and production-grade.
+The only additions I recommend for the project record are:
+
+R2 CORS
+
+R2 lifecycle rules
+
+optional image resizing
+
+fallback strategy
+
+monitoring/alerts
+
+Everything else is already excellent.
+
+If you want, I can generate a SETUP.md or ARCHITECTURE.md section for the repo based on this.
 
 Edit in a page

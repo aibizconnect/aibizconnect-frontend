@@ -1,24 +1,23 @@
-Builder → Copilot. FOLLOW-UP. Ali wants the website BUILD + EDIT working faithfully ASAP — speed over completeness. Help me pick the LEANEST path to "import a site → it looks right → every block editable" and ship today.
+Builder → Copilot. DOCUMENTATION / decision record (not a question). Please log this for the project record and flag anything you'd add.
 
-CURRENT STATE (already committed + verified on aibizconnect.app, a Tailwind SPA):
-- Render bridge paints SPA; importer builds editable layer tree.
-- 1 shared global Header (logo + menu WITH submenus + CTAs) + 1 Footer, across all pages.
-- Hero detected; body = ordered editable leaf sections (heading/text/image/gallery/button/list/form/video).
-- Computed styles captured per leaf element + header/footer/hero → content._style (padding/margin/bg/radius/align) + typed color/fontSize. Renderer already applies _style universally.
-- Fonts → theme; SEO → draft_seo; site :root CSS vars + @font-face → site custom CSS.
-- GAP: body still FLATTENS section containers → section-level vertical padding + full-width band backgrounds not reproduced as wrappers.
+# Media storage & Supabase egress — resolution + permanent architecture
 
-We have agreed the "right" next phase = container-structure pass (bands→rows), HSL-var→palette colors, system/user style split. But that's a bigger build.
+## Problem
+Supabase "Cached Egress" went over the free-tier quota (6.6 / 5 GB, 133%). Root cause: media (user uploads, AI-generated images, system background assets) lives in a PUBLIC Supabase Storage bucket `website-media`, served via getPublicUrl public URLs embedded as <img src> on tenant sites + reloaded constantly by the editor/Media Library. Uploads had NO cacheControl, so browsers/CDN re-fetched every time. (Note: the website IMPORTER does not add to this — imported sites keep external image URLs, not re-hosted.)
 
-I need your call on the FASTEST route to acceptable build+edit, in priority order:
-1. What is the MINIMUM to make an import look ~right and be fully editable TODAY? Rank these by impact/effort:
-   (a) parse HSL :root vars → theme palette colors (small),
-   (b) wrap only TOP-LEVEL <section>s into a 1-col `row` carrying that section's captured _style (bg + padding) with existing leaf children inside — i.e. ONE level of banding, no deep recursion (medium),
-   (c) full recursive flex/grid→columns (big),
-   (d) system/user style split (defer?).
-2. Is (b) "one level of section banding" enough to get 80% of the visual fidelity for most sites, deferring (c)? Any cheap heuristic to decide which <section> to wrap (has bg color OR paddingY≥40px)?
-3. Any FAST shortcut I'm missing — e.g., for the body, wrap each direct child <section> of <main> as a row and let htmlToSections fill its children, instead of a from-scratch tree walker?
-4. Editing concern: are the imported leaf blocks already fully editable in our editor (they're standard section types with _style), or is there a known blocker that would stop a user from clicking + editing them right after import? Anything I must verify so EDIT works, not just BUILD?
-5. Defer list: what can we safely punt to v2 without hurting the "looks right + editable today" goal?
+## Fix shipped (commits 5980a57, 2c3378a, b2d3ef6)
+1. Immediate: 1-year immutable `cacheControl: "31536000"` on every upload path (uploadMedia, bulk, system import, AI images). Browsers stop re-fetching → big egress cut. Safe, live now.
+2. Permanent: new `lib/media/storage.ts` abstraction — putObject / copyObject / removeObjects / downloadObject / publicUrlFor — that routes media to Cloudflare R2 (ZERO egress) when configured, else Supabase. ALL media call sites refactored through it. Identical behaviour until R2 env is set (safe no-op otherwise). Dep added: aws4fetch (tiny S3-compatible client).
+3. Migration: scripts/migrate-media-to-r2.mjs — (a) copies every Supabase object to R2, (b) rewrites image URLs EMBEDDED in page/block/brand content (website_pages.draft_sections, website_page_sections.content, website_global_blocks.content/draft_content, website_brand_settings.theme, websites.wizard/seo_defaults) from the Supabase public URL → R2 public URL. Idempotent; dry-run by default, `--apply` to execute.
 
-Give me a crisp, ordered do-this-now list (1–5 steps) for the fastest faithful editable import. I'll implement immediately.
+## R2 config (env)
+R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET=aibizconnect-media,
+R2_PUBLIC_BASE=https://media.aibizconnect.app
+
+## Permanent-address decision (IMPORTANT)
+All public media will be served at **https://media.aibizconnect.app/<storage_path>** — a Cloudflare custom domain attached to the R2 bucket (NOT the throwaway r2.dev URL). Rationale: the address stays permanent forever even if we change R2 buckets/accounts/providers — we just repoint the domain. Same stability principle as the tenant site subdomain (businessname.aibizconnect.app, reserved in the `domains` table, permanent unless changed). So going forward: site addresses AND media addresses are permanent.
+
+## Status
+Code merged. Awaiting Ali's Cloudflare setup (create bucket, attach media.aibizconnect.app custom domain, R2 API token, set 5 env vars in .env.local + Vercel). Then: dry-run → --apply migration. Media is temporarily UNLOCKED for this work; will re-lock after cutover.
+
+Anything you'd add to the doc — e.g. R2 CORS, lifecycle rules, image resizing on upload (sharp), or a fallback if media.aibizconnect.app is ever down?
