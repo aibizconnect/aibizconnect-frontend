@@ -1,5 +1,5 @@
 import { parse, type HTMLElement } from "node-html-parser";
-import { applyCapturedStyle } from "./style-capture";
+import { applyCapturedStyle, applyCapturedTypo, parseDataCs, gridColumnCount } from "./style-capture";
 
 /**
  * Server-only faithful HTML → editable-blocks importer. Walks the page BODY in DOCUMENT ORDER and
@@ -47,6 +47,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     imgRun = [];
   };
   let seenText = new Set<string>();
+  let skipEl: HTMLElement | null = null; // subtree the walk should skip (handled separately)
   const pushText = (text: string, italic = false, el?: HTMLElement) => {
     const t = clean(text);
     if (t.length < 2) return;
@@ -54,7 +55,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     if (seenText.has(key)) return;
     seenText.add(key);
     const base: Record<string, unknown> = italic ? { type: "text", text: t, italic: true } : { type: "text", text: t };
-    out.push(applyCapturedStyle(base, el?.getAttribute("data-cs")));
+    out.push(applyCapturedTypo(base, el?.getAttribute("data-cs")));
   };
 
   const tagOf = (el: HTMLElement) => (el.rawTagName || "").toLowerCase();
@@ -137,10 +138,11 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     for (const raw of node.childNodes) {
       const el = raw as HTMLElement;
       if (!el || el.nodeType !== 1) continue; // element nodes only
+      if (skipEl && el === skipEl) continue;  // skip a subtree (e.g. a card grid handled separately)
       const tag = tagOf(el);
       if (!tag || DROP.has(tag)) continue;
 
-      if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = clean(el.text); if (text) out.push(applyCapturedStyle({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
+      if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = clean(el.text); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
       if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
       if (tag === "ul" || tag === "ol") { flushImgs(); const items = el.querySelectorAll("li").map((li) => ({ text: clean(li.text) })).filter((i) => i.text); if (items.length) out.push({ type: "bullet-list", items: items.slice(0, 12), bulletStyle: tag === "ol" ? "number" : "check" }); continue; }
@@ -150,7 +152,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
       if (tag === "iframe") { const src = el.getAttribute("src") || ""; if (/youtube|youtu\.be|vimeo|wistia/i.test(src)) { flushImgs(); out.push({ type: "video", url: src }); } continue; }
       if (tag === "form") { flushImgs(); out.push(formToContactForm(el)); continue; }
       if (tag === "button" || tag === "a") {
-        if (looksLikeButton(el)) { flushImgs(); const label = clean(el.text); const href = abs(el.getAttribute("href") || "#"); if (label) out.push(applyCapturedStyle({ type: "button", label: label.slice(0, 40), href }, el.getAttribute("data-cs"))); continue; }
+        if (looksLikeButton(el)) { flushImgs(); const label = clean(el.text); const href = abs(el.getAttribute("href") || "#"); if (label) out.push(applyCapturedTypo({ type: "button", label: label.slice(0, 40), href }, el.getAttribute("data-cs"))); continue; }
         walk(el); continue; // ordinary link → recurse for nested text/images
       }
       if (tag === "p") {
@@ -161,15 +163,25 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
         continue;
       }
       if (tag === "table") { flushImgs(); out.push({ type: "html", code: el.toString().slice(0, 20000) }); continue; }
-      // Generic container (div/section/article/main/figure/header-less) → recurse to preserve order.
+      // Generic container: capture its OWN direct text (many designs use styled <div>/<span> as
+      // titles/paragraphs instead of <h*>/<p>), then recurse into child elements to preserve order.
+      const dtxt = clean(el.childNodes.filter((n) => n.nodeType === 3).map((n) => (n as any).text || "").join(" "));
+      if (dtxt.length >= 2) {
+        flushImgs();
+        const cs = el.getAttribute("data-cs") || "";
+        const fw = /fontWeight:(\d+)/.exec(cs); const fsM = /fontSize:(\d+)/.exec(cs);
+        const headingLike = ((fw && +fw[1] >= 600) || (fsM && +fsM[1] >= 18)) && dtxt.length <= 60;
+        if (headingLike) out.push(applyCapturedTypo({ type: "heading", text: dtxt, level: "h3" }, cs));
+        else pushText(dtxt, false, el);
+      }
       walk(el);
     }
   };
 
   // Harvest a FRESH ordered block list from a subtree (resets the shared walk state).
-  const collectBlocks = (node: HTMLElement): Record<string, unknown>[] => {
-    out = []; imgRun = []; seenText = new Set<string>();
-    walk(node); flushImgs();
+  const collectBlocks = (node: HTMLElement, skip?: HTMLElement | null): Record<string, unknown>[] => {
+    out = []; imgRun = []; seenText = new Set<string>(); skipEl = skip ?? null;
+    walk(node); flushImgs(); skipEl = null;
     return out;
   };
   const elementChildren = (node: HTMLElement): HTMLElement[] =>
@@ -196,15 +208,56 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
 
   // 3) Wrap each top-level band into a 1-column row carrying that band's captured _style
   //    (bg + padding). Leaf blocks stay inside as editable children. No deep recursion (v1).
+  // Find the dominant CARD GRID inside a band (a flex/grid container with 2–12 similar card children)
+  // so feature/industry grids become a real multi-column row instead of stacked blocks.
+  const findCardGrid = (band: HTMLElement): { el: HTMLElement; cards: HTMLElement[]; cols: number } | null => {
+    let best: { el: HTMLElement; cards: HTMLElement[]; cols: number } | null = null;
+    let bestScore = 0;
+    for (const el of band.querySelectorAll("div, ul, section")) {
+      const kids = elementChildren(el).filter((k) => !DROP.has(tagOf(k)));
+      if (kids.length < 2 || kids.length > 12) continue;
+      const cardish = kids.filter((k) => (k.querySelector && k.querySelector("h1,h2,h3,h4,h5,h6")) || clean(k.text).length > 8);
+      if (cardish.length < 2 || cardish.length < Math.ceil(kids.length * 0.6)) continue;
+      const cs = el.getAttribute("data-cs") || "";
+      const gc = gridColumnCount(cs);
+      const isFlexGrid = /display:(flex|grid)/.test(cs) || gc >= 2;
+      const score = kids.length * (isFlexGrid ? 3 : 1);
+      if (score > bestScore) { best = { el, cards: cardish, cols: gc || cardish.length }; bestScore = score; }
+    }
+    return best;
+  };
+
   for (const band of elementChildren(container)) {
     if (DROP.has(tagOf(band))) continue;
-    const blocks = collectBlocks(band);
-    if (!blocks.length) continue;
-    // Content stays boxed/centered; the row wrapper carries the band's bg + padding so a coloured
-    // band reads full-width with centered content (Copilot's outer-band / inner-boxed pattern).
-    const row = applyCapturedStyle({
-      type: "row", columns: 1, contentWidth: "boxed", _name: bandName(blocks), children: [blocks],
-    }, band.getAttribute("data-cs")) as Record<string, unknown>;
+    const bandStyle = parseDataCs(band.getAttribute("data-cs")).style;
+    let children: Record<string, unknown>[][] = [];
+
+    const grid = findCardGrid(band);
+    let built = false;
+    if (grid && grid.cards.length >= 2) {
+      const cols: Record<string, unknown>[][] = [];
+      const colStyles: Record<string, unknown>[] = [];
+      for (const card of grid.cards) {
+        const b = collectBlocks(card);
+        if (b.length) { cols.push(b); colStyles.push(parseDataCs(card.getAttribute("data-cs")).style); }
+      }
+      if (cols.length >= 2) {
+        const intro = collectBlocks(band, grid.el); // band content WITHOUT the grid subtree
+        const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
+        const nested: Record<string, unknown> = {
+          type: "row", columns: Math.min(cols.length, 12), contentWidth: "boxed", gap: 16,
+          _name: "Cards", children: cols, colStyles,
+        };
+        if (Object.keys(gridStyle).length) nested._style = gridStyle;
+        children = [[...intro, nested]];
+        built = true;
+      }
+    }
+    if (!built) children = [collectBlocks(band)]; // non-destructive fallback — full band content
+
+    if (!children[0].length) continue;
+    const row: Record<string, unknown> = { type: "row", columns: 1, contentWidth: "boxed", _name: bandName(children[0]), children };
+    if (Object.keys(bandStyle).length) row._style = bandStyle;
     result.push(row);
     if (result.length >= 60) break;
   }

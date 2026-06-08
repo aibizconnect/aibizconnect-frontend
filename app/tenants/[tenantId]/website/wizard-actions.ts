@@ -563,6 +563,15 @@ async function applyImportedTheme(tenantId: string, websiteId: string, t: Extrac
   if (t.fonts.heading) fonts.heading = t.fonts.heading;
   if (t.fonts.body) fonts.body = t.fonts.body;
   theme.colors = colors; theme.fonts = fonts;
+  // Apply the imported fonts to the typography ROLES the renderer actually uses (not just theme.fonts).
+  const headF = fonts.heading as string | undefined, bodyF = (fonts.body || fonts.heading) as string | undefined;
+  if (headF || bodyF) {
+    const typo: Record<string, any> = { ...(theme.typography || {}) };
+    const setRole = (role: string, fam?: string) => { if (fam) typo[role] = { ...(typo[role] || {}), fontFamily: fam }; };
+    for (const r of ["title", "heading", "subheading", "sectionHeader"]) setRole(r, headF);
+    for (const r of ["subtitle", "body", "quote", "button", "menu", "submenu"]) setRole(r, bodyF);
+    theme.typography = typo;
+  }
   if (t.colors.background) theme.pageBackground = { ...(theme.pageBackground || {}), bg: t.colors.background };
   // Site-wide imported CSS (@font-face + CSS variables) so custom fonts/effects load.
   if (css && !theme.site?.siteCustomCss) theme.site = { ...(theme.site || {}), siteCustomCss: css.slice(0, 256000) };

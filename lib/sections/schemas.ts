@@ -315,7 +315,7 @@ export const menuSchema = z.object({
 // so we keep this loosely typed here to avoid recursive-schema fragility).
 export const rowSchema = z.object({
   type: z.literal("row"),
-  columns: z.coerce.number().int().min(1).max(6).default(1),
+  columns: z.coerce.number().int().min(1).max(12).default(1),
   widths: z.array(z.number()).optional(), // per-column fractional ratios, sum = 1
   gap: z.coerce.number().optional(),
   contentWidth: z.enum(["boxed", "full"]).optional(),   // center content at max-width vs full-bleed

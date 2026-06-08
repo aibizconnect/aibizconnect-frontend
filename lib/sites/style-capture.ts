@@ -56,6 +56,26 @@ export function applyCapturedStyle(content: Record<string, unknown>, dataCs?: st
   return content;
 }
 
+/** Apply ONLY typographic hints (color/fontSize/align) to a leaf element — no padding/margin, so
+ *  text/headings don't inherit big container spacing (which read as excessive whitespace). */
+export function applyCapturedTypo(content: Record<string, unknown>, dataCs?: string | null): Record<string, unknown> {
+  const { typo } = parseDataCs(dataCs);
+  for (const [k, v] of Object.entries(typo)) if (content[k] === undefined) content[k] = v;
+  return content;
+}
+
+/** Read just the column count a CSS grid declares (grid-template-columns), if present. */
+export function gridColumnCount(dataCs?: string | null): number {
+  if (!dataCs) return 0;
+  const m = /gridTemplateColumns:([^|]+)/.exec(dataCs);
+  if (!m) return 0;
+  const v = m[1].trim();
+  if (v === "none") return 0;
+  // count track sizes (px/fr/%/minmax) — split on spaces not inside minmax()
+  const tracks = v.replace(/minmax\([^)]*\)/g, "x").split(/\s+/).filter(Boolean);
+  return tracks.length;
+}
+
 /** Pull the <style id="__imported_css"> block (font-faces + CSS vars) the bridge injected. */
 export function extractImportedCss(html: string): string {
   const m = /<style[^>]+id=["']__imported_css["'][^>]*>([\s\S]*?)<\/style>/i.exec(html);

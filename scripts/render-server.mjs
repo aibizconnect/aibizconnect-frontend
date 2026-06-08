@@ -42,7 +42,7 @@ async function render(target) {
     // can reproduce the original padding/spacing/colors/typography, and collect @font-face + CSS
     // variables + keyframes into one <style id="__imported_css"> for the site-wide custom CSS.
     await page.evaluate(() => {
-      const KEEP = ["paddingTop","paddingRight","paddingBottom","paddingLeft","marginTop","marginRight","marginBottom","marginLeft","color","backgroundColor","backgroundImage","fontSize","fontWeight","lineHeight","letterSpacing","textAlign","textTransform","borderTopLeftRadius","borderTopRightRadius","borderBottomLeftRadius","borderBottomRightRadius","display","gap","justifyContent","alignItems","maxWidth","boxShadow"];
+      const KEEP = ["paddingTop","paddingRight","paddingBottom","paddingLeft","marginTop","marginRight","marginBottom","marginLeft","color","backgroundColor","backgroundImage","fontSize","fontWeight","lineHeight","letterSpacing","textAlign","textTransform","borderTopLeftRadius","borderTopRightRadius","borderBottomLeftRadius","borderBottomRightRadius","display","gap","justifyContent","alignItems","maxWidth","boxShadow","gridTemplateColumns","flexWrap"];
       const def = (k, v) => {
         if (!v) return true;
         if (/(padding|margin|gap)/i.test(k) && v === "0px") return true;
