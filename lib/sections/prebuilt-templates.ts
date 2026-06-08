@@ -183,6 +183,7 @@ const gT = (t: string, color: string, align: Align = "center"): SectionContent =
 const gBtn = (label: string, o: { align?: Align; bg?: string; fg?: string; variant?: "solid" | "outline"; hover?: string }): SectionContent =>
   ({ type: "button", label, href: "#", align: o.align ?? "center", size: "lg", variant: o.variant ?? "solid", bgColor: o.bg, textColor: o.fg ?? "#ffffff", hover: o.hover ?? "lift" } as SectionContent);
 const gImg = (rounding = 14): SectionContent => ({ type: "image", url: "", alt: "", objectFit: "cover", rounding } as SectionContent);
+const QUOTE_CARD = { bg: PAL.light.soft, borderStyle: "solid", borderWidth: 1, borderColor: PAL.light.hair, radius: 14, shadow: "soft", pt: 26, pb: 26, pl: 24, pr: 24 };
 
 // Header: wordmark logo · menu (with a submenu) · login/CTA button.
 function header(id: string, name: string, blurb: string, p: Pal, o: { login: string; loginVariant?: "solid" | "outline"; hairline?: boolean }): PrebuiltTemplate {
@@ -271,6 +272,27 @@ function footer(id: string, name: string, blurb: string, p: Pal): PrebuiltTempla
   };
 }
 
+// Fully-EDITABLE hero built from rows + elements (no sealed "hero" component):
+// a 1-col band (optionally a faded photo bg) → eyebrow · headline · subtext → a 2-col
+// row of buttons. Every piece is individually editable on the canvas.
+function heroEditable(id: string, name: string, blurb: string, o: { p: Pal; image?: boolean; eyebrow: string; title: string; sub: string; cta1: string; cta2?: string }): PrebuiltTemplate {
+  const style: Record<string, any> = { bg: o.p.bg, pt: 130, pb: 130, paddingX: 24, align: "center", minHeight: 540 };
+  if (o.image) { style.bgFade = "half"; style.bgImageMode = "full-center"; } // faded photo, dark text reads
+  const buttons: SectionContent[] = [gBtn(o.cta1, { align: o.cta2 ? "right" : "center", bg: o.p.accent, hover: "lift" })];
+  const btnRow: SectionContent = o.cta2
+    ? ({ type: "row", columns: 2, contentWidth: "boxed", gap: 14, widths: [0.5, 0.5],
+        children: [[gBtn(o.cta1, { align: "right", bg: o.p.accent, hover: "lift" })], [gBtn(o.cta2, { align: "left", bg: o.p.accent, variant: "outline", fg: o.p.text, hover: "fill" })]] } as SectionContent)
+    : buttons[0];
+  return {
+    id, name, blurb, category: "Hero", icon: "◧",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 18, valign: "center", widths: [1], minHeight: 540,
+      _style: style, _anim: { entrance: "fade-up" }, ...(o.image ? { _fillBg: true } : {}),
+      children: [[gEyebrow(o.eyebrow, o.p.accent), gH(o.title, o.p.text, "h1"), gT(o.sub, o.p.sub), btnRow]],
+    }] as SectionContent[],
+  };
+}
+
 const GENERIC_TEMPLATES: PrebuiltTemplate[] = [
   // ── Headers ───────────────────────────────────────────────────────────────────
   header("hdr-light", "Header — Classic", "Logo · menu · login (light)", PAL.light, { login: "Login", loginVariant: "outline", hairline: true }),
@@ -348,18 +370,12 @@ const GENERIC_TEMPLATES: PrebuiltTemplate[] = [
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   ...LUXURY_TEMPLATES,
   ...GENERIC_TEMPLATES,
-  // ── HERO ────────────────────────────────────────────────────────────────────
-  {
-    id: "hero-lead", name: "Hero — Lead Capture", category: "Hero", icon: "🚀",
-    blurb: "Bold headline + two CTAs",
-    sections: [{
-      type: "hero",
-      heading: "Find Your Dream Home, Faster",
-      subheading: "Browse exclusive listings, book showings, and get expert guidance — all in one place.",
-      primaryCta: { label: "Browse Listings", href: "#listings" },
-      secondaryCta: { label: "Book a Call", href: "#contact" },
-    }],
-  },
+  // ── HERO (fully editable: rows + elements, not a sealed component) ───────────────
+  heroEditable("hero-lead", "Hero — Lead Capture", "Faded photo, headline + two CTAs", {
+    p: PAL.light, image: true, eyebrow: "Find your place",
+    title: "Find Your Dream Home, Faster", sub: "Browse exclusive listings, book showings, and get expert guidance — all in one place.",
+    cta1: "Browse Listings", cta2: "Book a Call",
+  }),
   {
     id: "hero-minimal", name: "Hero — Minimal Centered", category: "Hero", icon: "✨",
     blurb: "Clean centered intro + button",
@@ -375,20 +391,14 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     }],
   },
 
-  // ── CONTENT ───────────────────────────────────────────────────────────────────
-  {
-    id: "features-3up", name: "Features — 3 Up", category: "Content", icon: "🧩",
-    blurb: "Three feature cards with icons",
-    sections: [{
-      type: "features",
-      heading: "Why Clients Choose Us",
-      features: [
-        { title: "Local Expertise", description: "Decades of on-the-ground knowledge of your neighbourhood and market.", icon: "📍" },
-        { title: "Full-Service", description: "From first showing to closing day, we handle every detail for you.", icon: "🤝" },
-        { title: "Proven Results", description: "Hundreds of happy clients and homes sold above asking.", icon: "🏆" },
-      ],
-    }],
-  },
+  // ── CONTENT (editable) ──────────────────────────────────────────────────────────
+  cards3("features-3up", "Features — 3 Up", "Three editable feature cards", "Content", PAL.light, {
+    eyebrow: "Why choose us", title: "Why Clients Choose Us", cards: [
+      { icon: "📍", t: "Local Expertise", d: "Decades of on-the-ground knowledge of your neighbourhood and market." },
+      { icon: "🤝", t: "Full-Service", d: "From first showing to closing day, we handle every detail for you." },
+      { icon: "🏆", t: "Proven Results", d: "Hundreds of happy clients and homes sold above asking." },
+    ],
+  }),
   {
     id: "stats-bar", name: "Stats Bar", category: "Content", icon: "📊",
     blurb: "Four headline numbers",
@@ -423,19 +433,22 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     }],
   },
 
-  // ── SOCIAL PROOF ───────────────────────────────────────────────────────────────
+  // ── SOCIAL PROOF (editable quote cards) ─────────────────────────────────────────
   {
     id: "testimonials-3", name: "Testimonials — 3", category: "Social Proof", icon: "💬",
-    blurb: "Three client quotes",
-    sections: [{
-      type: "testimonials",
-      heading: "What Our Clients Say",
-      items: [
-        { name: "Sarah & Tom M.", role: "First-time buyers", quote: "They made a stressful process feel effortless. We found our home in two weeks!" },
-        { name: "Priya K.", role: "Seller", quote: "Sold above asking in just four days. Professional, responsive, and genuinely caring." },
-        { name: "James R.", role: "Investor", quote: "The market insight was invaluable. I'll never work with anyone else." },
-      ],
-    }],
+    blurb: "Three editable client quotes",
+    sections: [
+      { type: "row", columns: 1, contentWidth: "boxed", _style: { bg: PAL.light.bg, pt: 84, pb: 28, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+        children: [[gEyebrow("Testimonials", PAL.light.accent), gH("What Our Clients Say", PAL.light.text)]] } as SectionContent,
+      { type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [1 / 3, 1 / 3, 1 / 3],
+        _style: { bg: PAL.light.bg, pt: 0, pb: 84, paddingX: 24 }, _anim: { entrance: "fade-up" },
+        colStyles: [QUOTE_CARD, QUOTE_CARD, QUOTE_CARD] as any,
+        children: [
+          [{ type: "text", text: "“They made a stressful process feel effortless. We found our home in two weeks!”", align: "left", color: PAL.light.text, fontSize: 16, lineHeight: 1.6 } as SectionContent, { type: "text", text: "— Sarah & Tom M., First-time buyers", align: "left", color: PAL.light.sub, fontSize: 13 } as SectionContent],
+          [{ type: "text", text: "“Sold above asking in just four days. Professional, responsive, and genuinely caring.”", align: "left", color: PAL.light.text, fontSize: 16, lineHeight: 1.6 } as SectionContent, { type: "text", text: "— Priya K., Seller", align: "left", color: PAL.light.sub, fontSize: 13 } as SectionContent],
+          [{ type: "text", text: "“The market insight was invaluable. I'll never work with anyone else.”", align: "left", color: PAL.light.text, fontSize: 16, lineHeight: 1.6 } as SectionContent, { type: "text", text: "— James R., Investor", align: "left", color: PAL.light.sub, fontSize: 13 } as SectionContent],
+        ] } as SectionContent,
+    ] as SectionContent[],
   },
   {
     id: "faq-basic", name: "FAQ", category: "Social Proof", icon: "❓",
@@ -464,16 +477,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       ],
     }],
   },
-  {
-    id: "cta-banner", name: "CTA Banner", category: "Conversion", icon: "📣",
-    blurb: "Full-width call to action",
-    sections: [{
-      type: "cta",
-      heading: "Ready to Make Your Move?",
-      subheading: "Let's talk about your goals. Your first consultation is on us.",
-      cta: { label: "Book a Free Consultation", href: "#contact" },
-    }],
-  },
+  ctaBand("cta-banner", "CTA Banner", "Full-width editable call to action", PAL.light, {
+    title: "Ready to Make Your Move?", body: "Let's talk about your goals. Your first consultation is on us.", btn: "Book a Free Consultation",
+  }),
   {
     id: "contact-simple", name: "Contact Form", category: "Conversion", icon: "✉️",
     blurb: "Name, email, message + submit",
@@ -493,17 +499,11 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   },
 
   // ── IMAGE-LED + THEMED LOOKS (image slots auto-filled from your Media Library) ─────
-  {
-    id: "hero-image", name: "Hero — Image Background", category: "Hero", icon: "🌄",
-    blurb: "Full-bleed photo hero",
-    sections: [{
-      type: "hero",
-      heading: "Your Next Chapter Starts Here",
-      subheading: "Stunning spaces, expert guidance, and a team that puts you first.",
-      primaryCta: { label: "Get Started", href: "#contact" },
-      backgroundImageUrl: "", // filled with one of your images
-    }],
-  },
+  heroEditable("hero-image", "Hero — Image Background", "Faded full-bleed photo hero", {
+    p: PAL.light, image: true, eyebrow: "Welcome",
+    title: "Your Next Chapter Starts Here", sub: "Stunning spaces, expert guidance, and a team that puts you first.",
+    cta1: "Get Started",
+  }),
   {
     id: "hero-split-image", name: "Hero — Split + Photo", category: "Hero", icon: "🖼️",
     blurb: "Copy left, photo right",
@@ -622,6 +622,8 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
     if (node && typeof node === "object") {
       const n: any = { ...node };
       for (const key of Object.keys(n)) if (n[key] && typeof n[key] === "object") n[key] = walk(n[key]);
+      // Row-based sections that want a background PHOTO mark themselves with _fillBg.
+      if (n._fillBg && n._style && !n._style.bgImage) n._style = { ...n._style, bgImage: next() };
       if (n.type === "image" && !n.url) n.url = next();
       else if (n.type === "hero" && !n.backgroundImageUrl) n.backgroundImageUrl = next();
       else if ((n.type === "gallery" || n.type === "logos" || n.type === "slider") && Array.isArray(n.images) && !n.images.length)
