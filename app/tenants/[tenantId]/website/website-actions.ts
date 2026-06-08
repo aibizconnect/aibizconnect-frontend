@@ -120,6 +120,21 @@ export async function deleteWebsite(tenantId: string, websiteId: string): Promis
     // Remove the website's pages, then the website row (scoped to the tenant).
     await supabase.from("website_pages").delete().eq("tenant_id", tenantId).eq("website_id", websiteId);
     await supabase.from("domains").delete().eq("tenant_id", tenantId).eq("website_id", websiteId);
+
+    // Delete this website's MEDIA FILES (the actual stored objects) + their rows, and its global
+    // blocks / brand settings / media folders. Only website-scoped media is touched — shared/System
+    // assets (no website_id) are never removed. Best-effort: media cleanup never blocks deletion.
+    try {
+      const { data: media } = await supabase.from("website_media")
+        .select("storage_path").eq("tenant_id", tenantId).eq("website_id", websiteId);
+      const paths = (media ?? []).map((m: any) => m.storage_path).filter(Boolean) as string[];
+      if (paths.length) { const { removeObjects } = await import("@/lib/media/storage"); await removeObjects(paths); }
+      await supabase.from("website_media").delete().eq("tenant_id", tenantId).eq("website_id", websiteId);
+    } catch { /* don't block website deletion on media cleanup */ }
+    for (const tbl of ["website_global_blocks", "website_brand_settings", "media_folders"]) {
+      try { await supabase.from(tbl).delete().eq("tenant_id", tenantId).eq("website_id", websiteId); } catch { /* ignore */ }
+    }
+
     const { error } = await supabase.from("websites").delete().eq("tenant_id", tenantId).eq("id", websiteId);
     if (error) return { ok: false, error: error.message };
     // If we deleted the primary, promote the oldest remaining site to primary.
