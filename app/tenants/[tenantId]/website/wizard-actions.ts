@@ -740,12 +740,38 @@ export async function generateWizardPages(
   // Apply the imported header/footer as the site-wide global blocks (once, shared across all pages).
   if (importedChrome && (importedChrome.header || importedChrome.footer)) {
     try {
+      // Repoint imported nav links to THIS site's real pages: a same-origin path that matches a
+      // created page slug stays; one that doesn't (e.g. /marketplace from the source) → "#" so it
+      // doesn't dead-link / 404. External, mailto, tel, and anchors are left untouched.
+      remapChromeLinks(importedChrome, usedSlugs);
       await setWebsiteChrome(tenantId, websiteId, String(wizard.businessName || wizard.companyName || "Site"),
         importedChrome.header ?? undefined, importedChrome.footer ?? undefined);
     } catch { /* non-fatal — pages keep the default global blocks */ }
   }
 
   return created;
+}
+
+/** Rewrite imported header/footer link hrefs so they point only at real pages of THIS site. */
+function remapChromeLinks(chrome: ImportedChrome, slugs: Set<string>): void {
+  const fix = (href: unknown): string => {
+    if (typeof href !== "string" || !href) return "#";
+    if (href === "/" || /^(https?:|mailto:|tel:|#)/i.test(href)) return href; // external/special → keep
+    const slug = href.replace(/^\/+/, "").split(/[?#]/)[0].toLowerCase();
+    return slug && slugs.has(slug) ? `/${slug}` : "#";
+  };
+  const walkEls = (els: any[]): void => {
+    for (const el of els || []) {
+      if (!el || typeof el !== "object") continue;
+      if (typeof el.href === "string") el.href = fix(el.href);
+      if (Array.isArray(el.items)) for (const it of el.items) { it.href = fix(it.href); if (Array.isArray(it.children)) for (const c of it.children) c.href = fix(c.href); }
+      if (Array.isArray(el.children)) for (const col of el.children) if (Array.isArray(col)) walkEls(col);
+    }
+  };
+  for (const block of [chrome.header, chrome.footer]) {
+    const children = (block as any)?.children;
+    if (Array.isArray(children)) for (const col of children) if (Array.isArray(col)) walkEls(col);
+  }
 }
 
 // ---------------------------------------------------------------------------
