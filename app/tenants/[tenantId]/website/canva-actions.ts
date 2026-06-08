@@ -6,13 +6,25 @@ import { putObject } from "@/lib/media/storage";
 import { optimizeImage } from "@/lib/media/optimize";
 import {
   buildCanvaAuthUrl, canvaConnection, disconnectCanva, listCanvaDesigns, exportCanvaDesign,
-  canvaReady, type CanvaDesign,
+  canvaReady, canvaPkce, makeCanvaState, canvaRedirectUri, type CanvaDesign,
 } from "@/lib/server/canva";
+import { encryptSecret } from "@/lib/server/encryption";
+import { cookies } from "next/headers";
 import crypto from "node:crypto";
 
 export async function getCanvaConnectUrl(tenantId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   await requireTenantAccess(tenantId);
-  return buildCanvaAuthUrl(tenantId);
+  const { verifier, challenge } = canvaPkce();
+  const nonce = crypto.randomBytes(12).toString("hex");
+  const state = makeCanvaState(tenantId, nonce);
+  if (!state) return { ok: false, error: "Set SETTINGS_ENCRYPTION_KEY first." };
+  // Hold the PKCE verifier server-side in a short-lived HttpOnly cookie (Canva forbids storing it
+  // in the state). SameSite=Lax so it survives the top-level redirect back from Canva.
+  const jar = await cookies();
+  jar.set("canva_pkce", encryptSecret(JSON.stringify({ tenantId, nonce, verifier, ts: Date.now() })), {
+    httpOnly: true, secure: canvaRedirectUri().startsWith("https"), sameSite: "lax", path: "/", maxAge: 900,
+  });
+  return buildCanvaAuthUrl(challenge, state);
 }
 
 export async function getCanvaStatus(tenantId: string): Promise<{ ready: boolean; connected: boolean; name: string | null }> {

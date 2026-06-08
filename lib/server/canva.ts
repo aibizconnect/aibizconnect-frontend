@@ -35,34 +35,37 @@ function appBase(): string {
 }
 export function canvaRedirectUri(): string { return `${appBase()}/api/canva/callback`; }
 
-const b64url = (b: Buffer) => b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// PKCE per Canva docs: verifier 43–128 chars (base64url of 96 random bytes), challenge = base64url(sha256(verifier)).
+export function canvaPkce(): { verifier: string; challenge: string } {
+  const verifier = crypto.randomBytes(96).toString("base64url");
+  const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
 
-interface CState { tenantId: string; verifier: string; nonce: string; ts: number }
-/** Returns the encrypted state (carries the PKCE verifier) + the code_challenge for the auth URL. */
-export function makeCanvaState(tenantId: string): { state: string; challenge: string } | null {
+// State carries ONLY tenantId + nonce (NOT the verifier — Canva forbids storing the verifier in
+// state). The verifier is held server-side in a short-lived HttpOnly cookie (see canva-actions).
+interface CState { tenantId: string; nonce: string; ts: number }
+export function makeCanvaState(tenantId: string, nonce: string): string | null {
   if (!encryptionReady()) return null;
-  const verifier = b64url(crypto.randomBytes(48));
-  const challenge = b64url(crypto.createHash("sha256").update(verifier).digest());
-  const payload: CState = { tenantId, verifier, nonce: crypto.randomBytes(8).toString("hex"), ts: Date.now() };
-  return { state: Buffer.from(encryptSecret(JSON.stringify(payload)), "utf8").toString("base64url"), challenge };
+  const payload: CState = { tenantId, nonce, ts: Date.now() };
+  return Buffer.from(encryptSecret(JSON.stringify(payload)), "utf8").toString("base64url");
 }
 export function readCanvaState(state: string): CState | null {
   try {
     const p = JSON.parse(decryptSecret(Buffer.from(state, "base64url").toString("utf8"))) as CState;
-    if (!p?.tenantId || !p?.verifier || !p?.ts) return null;
+    if (!p?.tenantId || !p?.nonce || !p?.ts) return null;
     if (Date.now() - p.ts > 15 * 60 * 1000) return null;
     return p;
   } catch { return null; }
 }
 
-export async function buildCanvaAuthUrl(tenantId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+/** Build the Canva authorization URL given a PKCE challenge and an opaque state. */
+export async function buildCanvaAuthUrl(challenge: string, state: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const creds = await canvaCreds();
   if (!creds) return { ok: false, error: "Canva isn't configured (missing platform app credentials)." };
-  const st = makeCanvaState(tenantId);
-  if (!st) return { ok: false, error: "Set SETTINGS_ENCRYPTION_KEY first." };
   const params = new URLSearchParams({
     client_id: creds.id, redirect_uri: canvaRedirectUri(), response_type: "code",
-    scope: SCOPES.join(" "), code_challenge: st.challenge, code_challenge_method: "S256", state: st.state,
+    scope: SCOPES.join(" "), code_challenge: challenge, code_challenge_method: "S256", state,
   });
   return { ok: true, url: `${AUTH_URL}?${params.toString()}` };
 }
