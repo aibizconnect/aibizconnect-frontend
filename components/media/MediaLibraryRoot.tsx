@@ -850,6 +850,12 @@ export default function MediaLibraryRoot({
         const fname = (folders.find((f) => f.id === folderId)?.name || "").toLowerCase();
         const isDrive = /google\s*drive/.test(fname);
         const isCanva = /canva|canava/.test(fname);
+        const isAiFolder = /ai\s*images/.test(fname);
+        if (isAiFolder) return (<>
+          <AiGenerate tenantId={tenantId} folderId={folderId} onGenerated={() => { reloadMedia(); reloadUsage(); }} />
+          {(isSysManager || isAdmin) && <div className="mt-3"><AdminAiUsage /></div>}
+          {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Your AI images</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
+        </>);
         if (isDrive) return (<>
           <DriveTab tenantId={tenantId} importFolderId={folderId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />
           {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Imported from Drive</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
@@ -1124,7 +1130,7 @@ function AuditLog() {
   );
 }
 
-function AiGenerate({ tenantId, onGenerated }: { tenantId: string; onGenerated?: () => void }) {
+function AiGenerate({ tenantId, onGenerated, folderId }: { tenantId: string; onGenerated?: () => void; folderId?: string | null }) {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("auto");
   const [aspect, setAspect] = useState("1:1");
@@ -1142,7 +1148,7 @@ function AiGenerate({ tenantId, onGenerated }: { tenantId: string; onGenerated?:
     if (!prompt.trim()) return;
     setBusy(true); setMessage(""); setResults([]);
     try {
-      const r = await generateAiImages(tenantId, prompt, { count, aspect, style });
+      const r = await generateAiImages(tenantId, prompt, { count, aspect, style, folderId: folderId ?? null });
       setHasKey(r.hasKey); setMessage(r.message ?? "");
       if (r.images.length) { setResults(r.images); onGenerated?.(); loadUsage(); }
     } catch (e: any) { setMessage(e?.message ?? "Generation failed."); }

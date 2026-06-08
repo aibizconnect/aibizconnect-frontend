@@ -351,7 +351,7 @@ export async function probeModel(model: string): Promise<{ model: string; ok: bo
 export async function imagenGenerateAndImport(
   tenantId: string,
   prompt: string,
-  opts?: { count?: number; aspectRatio?: string; model?: string; namePrefix?: string; transparent?: boolean },
+  opts?: { count?: number; aspectRatio?: string; model?: string; namePrefix?: string; transparent?: boolean; folderId?: string | null },
 ): Promise<{ images: { id: string; url: string }[]; skipped?: string; usedModel?: string }> {
   if (!imageGenEnabled()) {
     return { images: [], skipped: hasKey("ai-image")
@@ -421,6 +421,7 @@ export async function imagenGenerateAndImport(
     const { data: row } = await supabase.from("website_media").insert({
       tenant_id: tenantId, url: up.publicUrl, storage_path: path,
       filename: `${opts?.namePrefix ?? "AI image"} ${i + 1}.${ext}`, mime_type: outMime, size_bytes: bytes.length,
+      ...(opts?.folderId ? { folder_id: opts.folderId } : {}),
     }).select("id").single();
     if (row?.id) images.push({ id: row.id, url: up.publicUrl ?? "" });
   }

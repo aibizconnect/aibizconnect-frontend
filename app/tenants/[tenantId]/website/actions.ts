@@ -2677,7 +2677,7 @@ export async function getAllAiUsage(): Promise<TenantAiUsage[]> {
 export async function generateAiImages(
   tenantId: string,
   prompt: string,
-  opts?: { count?: number; aspect?: string; style?: string }
+  opts?: { count?: number; aspect?: string; style?: string; folderId?: string | null }
 ): Promise<{ hasKey: boolean; images: { url: string }[]; message?: string }> {
   await requireTenantAccess(tenantId);
   if (!aiImageGenEnabled()) {
@@ -2689,7 +2689,7 @@ export async function generateAiImages(
   }
   const styledPrompt = opts?.style && opts.style !== "auto" ? `${prompt}. Style: ${opts.style}.` : prompt;
   const out = await imagenGenerateAndImport(tenantId, styledPrompt, {
-    count: opts?.count ?? 4, aspectRatio: opts?.aspect || "1:1", namePrefix: "AI image",
+    count: opts?.count ?? 4, aspectRatio: opts?.aspect || "1:1", namePrefix: "AI image", folderId: opts?.folderId ?? null,
   });
   // Meter usage (one unit per generated image) so the tenant can be billed.
   await recordAiUsage(tenantId, "image", out.images.length, { aspect: opts?.aspect || "1:1", style: opts?.style || "auto" });
