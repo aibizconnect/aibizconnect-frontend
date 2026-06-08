@@ -1,31 +1,32 @@
-# Consult: parallel SEO/GEO analysis folded into the website build
+# Consult: HIGH-FIDELITY editable import (exact padding/spacing/layout) + global CSS + fonts→typography
 
-## Context — where the website importer stands now
-We import an existing site into the editor as an editable **layer tree** (page → sections → elements), routing each layer to its home:
-- **Header** → shared **Global Header** block (row: logo image + nav menu + CTA button).
-- **Footer** → shared **Global Footer** block (row of columns: brand+social, link menus, contact, ©).
-- **Hero** → a real `hero` section (heading/subheading/CTAs/background), detected + removed so the body walk doesn't duplicate it.
-- **Body** → ordered editable sections via `htmlToSections` (headings/text/image/gallery/button/list/form/video/html).
-- **Fonts + colors** → `extractTheme` writes `website_brand_settings.theme` (Google-Fonts/CSS font-family; colors from CSS vars/theme-color/dominant hue).
-- **Per-page SEO/GEO** → `extractSeo` pulls real `<title>`, meta description, canonical, og:image, JSON-LD @type(s) into `draft_seo` (overriding synthetic geoSeoForPage).
-- **SPA render bridge** (`scripts/render-server.mjs` + `SITE_RENDER_URL` hook in `fetchPage`): JS-rendered sites (e.g. aibizconnect.app is a Lovable/React SPA) are rendered in a real browser first, else we only get an empty `<div id=root>` shell. Verified end-to-end.
+## Where we are
+Importer builds an editable layer tree (page → sections → row/columns → elements) from a rendered DOM (we have a Playwright render bridge, so we get the painted HTML + can read getComputedStyle). Header/Footer → shared global blocks (now with hierarchical menu+submenus), Hero detected, body via htmlToSections, SEO → draft_seo, fonts/colors → website_brand_settings.theme.
 
-We also already have a standalone **SEO + GEO analyzer** (`public/tools/seo-geo-analyzer.html`, now LOCKED) that scores a URL on SEO + AI/answer-engine (GEO) readiness via PageSpeed Insights + robots/llms/schema checks and emits a prioritized task list (noindex, missing schema/JSON-LD, H1 hierarchy, meta description, AggregateRating, llms.txt, Cloudflare AI-bot blocking, freshness/dateModified, etc.).
+## Ali's new requirement
+Make the import **visually faithful AND editable**: every section/row/column/element recognized and placed **in the same position with the same padding, spacing, colors, font-sizes, alignment, widths** as the original — and show all of them in the **Layers** tree. Plus:
+- pull the site's **CSS** and put it in the website's **global/custom CSS**,
+- **fonts** into the Typography panel (not just theme),
+- **SEO** into its fields (done).
 
-## Proposal (Ali's request)
-Run the **SEO/GEO analysis in parallel with the import/build**, and **auto-apply the safe findings into the generated draft** (drafts only, never publish). e.g. during build:
-- ensure exactly one H1 per page (map the hero heading to H1, demote stray H1s→H2);
-- generate + inject JSON-LD (Organization/LocalBusiness/FAQPage/Article) into `draft_seo.schemas` from the extracted business facts;
-- fill missing meta titles/descriptions (already partly done);
-- add `dateModified`/freshness;
-- propose `llms.txt` + robots/AI-bot allowances as a checklist item;
-- flag (not auto-fix) infra issues (Cloudflare bot-fight, noindex) as tasks shown to the tenant.
+## Schema facts
+- `rowSchema` has `_style: record<string,any>`, `colStyles: record<string,any>[]`, `widths`, `gap`, `valign`, `contentWidth`, `minHeight`.
+- Most element schemas have presentational fields (align, fontFamily, fontSize, color, etc.); need to confirm whether a generic `_style` is honored by the renderer for ALL element types, or only some.
+- There is a per-page Custom CSS panel and a site Typography panel (saveTypography) + site custom CSS (need to confirm a SITE-wide global CSS store exists).
 
-## Questions for you
-1. **Auto-apply vs suggest split** — which findings are safe to write into the DRAFT automatically (idempotent, fact-safe, no hallucinated specifics) vs which must be surfaced as a per-page task list the tenant approves? (Anti-hallucination precedent D-059/D-060.)
-2. **Integration point** — fold the analysis into `generateWizardPages` (per page, using the same rendered HTML we already fetched, so no extra network), or a separate post-build `auditAndEnhance(websiteId)` pass? Trade-offs?
-3. **Data model** — store findings where? Reuse `draft_seo` for applied schema/meta, plus a new `website_pages.seo_audit` JSONB (or a `website_seo_findings` table) for the open task list + scores?
-4. **GEO specifics** — given our analyzer already encodes the GEO ruleset, should the build emit `llms.txt`, FAQPage schema, and AggregateRating scaffolds by default for every tenant, or gate behind consent?
-5. Any **gotchas** (PSI rate limits, doing this without an API key, schema validity, not overwriting tenant edits on re-run).
+## Design question — pick the approach for "same padding/spacing/layout":
+**(A) Computed-style capture** in the render bridge: walk the rendered DOM and, per kept element, record a curated set of computed styles (padding, margin, gap, display, flex-direction, justify/align, width/max-width, font-size/weight/line-height/letter-spacing, color, background, border-radius, text-align). Importer maps these into `_style`/`colStyles`/element style fields. Self-contained (no selector/ancestor dependence), stays editable. Cost: bigger bridge payload + a renderer that applies `_style` to every element type.
 
-Please reply with a recommended design + a short checklist of auto-apply items vs suggest-only items, and any new Supervisor checks (SEO-V*/GEO-V*) you'd define.
+**(B) Global-CSS + preserved classNames:** inline the source CSS as global CSS and keep each imported element's original class list; rely on the cascade. Editable-ish but fragile — our renderer wraps elements in different ancestry, so descendant/utility selectors (esp. Tailwind compiled classes like aibizconnect.app uses) won't match reliably.
+
+**(C) Hybrid:** computed-style capture for layout/spacing/typography (the reliable part) + capture CSS variables / @font-face / keyframes into global CSS for fonts and effects. Probably the answer — confirm.
+
+## Specific asks
+1. Approve **(A)/(B)/(C)** and the exact computed-style property whitelist to capture (keep it minimal but sufficient for fidelity).
+2. Where to store the captured **global CSS** (site-wide custom CSS table/column?) and how much to keep (cap size; strip framework resets?). For Tailwind-compiled CSS (huge), do we keep it or rely on computed styles instead?
+3. **Renderer**: should we extend the section renderer so EVERY element type honors a generic `_style` object (so captured styles apply uniformly), or map into each element's typed style fields? Migration risk?
+4. **Fonts → Typography**: write extracted fonts into the Typography store (saveTypography) AND register @font-face/Google-Fonts links so they actually load. Confirm the store + how custom fonts are loaded site-wide.
+5. **Layers tree**: it already lists sections/rows/columns/elements. Any structural requirement so captured nested rows/columns show correctly and selecting one maps to the right node?
+6. Performance + idempotency gotchas; size caps; don't overwrite tenant edits on re-import.
+
+Please give a decisive recommendation + a minimal computed-style whitelist + storage plan + any renderer change needed, and new Supervisor checks (FID-V*).

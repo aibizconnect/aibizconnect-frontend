@@ -379,6 +379,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
       {/* Occasions Engine — seasonal/holiday effects active for the visitor's local date. */}
       {siteSettings?.occasions && <SiteOccasions config={siteSettings.occasions} />}
 
+      {(siteSettings as any)?.siteCustomCss ? <style data-imported dangerouslySetInnerHTML={{ __html: (siteSettings as any).siteCustomCss }} /> : null}
       {customCss ? <style dangerouslySetInnerHTML={{ __html: customCss }} /> : null}
     </>
     );

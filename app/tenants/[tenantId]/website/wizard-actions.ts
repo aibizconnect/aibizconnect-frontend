@@ -8,6 +8,7 @@ import { htmlToSections } from "@/lib/sites/html-importer";
 import { importChrome, type ImportedChrome } from "@/lib/sites/chrome-importer";
 import { extractTheme, type ExtractedTheme } from "@/lib/sites/theme-importer";
 import { extractSeo } from "@/lib/sites/seo-importer";
+import { extractImportedCss } from "@/lib/sites/style-capture";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -549,8 +550,8 @@ async function scaffoldSkeleton(
  */
 /** Merge fonts/colors learned from the source site into the website's brand theme (extracted wins
  *  for whatever it confidently found; existing values are kept otherwise). Best-effort. */
-async function applyImportedTheme(tenantId: string, websiteId: string, t: ExtractedTheme): Promise<void> {
-  if (!t || (!Object.keys(t.fonts).length && !Object.keys(t.colors).length)) return;
+async function applyImportedTheme(tenantId: string, websiteId: string, t: ExtractedTheme, css?: string): Promise<void> {
+  if (!t || (!Object.keys(t.fonts).length && !Object.keys(t.colors).length && !css)) return;
   const sb = createSupabaseServiceClient();
   const { data } = await sb.from("website_brand_settings").select("theme")
     .eq("tenant_id", tenantId).eq("website_id", websiteId).maybeSingle();
@@ -562,6 +563,8 @@ async function applyImportedTheme(tenantId: string, websiteId: string, t: Extrac
   if (t.fonts.body) fonts.body = t.fonts.body;
   theme.colors = colors; theme.fonts = fonts;
   if (t.colors.background) theme.pageBackground = { ...(theme.pageBackground || {}), bg: t.colors.background };
+  // Site-wide imported CSS (@font-face + CSS variables) so custom fonts/effects load.
+  if (css && !theme.site?.siteCustomCss) theme.site = { ...(theme.site || {}), siteCustomCss: css.slice(0, 256000) };
 
   const patch: Record<string, any> = { tenant_id: tenantId, website_id: websiteId, theme };
   if (t.colors.primary) patch.primary_color = t.colors.primary;
@@ -618,7 +621,7 @@ export async function generateWizardPages(
     // and its fonts + colors → the website theme (so the import reproduces the look).
     if (homeHtml) {
       try { importedChrome = importChrome(homeHtml, baseUrl); } catch { /* keep defaults */ }
-      try { await applyImportedTheme(tenantId, websiteId, extractTheme(homeHtml)); } catch { /* keep theme */ }
+      try { await applyImportedTheme(tenantId, websiteId, extractTheme(homeHtml), extractImportedCss(homeHtml)); } catch { /* keep theme */ }
     }
     // Sitemap discovery → copy EVERY page, not just homepage-linked ones.
     const sitemapUrls = hasSite ? await discoverSitemapUrls(baseUrl) : [];

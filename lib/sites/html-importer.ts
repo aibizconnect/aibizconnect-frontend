@@ -1,4 +1,5 @@
 import { parse, type HTMLElement } from "node-html-parser";
+import { applyCapturedStyle } from "./style-capture";
 
 /**
  * Server-only faithful HTML → editable-blocks importer. Walks the page BODY in DOCUMENT ORDER and
@@ -45,13 +46,14 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     imgRun = [];
   };
   const seenText = new Set<string>();
-  const pushText = (text: string, italic = false) => {
+  const pushText = (text: string, italic = false, el?: HTMLElement) => {
     const t = clean(text);
     if (t.length < 2) return;
     const key = t.slice(0, 120).toLowerCase();
     if (seenText.has(key)) return;
     seenText.add(key);
-    out.push(italic ? { type: "text", text: t, italic: true } : { type: "text", text: t });
+    const base: Record<string, unknown> = italic ? { type: "text", text: t, italic: true } : { type: "text", text: t };
+    out.push(applyCapturedStyle(base, el?.getAttribute("data-cs")));
   };
 
   const tagOf = (el: HTMLElement) => (el.rawTagName || "").toLowerCase();
@@ -125,6 +127,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
     if (ctas[0]) hero.primaryCta = ctas[0];
     if (ctas[1]) hero.secondaryCta = ctas[1];
     if (bg) hero.backgroundImageUrl = bg;
+    applyCapturedStyle(hero, heroEl.getAttribute("data-cs"));
     try { heroEl.remove(); } catch { /* ignore */ }
     return hero;
   };
@@ -136,23 +139,23 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
       const tag = tagOf(el);
       if (!tag || DROP.has(tag)) continue;
 
-      if (/^h[1-6]$/.test(tag)) { flushImgs(); pushText(""); const text = clean(el.text); if (text) out.push({ type: "heading", text, level: tag }); continue; }
+      if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = clean(el.text); if (text) out.push(applyCapturedStyle({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
       if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
       if (tag === "ul" || tag === "ol") { flushImgs(); const items = el.querySelectorAll("li").map((li) => ({ text: clean(li.text) })).filter((i) => i.text); if (items.length) out.push({ type: "bullet-list", items: items.slice(0, 12), bulletStyle: tag === "ol" ? "number" : "check" }); continue; }
       if (tag === "hr") { flushImgs(); out.push({ type: "divider" }); continue; }
-      if (tag === "blockquote") { flushImgs(); pushText(el.text, true); continue; }
+      if (tag === "blockquote") { flushImgs(); pushText(el.text, true, el); continue; }
       if (tag === "video") { flushImgs(); const src = el.getAttribute("src") || el.querySelector("source")?.getAttribute("src"); if (src) out.push({ type: "video", url: abs(src) }); continue; }
       if (tag === "iframe") { const src = el.getAttribute("src") || ""; if (/youtube|youtu\.be|vimeo|wistia/i.test(src)) { flushImgs(); out.push({ type: "video", url: src }); } continue; }
       if (tag === "form") { flushImgs(); out.push(formToContactForm(el)); continue; }
       if (tag === "button" || tag === "a") {
-        if (looksLikeButton(el)) { flushImgs(); const label = clean(el.text); const href = abs(el.getAttribute("href") || "#"); if (label) out.push({ type: "button", label: label.slice(0, 40), href }); continue; }
+        if (looksLikeButton(el)) { flushImgs(); const label = clean(el.text); const href = abs(el.getAttribute("href") || "#"); if (label) out.push(applyCapturedStyle({ type: "button", label: label.slice(0, 40), href }, el.getAttribute("data-cs"))); continue; }
         walk(el); continue; // ordinary link → recurse for nested text/images
       }
       if (tag === "p") {
         // A paragraph that is ONLY an image/link is handled by recursion; otherwise its text.
         const directText = clean(el.childNodes.filter((n) => n.nodeType === 3).map((n) => (n as any).text || "").join(" "));
-        if (directText.length >= 2) { flushImgs(); pushText(el.text); }
+        if (directText.length >= 2) { flushImgs(); pushText(el.text, false, el); }
         else walk(el);
         continue;
       }

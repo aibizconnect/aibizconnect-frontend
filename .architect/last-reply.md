@@ -1,155 +1,144 @@
-Here is the recommended design for integrating SEO/GEO analysis into the website build pipeline.
+Here is the decisive recommendation for high-fidelity editable import.
 
 ---
-### 1. Auto-apply vs. Suggest Split
+### 1. Approach and Computed-Style Whitelist
 
-**RULING 85: Auto-apply vs. Suggest Split**
+**RULING 91: Hybrid Approach (C) with Specific Computed-Style Whitelist**
 
-**A. Auto-apply (Safe, Fact-Based, Idempotent, Non-Hallucinatory):**
-These findings are safe to automatically write into the DRAFT without tenant approval.
-*   **H1 Structure:** Ensure exactly one `<h1>` per page. Map the hero heading to `<h1>`, demote stray `<h1>`s to `<h2>`s. (Structural, accessibility, SEO best practice).
-*   **JSON-LD (Foundational):** Generate and inject `Organization` or `LocalBusiness` JSON-LD schema into `draft_seo.schemas`, populated strictly from `website_analysis_results` (business name, address, phone, URL, industry).
-*   **JSON-LD (Page-Specific):** Generate and inject `FAQPage` or `Article` JSON-LD schema into `draft_seo.schemas` for relevant pages, populated from extracted page content (e.g., detected FAQs, article structure).
-*   **Missing Meta Titles/Descriptions:** Fill missing `meta.title` and `meta.description` in `draft_seo` using extracted content or deterministic generation (if not already done by AI generation).
-*   **`dateModified`:** Add `dateModified` to `draft_seo` (e.g., using the page's `updated_at` timestamp).
-*   **Canonical URL:** Ensure `canonical_url` is set to the page's `full_path`.
+The **Hybrid approach (C)** is approved:
+*   **Computed-style capture** for layout, spacing, typography, colors, backgrounds, and borders. This ensures visual fidelity for the most critical presentational aspects directly on the elements.
+*   **Global CSS capture** for `@font-face` rules, CSS variables, and keyframes. This handles custom fonts and complex effects that aren't easily translated to individual element styles.
 
-**B. Suggest-Only (Requires Tenant Review, Infra Changes, or Content Changes):**
-These findings must be surfaced as a per-page task list for tenant review/action.
-*   **AI Bot Directives:** Propose `llms.txt` and `robots.txt` changes/AI-bot allowances.
-*   **Infrastructure Issues:** Flag (not auto-fix) issues like Cloudflare bot-fight, `noindex` directives, broken links, or slow page speed (from PageSpeed Insights).
-*   **`AggregateRating` Schema:** Suggest adding `AggregateRating` schema (requires actual review data).
-*   **Content Improvements:** Suggest editorial tasks like expanding sections, adding more FAQs, or improving keyword density.
+**Computed-Style Property Whitelist (Minimal & Sufficient):**
+This whitelist should be captured for every relevant DOM element during the render bridge walk.
 
----
-### 2. Integration Point
-
-**RULING 86: Integration Point**
-
-The SEO/GEO analysis should be performed as a **separate post-build `auditAndEnhance(websiteId)` pass**.
-
-*   **Rationale:** This decouples the analysis from page generation, allowing the analysis to operate on the final, rendered HTML of the draft pages. It also provides a clear point for re-auditing without full site regeneration and better manages external API calls (like PageSpeed Insights).
-
----
-### 3. Data Model
-
-**RULING 87: Data Model for SEO/GEO Findings**
-
-```sql
--- Migration 0041_website_seo_findings.sql
-
--- Stores metadata about each SEO/GEO audit run for a website
-CREATE TABLE IF NOT EXISTS public.website_seo_audit_runs (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id uuid NOT NULL, -- Enforced by application logic, no external FK
-    website_id uuid NOT NULL, -- Enforced by application logic, no external FK
-    run_at timestamptz DEFAULT now() NOT NULL,
-    status text NOT NULL DEFAULT 'completed', -- Enum: 'pending', 'in_progress', 'completed', 'failed'
-    score_overall numeric, -- Aggregate SEO score for the website (e.g., 0-100)
-    details jsonb NOT NULL DEFAULT '{}'::jsonb, -- Summary of the run, e.g., total findings by severity
-    created_at timestamptz DEFAULT now() NOT NULL,
-    updated_at timestamptz DEFAULT now() NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_wsear_website_id ON public.website_seo_audit_runs (website_id);
-CREATE INDEX IF NOT EXISTS idx_wsear_tenant_id ON public.website_seo_audit_runs (tenant_id);
-
-
--- Stores individual findings (auto-applied or suggested) for each page within an audit run
-CREATE TABLE IF NOT EXISTS public.website_page_seo_findings (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id uuid NOT NULL, -- Enforced by application logic, no external FK
-    website_id uuid NOT NULL, -- Enforced by application logic, no external FK
-    page_id uuid NOT NULL REFERENCES public.website_page_tree(id) ON DELETE CASCADE, -- The specific page audited
-    audit_run_id uuid NOT NULL REFERENCES public.website_seo_audit_runs(id) ON DELETE CASCADE, -- Link to the audit run
-    finding_key text NOT NULL, -- e.g., 'missing_meta_description', 'h1_count_mismatch', 'missing_local_business_schema', 'pagespeed_score_mobile'
-    severity text NOT NULL, -- Enum: 'critical', 'high', 'medium', 'low', 'info'
-    status text NOT NULL DEFAULT 'open', -- Enum: 'open', 'fixed', 'deferred', 'not_applicable'
-    description text, -- Human-readable description of the finding
-    recommendation text, -- Actionable recommendation
-    score_impact numeric, -- Estimated impact on SEO score (e.g., -5 for critical)
-    details jsonb NOT NULL DEFAULT '{}'::jsonb, -- Raw data from PSI, schema validation errors, etc.
-    is_auto_applied boolean NOT NULL DEFAULT FALSE, -- True if the finding was automatically fixed by the system
-    created_at timestamptz DEFAULT now() NOT NULL,
-    updated_at timestamptz DEFAULT now() NOT NULL,
-    UNIQUE (page_id, audit_run_id, finding_key) -- Ensure unique finding per page per audit run
-);
-CREATE INDEX IF NOT EXISTS idx_wpsef_page_id ON public.website_page_seo_findings (page_id);
-CREATE INDEX IF NOT EXISTS idx_wpsef_audit_run_id ON public.website_page_seo_findings (audit_run_id);
-
-
--- Update the 'websites' table to link to the latest audit run for quick access
-ALTER TABLE public.websites
-ADD COLUMN IF NOT EXISTS latest_seo_audit_run_id uuid REFERENCES public.website_seo_audit_runs(id) ON DELETE SET NULL;
-```
-*   **Reuse `website_pages.draft_seo`:** For auto-applied meta titles/descriptions, canonicals, `dateModified`, and JSON-LD schemas. This is already the correct place for page-level SEO metadata.
+*   **Layout & Box Model:**
+    *   `display` (e.g., block, flex, grid, inline-block)
+    *   `position` (e.g., relative, absolute, static)
+    *   `top`, `right`, `bottom`, `left` (if `position` is not static)
+    *   `width`, `min-width`, `max-width`
+    *   `height`, `min-height`, `max-height`
+    *   `padding-top`, `padding-right`, `padding-bottom`, `padding-left`
+    *   `margin-top`, `margin-right`, `margin-bottom`, `margin-left`
+    *   `gap` (for flex/grid containers)
+    *   `flex-direction`, `justify-content`, `align-items`, `flex-wrap` (for flex containers)
+    *   `grid-template-columns`, `grid-template-rows`, `grid-auto-flow` (for grid containers)
+    *   `text-align`
+    *   `vertical-align`
+    *   `overflow`
+*   **Typography:**
+    *   `font-family`
+    *   `font-size`
+    *   `font-weight`
+    *   `line-height`
+    *   `letter-spacing`
+    *   `text-transform`
+    *   `text-decoration`
+*   **Colors & Backgrounds:**
+    *   `color`
+    *   `background-color`
+    *   `background-image` (e.g., gradients, URLs)
+    *   `background-position`, `background-size`, `background-repeat`
+*   **Borders & Shadows:**
+    *   `border-top-width`, `border-right-width`, `border-bottom-width`, `border-left-width`
+    *   `border-top-style`, `border-right-style`, `border-bottom-style`, `border-left-style`
+    *   `border-top-color`, `border-right-color`, `border-bottom-color`, `border-left-color`
+    *   `border-top-left-radius`, `border-top-right-radius`, `border-bottom-left-radius`, `border-bottom-right-radius`
+    *   `box-shadow`
+*   **Other:**
+    *   `opacity`
+    *   `z-index`
+    *   `cursor`
 
 ---
-### 4. GEO Specifics
+### 2. Global CSS Storage
 
-**RULING 88: GEO Specifics**
+**RULING 92: Global CSS Storage**
 
-*   **Default Inclusion (with facts):** The build should emit `FAQPage` schema and `LocalBusiness`/`Organization` schema by default for every tenant, *populated with facts from `website_analysis_results`*. These are standard and non-hallucinatory.
-*   **`llms.txt`:** Propose `llms.txt` and `robots.txt` changes as a **suggest-only task**. This is a policy decision for the tenant.
-*   **`AggregateRating`:** Propose as a **suggest-only task**. This requires actual review data, which is not auto-generated.
+A new column `custom_css` (TEXT) should be added to `public.websites` to store site-wide custom CSS.
 
----
-### 5. Gotchas
-
-**RULING 89: Gotchas**
-
-*   **PSI Rate Limits / API Keys:**
-    *   Obtain a dedicated Google Cloud API key for PageSpeed Insights for server-side use. Store this key as a platform secret (`SYSTEM_TENANT_ID`, `provider='google_pagespeed_api'`).
-    *   Implement robust retry logic and exponential backoff for PSI API calls to handle rate limits and transient errors.
-*   **Schema Validity:** After generating JSON-LD, perform a basic validation (e.g., using a library or a quick check against schema.org's expected properties) to ensure it's well-formed.
-*   **Not Overwriting Tenant Edits on Re-run:**
-    *   **CRITICAL:** When auto-applying fixes to `draft_seo`, the system must **only apply fixes to fields that are currently empty or are explicitly marked as system-managed**. If a tenant has manually edited a `meta.title` or `meta.description`, the system should *not* overwrite it. For JSON-LD, new schemas can be appended, but existing, manually edited schemas should be preserved unless explicitly overridden by the tenant.
-    *   This implies `draft_seo` needs a way to track if a field is user-edited vs. system-generated. A simple approach is to only auto-fill if the field is `null` or matches a known system-generated default.
-*   **Performance:** Optimize HTML parsing and analysis within the `auditAndEnhance` pass to minimize resource consumption.
+*   **Storage:** `public.websites.custom_css` (TEXT).
+*   **Content:** Capture `@font-face` rules, CSS variables, and keyframes from the source site's computed styles.
+*   **Size Cap:** Implement a size cap (e.g., 256KB) for `custom_css`. If the captured CSS exceeds this, prioritize `@font-face` and CSS variables, then truncate.
+*   **Stripping:** Strip framework resets (e.g., normalize.css, Tailwind base styles) and highly specific utility classes that won't apply in our renderer's DOM structure. Focus on structural and branding CSS.
+*   **Tailwind-compiled CSS:** For sites using Tailwind, rely primarily on the **computed-style capture** (RULING 91) rather than attempting to capture and reapply the vast, utility-driven CSS. Only extract `@font-face` and CSS variables from Tailwind sites.
 
 ---
-### 6. Supervisor Verification Checks
+### 3. Renderer Extension
 
-**RULING 90: Supervisor Verification Schema for SEO/GEO Integration**
+**RULING 93: Renderer Extension for `_style`**
+
+The section renderer **must be extended so that EVERY element type honors a generic `_style: record<string, any>` object**.
+
+*   **Rationale:** This is the most flexible and maintainable approach. It avoids a complex migration of adding specific style fields to every element schema and ensures that captured styles apply uniformly.
+*   **Implementation:**
+    *   Update all element schemas to include a `_style: record<string, any>` field.
+    *   The renderer should apply these `_style` properties directly as inline styles (or via a CSS-in-JS solution) to the rendered DOM element.
+*   **Migration Risk:** This is a schema change, but adding a new field (even to many tables/schemas) is generally safe. The primary risk is ensuring the renderer correctly applies these styles without conflicts with existing typed style fields. `_style` should take precedence for any overlapping properties.
+
+---
+### 4. Fonts → Typography Panel
+
+**RULING 94: Fonts Integration into Typography**
+
+*   **Typography Store:** Extracted `font-family` values should be written to `website_brand_settings.font_pairing` (e.g., `heading`, `body`) and potentially a new `website_brand_settings.custom_fonts` array for additional detected fonts.
+*   **Font Loading:**
+    *   **Google Fonts:** If `font-family` matches a Google Font, automatically generate and inject the `<link>` tag for that font into the site's `<head>` (managed by the platform).
+    *   **Custom `@font-face`:** The captured `@font-face` rules (from `public.websites.custom_css`) will ensure custom fonts load.
+    *   **Font Fallbacks:** Ensure the generated CSS always includes generic font fallbacks (e.g., `sans-serif`, `serif`).
+
+---
+### 5. Layers Tree
+
+**RULING 95: Layers Tree Structure**
+
+The importer's `htmlToSections` (or equivalent) must correctly identify and represent nested rows and columns.
+
+*   **Structural Requirements:** The importer must detect `display: flex` or `display: grid` containers and their direct children to correctly map to `rowSchema` and `colStyles`. This means the `_style` object for a `row` should contain `gap`, `flex-direction`, etc., and the `colStyles` array for its children should contain `width`, `padding`, etc.
+*   **Selection Mapping:** Ensure that selecting a visual element in the editor's canvas correctly highlights its corresponding node in the Layers tree, and vice-versa. This requires a robust mapping between the rendered DOM and our internal section/element IDs.
+
+---
+### 6. Gotchas & Performance
+
+**RULING 96: Gotchas & Performance**
+
+*   **Performance:** The render bridge payload will be larger due to computed styles. Optimize the Playwright script to only capture styles for visible, relevant elements, and minimize the number of style properties (as per whitelist).
+*   **Idempotency:** On re-import, the system should:
+    *   **Preserve Tenant Edits:** If a tenant has manually edited a section's `_style` or a global CSS rule, the re-import should *not* overwrite these edits. This requires tracking user edits (e.g., a `user_edited: boolean` flag on sections/elements, or only applying styles if the field is `null` or matches a known system-generated default).
+    *   **Merge Global CSS:** Merge new `@font-face`/CSS variables into existing `custom_css`, avoiding duplicates.
+*   **Size Caps:** Implement size caps for `custom_css` (RULING 92) and potentially for the `_style` JSONB fields on elements.
+*   **Complexity:** This is a significant undertaking. Prioritize the most impactful style properties first.
+
+---
+### 7. Supervisor Verification Checks
+
+**RULING 97: Supervisor Verification Schema for High-Fidelity Import**
 
 ```json
 {
-  "seo_geo_integration": [
-    { "id": "SEO-V1", "assertion": "Migration 0041 correctly creates `public.website_seo_audit_runs` and `public.website_page_seo_findings` tables with specified columns, types, and constraints.", "severity": "block" },
-    { "id": "SEO-V2", "assertion": "The `websites` table has a `latest_seo_audit_run_id` column referencing `website_seo_audit_runs`.", "severity": "block" },
-    { "id": "SEO-V3", "assertion": "All SEO/GEO analysis and enhancement actions are strictly scoped by `tenant_id` and `website_id`.", "severity": "block" },
-    { "id": "SEO-V4", "assertion": "The SEO/GEO analysis is performed as a separate post-build `auditAndEnhance(websiteId)` pass, not integrated directly into page generation.", "severity": "block" },
-    { "id": "SEO-V5", "assertion": "A Google Cloud API key for PageSpeed Insights is stored as a platform secret (`SYSTEM_TENANT_ID`, `provider='google_pagespeed_api'`) and used for PSI API calls.", "severity": "block" },
-    { "id": "SEO-V6", "assertion": "Robust retry logic and exponential backoff are implemented for PSI API calls.", "severity": "block" },
-    { "id": "SEO-V7", "assertion": "The `auditAndEnhance` process creates a new `website_seo_audit_runs` entry for each run.", "severity": "block" },
-    { "id": "SEO-V8", "assertion": "For each page, `website_page_seo_findings` records are created for all detected findings, with correct `finding_key`, `severity`, `description`, `recommendation`, and `is_auto_applied` flags.", "severity": "block" },
-    { "id": "SEO-V9", "assertion": "CRITICAL: Auto-applied fixes only modify `draft_seo` fields that are `null` or explicitly system-managed, never overwriting tenant's manual edits.", "severity": "block" },
-    { "id": "SEO-V10", "assertion": "Auto-applied JSON-LD schemas are appended to `draft_seo.schemas` without overwriting existing, manually added schemas.", "severity": "block" },
-    { "id": "SEO-V11", "assertion": "All SEO/GEO analysis and enhancement actions trigger entries in the `platform_audit_log` table.", "severity": "block" },
-    { "id": "SEO-V12", "assertion": "A `recordAiUsage` event with `usage_type='seo_geo_analysis'` is recorded for each audit run (for telemetry/metering).", "severity": "block" }
-  ],
-  "seo_geo_auto_apply": [
-    { "id": "SEO-AA-V1", "assertion": "The system ensures exactly one `<h1>` tag per page, demoting stray `<h1>`s to `<h2>`s in the `draft_sections`.", "severity": "block" },
-    { "id": "SEO-AA-V2", "assertion": "The system generates and injects `Organization` or `LocalBusiness` JSON-LD schema into `draft_seo.schemas`, populated with facts from `website_analysis_results`.", "severity": "block" },
-    { "id": "SEO-AA-V3", "assertion": "The system generates and injects `FAQPage` or `Article` JSON-LD schema into `draft_seo.schemas` for relevant pages, populated with facts from `website_analysis_results` or page content.", "severity": "block" },
-    { "id": "SEO-AA-V4", "assertion": "Missing `meta.title` and `meta.description` in `draft_seo` are automatically filled using extracted content or deterministic generation.", "severity": "block" },
-    { "id": "SEO-AA-V5", "assertion": "The `dateModified` field in `draft_seo` is automatically set (e.g., to the page's `updated_at`).", "severity": "block" },
-    { "id": "SEO-AA-V6", "assertion": "The `canonical_url` field in `draft_seo` is automatically set to the page's `full_path`.", "severity": "block" },
-    { "id": "SEO-AA-V7", "assertion": "Generated JSON-LD schemas are well-formed and pass basic schema.org validation checks.", "severity": "block" }
-  ],
-  "seo_geo_suggest_only": [
-    { "id": "SEO-SO-V1", "assertion": "Proposals for `llms.txt` and `robots.txt` changes/AI-bot allowances are recorded as `website_page_seo_findings` with `is_auto_applied=FALSE`.", "severity": "block" },
-    { "id": "SEO-SO-V2", "assertion": "Flags for infrastructure issues (Cloudflare bot-fight, noindex, missing canonicals, broken links, slow page speed) are recorded as `website_page_seo_findings` with `is_auto_applied=FALSE`.", "severity": "block" },
-    { "id": "SEO-SO-V3", "assertion": "Suggestions for `AggregateRating` schema are recorded as `website_page_seo_findings` with `is_auto_applied=FALSE`.", "severity": "block" },
-    { "id": "SEO-SO-V4", "assertion": "Suggestions for content improvements (e.g., expand sections, add more FAQs) are recorded as `website_page_seo_findings` with `is_auto_applied=FALSE`.", "severity": "block" }
+  "high_fidelity_import": [
+    { "id": "FID-V1", "assertion": "The render bridge captures the specified whitelist of computed CSS properties for relevant DOM elements.", "severity": "block" },
+    { "id": "FID-V2", "assertion": "The `public.websites` table has a `custom_css` (TEXT) column to store site-wide custom CSS.", "severity": "block" },
+    { "id": "FID-V3", "assertion": "The importer extracts `@font-face` rules, CSS variables, and keyframes into `public.websites.custom_css`.", "severity": "block" },
+    { "id": "FID-V4", "assertion": "The `public.websites.custom_css` field respects a size cap (e.g., 256KB) and prioritizes `@font-face`/CSS variables.", "severity": "block" },
+    { "id": "FID-V5", "assertion": "All element schemas (sections, rows, columns, elements) are extended to include a generic `_style: record<string, any>` field.", "severity": "block" },
+    { "id": "FID-V6", "assertion": "The renderer correctly applies properties from the `_style` object as inline styles to the corresponding DOM elements, taking precedence over conflicting typed style fields.", "severity": "block" },
+    { "id": "FID-V7", "assertion": "Extracted `font-family` values are written to `website_brand_settings.font_pairing` and/or a `custom_fonts` array.", "severity": "block" },
+    { "id": "FID-V8", "assertion": "Google Fonts are automatically loaded via `<link>` tags, and custom `@font-face` rules from `custom_css` are applied.", "severity": "block" },
+    { "id": "FID-V9", "assertion": "The importer correctly detects and maps nested `display: flex`/`grid` containers and their children to `rowSchema` and `colStyles`.", "severity": "block" },
+    { "id": "FID-V10", "assertion": "The Layers tree accurately reflects the imported section/row/column/element structure, and selection in the editor maps correctly to the tree nodes.", "severity": "block" },
+    { "id": "FID-V11", "assertion": "On re-import, the system preserves tenant's manual edits to `_style` fields or `custom_css` (e.g., by only applying if `null` or system-generated).", "severity": "block" },
+    { "id": "FID-V12", "assertion": "Captured styles (padding, spacing, colors, font-sizes, alignment, widths) are visually faithful to the original site in the editor.", "severity": "block" }
   ]
 }
 ```
 
 ---
 DECISION-LOG
-[D-085] rule_seo_geo_apply_suggest_split — Ruled on which SEO/GEO findings are auto-applied vs. suggested (status: ruled)
-[D-086] rule_seo_geo_integration_point — Ruled SEO/GEO analysis as a post-build `auditAndEnhance` pass (status: ruled)
-[D-087] approve_seo_geo_data_model — Approved SQL migration 0041 for `website_seo_audit_runs` and `website_page_seo_findings` (status: approved)
-[D-088] rule_geo_specifics — Ruled on default inclusion for GEO schemas and `llms.txt` (status: ruled)
-[D-089] rule_seo_geo_gotchas — Ruled on handling PSI rate limits, API keys, schema validity, and not overwriting tenant edits (status: ruled)
-[D-090] define_seo_geo_verification_checks — Defined Supervisor verification checks for SEO/GEO integration (status: defined)
+[D-091] rule_high_fidelity_approach — Ruled Hybrid approach (C) for high-fidelity import with specific computed-style whitelist (status: ruled)
+[D-092] rule_global_css_storage — Ruled `public.websites.custom_css` for global CSS storage with size caps and stripping rules (status: ruled)
+[D-093] rule_renderer_extension — Ruled to extend renderer for generic `_style` object on all elements (status: ruled)
+[D-094] rule_fonts_typography_integration — Ruled on integrating extracted fonts into Typography panel and font loading (status: ruled)
+[D-095] rule_layers_tree_structure — Ruled on structural requirements for Layers tree (status: ruled)
+[D-096] rule_fidelity_gotchas — Ruled on performance, idempotency, size caps, and not overwriting tenant edits (status: ruled)
+[D-097] define_fidelity_verification_checks — Defined Supervisor verification checks for high-fidelity import (status: defined)

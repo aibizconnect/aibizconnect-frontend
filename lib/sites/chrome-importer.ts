@@ -1,4 +1,5 @@
 import { parse, type HTMLElement } from "node-html-parser";
+import { applyCapturedStyle } from "./style-capture";
 
 /**
  * Server-only HEADER / FOOTER extractor for the site importer.
@@ -178,10 +179,10 @@ function headerToRow(
 
   const columns = cols.length;
   const widths = columns === 3 ? [0.24, 0.56, 0.20] : columns === 2 ? [0.3, 0.7] : [1];
-  return {
+  return applyCapturedStyle({
     type: "row", columns, widths, gap: 16, valign: "center", contentWidth: "boxed",
     _name: "Header", children: cols,
-  };
+  }, el.getAttribute("data-cs"));
 }
 
 // ── FOOTER ───────────────────────────────────────────────────────────────────
@@ -244,10 +245,10 @@ function footerToRow(
   const copy = findCopyright(el);
   if (copy && columns[0]) columns[0].push({ type: "text", text: copy, fontSize: 12, _name: "Copyright" });
 
-  return {
+  return applyCapturedStyle({
     type: "row", columns: Math.min(columns.length, 6), gap: 24, valign: "top", contentWidth: "boxed",
     _name: "Footer", children: columns,
-  };
+  }, el.getAttribute("data-cs"));
 }
 
 /** Find the nearest heading-ish text immediately preceding a <ul> within its parent. */
