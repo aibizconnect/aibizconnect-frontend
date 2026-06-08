@@ -9,7 +9,7 @@ import type { SectionContent } from "./schemas";
 export interface PrebuiltTemplate {
   id: string;
   name: string;
-  category: "Hero" | "Content" | "Social Proof" | "Conversion";
+  category: "Contemporary Luxury" | "Hero" | "Content" | "Social Proof" | "Conversion";
   icon: string;          // single emoji/char for the tile
   blurb: string;         // one-line description
   sections: SectionContent[];
@@ -25,7 +25,108 @@ const button = (label: string, variant: "solid" | "outline" = "solid", align: "l
 const counter = (value: string, suffix: string, label: string): SectionContent =>
   ({ type: "number-counter", value, suffix, label });
 
+// ── Contemporary Luxury design system (the saved "template") ────────────────────
+// Warm ivory + ink + champagne-gold, Playfair Display headings over Inter body.
+// Self-contained: every element sets explicit colors/fonts so the look holds in ANY
+// site theme. Mirrors public/design-preview/contemporary-luxury.html.
+const LX = { ink: "#1A1714", body: "#5C544B", gold: "#B08D57", ivory: "#F7F4EF", white: "#FFFFFF", panel: "#F1EADD", hair: "#E4DCCE" } as const;
+const SERIF = "Playfair Display", SANS = "Inter";
+type Align = "left" | "center" | "right";
+const lxEyebrow = (t: string, align: Align = "center"): SectionContent =>
+  ({ type: "text", text: t, align, color: LX.gold, fontFamily: SANS, fontSize: 13, fontWeight: "600", letterSpacing: 2.2, textTransform: "uppercase" } as SectionContent);
+const lxH = (t: string, level: "h1" | "h2" | "h3" = "h2", align: Align = "center", fontSize?: number): SectionContent =>
+  ({ type: "heading", text: t, level, align, color: LX.ink, fontFamily: SERIF, fontWeight: "600", letterSpacing: -0.4, ...(fontSize ? { fontSize } : {}) } as SectionContent);
+const lxBody = (t: string, align: Align = "center"): SectionContent =>
+  ({ type: "text", text: t, align, color: LX.body, fontFamily: SANS, fontSize: 17, lineHeight: 1.75 } as SectionContent);
+const lxBtn = (label: string, o: { variant?: "solid" | "outline"; bg?: string; fg?: string; hover?: string; align?: Align }): SectionContent =>
+  ({ type: "button", label, href: "#", align: o.align ?? "center", size: "lg", variant: o.variant ?? "solid", bgColor: o.bg, textColor: o.fg, radius: 0, fontFamily: SANS, fontWeight: "600", hover: o.hover ?? "lift" } as SectionContent);
+const lxCounter = (start: number, end: number, suffix: string, label: string): SectionContent =>
+  ({ type: "number-counter", value: String(end), start, end, duration: 2, suffix, label } as SectionContent);
+const lxCard = { bg: LX.white, borderStyle: "solid", borderWidth: 1, borderColor: LX.hair, shadow: "soft", pt: 40, pb: 40, pl: 34, pr: 34, radius: 2 };
+
+const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
+  {
+    id: "lux-hero", name: "Luxury — Hero", category: "Contemporary Luxury", icon: "◆",
+    blurb: "Ivory hero, serif headline, dual CTAs",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 18, valign: "center", widths: [1], minHeight: 600,
+      _style: { bg: LX.ivory, pt: 140, pb: 120, paddingX: 24, align: "center" }, _anim: { entrance: "fade-in" },
+      children: [[
+        lxEyebrow("Bespoke Atelier"),
+        lxH("Spaces composed with intention, crafted to endure.", "h1", "center", 60),
+        lxBody("A considered approach — where material, light and proportion meet restraint. Built for those who value the quiet confidence of timeless design."),
+        {
+          type: "row", columns: 2, contentWidth: "boxed", gap: 14, widths: [0.5, 0.5],
+          _style: { pt: 14 },
+          children: [
+            [lxBtn("Book a consultation", { variant: "solid", bg: LX.ink, fg: LX.ivory, hover: "lift", align: "right" })],
+            [lxBtn("View portfolio", { variant: "outline", bg: LX.ink, fg: LX.ink, hover: "fill", align: "left" })],
+          ],
+        } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "lux-features", name: "Luxury — Feature Trio", category: "Contemporary Luxury", icon: "❖",
+    blurb: "Three bordered cards on ivory",
+    sections: [
+      { type: "row", columns: 1, contentWidth: "boxed", gap: 12, widths: [1], _style: { bg: LX.ivory, pt: 112, pb: 36, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+        children: [[lxEyebrow("What we offer"), lxH("A practice built on detail", "h2")]] },
+      { type: "row", columns: 3, contentWidth: "boxed", gap: 30, widths: [1 / 3, 1 / 3, 1 / 3],
+        _style: { bg: LX.ivory, pt: 0, pb: 112, paddingX: 24 }, _anim: { entrance: "fade-up" },
+        colStyles: [lxCard, lxCard, lxCard] as any,
+        children: [
+          [{ type: "text", text: "◇", align: "left", color: LX.gold, fontSize: 26 } as SectionContent, lxH("Full-service design", "h3", "left", 22), lxBody("From first sketch to final styling — a single, coherent vision carried through every room.", "left")],
+          [{ type: "text", text: "❖", align: "left", color: LX.gold, fontSize: 26 } as SectionContent, lxH("Material curation", "h3", "left", 22), lxBody("Natural stone, aged brass, hand-finished timber. Sourced for warmth and longevity.", "left")],
+          [{ type: "text", text: "✦", align: "left", color: LX.gold, fontSize: 26 } as SectionContent, lxH("Project stewardship", "h3", "left", 22), lxBody("Discreet, precise project management so the experience feels as refined as the result.", "left")],
+        ] },
+    ],
+  },
+  {
+    id: "lux-stats", name: "Luxury — Stat Counters", category: "Contemporary Luxury", icon: "✦",
+    blurb: "Animated counters, hairline band",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [1 / 3, 1 / 3, 1 / 3],
+      _style: { bg: LX.ivory, pt: 92, pb: 92, paddingX: 24, borderStyle: "solid", borderWidth: 1, borderColor: LX.hair }, _anim: { entrance: "fade-up" },
+      colStyles: [{ itemsAlign: "center" }, { itemsAlign: "center" }, { itemsAlign: "center" }] as any,
+      children: [
+        [lxCounter(0, 120, "+", "Residences")],
+        [lxCounter(0, 18, "", "Years of craft")],
+        [lxCounter(0, 100, "%", "Bespoke")],
+      ],
+    }],
+  },
+  {
+    id: "lux-testimonial", name: "Luxury — Testimonial", category: "Contemporary Luxury", icon: "❝",
+    blurb: "Serif italic quote, gold attribution",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 14, widths: [1], valign: "center",
+      _style: { bg: LX.white, pt: 116, pb: 116, paddingX: 24, align: "center", width: "normal" }, _anim: { entrance: "fade-up" },
+      children: [[
+        lxEyebrow("Client"),
+        { type: "text", text: "“They understood the home before we could describe it. The result is quiet, warm, and unmistakably ours.”", align: "center", color: LX.ink, fontFamily: SERIF, italic: true, fontSize: 25, lineHeight: 1.5 } as SectionContent,
+        { type: "text", text: "— A private residence, Mayfair", align: "center", color: LX.gold, fontFamily: SANS, fontSize: 14, letterSpacing: 1.4, textTransform: "uppercase" } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "lux-cta", name: "Luxury — CTA Panel", category: "Contemporary Luxury", icon: "✷",
+    blurb: "Gold-tinted panel, glow button",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 16, widths: [1], valign: "center",
+      _style: { bg: LX.panel, pt: 124, pb: 124, paddingX: 24, align: "center", borderStyle: "solid", borderWidth: 1, borderColor: LX.hair }, _anim: { entrance: "fade-up" },
+      children: [[
+        { type: "divider", thickness: 2, color: LX.gold, widthPct: 6 } as SectionContent,
+        lxH("Begin your commission", "h2"),
+        lxBody("A limited number of projects each season, given the attention each deserves."),
+        lxBtn("Enquire now", { variant: "solid", bg: LX.gold, fg: "#ffffff", hover: "glow" }),
+      ]],
+    }],
+  },
+];
+
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
+  ...LUXURY_TEMPLATES,
   // ── HERO ────────────────────────────────────────────────────────────────────
   {
     id: "hero-lead", name: "Hero — Lead Capture", category: "Hero", icon: "🚀",
@@ -313,4 +414,4 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
   return sections.map(walk);
 }
 
-export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Hero", "Content", "Social Proof", "Conversion"];
+export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Hero", "Content", "Social Proof", "Conversion"];
