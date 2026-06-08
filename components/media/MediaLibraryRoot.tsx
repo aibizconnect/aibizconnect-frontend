@@ -846,8 +846,25 @@ export default function MediaLibraryRoot({
       {tab === "all" && (<>{BulkBar}
         {filtered.length === 0 ? <p className="py-10 text-center text-sm text-slate-400">No media yet. Upload, import, or generate to get started.</p> : <Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid>}</>)}
 
-      {tab === "upload" && (<><Dropzone asSource="upload" hint="Drag & drop files here to upload" />{Toolbar}{BulkBar}
-        {filtered.length === 0 ? <p className="py-6 text-center text-sm text-slate-400">No uploads yet.</p> : <Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid>}</>)}
+      {tab === "upload" && (() => {
+        const fname = (folders.find((f) => f.id === folderId)?.name || "").toLowerCase();
+        const isDrive = /google\s*drive/.test(fname);
+        const isCanva = /canva|canava/.test(fname);
+        if (isDrive) return (<>
+          <DriveTab tenantId={tenantId} importFolderId={folderId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />
+          {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Imported from Drive</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
+        </>);
+        if (isCanva) return (<>
+          <div className="rounded-lg border border-violet-200 bg-violet-50 p-6 text-center">
+            <p className="text-sm font-semibold text-violet-800">Canva</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-violet-600">Canva connect (OAuth import) is coming next. For now, export from Canva and drop the file into this folder.</p>
+            <div className="mt-3"><Dropzone asSource="canva" hint="Drop a Canva export here" /></div>
+          </div>
+          {filtered.length > 0 && <><div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">From Canva</div>{Toolbar}<Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid></>}
+        </>);
+        return (<><Dropzone asSource="upload" hint="Drag & drop files here to upload" />{Toolbar}{BulkBar}
+          {filtered.length === 0 ? <p className="py-6 text-center text-sm text-slate-400">No uploads yet.</p> : <Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid>}</>);
+      })()}
 
       {tab === "drive" && (<DriveTab tenantId={tenantId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />)}
 
@@ -1271,6 +1288,15 @@ function FolderTreeRail({
   onDropFile: (folderId: string | null, e: React.DragEvent) => void;
 }) {
   const childrenOf = (pid: string | null) => folders.filter((f) => (f.parent_id ?? null) === pid);
+  // Pin the connector folders (Google Drive, Canva) to the very top of the rail.
+  const specialRank = (name?: string) => { const n = (name || "").toLowerCase(); return /google\s*drive/.test(n) ? 0 : /canva|canava/.test(n) ? 1 : 99; };
+  const rootFolders = [...childrenOf(null)].sort((a, b) => specialRank(a.name) - specialRank(b.name));
+  const FolderIcon = ({ name }: { name?: string }) => {
+    const n = (name || "").toLowerCase();
+    if (/google\s*drive/.test(n)) return (<svg width="14" height="14" viewBox="0 0 48 48" aria-hidden><path fill="#188038" d="M14 38h20l-5-8H19z" /><path fill="#1a73e8" d="M9 30l5 8 10-17-5-9z" /><path fill="#fbbc04" d="M39 30 29 12H19l10 18z" /></svg>);
+    if (/canva|canava/.test(n)) return (<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="11" fill="#7d2ae8" /><text x="12" y="16.5" textAnchor="middle" fontSize="13" fontWeight="700" fill="#fff" fontFamily="sans-serif">C</text></svg>);
+    return <span className="text-base leading-none text-slate-400">📁</span>;
+  };
   // polished drop-target: highlight while a FILE or a FOLDER hovers over a folder/root.
   const dropProps = (target: string | null) => ({
     onDragOver: (e: React.DragEvent) => {
@@ -1293,8 +1319,8 @@ function FolderTreeRail({
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/abc-folder", f.id); }}
         className={`group flex cursor-grab items-center gap-1 rounded px-2 py-1 text-sm ${hot(f.id)} ${current === f.id ? "bg-[#1e3a8a]/10 text-[#1e3a8a]" : "text-slate-600 hover:bg-slate-100"}`}
         style={{ paddingLeft: 8 + depth * 12 }}>
-        <button onClick={() => onSelect(f.id)} className="flex min-w-0 flex-1 items-center gap-1 text-left">
-          <span className={dragOver === f.id ? "" : "text-slate-400"}>📁</span><span className="truncate">{f.name}</span>
+        <button onClick={() => onSelect(f.id)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+          <FolderIcon name={f.name} /><span className="truncate">{f.name}</span>
         </button>
         <button onClick={() => onRename(f)} className="opacity-0 group-hover:opacity-100" title="Rename">✎</button>
         <button onClick={() => onDelete(f)} className="text-red-500 opacity-0 group-hover:opacity-100" title="Delete">🗑</button>
@@ -1312,7 +1338,7 @@ function FolderTreeRail({
         className={`mb-1 flex w-full items-center gap-1 rounded px-2 py-1 text-sm ${hot(null)} ${current == null ? "bg-[#1e3a8a]/10 text-[#1e3a8a]" : "text-slate-600 hover:bg-slate-100"}`}>
         <span className="text-slate-400">🗂</span> All files
       </button>
-      {childrenOf(null).map((f) => <Row key={f.id} f={f} depth={0} />)}
+      {rootFolders.map((f) => <Row key={f.id} f={f} depth={0} />)}
       {folders.length === 0 && <p className="px-2 py-1 text-[11px] text-slate-400">No folders yet.</p>}
     </div>
   );

@@ -9,7 +9,7 @@ type DriveImg = { id: string; name: string; mimeType: string; thumbnailLink?: st
 
 /** Google Drive import: connect (OAuth), browse the tenant's Drive images, import selected into the
  *  Media Library (optimized → R2). Self-contained; calls onImported() to refresh the library. */
-export default function DriveTab({ tenantId, onImported, notify }: { tenantId: string; onImported: () => void; notify: (m: string) => void }) {
+export default function DriveTab({ tenantId, onImported, notify, importFolderId }: { tenantId: string; onImported: () => void; notify: (m: string) => void; importFolderId?: string | null }) {
   const [status, setStatus] = useState<{ ready: boolean; connected: boolean; email: string | null } | null>(null);
   const [files, setFiles] = useState<DriveImg[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -41,7 +41,7 @@ export default function DriveTab({ tenantId, onImported, notify }: { tenantId: s
     if (!sel.size) return;
     setBusy(true);
     try {
-      const r = await importDriveImages(tenantId, [...sel]);
+      const r = await importDriveImages(tenantId, [...sel], { folderId: importFolderId ?? null });
       notify(r.imported ? `Imported ${r.imported} image${r.imported === 1 ? "" : "s"} from Drive.${r.errors.length ? ` (${r.errors.length} skipped)` : ""}` : (r.errors[0] ?? "Nothing imported."));
       setSel(new Set()); onImported();
     } catch (e: any) { notify(e?.message ?? "Something went wrong"); } finally { setBusy(false); }

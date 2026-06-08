@@ -2426,7 +2426,7 @@ export async function createFolder(tenantId: string, name: string, parentId?: st
  * same empty set — they fill them by creating, uploading, or importing from System. Matching
  * is case-insensitive so we never duplicate an existing folder. Best-effort; never throws.
  */
-const DEFAULT_MEDIA_FOLDERS = ["Logos", "Photos", "Icons", "Backgrounds", "Landscapes", "Graphics", "Charts"];
+const DEFAULT_MEDIA_FOLDERS = ["Google Drive", "Canva", "Logos", "Photos", "Icons", "Backgrounds", "Landscapes", "Graphics", "Charts"];
 export async function ensureDefaultMediaFolders(tenantId: string): Promise<void> {
   await requireTenantAccess(tenantId);
   try {
