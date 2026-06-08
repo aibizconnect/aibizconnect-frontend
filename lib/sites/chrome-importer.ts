@@ -28,6 +28,63 @@ const CTA_WORDS = /\b(contact|get|book|call|sign\s?up|sign\s?in|log\s?in|buy|sta
 
 const clean = (t: string): string => (t || "").replace(/\s+/g, " ").trim();
 const tagOf = (el: HTMLElement) => (el?.rawTagName || "").toLowerCase();
+/** Text of an element's OWN direct text nodes only (ignores nested submenu links). */
+const directText = (el: HTMLElement): string =>
+  clean((el.childNodes || []).filter((n: any) => n.nodeType === 3).map((n: any) => n.text || "").join(" "));
+/** True if `node` is contained within `ancestor`. */
+function isDescendant(ancestor: HTMLElement, node: HTMLElement): boolean {
+  let p: any = node.parentNode;
+  while (p) { if (p === ancestor) return true; p = p.parentNode; }
+  return false;
+}
+
+interface MenuItem { label: string; href: string; children?: { label: string; href: string }[] }
+
+/**
+ * Build a HIERARCHICAL menu from a <nav>: each top-level entry is either a direct link or a
+ * dropdown (its toggle label + the submenu links nested under it as `children`). Recognises the
+ * common patterns: <ul><li><a>+<ul>…</ul></li></ul> and <nav><div.group><button>+<div.panel><a…>.
+ */
+function menuFromNav(navEl: HTMLElement, href: (u?: string | null) => string): MenuItem[] {
+  const ul = navEl.querySelector("ul");
+  const tops = (ul ? ul.childNodes : navEl.childNodes).filter((n: any) => n.nodeType === 1) as HTMLElement[];
+  const items: MenuItem[] = [];
+  const seenTop = new Set<string>();
+  for (const node of tops) {
+    if (items.length >= 10) break;
+    if (node.querySelector && node.querySelector("img")) continue; // skip logo wrappers
+    const tag = tagOf(node);
+
+    // Direct top-level link (no dropdown).
+    if (tag === "a") {
+      const label = clean(node.text);
+      if (!label || label.length > 40) continue;
+      const k = label.toLowerCase(); if (seenTop.has(k)) continue; seenTop.add(k);
+      items.push({ label, href: href(node.getAttribute("href")) });
+      continue;
+    }
+
+    // Dropdown / group container: toggle label + nested submenu links.
+    const toggle = node.querySelector("a, button, summary, span");
+    let label = toggle ? (directText(toggle) || clean(toggle.text)) : directText(node);
+    label = clean(label).replace(/[▾▼⌄▾▼⌄]+$/u, "").trim();
+    if (!label || label.length > 40) continue;
+    const k = label.toLowerCase(); if (seenTop.has(k)) continue; seenTop.add(k);
+
+    const children: { label: string; href: string }[] = [];
+    const seenChild = new Set<string>();
+    for (const a of node.querySelectorAll("a")) {
+      if (a === toggle) continue;
+      const t = clean(a.text); if (!t || t.length > 50) continue;
+      const ck = t.toLowerCase(); if (seenChild.has(ck)) continue; seenChild.add(ck);
+      children.push({ label: t, href: href(a.getAttribute("href")) });
+      if (children.length >= 12) break;
+    }
+    const toggleHref = toggle && tagOf(toggle) === "a" ? href(toggle.getAttribute("href")) : "#";
+    items.push(children.length ? { label, href: toggleHref, children } : { label, href: toggleHref });
+  }
+  return items;
+}
 
 function isContentImage(src: string): boolean {
   const s = (src || "").toLowerCase();
@@ -89,21 +146,28 @@ function headerToRow(
     }
   }
 
-  // Links → nav menu items + CTA buttons.
-  const items: { label: string; href: string }[] = [];
+  // Pick the richest <nav> in the header (desktop menu usually has the most links), then build a
+  // hierarchical menu (top-level + submenu children) from it.
+  const navs = el.querySelectorAll("nav");
+  const navEl: HTMLElement = navs.length
+    ? navs.reduce((best, n) => (n.querySelectorAll("a").length > best.querySelectorAll("a").length ? n : best), navs[0])
+    : el;
+  const items = menuFromNav(navEl, href);
+
+  // CTA buttons: links/buttons in the header but OUTSIDE the nav (e.g. "Log in", "Start Free Trial").
   const ctas: Record<string, unknown>[] = [];
-  const seen = new Set<string>();
-  for (const a of el.querySelectorAll("a")) {
-    if (a.querySelector("img")) continue; // skip the logo anchor
+  const ctaSeen = new Set<string>();
+  for (const a of el.querySelectorAll("a, button")) {
+    if (navEl !== el && isDescendant(navEl, a)) continue; // already in the menu
+    if (a.querySelector && a.querySelector("img")) continue; // skip the logo anchor
     const label = clean(a.text);
-    if (!label || label.length > 40) continue;
-    const key = label.toLowerCase();
-    if (seen.has(key)) continue; seen.add(key);
-    const dest = href(a.getAttribute("href"));
+    if (!label || label.length > 24) continue;
     const cls = (a.getAttribute("class") || "").toLowerCase();
-    const looksCta = /\b(btn|button|cta)\b/.test(cls) || (CTA_WORDS.test(label) && label.length <= 22);
-    if (looksCta && ctas.length < 2) ctas.push({ type: "button", label, href: dest, variant: "solid", size: "sm", align: "right", _name: label });
-    else if (items.length < 9) items.push({ label, href: dest });
+    const looksCta = /\b(btn|button|cta)\b/.test(cls) || CTA_WORDS.test(label);
+    if (!looksCta) continue;
+    const key = label.toLowerCase(); if (ctaSeen.has(key)) continue; ctaSeen.add(key);
+    ctas.push({ type: "button", label, href: href(a.getAttribute("href")), variant: ctas.length === 0 ? "solid" : "outline", size: "sm", align: "right", _name: label });
+    if (ctas.length >= 2) break;
   }
 
   const cols: Record<string, unknown>[][] = [];
