@@ -1,4 +1,6 @@
 import { extractPageContent } from "./page-generate";
+import { fetchPage } from "./site-clone";
+import { blueprintFromHtml, synthesizeBlueprint, type Archetype } from "./blueprint";
 
 /**
  * Server-only competitor research (NOT "use server"). For tenants with NO existing site: search the
@@ -95,6 +97,7 @@ export interface CompetitorInsights {
   commonSections: string[];
   ctas: string[];
   brief: string;
+  blueprint: Archetype[]; // best-practice section order learned from the top sites' layer trees
 }
 
 /** Research similar businesses and synthesize a "what top sites do" brief (no verbatim copy). */
@@ -107,9 +110,11 @@ export async function researchCompetitors(industry?: string, city?: string, serv
 
   const headingFreq = new Map<string, number>();
   const ctaFreq = new Map<string, number>();
+  const blueprints: Archetype[][] = [];
   let fetched = 0;
   for (const url of urls) {
-    const html = await fetchText(url, 400_000, 9000);
+    // Prefer the render bridge (handles SPA competitors); falls back to raw fetch when unavailable.
+    const html = (await fetchPage(url, 400_000)) ?? (await fetchText(url, 400_000, 9000));
     if (!html) continue;
     fetched++;
     try {
@@ -123,8 +128,10 @@ export async function researchCompetitors(industry?: string, city?: string, serv
         if (l.length >= 2 && l.length <= 24) ctaFreq.set(l, (ctaFreq.get(l) ?? 0) + 1);
       }
     } catch { /* skip */ }
+    try { const bp = blueprintFromHtml(html, url); if (bp.length) blueprints.push(bp); } catch { /* skip */ }
   }
   if (!fetched) return null;
+  const blueprint = synthesizeBlueprint(blueprints);
 
   const top = (m: Map<string, number>, n: number) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
   const commonSections = top(headingFreq, 8);
@@ -137,5 +144,5 @@ export async function researchCompetitors(industry?: string, city?: string, serv
     `Build a SIMILAR-BUT-BETTER site than these: cover the topics customers expect, but with clearer structure, ` +
     `stronger hierarchy, modern design, and higher-converting CTAs. Tailor everything to ${services ? `our services (${services})` : "our business"} — do NOT copy their wording or claims.`;
 
-  return { urls, commonSections, ctas, brief };
+  return { urls, commonSections, ctas, brief, blueprint };
 }

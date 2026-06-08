@@ -9,6 +9,7 @@ import { importChrome, type ImportedChrome } from "@/lib/sites/chrome-importer";
 import { extractTheme, type ExtractedTheme } from "@/lib/sites/theme-importer";
 import { extractSeo } from "@/lib/sites/seo-importer";
 import { extractImportedCss } from "@/lib/sites/style-capture";
+import { buildScratchSections } from "@/lib/sites/blueprint";
 import { fetchPage, discoverSitemapUrls, pickUrlForType, buildExactCopyIframe } from "@/lib/sites/site-clone";
 import { researchCompetitors } from "@/lib/sites/competitor-research";
 import {
@@ -428,7 +429,7 @@ export async function createWebsiteFromWizard(
   if (!wizardJson.hasWebsite) {
     try {
       const ins = await researchCompetitors(wizardJson.industry, wizardJson.city ?? undefined, wizardJson.services ?? undefined);
-      if (ins) { (wizardJson as Record<string, unknown>).competitorBrief = ins.brief; (wizardJson as Record<string, unknown>).benchmarkedSites = ins.urls; }
+      if (ins) { (wizardJson as Record<string, unknown>).competitorBrief = ins.brief; (wizardJson as Record<string, unknown>).benchmarkedSites = ins.urls; (wizardJson as Record<string, unknown>).benchmarkedBlueprint = ins.blueprint; }
     } catch { /* best-effort */ }
   }
 
@@ -647,6 +648,14 @@ export async function generateWizardPages(
           const secs = cloneSectionsFromHtml(srcHtml, srcUrl);
           if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, _cloned: true, _seo, sections: secs.map((content) => ({ content })) }); continue; }
         }
+      }
+      // 1b) FROM-SCRATCH home page: follow the best-practice blueprint (layer order) learned from
+      //     the top-3 similar sites, filled with the tenant's profile (theme applies their brand).
+      if (!hasSite && isHome && Array.isArray(wizard.benchmarkedBlueprint) && wizard.benchmarkedBlueprint.length) {
+        try {
+          const secs = buildScratchSections(wizard.benchmarkedBlueprint as any, profile);
+          if (secs.length) { chosen.push({ title, slug: slugifyTitle(title), isHome, sections: secs.map((content) => ({ content })) }); continue; }
+        } catch { /* fall through to AI/deterministic */ }
       }
       // 2) AI sections where a title matches the site plan.
       const ai = aiPages.find((p: any) => norm(p.title || "") === norm(title)) ?? (isHome ? (aiPages.find((p: any) => p.isHome) ?? aiPages[0]) : undefined);
