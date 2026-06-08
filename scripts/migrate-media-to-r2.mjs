@@ -54,5 +54,41 @@ for (;;) {
   }
   from += PAGE;
 }
-console.log(`\n${APPLY ? "MIGRATED" : "DRY RUN"}: ${total} rows | ${APPLY ? "copied" : "would copy"}: ${copied} | already-R2/skipped: ${skipped} | failed: ${failed}`);
-if (!APPLY) console.log("Re-run with --apply to perform the migration.");
+console.log(`\nOBJECTS — ${APPLY ? "MIGRATED" : "DRY RUN"}: ${total} rows | ${APPLY ? "copied" : "would copy"}: ${copied} | already-R2/skipped: ${skipped} | failed: ${failed}`);
+
+// ── Pass 2: rewrite image URLs EMBEDDED in page/block/brand content so published sites no longer
+//    hit Supabase. Supabase public URL → R2 public URL (same storage path). ──────────────────────
+const SUPA_PREFIX = `${env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/${BUCKET}/`;
+const TARGET = `${PUBLIC_BASE}/`;
+async function rewriteTable(table, cols) {
+  let off = 0, changed = 0, scanned = 0;
+  for (;;) {
+    const { data, error } = await sb.from(table).select(["id", ...cols].join(", ")).range(off, off + PAGE - 1);
+    if (error) { if (!/does not exist|column/.test(error.message)) console.error(`  ${table}:`, error.message); break; }
+    if (!data?.length) break;
+    for (const row of data) {
+      scanned++;
+      const patch = {};
+      for (const c of cols) {
+        if (row[c] == null) continue;
+        const before = JSON.stringify(row[c]);
+        if (!before.includes(SUPA_PREFIX)) continue;
+        patch[c] = JSON.parse(before.split(SUPA_PREFIX).join(TARGET));
+      }
+      if (Object.keys(patch).length) {
+        changed++;
+        if (APPLY) { const { error: e } = await sb.from(table).update(patch).eq("id", row.id); if (e) console.error(`  ${table} update:`, e.message); }
+      }
+    }
+    off += PAGE;
+  }
+  console.log(`  ${table}: ${changed} row(s) ${APPLY ? "rewritten" : "would rewrite"} (of ${scanned})`);
+}
+console.log(`\nEMBEDDED URLS — ${APPLY ? "rewriting" : "dry run"} (${SUPA_PREFIX} → ${TARGET}):`);
+await rewriteTable("website_pages", ["draft_sections"]);
+await rewriteTable("website_page_sections", ["content"]);
+await rewriteTable("website_global_blocks", ["content", "draft_content"]);
+await rewriteTable("website_brand_settings", ["theme"]);
+await rewriteTable("websites", ["wizard", "seo_defaults"]);
+
+if (!APPLY) console.log("\nRe-run with --apply to perform the migration (objects + embedded URLs).");
