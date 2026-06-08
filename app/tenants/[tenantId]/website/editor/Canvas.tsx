@@ -946,6 +946,8 @@ export default function Canvas({
     if (mode === "template") {
       await addTemplate(tenantId, name, description || null, [raw]);
       setSavedSigs((prev) => new Map(prev).set(assetSig(raw), name));
+      // Tell the Saved Assets panel to refresh so the new section appears immediately.
+      try { window.dispatchEvent(new CustomEvent("abc:asset-saved")); } catch { /* SSR-safe */ }
       return;
     }
     // Global Section. If it's ALREADY a global instance (e.g. Header/Footer), it already
@@ -966,6 +968,7 @@ export default function Canvas({
     // Persist the page draft now (the block ref + remaining non-global sections).
     await saveDraft(selectedPageId, tenantId, { draft_sections: next.map((it) => it.content).filter((c: any) => !c?._global) });
     setDirty(false);
+    try { window.dispatchEvent(new CustomEvent("abc:asset-saved")); } catch { /* SSR-safe */ }
   }
 
   async function deleteSection(index: number) {

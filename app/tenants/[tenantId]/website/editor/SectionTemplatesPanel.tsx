@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import {
   addTemplate,
@@ -43,27 +43,33 @@ export default function SectionTemplatesPanel({
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<string | null>(null); // id being renamed
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from("website_section_templates")
-        .select("id, tenant_id, name, description, sections, created_at")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
-      if (data) setTemplates(data as SectionTemplate[]);
-      // Scope global Header/Footer/etc. to the CURRENT website (plus any tenant-level shared
-      // blocks with no website_id) — otherwise every website's header/footer stacks up here.
-      let gq = supabase
-        .from("website_global_blocks")
-        .select("id, name, type, content, draft_content")
-        .eq("tenant_id", tenantId);
-      if (websiteId) gq = gq.or(`website_id.eq.${websiteId},website_id.is.null`);
-      const { data: gb } = await gq.order("updated_at", { ascending: false });
-      if (gb) setGlobals(gb as GlobalBlock[]);
-    }
-    load();
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("website_section_templates")
+      .select("id, tenant_id, name, description, sections, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+    if (data) setTemplates(data as SectionTemplate[]);
+    // Scope global Header/Footer/etc. to the CURRENT website (plus any tenant-level shared
+    // blocks with no website_id) — otherwise every website's header/footer stacks up here.
+    let gq = supabase
+      .from("website_global_blocks")
+      .select("id, name, type, content, draft_content")
+      .eq("tenant_id", tenantId);
+    if (websiteId) gq = gq.or(`website_id.eq.${websiteId},website_id.is.null`);
+    const { data: gb } = await gq.order("updated_at", { ascending: false });
+    if (gb) setGlobals(gb as GlobalBlock[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, websiteId]);
+
+  useEffect(() => {
+    load();
+    // Re-load when a section is saved from the Canvas ⭐ (or anywhere), so the new Saved
+    // Section / Global appears immediately even if this panel was already open.
+    const onSaved = () => { load(); };
+    window.addEventListener("abc:asset-saved", onSaved);
+    return () => window.removeEventListener("abc:asset-saved", onSaved);
+  }, [load]);
 
   async function handleCreateFromPage() {
     if (!selectedPageId) { notify("Select a page first."); return; }
