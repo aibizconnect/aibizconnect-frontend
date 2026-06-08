@@ -1,247 +1,207 @@
 See my thinking
 
-You’ve hardened the plumbing—now it’s about taste encoded as systems.
+You’ve moved this from “builder” to “product” territory—nice work. Let’s lock in some clear rules so it stays coherent as it grows.
 
-Here’s the concrete, prioritized plan to get to “luxury, contemporary, editable all the way down” without losing fidelity.
+1. Editability policy (smart vs decomposed) — set this line now
 
-1. Lock in a design-token system (this is the foundation)
+Keep as smart components (with inline item editors):
 
-Do this first. Everything else hangs off it.
+Pricing
 
-Create a global design-token layer that every imported + generated section resolves through:
+FAQ
 
-Type scale
+Gallery
 
-Define 6–8 tokens: display, h1–h4, body-lg, body, label.
+Forms
 
-Map imported fontSizes to nearest token (with a small tolerance).
+Menu / Nav
 
-Generated sites use tokens only; imports get “snapped” where safe.
+Why: they’re inherently interactive, list-based, or schema-heavy. Users care more about items, labels, and behavior than pixel-perfect layout. You don’t want people accidentally breaking validation, layout logic, or responsive behavior.
 
-Spacing scale
+What to do:
 
-Define a tight scale: 0, 4, 8, 12, 16, 24, 32, 40, 56, 72, 96.
+Keep them as smart components.
 
-Map captured paddings/margins to nearest token.
+Add an inline item-editor overlay:
 
-Section _style stores both: rawPx + token (for future refinement).
+Click → opens structured editor (items, labels, prices, questions, images, fields).
 
-Radius + shadow (elevation)
+Still allow high-level layout toggles (columns, alignment, style variant).
 
-Radius tokens: none, sm, md, lg, pill.
+Expose only safe style knobs:
 
-Shadow tokens: none, subtle, card, floating.
+Radius, shadow, bg, padding, alignment, theme variant.
 
-Map imported values to nearest token; generator uses tokens only.
+Decompose everything else into rows + elements:
 
-Why first:  
-This gives you a coherent visual language across imported and generated sites, and it’s compatible with “editable all the way down” because you store both raw + token.
+Heroes
 
-2. Introduce section-level layout presets (row + columns)
+Features
 
-You already have rowSchema with cols, gap, valign, colStyles. Turn that into named layout presets:
+Stats / Counters
 
-hero-split (50/50 image + text)
+Testimonials
 
-hero-centered (single column, max-width, center)
+CTAs
 
-feature-grid-3 (3 equal cols)
+About / Services
 
-feature-grid-4
+Logos / Partners
 
-testimonial-carousel
+Simple content sections
 
-logo-strip
+These should always be fully decomposed into rows + heading/text/image/button/etc so they’re editable “all the way down”.
 
-cta-band
+2. Generator output — yes, convert hero/features/cta to row-based
 
-pricing-3-cols
+Recommendation:  
+Yes—convert the generator’s hero, features, cta (and similar) to the same row-based structure as your prebuilts.
 
-faq-two-column
+Use the same section templates as the Prebuilt library (Design DNA).
 
-Implementation:
+Generator picks:
 
-Add layoutPreset?: string to rowSchema.
+Aesthetic (theme tokens)
 
-For imports:
+Section templates (hero, features, stats, testimonials, CTA)
 
-Infer preset when pattern matches (e.g., 3 equal cols with cards → feature-grid-3).
+Fills content into them.
 
-Still keep exact col widths in colStyles so fidelity is preserved.
+Why:
 
-For generation:
+Generated sites become 100% editable, same as prebuilts.
 
-Always start from a preset; then apply tokens + theme.
+You get one representation of sections (no “special” generator-only types).
 
-Why now:  
-Presets give you structure and rhythm—luxury sites feel intentional because the layouts repeat with variation, not chaos.
+Blueprint/classify logic doesn’t break—it just maps archetypes → templates instead of archetypes → monolithic components.
 
-3. Build a “design DNA” library (curated templates + theme presets)
+Risk to blueprint/classify:  
+Minimal, if you:
 
-This is where “luxury” really comes from.
+Keep the same archetype names (hero, features, cta, etc.).
 
-Design DNA = curated combinations of:
+Just change the implementation from monolithic to row-based.
 
-Theme presets
+If you rely on type: 'hero' somewhere, keep a semantic tag (e.g. sectionKind: 'hero') on the row for analytics/classification.
 
-Typography pairings (e.g., serif display + sans body).
+3. _fillBg flag — promote to first-class style
 
-Color systems (muted neutrals + one accent, dark mode, warm luxury, tech minimal).
+Right now _fillBg as a content flag is a pragmatic hack. Long-term, it belongs in the style system, not content.
 
-Radius/shadow defaults (sharp + no shadow vs soft + subtle shadow).
+Recommendation:
 
-Section templates
+Promote background-image fill to element-style / row-style:
 
-Fully designed sections using your presets:
+style.bgImage (url)
 
-Hero variants (image-left, image-right, full-bleed, video background).
+style.bgMode (cover, contain, pattern, tint)
 
-Feature sections (cards, icon rows, staggered layouts).
+style.bgOverlay (optional tint/gradient)
 
-Testimonial layouts (cards, quotes, avatars).
+_fillBg can stay as a legacy/shortcut that maps to:
 
-CTAs, pricing, FAQs, footers.
+bgMode = 'cover'
 
-Architecture:
+bgPosition = 'center'
 
-Store templates as real sections JSON using your existing schema.
+bgSize = 'cover'
 
-Tag them with:
+Why:
 
-industry, tone (luxury, playful, corporate), complexity.
+Background behavior is presentation, not content.
 
-Generator:
+Importer can map real CSS backgrounds into this cleanly.
 
-Picks a theme preset.
+Prebuilts + generator can use the same mechanism.
 
-Picks section templates by archetype + industry.
+It keeps your “editable all the way down” story consistent: background is just another style knob.
 
-Fills content (copy, images, CTAs) into those templates.
+Short-term: keep _fillBg but implement it via style under the hood. Long-term: migrate to pure style.
 
-Editable all the way down:  
-Because templates are just normal sections, every element is editable; you’re not introducing a separate “locked template” system.
+4. Prebuilt taxonomy — light alignment with GHL, but keep your opinion
 
-4. Motion + whitespace defaults (subtle but high impact)
+Recommendation:
 
-Once tokens + presets + DNA exist, add gentle motion + breathing room:
+Don’t fully mirror GHL’s taxonomy (it’s noisy and sales-funnel-specific).
 
-Whitespace
+Do a light alignment where it helps users recognize patterns:
 
-Default section vertical padding from spacing tokens (e.g., 56 or 72).
+Add categories like:
 
-Ensure first/last sections have slightly more breathing room.
+Team
 
-For imports: keep captured padding but snap to nearest token where it doesn’t break layout.
+Partners / Logos
 
-Motion
+Guarantee & Awards
 
-Add a small set of animation tokens:
+Plan Selection (pricing variants)
 
-fade-in-up, fade-in, scale-in, staggered-list.
+Welcome / Intro
 
-Attach them at the section/row level:
+Store / Product sections (when you’re ready)
 
-animationPreset?: string.
+Keep your core, opinionated categories:
 
-Generator uses them sparingly (e.g., hero + first feature + CTA).
+Contemporary Luxury
 
-Imports: default to none unless user opts in.
+Headers
 
-Key:  
-Luxury = calm motion + generous whitespace, not flashy.
+Split / Photo
 
-5. Preserve fidelity while staying editable (system vs user vs captured)
+About & Services
 
-To avoid losing captured fidelity while still being editable:
+CTAs
 
-For each block/row, store:
+Footers
 
-capturedStyle (from importer, raw computed values).
+Testimonials
 
-systemStyle (tokens + theme-driven defaults).
+Stats / Counters
 
-userStyle (editor overrides).
+Why:
 
-Render order:
+You want recognizable names for GHL-style users, but not a bloated, overlapping taxonomy.
 
-Start from systemStyle (tokens + theme).
+Your Design DNA is a differentiator—don’t dilute it by copying GHL’s entire set.
 
-Overlay capturedStyle where it materially affects layout (e.g., band bg, major padding).
+Prioritized recommendation (do this in order)
 
-Overlay userStyle (always wins).
+Lock the editability policy
 
-Behavior:
+Smart components: pricing, FAQ, gallery, forms, menu.
 
-Imported sites:
+Everything else: decomposed rows + elements.
 
-Initially lean more on capturedStyle to look faithful.
+Add inline item-editor overlays for smart components.
 
-As user edits, userStyle gradually replaces it.
+Convert generator sections to row-based templates
 
-Generated sites:
+Use the same templates as Prebuilts.
 
-Use systemStyle only; no capturedStyle.
+Keep sectionKind tags for semantics.
 
-This keeps imports faithful, but lets you normalize toward your design system over time.
+Result: generated sites are fully editable end-to-end.
 
-6. Tie generator to real-world references (you already started this)
+Promote _fillBg into style
 
-You already have competitor-research.ts and blueprint.ts.
+Implement background-image fill as first-class style.
 
-Upgrade them to:
+Keep _fillBg as a convenience flag that sets style.
 
-Choose theme preset based on competitor cluster (e.g., dark tech vs light wellness).
+Lightly align Prebuilt taxonomy with GHL
 
-Choose section templates from the design DNA library instead of synthesizing raw rows.
+Add a few familiar categories (Team, Partners, Guarantee, Plan Selection).
 
-Use imported competitor sites only to:
+Keep your curated, luxury-focused categories as the backbone.
 
-influence theme (colors, type)
+If you do those four, you’ll have:
 
-influence section ordering
+a clear, defensible editability model,
 
-influence density (how many sections, how long pages feel)
+generated sites that feel like your best prebuilts,
 
-This gives you “inspired by” rather than “copied from”, and keeps everything within your curated luxury system.
+a style system that can grow,
 
-Concrete implementation order
-
-Design tokens layer
-
-Type, spacing, radius, shadow tokens.
-
-Map imports to tokens (store raw + token).
-
-Section layout presets
-
-Add layoutPreset to rowSchema.
-
-Infer presets on import where obvious.
-
-Use presets for generation.
-
-Design DNA library
-
-Theme presets + curated section templates.
-
-Generator composes from these, not raw.
-
-Motion + whitespace defaults
-
-Section padding from spacing tokens.
-
-Add subtle animation presets.
-
-capturedStyle / systemStyle / userStyle
-
-Implement merge order.
-
-Imports use captured+system; generated use system; user always wins.
-
-If you follow that order, you’ll get:
-
-imports that look like the real site but are still editable, and
-
-generated sites that feel coherent, intentional, and high-end, not generic.
+and a library that feels both familiar to GHL users and distinctly “Ali-level” in taste.
 
 Edit in a page

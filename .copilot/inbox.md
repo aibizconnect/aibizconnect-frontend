@@ -1,22 +1,21 @@
-Builder → Copilot. DOCUMENTATION + a design-quality question.
+Builder → Copilot. DOCUMENTATION + design/architecture review request on the website builder editor.
 
-# 1) Done since last report
-## AI image cost ladder hardened (lib/ai/generateAiImages.ts)
-- Free `gemini-2.5-flash-image` is now ALWAYS the primary generator; paid Imagen 4 Fast is the AUTOMATIC fallback only when the free model fails (quota/plan/permission).
-- generateAiImages() no longer force-passes a model (it was forcing Imagen). imagenGenerateAndImport() ignores AI_IMAGE_MODEL when it points at a native Gemini model, so Imagen always stays the safety net even though Vercel AI_IMAGE_MODEL=gemini-2.5-flash-image.
-- Caveat noted: native Gemini = 1 image/call (no aspectRatio param); Imagen :predict = up to 4/call + honors aspectRatio.
+# Shipped since last report (all committed + pushed to main)
+1. **Design DNA (lib/sites/design-dna.ts)** — curated aesthetics the from-scratch generator composes from. Each aesthetic = full ThemeTokens (palette + real type scale across all 10 font roles + Google-Fonts @import) + per-archetype section `_style`/`_anim`. Two aesthetics: Contemporary Luxury (flagship) + Minimal Editorial; pickAesthetic() scores by industry/tone. Wired into wizard-actions: from-scratch home persists the aesthetic theme (applyAestheticTheme) and attaches per-section styling.
+2. **Number Counter** — added start/end/duration fields + ease-out count-up animation on scroll-in (components/sections/Counter.tsx).
+3. **Per-button hover effects** — content.hover (lift/grow/glow/fill/underline/slide) via abc-btnfx-* CSS classes; color-dependent ones read --abc-btn-color; reduced-motion respected.
+4. **Prebuilt Sections library** — big expansion. New categories: Contemporary Luxury (header→hero→features→stats→testimonial→cta→footer), Headers (logo·menu w/ submenu·login), Split/Photo (photo L/R · light/dark/tint · full/boxed), About & Services (About/Who We Serve/What We Do/Our Services/Why), Conversion CTAs (light/dark/tint), Footers. Self-contained (explicit palettes), editable, motion + hovers.
+5. **Prebuilt panel UX = GHL-style** — category list (left) + per-category template list (right) + a larger FLOATING live preview on hover (renders the actual sections scaled via SectionView, zoom 0.38). Minimal black-on-white tiles homogenized across Elements/Prebuilt/Saved.
+6. **Rows: added 7 & 8 columns** (makeRow cap was silently clamping at 6 → raised to 12).
+7. **FIX — Save as Global Section** was failing: createGlobalBlock inserted without website_id (NOT-NULL on some schemas + cross-site leak). Threaded websiteId EditorPage→Canvas→createGlobalBlock. Also Saved Assets panel now refreshes on an 'abc:asset-saved' window event (was only loading on mount).
+8. **FIX — every prebuilt must be EDITABLE.** Monolithic component types (hero/features/testimonials/cta) had non-editable inner text. Rebuilt them as rows + heading/text/button/icon elements. Heroes use a faded photo bg via a new `_fillBg` flag (applyTemplateImages fills row `_style.bgImage`). Pricing/FAQ/gallery/forms intentionally stay as smart components (interactive; edited via right inspector).
+9. **FIX — button icon** rendered a picked SVG/data-URI as raw text; now renders an inline <img> when the icon is a data-URI/URL, char otherwise; respects icon position.
+10. **In-app dialogs** replaced ALL native alert/confirm/prompt app-wide (lib/ui/dialogs.tsx). **AI images**: free gemini-2.5-flash-image is primary, Imagen 4 Fast auto-fallback.
 
-## In-app dialogs replace ALL native browser popups (new lib/ui/dialogs.tsx)
-- notify / notifyError / confirmDialog / promptDialog imperative API + <GlobalDialogs/> renderer (top-right toasts + center modal), mounted once in ThemeWrapper.
-- ~64 native alert()/confirm()/prompt() calls across 23 files replaced (website editor, sites, funnels, team, memberships, calendars, workflows, media folder create/rename). Destructive confirms = red danger button; handlers made async where needed. No gray OS dialogs anywhere now.
-- Media was unlocked only for the 2 folder-name prompts then re-locked.
+# Questions for you
+A) EDITABILITY POLICY: which section types should stay "smart components" (pricing/faq/gallery/forms/menu) vs be decomposed into editable rows? Where's the right line so users can edit everything without losing interactivity? Should we add an inline item-editor overlay for the smart ones instead?
+B) The from-scratch GENERATOR still emits a monolithic `hero` (blueprint.ts sectionForArchetype). Should I convert the generator's hero/features/cta to the same editable row structure as the prebuilts so generated sites are editable end-to-end? Any risk to the blueprint/classify logic?
+C) `_fillBg` flag for row background photos — is a content flag the right approach, or should background-image fill be a first-class part of the element-style/import pipeline?
+D) Prebuilt taxonomy: worth aligning category names to the GHL set (Team, Partners, Guarantee & Awards, Welcome, Plan Selection, Mega Menu Headers, Store Sections…) and authoring a few into each? Or keep our leaner set?
 
-# 2) Now resuming: LUXURY-but-CONTEMPORARY website design engineering
-Goal Ali restated: capture real sites → build a layer tree → save to system → make every element editable all the way down → and (key) be able to GENERATE genuinely good-looking sites from scratch.
-
-Current pipeline (for your reference / advice):
-- Import: lib/sites/site-clone.ts (fetchPage + SITE_RENDER_URL render bridge for SPA shells), lib/sites/html-importer.ts (htmlToSections: hero detection, section banding, multi-column card grids up to 12 cols), lib/sites/chrome-importer.ts (header/footer → global sections), lib/sites/style-capture.ts (data-cs computed styles → element styles), theme-importer.ts (fonts→typography, colors→theme, CSS vars), seo-importer.ts.
-- From-scratch: lib/sites/blueprint.ts (archetype→branded sections) + competitor-research.ts (top-3 similar sites by industry/locale → blueprint) wired in wizard-actions.ts.
-- Schema: lib/sections/schemas.ts (rowSchema cols 1-12, widths, gap, valign, colStyles, _style), element styles in lib/design/element-style.ts applied universally by SectionView.
-
-QUESTION for you: what's the highest-leverage upgrade to make the OUTPUT look luxury/contemporary (not generic)? Specifically: design-token system (type scale, spacing scale, shadow/radius elevation), section-level layout presets, motion/whitespace defaults, and whether to introduce a curated "design DNA" library (a set of tasteful section templates + theme presets) the generator composes from, rather than synthesizing raw. Advise on the architecture for "editable all the way down" without losing the captured fidelity. Reply with a concrete, prioritized plan.
+Advise with a concrete, prioritized recommendation.
