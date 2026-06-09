@@ -1,39 +1,32 @@
-# Decision request: host the render bridge on Cloudflare (reuse existing account)
+# Build request: D-149 finer section segmentation for imports
 
-Ali wants ONE place, not a new host. We already use Cloudflare (R2 for all media:
-R2_ACCOUNT_ID/R2_BUCKET/R2_PUBLIC_BASE). App is on Vercel. You earlier ruled self-host on
-Fly.io (D-158) — Ali prefers Cloudflare to consolidate. Please re-evaluate and rule.
+Render bridge is LIVE in prod (render.aibizconnect.app on Cloudflare, data-cs flowing). Now the
+quality gap: a full Stitch page decomposes into only ~2 top-level sections — richly nested + fully
+editable, but COARSE. We wrap top-level children of <main> as bands (htmlToSections in
+lib/sites/html-importer.ts), so a design with 2 big wrapper divs → 2 rows; all the real sections
+(hero, features, CTA, footer-ish) end up nested inside instead of being separate editable bands.
 
-## The need (unchanged)
-A service that loads a URL or RAW HTML in headless Chromium and returns the DOM annotated with
-per-element computed styles (data-cs) + harvested @font-face/:root/keyframes. This is our custom
-in-page annotation (page.evaluate over a KEEP whitelist), NOT a screenshot/scrape — see
-scripts/render-server.mjs (`/render?url=`, `POST /render-html`). Stitch exports are Tailwind-CDN
-classes that only resolve in a real browser, so fidelity REQUIRES this.
+## What we have
+- `htmlToSections(html, baseUrl, {faithful})` walks <main>, descends single-wrapper divs (up to 3),
+  then wraps each top-level child as a 1-col row carrying _style from data-cs; detects card grids →
+  multi-column rows. data-cs carries: padding*, margin*, color, backgroundColor, backgroundImage,
+  fontSize/Weight, lineHeight, textAlign, display, gap, justify/align, maxWidth, boxShadow,
+  gridTemplateColumns, flexWrap.
 
-## Cloudflare option to evaluate
-**Cloudflare Browser Rendering** via a Worker with a `browser` binding using `@cloudflare/puppeteer`:
-- Worker exposes the same two endpoints; inside, `puppeteer.launch(env.MYBROWSER)` → `page.goto` or
-  `page.setContent` → run our SAME annotation `page.evaluate(...)` → return `page.content()`.
-- Reuses the existing Cloudflare account (same place as R2). Token-guard via a Worker secret.
-- Concerns to rule on:
-  1. Does Browser Rendering support `page.evaluate` with our custom annotation + reading
-     `document.styleSheets` for @font-face/:root/keyframes? (vs the limited REST endpoints
-     /screenshot /content /scrape which can't run our annotation.)
-  2. Tailwind CDN `<script src=cdn.tailwindcss.com>` must EXECUTE inside the render (JS enabled) for
-     setContent of Stitch HTML — is that allowed/automatic in Browser Rendering?
-  3. Limits: Browser Rendering session caps/concurrency, CPU time per request, free-tier vs paid,
-     cold start. Good enough for on-demand site/Stitch imports at small scale?
-  4. Worker request body size for POST /render-html (Stitch docs ~20–200KB, but captured pages can
-     be larger). Any cap we must chunk around?
-- If a hard blocker exists, is **Cloudflare Containers** (newer, runs a real container = our exact
-  render-server.mjs Dockerfile, already written) the better Cloudflare-native path? Compare Workers-
-  Browser-Rendering vs Cloudflare-Containers for THIS workload (custom in-page annotation, JS exec,
-  always-similar logic) on fidelity, limits, cost, ops.
+## The ask (D-149): split into visual bands
+Rule on a concrete, deterministic heuristic (no AI) to break a page into natural sections, using the
+data-cs we already capture:
+1. What signals a band boundary? Proposed: a descendant block whose data-cs shows a BACKGROUND change
+   (backgroundColor/backgroundImage differs from page default) OR large vertical separation
+   (paddingTop/Bottom or marginTop/Bottom >= ~48px) OR a semantic <section>/<header>/<footer>.
+2. When the top-level child is ONE big wrapper, how deep do we descend to find the real band
+   boundaries without over-fragmenting (every styled div becoming a section)? Propose a stop rule
+   (e.g. only split at children that are full-width AND have a bg-change or >=48px gap; min text/
+   media content per band; cap N bands).
+3. Keep each resulting band a row with its own _style; preserve document order; never drop content;
+   keep card-grid → multi-column behavior intact.
+4. Guard against regressions: simple sites that already segment well must not get MORE fragmented.
 
-## Deliverable
-Rule: Cloudflare Browser Rendering Worker vs Cloudflare Containers vs keep Fly fallback. Pick the
-default, name the files to add (e.g. `deploy/render-bridge-cf/` worker + wrangler.toml), the bindings/
-secrets, and how the Vercel app wires SITE_RENDER_URL/SITE_RENDER_TOKEN to it. Keep our existing
-render-server.mjs as the source of the annotation logic so local dev is unchanged. Note any fidelity
-caveat vs the self-hosted container so we degrade honestly.
+Deliverable: the exact algorithm (inputs = the data-cs we have), the file/functions to change in
+lib/sites/html-importer.ts, edge cases, and a couple of before/after expectations (e.g. a Stitch page
+with hero+features+cta+footer → 4-ish editable bands, each styled). Keep faithful mode behavior.

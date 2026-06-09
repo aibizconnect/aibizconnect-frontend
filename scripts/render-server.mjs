@@ -44,7 +44,7 @@ async function getBrowser() {
 // so pasted Stitch/Figma markup gets the SAME true-to-design computed styles as a live capture.
 async function annotateAndSerialize(page) {
   await page.evaluate(() => {
-    const KEEP = ["paddingTop","paddingRight","paddingBottom","paddingLeft","marginTop","marginRight","marginBottom","marginLeft","color","backgroundColor","backgroundImage","fontSize","fontWeight","lineHeight","letterSpacing","textAlign","textTransform","borderTopLeftRadius","borderTopRightRadius","borderBottomLeftRadius","borderBottomRightRadius","display","gap","justifyContent","alignItems","maxWidth","boxShadow","gridTemplateColumns","flexWrap"];
+    const KEEP = ["paddingTop","paddingRight","paddingBottom","paddingLeft","marginTop","marginRight","marginBottom","marginLeft","color","backgroundColor","backgroundImage","fontSize","fontWeight","lineHeight","letterSpacing","textAlign","textTransform","borderTopLeftRadius","borderTopRightRadius","borderBottomLeftRadius","borderBottomRightRadius","display","flexDirection","gap","justifyContent","alignItems","maxWidth","boxShadow","gridTemplateColumns","flexWrap"];
     const def = (k, v) => {
       if (!v) return true;
       if (/(padding|margin|gap)/i.test(k) && v === "0px") return true;
@@ -59,6 +59,7 @@ async function annotateAndSerialize(page) {
       if (k === "fontWeight" && (v === "400" || v === "normal")) return true;
       if (k === "maxWidth" && v === "none") return true;
       if (k === "display" && (v === "block" || v === "inline")) return true;
+      if (k === "flexDirection" && v === "row") return true;
       if (k === "justifyContent" && (v === "normal" || v === "flex-start")) return true;
       if (k === "alignItems" && (v === "normal" || v === "flex-start")) return true;
       return false;

@@ -227,6 +227,9 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       const cardish = kids.filter((k) => (k.querySelector && k.querySelector("h1,h2,h3,h4,h5,h6")) || clean(k.text).length > 8);
       if (cardish.length < 2 || cardish.length < Math.ceil(kids.length * 0.6)) continue;
       const cs = el.getAttribute("data-cs") || "";
+      // A VERTICAL flex column is a stack of bands, NOT a multi-column card grid — disqualify it
+      // entirely so a whole page's sections aren't squashed into columns (D-149).
+      if (/flexDirection:column/.test(cs)) continue;
       const gc = gridColumnCount(cs);
       const isFlexGrid = /display:(flex|grid)/.test(cs) || gc >= 2;
       const score = kids.length * (isFlexGrid ? 3 : 1);
@@ -235,8 +238,61 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return best;
   };
 
-  for (const band of elementChildren(container)) {
-    if (DROP.has(tagOf(band))) continue;
+  // D-149 (architect D-164/165): split a page into natural VISUAL BANDS. When a top-level child is
+  // just a transparent layout wrapper holding several real sections, descend into it and treat ITS
+  // children as separate editable bands — instead of emitting one giant coarse row. A child is a
+  // band boundary when it is semantic (<section>/<header>/<footer>/<article>), has its OWN background
+  // (color or image) different from the page, or is separated by a large vertical gap (>=48px). We
+  // only descend conservative, transparent, non-grid wrappers so simple pages don't over-fragment.
+  const pageBg = (parseDataCs(main.getAttribute("data-cs")).style.bg as string) || "";
+  const styleOf = (el: HTMLElement) => parseDataCs(el.getAttribute("data-cs")).style as Record<string, number | string>;
+  const SEMANTIC_BAND = new Set(["section", "header", "footer", "article"]);
+  const isBandBoundary = (el: HTMLElement): boolean => {
+    if (SEMANTIC_BAND.has(tagOf(el))) return true;
+    const s = styleOf(el);
+    if (s.bg && s.bg !== pageBg) return true;
+    if (s.bgImage) return true;
+    if ((Number(s.pt) || 0) >= 48 || (Number(s.pb) || 0) >= 48 || (Number(s.mt) || 0) >= 48 || (Number(s.mb) || 0) >= 48) return true;
+    return false;
+  };
+  // A top-level <header>/<footer> is USUALLY site chrome (global Header/Footer owns nav) — but in a
+  // designed import (faithful) it's often the HERO/closing band. Keep it as a content band when it
+  // has a heading or real text and isn't just a row of nav links. nav/aside stay chrome always.
+  const navLike = (el: HTMLElement): boolean => {
+    const links = el.querySelectorAll("a").length;
+    const hasHeading = !!el.querySelector("h1, h2, h3");
+    return !hasHeading && links >= 3 && clean(el.text).length < 200;
+  };
+  const droppableBand = (el: HTMLElement): boolean => {
+    const t = tagOf(el);
+    if (t === "nav" || t === "aside") return true;
+    if (t === "header" || t === "footer") return faithful ? navLike(el) : true;
+    return DROP.has(t);
+  };
+  const MAX_BAND_DEPTH = 4;
+  const expandBands = (els: HTMLElement[], depth: number): HTMLElement[] => {
+    const out: HTMLElement[] = [];
+    for (const el of els) {
+      if (droppableBand(el)) continue;
+      const kids = elementChildren(el).filter((k) => !DROP.has(tagOf(k)));
+      const grid = findCardGrid(el);
+      const isGridItself = !!grid && grid.el === el; // its children are cards → keep as one band (grid logic owns it)
+      const s = styleOf(el);
+      const hasOwnBg = !!(s.bg && s.bg !== pageBg) || !!s.bgImage; // a colored band → keep whole, don't split away its bg
+      const bandLikeKids = kids.filter(isBandBoundary).length;
+      // A vertical flex-column wrapper is a stack of sections → always worth splitting into bands.
+      const isColumnStack = /flexDirection:column/.test(el.getAttribute("data-cs") || "");
+      const splittable = depth < MAX_BAND_DEPTH && (tagOf(el) === "div" || tagOf(el) === "main")
+        && kids.length >= 2 && !isGridItself && !hasOwnBg && (bandLikeKids >= 2 || (isColumnStack && kids.length >= 2));
+      if (splittable) out.push(...expandBands(kids, depth + 1));
+      else out.push(el);
+    }
+    return out;
+  };
+  const bandEls = expandBands(elementChildren(container), 0);
+
+  for (const band of bandEls) {
+    if (droppableBand(band)) continue;
     const bandStyle = parseDataCs(band.getAttribute("data-cs")).style;
     let children: Record<string, unknown>[][] = [];
 
