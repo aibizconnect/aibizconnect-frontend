@@ -39,10 +39,10 @@ type Mode =
 // Left-panel toolbar (revised IA). "Add Elements" is the leading (+) button; the
 // rest follow in Ali's final order.
 const TOOLS: { mode: Mode; label: string; icon: string }[] = [
-  { mode: "generate", label: "Generate Website (AI)", icon: "M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9zM18 14l.9 2.4L21 17l-2.1.6L18 20l-.9-2.4L15 17l2.1-.6z" },
+  // Generate Website (AI) and Site Settings live on the Website page/settings — not in the
+  // per-page editor toolbar.
   { mode: "layers", label: "Layers", icon: "M12 2l9 5-9 5-9-5zM3 12l9 5 9-5M3 17l9 5 9-5" },
   { mode: "editor", label: "Pages", icon: "M4 4h16v4H4zM4 12h16v8H4z" },
-  { mode: "tracking", label: "Site Settings", icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" },
   { mode: "code", label: "Custom CSS", icon: "M8 6l-5 6 5 6M16 6l5 6-5 6" },
   { mode: "typography", label: "Typography", icon: "M4 6h16M9 6v12M6 18h6" },
   { mode: "background", label: "Background", icon: "M3 5h18v14H3zM3 15l5-5 4 4 3-3 6 6M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" },
