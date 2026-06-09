@@ -71,16 +71,11 @@ const SECTION_PRESETS: Group = { group: "Add a Section", items: [
   { label: "Medium", icon: I.cols, type: "row", cols: 1 }, { label: "Small", icon: I.cols, type: "row", cols: 1 },
 ] };
 
-type Tab = "add" | "prebuilt" | "saved" | "market" | "store";
-const TOP_NAV: { tab: Tab; label: string }[] = [
-  { tab: "add", label: "Add" }, { tab: "prebuilt", label: "Prebuilt" }, { tab: "saved", label: "Saved" },
-];
-// Shown as muted "soon" links at the BOTTOM of the panel.
-const BOTTOM_NAV: { tab: Tab; label: string }[] = [
-  { tab: "market", label: "Widget Marketplace" }, { tab: "store", label: "Store" },
-];
-// "Add" tab = one collapsible accordion: Sections, Rows, then every element group.
+// The whole panel = one collapsible accordion: Sections, Rows, every element group.
 const ADD_GROUPS: Group[] = [SECTION_PRESETS, ROWS_GROUP, ...ELEMENT_GROUPS];
+const Chevron = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+);
 
 function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?: number) => void }) {
   return (
@@ -180,33 +175,57 @@ function PrebuiltTemplates({ q, onInsert, imgUrls, onHover, cat, setCat }: { q: 
   );
 }
 
-/** Clean, Puck-style collapsible accordion of element groups: a tidy header row with a
- *  chevron, generous spacing, light dividers — only the first group open by default so the
- *  panel never feels crowded. Searching auto-expands every matching group. */
-function Groups({ groups, q, onPick }: { groups: Group[]; q: string; onPick: (t: SectionType, c?: number) => void }) {
+/** The entire Add panel as ONE column of collapsible items — element groups, then Prebuilt
+ *  Sections, Saved Assets, and the coming-soon Marketplace/Store. Each item expands to its own
+ *  content. Only the first group is open by default; searching auto-expands matching items. */
+function AddAccordion(props: {
+  q: string; onPick: (t: SectionType, c?: number) => void; onInsert?: (s: SectionContent[]) => void;
+  imgUrls: string[]; onHover: (h: HoverState) => void; prebuiltCat: string; setPrebuiltCat: (c: string) => void;
+  savedSlot?: React.ReactNode;
+}) {
+  const { q, onPick, onInsert, imgUrls, onHover, prebuiltCat, setPrebuiltCat, savedSlot } = props;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const searching = q.trim().length > 0;
-  const visible = groups
-    .map((g) => ({ g, items: g.items.filter((it) => it.label.toLowerCase().includes(q.toLowerCase())) }))
-    .filter((x) => x.items.length);
+  const ql = q.toLowerCase();
+
+  type Item = { key: string; title: string } & (
+    | { kind: "group"; items: QuickItem[] }
+    | { kind: "prebuilt" } | { kind: "saved" } | { kind: "soon" }
+  );
+  const items: Item[] = [];
+  for (const g of ADD_GROUPS) {
+    const its = g.items.filter((it) => it.label.toLowerCase().includes(ql));
+    if (its.length) items.push({ key: g.group, title: g.group, kind: "group", items: its });
+  }
+  items.push({ key: "prebuilt", title: "Prebuilt Sections", kind: "prebuilt" });
+  items.push({ key: "saved", title: "Saved Assets", kind: "saved" });
+  if (!searching) { items.push({ key: "market", title: "Widget Marketplace", kind: "soon" }); items.push({ key: "store", title: "Store", kind: "soon" }); }
+
   return (
     <div className="flex flex-col">
-      {visible.map(({ g, items }, i) => {
-        const isOpen = searching ? true : (g.group in open ? open[g.group] : i === 0);
+      {items.map((it, i) => {
+        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuilt") : (it.key in open ? open[it.key] : i === 0);
+        const soon = it.kind === "soon";
         return (
-          <div key={g.group} className="border-b border-slate-100 last:border-0">
-            <button
-              type="button"
-              onClick={() => setOpen((o) => ({ ...o, [g.group]: !isOpen }))}
-              className="flex w-full items-center justify-between py-2.5 text-left"
-            >
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{g.group}</span>
+          <div key={it.key} className="border-b border-slate-100 last:border-0">
+            <button type="button" onClick={() => setOpen((o) => ({ ...o, [it.key]: !isOpen }))}
+              className="flex w-full items-center justify-between py-2.5 text-left">
+              <span className={`text-[11px] font-semibold uppercase tracking-wide ${soon ? "text-slate-300" : "text-slate-500"}`}>
+                {it.title}{soon && <span className="ml-1 text-[8px]">soon</span>}
+              </span>
               <span className="flex items-center gap-1.5 text-slate-400">
-                <span className="text-[10px]">{items.length}</span>
-                <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                {it.kind === "group" && <span className="text-[10px]">{it.items.length}</span>}
+                <Chevron open={isOpen} />
               </span>
             </button>
-            {isOpen && <div className="grid grid-cols-2 gap-2 pb-3.5 pt-0.5">{items.map((it) => <Tile key={it.label} it={it} onPick={onPick} />)}</div>}
+            {isOpen && (
+              <div className="pb-3.5 pt-0.5">
+                {it.kind === "group" && <div className="grid grid-cols-2 gap-2">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
+                {it.kind === "prebuilt" && <div className="h-[440px]"><PrebuiltTemplates q={q} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} cat={prebuiltCat} setCat={setPrebuiltCat} /></div>}
+                {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
+                {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
+              </div>
+            )}
           </div>
         );
       })}
@@ -215,7 +234,6 @@ function Groups({ groups, q, onPick }: { groups: Group[]; q: string; onPick: (t:
 }
 
 export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSections, tenantId }: { onPick: (type: SectionType, cols?: number) => void; onAi?: () => void; savedSlot?: React.ReactNode; onInsertSections?: (sections: SectionContent[]) => void; tenantId?: string }) {
-  const [tab, setTab] = useState<Tab>("add");
   const [q, setQ] = useState("");
   const [imgUrls, setImgUrls] = useState<string[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
@@ -235,44 +253,18 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       .catch(() => {});
   }, [tenantId]);
 
-  const content = (() => {
-    switch (tab) {
-      case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} cat={prebuiltCat} setCat={setPrebuiltCat} />;
-      case "saved": return savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections will appear here and in the Templates tool.</div>;
-      case "market": case "store": return <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Coming soon.</div>;
-      default: return <Groups groups={ADD_GROUPS} q={q} onPick={onPick} />;
-    }
-  })();
-
-  // Single column (no left rail): a compact segmented tab row, a search, then the content.
+  // One column, no tabs: search + a single collapsible accordion of everything.
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <div className="mb-2 flex gap-1 rounded-lg bg-slate-100 p-1">
-        {TOP_NAV.map((n) => (
-          <button key={n.tab} onClick={() => setTab(n.tab)}
-            className={`flex-1 rounded-md px-2 py-1.5 text-[13px] font-medium transition ${tab === n.tab ? "bg-white text-[#1e3a8a] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-            {n.label}
-          </button>
-        ))}
-      </div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
         className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">{content}</div>
-
-      {/* Bottom of the list: Widget Marketplace + Store (coming soon). */}
-      <div className="mt-2 border-t border-slate-100 pt-2">
-        {BOTTOM_NAV.map((n) => (
-          <button key={n.tab} onClick={() => setTab(n.tab)}
-            className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] ${tab === n.tab ? "bg-[#1e3a8a]/10 font-semibold text-[#1e3a8a]" : "text-slate-400 hover:bg-slate-50"}`}>
-            {n.label}<span className="text-[8px] uppercase">soon</span>
-          </button>
-        ))}
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <AddAccordion q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} prebuiltCat={prebuiltCat} setPrebuiltCat={setPrebuiltCat} savedSlot={savedSlot} />
       </div>
-
       {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
 
       {/* Floating preview of the hovered prebuilt block (rendered above everything). */}
-      {tab === "prebuilt" && hover && <FloatingPreview hover={hover} />}
+      {hover && <FloatingPreview hover={hover} />}
     </div>
   );
 }
