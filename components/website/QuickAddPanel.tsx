@@ -98,10 +98,27 @@ type HoverState = { t: PrebuiltTemplate; sections: SectionContent[]; top: number
 
 /** One Phase-3 layout recipe as an insertable row. Composes the recipe with on-brand
  *  fact-free defaults; the section inherits the site theme via --abc-* tokens. */
-function RecipeRow({ r, onInsert }: { r: LayoutRecipe; onInsert?: (sections: SectionContent[]) => void }) {
+function RecipeRow({ r, onInsert, tenantId }: { r: LayoutRecipe; onInsert?: (sections: SectionContent[]) => void; tenantId?: string }) {
+  const [busy, setBusy] = useState(false);
   const compose = () => [composeSection(r) as unknown as SectionContent];
+  // Smart fill: ask the server (Gemini 2.5 Flash) to write on-brand copy for this recipe,
+  // then insert. Falls back to the default-copy section if the model is unavailable.
+  const aiInsert = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!tenantId || busy) return;
+    setBusy(true);
+    try {
+      const { aiFillRecipe } = await import("@/app/tenants/[tenantId]/website/editor/recipe-actions");
+      const res = await aiFillRecipe(tenantId, r.key);
+      onInsert?.([(res.ok && res.content ? res.content : composeSection(r)) as unknown as SectionContent]);
+    } catch {
+      onInsert?.(compose());
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <button
+    <div
       draggable
       onDragStart={(e) => { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/abc-template", JSON.stringify(compose())); }}
       onClick={() => onInsert?.(compose())}
@@ -110,7 +127,13 @@ function RecipeRow({ r, onInsert }: { r: LayoutRecipe; onInsert?: (sections: Sec
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-sky-400 text-[12px] text-white">✦</span>
       <span className="flex-1 truncate text-[13px] font-medium text-slate-900">{r.name}</span>
       <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">{r.semanticType}</span>
-    </button>
+      {tenantId && (
+        <button type="button" onClick={aiInsert} disabled={busy} title="Write on-brand copy with AI, then insert"
+          className="shrink-0 rounded-md bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-1.5 py-1 text-[10px] font-semibold text-white disabled:opacity-60">
+          {busy ? "…" : "✨ AI"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -202,9 +225,9 @@ function AddAccordion(props: {
   mode: "elements" | "library";
   q: string; onPick: (t: SectionType, c?: number) => void; onInsert?: (s: SectionContent[]) => void;
   imgUrls: string[]; onHover: (h: HoverState) => void;
-  savedSlot?: React.ReactNode;
+  savedSlot?: React.ReactNode; tenantId?: string;
 }) {
-  const { mode, q, onPick, onInsert, imgUrls, onHover, savedSlot } = props;
+  const { mode, q, onPick, onInsert, imgUrls, onHover, savedSlot, tenantId } = props;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const searching = q.trim().length > 0;
   const ql = q.toLowerCase();
@@ -259,7 +282,7 @@ function AddAccordion(props: {
               <div className="pb-3.5 pt-0.5">
                 {it.kind === "group" && <div className="flex flex-col gap-1.5">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
                 {it.kind === "prebuiltCat" && <div className="flex flex-col gap-2">{it.templates.map((t) => <PrebuiltRow key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>}
-                {it.kind === "recipes" && <div className="flex flex-col gap-1.5">{it.recipes.map((r) => <RecipeRow key={r.key} r={r} onInsert={onInsert} />)}</div>}
+                {it.kind === "recipes" && <div className="flex flex-col gap-1.5">{it.recipes.map((r) => <RecipeRow key={r.key} r={r} onInsert={onInsert} tenantId={tenantId} />)}</div>}
                 {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
                 {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
               </div>
@@ -306,7 +329,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
         className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <AddAccordion mode={view} q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} savedSlot={savedSlot} />
+        <AddAccordion mode={view} q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} savedSlot={savedSlot} tenantId={tenantId} />
       </div>
       {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
 
