@@ -11,13 +11,19 @@ import { config, initialData } from "./puck.config";
  * nested columns, undo/redo. Data persists to localStorage so you can refine and "Preview".
  * This is the "evaluate Puck" experiment; it does not touch the existing editor.
  */
-const KEY = "puck-demo-data-v3";
+const KEY = "puck-demo-data-v6";
 
 export default function PuckDemoPage() {
   const [data, setData] = useState<Data | null>(null);
   const [preview, setPreview] = useState(false);
 
   useEffect(() => {
+    const id = "puck-demo-fonts";
+    if (!document.getElementById(id)) {
+      const l = document.createElement("link"); l.id = id; l.rel = "stylesheet";
+      l.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600&family=Manrope:wght@400;500;600;700&display=swap";
+      document.head.appendChild(l);
+    }
     try { const raw = localStorage.getItem(KEY); setData(raw ? JSON.parse(raw) : (initialData as unknown as Data)); }
     catch { setData(initialData as unknown as Data); }
   }, []);
