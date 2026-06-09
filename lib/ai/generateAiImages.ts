@@ -32,6 +32,15 @@ export function imageGenEnabled(): boolean {
   return hasKey("ai-image") && process.env.AI_IMAGE_GEN_ENABLED === "true";
 }
 
+/**
+ * FREE-tier generation: allowed with just a key. The native Gemini image model
+ * (gemini-2.5-flash-image) is effectively free, so it should NOT be blocked by the
+ * AI_IMAGE_GEN_ENABLED spend flag — that flag only gates the PAID Imagen fallback.
+ */
+export function imageGenFreeAllowed(): boolean {
+  return hasKey("ai-image");
+}
+
 export interface GenerateAiImagesParams {
   presetId: string;
   model?: string;          // default our standard Gemini image model
@@ -138,15 +147,10 @@ export async function generateAiImages(params: GenerateAiImagesParams): Promise<
   // (An explicit params.model still wins if a caller asks for a specific model.)
   const model = params.model;
 
-  // GATE: never call the provider / spend unless explicitly enabled with a key.
-  if (!imageGenEnabled()) {
-    return {
-      mediaIds: [],
-      generated: 0,
-      skipped: hasKey("ai-image")
-        ? "Image generation is held off (set AI_IMAGE_GEN_ENABLED=true to allow spend)."
-        : "No AI image key configured (GEMINI_API_KEY).",
-    };
+  // GATE: free Gemini runs with just a key; the paid Imagen fallback is gated downstream
+  // (imagenGenerateAndImport) by AI_IMAGE_GEN_ENABLED. No key → no call, no charge.
+  if (!hasKey("ai-image")) {
+    return { mediaIds: [], generated: 0, skipped: "No AI image key configured (GEMINI_API_KEY)." };
   }
 
   // ONE image per concept: each item is a distinct, individually-usable single subject
@@ -356,11 +360,11 @@ export async function imagenGenerateAndImport(
   prompt: string,
   opts?: { count?: number; aspectRatio?: string; model?: string; namePrefix?: string; transparent?: boolean; folderId?: string | null },
 ): Promise<{ images: { id: string; url: string }[]; skipped?: string; usedModel?: string }> {
-  if (!imageGenEnabled()) {
-    return { images: [], skipped: hasKey("ai-image")
-      ? "Image generation is held off (set AI_IMAGE_GEN_ENABLED=true)."
-      : "No AI image key configured (GEMINI_API_KEY)." };
+  if (!hasKey("ai-image")) {
+    return { images: [], skipped: "No AI image key configured (GEMINI_API_KEY)." };
   }
+  // Free Gemini always runs with a key; the spend flag only gates the PAID Imagen fallback.
+  const spendOk = process.env.AI_IMAGE_GEN_ENABLED === "true";
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY!;
   const count = opts?.count ?? 4;
   const aspectRatio = opts?.aspectRatio || "1:1";
@@ -375,7 +379,13 @@ export async function imagenGenerateAndImport(
   const envModel = process.env.AI_IMAGE_MODEL;
   const paidModel = envModel && !isNativeImageModel(envModel) ? envModel : "imagen-4.0-fast-generate-001";
   const primary = opts?.model || FREE_NATIVE_MODEL;
-  const fallback = opts?.model && opts.model !== paidModel ? paidModel
+  // A caller forcing a PAID model with spend disabled is refused (we stay free-only).
+  if (!spendOk && !isNativeImageModel(primary)) {
+    return { images: [], skipped: "Paid image model needs AI_IMAGE_GEN_ENABLED=true; free Gemini is used otherwise." };
+  }
+  // Paid Imagen fallback runs ONLY when spend is enabled; free Gemini always runs first.
+  const fallback = !spendOk ? undefined
+    : opts?.model && opts.model !== paidModel ? paidModel
     : opts?.model ? undefined           // caller already asked for the paid model
     : paidModel;                        // default path: free → paid
 

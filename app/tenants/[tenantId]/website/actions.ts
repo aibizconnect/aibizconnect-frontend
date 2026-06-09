@@ -2688,12 +2688,11 @@ export async function generateAiImages(
   opts?: { count?: number; aspect?: string; style?: string; folderId?: string | null }
 ): Promise<{ hasKey: boolean; images: { url: string }[]; message?: string }> {
   await requireTenantAccess(tenantId);
-  if (!aiImageGenEnabled()) {
-    const keyed = aiHasImageKey("ai-image");
-    return { hasKey: keyed, images: [],
-      message: keyed
-        ? "Key detected, but generation is held off (set AI_IMAGE_GEN_ENABLED=true to allow spend)."
-        : "Connect an AI image-generation key (GEMINI_API_KEY) to generate. We never connect a provider or charge automatically." };
+  // Free Gemini (gemini-2.5-flash-image) runs with just a key — only the paid Imagen
+  // fallback needs AI_IMAGE_GEN_ENABLED, which imagenGenerateAndImport enforces internally.
+  if (!aiHasImageKey("ai-image")) {
+    return { hasKey: false, images: [],
+      message: "Connect an AI image-generation key (GEMINI_API_KEY) to generate. We never connect a provider or charge automatically." };
   }
   const styledPrompt = opts?.style && opts.style !== "auto" ? `${prompt}. Style: ${opts.style}.` : prompt;
   const out = await imagenGenerateAndImport(tenantId, styledPrompt, {

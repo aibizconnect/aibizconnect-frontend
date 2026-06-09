@@ -85,8 +85,8 @@ export async function ingestSectionImages(
   let out = sections.map((s) => rewrite(s, map));
   if (opts.aiBudget && opts.aiBudget.left > 0) {
     try {
-      const { imagenGenerateAndImport, imageGenEnabled } = await import("@/lib/ai/generateAiImages");
-      if (imageGenEnabled()) {
+      const { imagenGenerateAndImport, imageGenFreeAllowed } = await import("@/lib/ai/generateAiImages");
+      if (imageGenFreeAllowed()) {
         for (let i = 0; i < out.length && opts.aiBudget.left > 0; i++) {
           const s = out[i];
           if (s?.type === "hero" && !s.backgroundImageUrl) {
