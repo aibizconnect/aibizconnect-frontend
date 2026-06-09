@@ -13,6 +13,7 @@
  */
 
 import { ingestExternalImage } from "@/lib/media/ingest";
+import { SYSTEM_TENANT_ID } from "@/lib/media/system";
 
 export interface IngestPassOptions {
   websiteId?: string | null;
@@ -83,12 +84,15 @@ export async function ingestSectionImages(
           if (s?.type === "hero" && !s.backgroundImageUrl) {
             const p = opts.profile || {};
             const prompt = `Elegant, contemporary hero background photo for a ${p.industry || "professional"} business${p.businessName ? ` (${p.businessName})` : ""}. ${p.tone || "Refined, understated"}. No text, no logos, soft depth of field.`;
-            const gen = await imagenGenerateAndImport(tenantId, prompt, { count: 1, aspectRatio: "16:9", namePrefix: "AI hero" });
+            // Ownership rule (Ali): the PLATFORM pays for AI generation, so the image is OURS —
+            // store it in the SYSTEM library (read-by-all, copy-on-use). The tenant page just
+            // references the public system URL. Usage is still metered to the triggering tenant.
+            const gen = await imagenGenerateAndImport(SYSTEM_TENANT_ID, prompt, { count: 1, aspectRatio: "16:9", namePrefix: "AI hero" });
             const url = gen.images?.[0]?.url;
             if (url) {
               out[i] = { ...s, backgroundImageUrl: url };
               opts.aiBudget.left -= 1;
-              try { const { recordAiUsage } = await import("@/app/tenants/[tenantId]/website/actions"); await recordAiUsage(tenantId, "image_generation", 1, { context: "build_hero" }); } catch { /* metering best-effort */ }
+              try { const { recordAiUsage } = await import("@/app/tenants/[tenantId]/website/actions"); await recordAiUsage(tenantId, "image_generation", 1, { context: "build_hero", ownedBy: "system" }); } catch { /* metering best-effort */ }
             }
           }
         }
