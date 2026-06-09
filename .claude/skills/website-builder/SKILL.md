@@ -40,6 +40,19 @@ Implemented in `app/tenants/[tenantId]/website/wizard-actions.ts` (`generateWiza
 businesses (Serper/Brave/Bing API if a key is set, else DuckDuckGo), studies their structure, and the
 AI builds a *similar-but-better* site. The benchmarked URLs are surfaced in the editor's refine panel.
 
+### Autonomous Stitch path (no manual paste/clicks)
+When a higher-fidelity, designed look is wanted and the Stitch MCP is available, the build runs the
+`stitch-import` skill AUTONOMOUSLY as part of the pipeline — the agent does NOT ask the user to click
+or paste:
+1. `mcp__stitch__create_project` / reuse one → `create_design_system` from the tenant's brand
+   (palette + fonts already collected in Design & Plan) so the design matches their brand.
+2. `generate_screen_from_text` per planned page (home/about/services/contact) using the page intent.
+3. `get_screen` → `htmlCode.downloadUrl` → `importStitchScreen(tenantId, websiteId, url, title)`
+   (`stitch-actions.ts`) → render bridge resolves Tailwind → editable sections → images ingested →
+   draft page. Same editability + fidelity + ownership guarantees as the rest of the pipeline.
+Requires `SITE_RENDER_URL` (render bridge) for true fidelity; without it the page imports
+low-fidelity and is flagged (then fall back to the AI-draft path above). See `stitch-import` skill.
+
 ## Brand persistence
 Palette (incl. background via `theme.pageBackground`), fonts, and logo are written to
 `website_brand_settings` (per tenant+website). Primary/secondary/accent + fonts render live;
