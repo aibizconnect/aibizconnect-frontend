@@ -296,7 +296,7 @@ function AddAccordion(props: {
   return (
     <div className="flex flex-col">
       {items.map((it, i) => {
-        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat" || it.kind === "recipes" || it.kind === "pages") : (it.key in open ? open[it.key] : i === 0);
+        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat" || it.kind === "recipes" || it.kind === "pages") : (it.key in open ? open[it.key] : false);
         const soon = it.kind === "soon";
         return (
           <div key={it.key} className="border-b border-slate-100 last:border-0">

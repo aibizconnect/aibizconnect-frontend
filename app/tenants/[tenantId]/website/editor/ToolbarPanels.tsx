@@ -227,7 +227,7 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
       <div className="flex flex-col">
         {FONT_ROLES.map((r, i) => {
           const rs = typo[r.key] || {};
-          const isOpen = r.key in openRole ? openRole[r.key] : i === 0; // first role open by default
+          const isOpen = r.key in openRole ? openRole[r.key] : false; // all roles start collapsed
           return (
             <div key={r.key} className="border-b border-slate-100 last:border-0">
               <button type="button" onClick={() => setOpenRole((o) => ({ ...o, [r.key]: !isOpen }))}

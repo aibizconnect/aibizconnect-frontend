@@ -15,7 +15,7 @@ import { DEFAULT_ELEMENT_STYLE, ENTRANCE_OPTIONS, HOVER_OPTIONS, type ElementSty
 const sel = "rounded border border-gray-300 px-2 py-1 text-sm";
 
 /** Collapsible accordion group (polished), default open. */
-export function Group({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+export function Group({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-gray-100 py-2">
