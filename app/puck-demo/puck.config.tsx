@@ -12,8 +12,9 @@ import { DropZone } from "@measured/puck";
  */
 
 const LX = { ink: "#1A1714", body: "#5C544B", gold: "#B08D57", ivory: "#F7F4EF", white: "#FFFFFF", panel: "#F1EADD", hair: "#E4DCCE" };
-const serif = "'Playfair Display', serif";
-const sans = "'Inter', sans-serif";
+// Resolve to the page-level font vars (set in Page settings → root) with sensible fallbacks.
+const serif = "var(--pk-heading, 'Playfair Display', serif)";
+const sans = "var(--pk-body, 'Inter', sans-serif)";
 const SHADOWS: Record<string, string> = { none: "none", soft: "0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.08)", elevated: "0 14px 36px rgba(0,0,0,.18)" };
 const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
@@ -27,6 +28,23 @@ const FONTS: Record<string, string> = {
   "Manrope": "'Manrope', sans-serif",
 };
 const fontField = { type: "select" as const, label: "Font", options: Object.keys(FONTS).map((f) => ({ label: f, value: f })) };
+const fontSelect = (label: string) => ({ type: "select" as const, label, options: Object.keys(FONTS).map((f) => ({ label: f, value: f })) });
+
+// Nav item with hover submenu (for the Header menu editor).
+function NavItem({ item, color }: { item: any; color: string }) {
+  const [open, setOpen] = useState(false);
+  const kids = item.children || [];
+  return (
+    <span style={{ position: "relative" }} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <a href={item.href || "#"} style={{ color, textDecoration: "none", fontFamily: sans, fontSize: 15, fontWeight: 500 }}>{item.label}{kids.length ? " ▾" : ""}</a>
+      {kids.length > 0 && open && (
+        <span style={{ position: "absolute", top: "100%", left: 0, background: "#fff", boxShadow: "0 8px 24px rgba(0,0,0,.12)", border: "1px solid #eee", borderRadius: 6, padding: "6px 0", minWidth: 160, zIndex: 20 }}>
+          {kids.map((c: any, i: number) => <a key={i} href={c.href || "#"} style={{ display: "block", padding: "8px 16px", color: LX.ink, textDecoration: "none", fontFamily: sans, fontSize: 14 }}>{c.label}</a>)}
+        </span>
+      )}
+    </span>
+  );
+}
 
 // ── Animated count-up (the number animation), scroll-triggered, ease-out ─────────
 function AnimatedNumber({ value, duration = 2, animate = true, style }: { value: string; duration?: number; animate?: boolean; style?: React.CSSProperties }) {
@@ -147,6 +165,32 @@ function styled(def: { label: string; category?: string; fields?: any; defaultPr
 }
 
 export const config: Config = {
+  // PAGE SETTINGS — shown in the right panel when you click the "Page" breadcrumb
+  // (nothing selected). This is where global Fonts, Custom CSS, and SEO/GEO live.
+  root: {
+    fields: {
+      title: { type: "text", label: "SEO title" },
+      description: { type: "textarea", label: "Meta description (SEO/GEO)" },
+      keywords: { type: "text", label: "Keywords (SEO/GEO)" },
+      ogImage: imagePickerField,
+      canonical: { type: "text", label: "Canonical URL" },
+      headingFont: fontSelect("Heading font (global)"),
+      bodyFont: fontSelect("Body font (global)"),
+      customCss: { type: "textarea", label: "Custom CSS (site-wide)" },
+    },
+    defaultProps: {
+      title: "Aurelia & Co. — Bespoke Interiors",
+      description: "A considered approach to interiors — material, light and proportion in balance.",
+      keywords: "luxury interiors, bespoke design, interior atelier",
+      ogImage: "", canonical: "", headingFont: "Playfair Display", bodyFont: "Inter", customCss: "",
+    },
+    render: ({ children, headingFont, bodyFont, customCss }: any) => (
+      <div style={{ ["--pk-heading" as any]: FONTS[headingFont] || "'Playfair Display',serif", ["--pk-body" as any]: FONTS[bodyFont] || "'Inter',sans-serif" }}>
+        {customCss ? <style dangerouslySetInnerHTML={{ __html: customCss }} /> : null}
+        {children}
+      </div>
+    ),
+  } as any,
   categories: {
     sections: { title: "Sections", components: ["Hero", "Features3", "Stats3", "Testimonial", "CTA"], defaultExpanded: true },
     structure: { title: "Structure", components: ["Header", "Footer"], defaultExpanded: false },
@@ -337,16 +381,37 @@ export const config: Config = {
     // ── Curated section presets (their own tailored controls) ────────────────────
     Header: {
       label: "Header / Nav",
-      fields: { brand: { type: "text" }, links: { type: "text", label: "Links (comma-separated)" }, cta: { type: "text", label: "Button" }, dark: { type: "radio", label: "Theme", options: [{ label: "Light", value: "light" }, { label: "Dark", value: "dark" }] } } as any,
-      defaultProps: { brand: "Aurelia & Co.", links: "Home, Services, Portfolio, About, Contact", cta: "Login", dark: "light" },
-      render: ({ brand, links, cta, dark }: any) => {
-        const d = dark === "dark";
+      fields: {
+        logoType: { type: "radio", label: "Logo", options: [{ label: "Wordmark", value: "text" }, { label: "Image", value: "image" }] },
+        logoText: { type: "text", label: "Logo text" },
+        logoImage: imagePickerField,
+        logoHeight: { type: "number", label: "Logo height (px)" },
+        menu: { type: "array", label: "Menu items", arrayFields: {
+          label: { type: "text" }, href: { type: "text", label: "Link (URL)" },
+          children: { type: "array", label: "Submenu", arrayFields: { label: { type: "text" }, href: { type: "text", label: "Link (URL)" } }, defaultItemProps: { label: "Sub-item", href: "#" } },
+        }, defaultItemProps: { label: "Page", href: "/" } },
+        cta: { type: "text", label: "Button label" }, ctaHref: { type: "text", label: "Button link (URL)" },
+        dark: { type: "radio", label: "Theme", options: [{ label: "Light", value: "light" }, { label: "Dark", value: "dark" }] },
+      } as any,
+      defaultProps: {
+        logoType: "text", logoText: "Aurelia & Co.", logoImage: "", logoHeight: 30,
+        menu: [
+          { label: "Home", href: "/" },
+          { label: "Services", href: "/services", children: [{ label: "Interiors", href: "#" }, { label: "Styling", href: "#" }, { label: "Consulting", href: "#" }] },
+          { label: "Portfolio", href: "/portfolio" }, { label: "About", href: "/about" }, { label: "Contact", href: "/contact" },
+        ],
+        cta: "Login", ctaHref: "/login", dark: "light",
+      },
+      render: ({ logoType, logoText, logoImage, logoHeight, menu, cta, ctaHref, dark }: any) => {
+        const d = dark === "dark"; const fg = d ? LX.ivory : LX.ink;
         return (
           <div style={{ background: d ? LX.ink : LX.ivory, borderBottom: `1px solid ${d ? "#2A251F" : LX.hair}`, padding: "20px 24px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 600, color: d ? LX.ivory : LX.ink }}>{brand}</div>
-              <div style={{ display: "flex", gap: 28, fontFamily: sans, fontSize: 15, fontWeight: 500, color: d ? LX.ivory : LX.ink }}>{String(links).split(",").map((l, i) => <span key={i}>{l.trim()}</span>)}</div>
-              <span style={{ border: `1px solid ${d ? LX.ivory : LX.ink}`, color: d ? LX.ivory : LX.ink, font: `600 13px/1 ${sans}`, letterSpacing: 0.5, textTransform: "uppercase", padding: "10px 22px" }}>{cta}</span>
+              {logoType === "image" && logoImage
+                ? <img src={logoImage} alt={logoText} style={{ height: logoHeight || 30, width: "auto", objectFit: "contain" }} />
+                : <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 600, color: fg }}>{logoText}</div>}
+              <div style={{ display: "flex", gap: 28, alignItems: "center" }}>{(menu || []).map((m: any, i: number) => <NavItem key={i} item={m} color={fg} />)}</div>
+              <a href={ctaHref || "#"} style={{ border: `1px solid ${fg}`, color: fg, font: `600 13px/1 ${sans}`, letterSpacing: 0.5, textTransform: "uppercase", padding: "10px 22px", textDecoration: "none" }}>{cta}</a>
             </div>
           </div>
         );
@@ -487,10 +552,14 @@ export const config: Config = {
 };
 
 export const initialData = {
-  root: {},
+  root: { props: { title: "Aurelia & Co. — Bespoke Interiors", description: "A considered approach to interiors — material, light and proportion in balance.", keywords: "luxury interiors, bespoke design, interior atelier", ogImage: "", canonical: "", headingFont: "Playfair Display", bodyFont: "Inter", customCss: "" } },
   zones: {},
   content: [
-    { type: "Header", props: { id: "hdr-1", brand: "Aurelia & Co.", links: "Home, Services, Portfolio, About, Contact", cta: "Login", dark: "light" } },
+    { type: "Header", props: { id: "hdr-1", logoType: "text", logoText: "Aurelia & Co.", logoImage: "", logoHeight: 30, menu: [
+      { label: "Home", href: "/" },
+      { label: "Services", href: "/services", children: [{ label: "Interiors", href: "#" }, { label: "Styling", href: "#" }, { label: "Consulting", href: "#" }] },
+      { label: "Portfolio", href: "/portfolio" }, { label: "About", href: "/about" }, { label: "Contact", href: "/contact" },
+    ], cta: "Login", ctaHref: "/login", dark: "light" } },
     { type: "Hero", props: { id: "hero-1", eyebrow: "Bespoke Atelier", title: "Spaces composed with intention, crafted to endure.", subtitle: "A considered approach — where material, light and proportion meet restraint. Built for those who value the quiet confidence of timeless design.", cta1: "Book a consultation", cta2: "View portfolio", bg: "ivory", image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=70", imageFit: "cover", imagePosition: "center", overlay: "light", overlayStrength: 55, minH: 560 } },
     { type: "Features3", props: { id: "feat-1", eyebrow: "What we offer", title: "A practice built on detail", bg: LX.ivory, cards: [
       { icon: "◇", title: "Full-service design", body: "From first sketch to final styling — a single, coherent vision carried through every room." },
