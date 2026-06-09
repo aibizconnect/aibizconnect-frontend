@@ -42,6 +42,7 @@ export const PAGE_ARCHETYPES: PageArchetype[] = [
       { id: "hero", semanticType: "hero", recipeKey: "hero-centered-cta" },
       { id: "features", semanticType: "features", recipeKey: "features-trio" },
       { id: "about", semanticType: "split", recipeKey: "split-image-text", brief: "Introduce the business and its approach." },
+      { id: "testimonials", semanticType: "testimonials", recipeKey: "testimonials-grid", isOptional: true },
       { id: "cta", semanticType: "cta", recipeKey: "cta-band" },
     ],
   },
@@ -54,6 +55,7 @@ export const PAGE_ARCHETYPES: PageArchetype[] = [
     sections: [
       { id: "hero", semanticType: "hero", recipeKey: "hero-centered-cta", brief: "About-page intro; the story/mission, not a sales pitch." },
       { id: "story", semanticType: "split", recipeKey: "split-image-text", brief: "The origin story and what makes the approach distinct." },
+      { id: "testimonials", semanticType: "testimonials", recipeKey: "testimonials-grid", isOptional: true },
       { id: "cta", semanticType: "cta", recipeKey: "cta-band" },
     ],
   },
@@ -66,7 +68,8 @@ export const PAGE_ARCHETYPES: PageArchetype[] = [
     sections: [
       { id: "hero", semanticType: "hero", recipeKey: "hero-centered-cta", brief: "Lead with the outcome the services deliver." },
       { id: "list", semanticType: "features", recipeKey: "features-trio", brief: "Three core services or capabilities." },
-      { id: "proof", semanticType: "split", recipeKey: "split-image-text", isOptional: true },
+      { id: "pricing", semanticType: "pricing", recipeKey: "pricing-tiers", isOptional: true },
+      { id: "faq", semanticType: "faq", recipeKey: "faq-accordion", isOptional: true },
       { id: "cta", semanticType: "cta", recipeKey: "cta-band" },
     ],
   },
@@ -78,7 +81,8 @@ export const PAGE_ARCHETYPES: PageArchetype[] = [
     isRequired: false,
     sections: [
       { id: "hero", semanticType: "hero", recipeKey: "hero-centered-cta", brief: "Warm invitation to get in touch; no invented details." },
-      { id: "cta", semanticType: "cta", recipeKey: "cta-band" },
+      { id: "form", semanticType: "contact", recipeKey: "contact-form-basic" },
+      { id: "faq", semanticType: "faq", recipeKey: "faq-accordion", isOptional: true },
     ],
   },
 ];
