@@ -43,32 +43,43 @@ function MiniNum({ value, onChange, title }: { value?: number; onChange: (n: num
   );
 }
 
-/** Visual margin→padding box model (polished). Edits per-side mt/mr/mb/ml + pt/pr/pb/pl. */
+/** Visual margin→padding box model. Per-side mt/mr/mb/ml + pt/pr/pb/pl. Defaults: padding 20,
+ *  margin 5. Click "content" (center) to LOCK — then changing any side sets all 8 together. */
 function BoxModel({ s, set }: { s: ElementStyle; set: (p: Partial<ElementStyle>) => void }) {
-  const p = (k: keyof ElementStyle, fb?: number) => (s[k] as number) ?? fb ?? 0;
+  const [locked, setLocked] = useState(false);
+  // Display fallbacks: padding → 20, margin → 5.
+  const pad = (k: "pt" | "pr" | "pb" | "pl", shorthand?: number) => (s[k] as number) ?? shorthand ?? 20;
+  const mar = (k: "mt" | "mr" | "mb" | "ml", shorthand?: number) => (s[k] as number) ?? shorthand ?? 5;
+  // When locked, changing ANY side sets all 4 paddings + 4 margins to that value.
+  const apply = (key: keyof ElementStyle, n: number) =>
+    set(locked ? { pt: n, pr: n, pb: n, pl: n, mt: n, mr: n, mb: n, ml: n } : ({ [key]: n } as Partial<ElementStyle>));
   return (
     <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-2">
       <div className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Margin</div>
       <div className="flex flex-col items-center gap-1">
-        <MiniNum title="Margin top" value={p("mt", s.marginY)} onChange={(n) => set({ mt: n })} />
+        <MiniNum title="Margin top" value={mar("mt", s.marginY)} onChange={(n) => apply("mt", n)} />
         <div className="flex w-full items-stretch justify-between gap-1">
-          <div className="flex items-center"><MiniNum title="Margin left" value={p("ml")} onChange={(n) => set({ ml: n })} /></div>
+          <div className="flex items-center"><MiniNum title="Margin left" value={mar("ml")} onChange={(n) => apply("ml", n)} /></div>
           {/* padding box */}
           <div className="flex-1 rounded-md border border-dashed border-[#1e3a8a]/40 bg-white p-2">
             <div className="mb-1 text-center text-[9px] font-semibold uppercase tracking-wide text-[#1e3a8a]/70">Padding</div>
             <div className="flex flex-col items-center gap-1">
-              <MiniNum title="Padding top" value={p("pt", s.paddingY)} onChange={(n) => set({ pt: n })} />
+              <MiniNum title="Padding top" value={pad("pt", s.paddingY)} onChange={(n) => apply("pt", n)} />
               <div className="flex w-full items-center justify-between gap-1">
-                <MiniNum title="Padding left" value={p("pl", s.paddingX)} onChange={(n) => set({ pl: n })} />
-                <span className="text-[9px] text-gray-300">content</span>
-                <MiniNum title="Padding right" value={p("pr", s.paddingX)} onChange={(n) => set({ pr: n })} />
+                <MiniNum title="Padding left" value={pad("pl", s.paddingX)} onChange={(n) => apply("pl", n)} />
+                <button type="button" onClick={() => setLocked((l) => !l)}
+                  title={locked ? "Spacing locked — all sides change together. Click to unlock." : "Lock all spacing (changing one changes all)"}
+                  className={`shrink-0 rounded px-1 py-0.5 text-[10px] ${locked ? "bg-[#1e3a8a] text-white" : "text-gray-400 hover:bg-gray-100"}`}>
+                  {locked ? "🔒" : "content"}
+                </button>
+                <MiniNum title="Padding right" value={pad("pr", s.paddingX)} onChange={(n) => apply("pr", n)} />
               </div>
-              <MiniNum title="Padding bottom" value={p("pb", s.paddingY)} onChange={(n) => set({ pb: n })} />
+              <MiniNum title="Padding bottom" value={pad("pb", s.paddingY)} onChange={(n) => apply("pb", n)} />
             </div>
           </div>
-          <div className="flex items-center"><MiniNum title="Margin right" value={p("mr")} onChange={(n) => set({ mr: n })} /></div>
+          <div className="flex items-center"><MiniNum title="Margin right" value={mar("mr")} onChange={(n) => apply("mr", n)} /></div>
         </div>
-        <MiniNum title="Margin bottom" value={p("mb", s.marginY)} onChange={(n) => set({ mb: n })} />
+        <MiniNum title="Margin bottom" value={mar("mb", s.marginY)} onChange={(n) => apply("mb", n)} />
       </div>
     </div>
   );

@@ -86,7 +86,7 @@ export const HOVER_OPTIONS: HoverAnim[] = ["none", "elevate", "wobble"];
 
 export const DEFAULT_ELEMENT_STYLE: ElementStyle = {
   fullWidth: "fluid", align: "center", bg: "transparent",
-  paddingY: 48, paddingX: 24, marginY: 0, radius: 0, shadow: "none",
+  paddingY: 20, paddingX: 20, marginY: 5, radius: 0, shadow: "none",
   borderStyle: "none", borderColor: "var(--abc-color-border)", borderWidth: 1,
 };
 
