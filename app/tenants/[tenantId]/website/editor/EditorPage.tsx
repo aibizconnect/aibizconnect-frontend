@@ -320,9 +320,11 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       {/* 3 columns: middle (canvas) always visible; left + right collapsible.
           Bounded to the viewport so the panels scroll internally (keeps the Pages
           "Add new page" button and the canvas usable on long pages). */}
-      <div className="flex h-[calc(100vh-160px)] min-h-0 gap-3">
+      <div className="relative flex h-[calc(100vh-160px)] min-h-0">
+        {/* Left panel = overlay ON TOP of the canvas (canvas stays full-width). Stays open
+            until closed with ✕ — no auto-collapse. */}
         {leftOpen && (
-          <div className={`editor-compact flex shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${mode === "add" ? "w-[380px]" : "w-72"}`}>
+          <div className={`editor-compact absolute left-0 top-0 z-30 flex h-full flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-2xl ${mode === "add" ? "w-[380px]" : "w-72"}`}>
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
               <span className="text-sm font-semibold text-slate-700">{PANEL_TITLE[mode]}</span>
               <button onClick={() => setLeftOpen(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">✕</button>
