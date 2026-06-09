@@ -1,14 +1,17 @@
-ARCHITECT — revisit your earlier "Stitch: not recommended" stance. We trialed Google Stitch (Gemini 3 Pro) for design and the results changed the picture. React + give a revised ruling.
+ARCHITECT — critical fidelity bug in the AUTONOMOUS capture→rebuild pipeline. Ali: "our system grabs the info and LOSES the HTML and its structure in the middle of analysing or rebuilding." Diagnosed; need your canonical ruling.
 
-WHAT WE FOUND:
-1. Stitch AUTO-GENERATED a design system from one prompt that mirrors OUR token model almost exactly: primary #1e3a8a, secondary #22d3ee, Montserrat headings + Source Sans 3 body, 8px spacing unit, 4px radius, 1280px container, 120px section rhythm, tonal elevation, named color roles (surface/on-surface/primary-container/etc). i.e. Stitch's "design system" == our Phase-1 BrandTokens / --abc-* layer, 1:1. It even emits a DESIGN.md.
-2. We confirmed our EXISTING decomposer already does the hard part: lib/sites/html-importer.ts htmlToSections(html) segments raw HTML into our editable section model (h1-h6→heading, p→text, a/button→button, img→image/gallery, ul/ol→bullet-list, card grids→row/columns, forms→contact-form, with captured typography). Proven: a sample homepage → hero + row + cta, 3/3 sectionSchema-valid + fully editable.
-3. We shipped the glue (commit 441bb70): app/.../website/stitch-actions.ts importHtmlAsDraftPage(tenantId, websiteId, html, title) = htmlToSections → validate → createPage + saveDraft. So: wizard idea → Stitch design → htmlToSections → editable draft. Drafts-only, (tenant_id,website_id) scoped.
-4. THE ONE REAL BLOCKER: Stitch's MCP screen GENERATION won't surface retrievable HTML in our HEADLESS session — 3 generations (2x Gemini-3.1-Pro, 1x Flash) all timed out; only the design system + a thumbnail committed, list_screens stayed empty. So we can't pull the HTML programmatically in headless/cron; it likely works in the interactive browser/UI.
+DIAGNOSIS (confirmed in code):
+- Capture = lib/sites/site-clone.ts fetchPage(): plain fetch → RAW HTML. The render bridge (scripts/render-server.mjs, headless browser that injects per-element computed styles as data-cs for fidelity) is OPT-IN + SPA-ONLY: `if (SITE_RENDER_URL && (raw===null || looksLikeSpaShell(raw)))`.
+- Decompose = html-importer.ts htmlToSections() — STRUCTURE-preserving, reads data-cs for styles. Already primary in cloneSectionsFromHtml(); falls back to the LOSSY extractPageContent→contentToBlocks (text headline/sections[] → generic blocks) only if htmlToSections yields <2.
+- TWO loss points:
+  1) Normal sites: static fetch returns raw HTML with NO data-cs → htmlToSections keeps structure but loses computed styles (color/spacing/align) → flat output.
+  2) JS/SPA sites in prod: SITE_RENDER_URL is unset (it's a local node script), so SPA → empty shell → htmlToSections yields nothing → falls to the lossy text rebuild → STRUCTURE LOST.
+- We also now have a "faithful" htmlToSections mode (no composite hero) for design imports, and importHtmlAsDraftPage glue.
 
-QUESTIONS:
-1. Given (1)-(3), do you REVISE your "Stitch not recommended" position? For DESIGN generation specifically, where does Stitch fit vs our deterministic recipe pipeline (Phase 3/4) and vs a Claude-API path?
-2. Architecture ruling: should Stitch be (a) a TEAM tool to author premium templates we import via htmlToSections, (b) a runtime per-tenant generator (blocked by the headless-MCP screen-fetch issue), or (c) not in the product loop — use it only to seed our recipe library?
-3. Is the htmlToSections decomposer the right long-term bridge for ANY external design source (Stitch/Figma/site-capture), or do you want a different contract?
-4. Worth hardening htmlToSections grid→columns detection (the 3-pillar grid came in as a 1-col row of heading+text pairs, not a 3-col row)?
-Be decisive, numbered.
+RULE ON (decisive, numbered):
+1. The CANONICAL autonomous capture pipeline: should EVERY capture (client's own site, or any URL) go through a rendered-DOM-with-computed-styles step (data-cs) by default — i.e. make the render bridge mandatory, not SPA-only — feeding htmlToSections? Or keep static-first with render-fallback?
+2. PROD renderer: SITE_RENDER_URL needs a HOSTED headless browser (the local node script won't run on Vercel). Options: (a) Browserless/ScrapingBee-style hosted endpoint via SITE_RENDER_URL, (b) a Vercel serverless Playwright function, (c) the already-connected Chrome MCP. Which do you rule for prod, given drafts-only + cost?
+3. Should we ELIMINATE the lossy extractPageContent→contentToBlocks fallback for "rebuild my existing site" (replace with: if we can't get a faithful DOM, tell the user we need to render it, rather than silently degrade)? Keep extract only for the "analyze for a NET-NEW build" path?
+4. Fidelity contract: when capture lacks data-cs, should htmlToSections still emit structure-only (current) or should we mark the page low-fidelity and offer a re-capture?
+5. The decision logic: client provides (a) their own site URL, (b) a completed profile/no site, (c) a competitor/not-their site. How should each route through capture→(clone faithfully | generate net-new)? 
+Keep constraints: drafts-only, (tenant_id,website_id) scoped, no auto-publish, Gemini-first cost.

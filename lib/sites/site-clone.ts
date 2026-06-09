@@ -32,15 +32,21 @@ export async function fetchPage(url: string, maxBytes = 600_000): Promise<string
     if (res.ok) raw = (await res.text()).slice(0, maxBytes);
   } catch { /* fall through to render bridge */ }
 
-  // If the raw HTML is a JS-only SPA shell (or the fetch failed), and a local render bridge is
-  // configured, render the page in a real browser and use that DOM instead. Opt-in via env →
-  // a complete no-op in production / when unset, so existing behaviour is unchanged.
+  // FIDELITY (architect D-141): when a render bridge is configured, render EVERY page in a real
+  // browser so we get the fully-rendered DOM annotated with per-element computed styles (data-cs).
+  // Static HTML alone loses styling (and SPA sites lose structure entirely). Was SPA-only/opt-in;
+  // now always-render-when-available. Still a no-op when SITE_RENDER_URL is unset (graceful).
   const bridge = process.env.SITE_RENDER_URL;
-  if (bridge && (raw === null || looksLikeSpaShell(raw))) {
+  if (bridge) {
     try {
       const r = await fetch(`${bridge.replace(/\/+$/, "")}/render?url=${encodeURIComponent(target)}`, { signal: AbortSignal.timeout(60000) });
-      if (r.ok) { const rendered = (await r.text()).slice(0, maxBytes); if (rendered && rendered.length > (raw?.length ?? 0)) return rendered; }
-    } catch { /* keep raw */ }
+      if (r.ok) {
+        const rendered = (await r.text()).slice(0, maxBytes);
+        // Prefer the rendered DOM whenever it carries computed styles (data-cs) or is richer than
+        // the static shell — that is the whole point (fidelity).
+        if (rendered && (rendered.includes("data-cs") || rendered.length > (raw?.length ?? 0))) return rendered;
+      }
+    } catch { /* keep raw below */ }
   }
   return raw;
 }

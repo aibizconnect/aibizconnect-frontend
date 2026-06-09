@@ -1085,14 +1085,17 @@ function slugifyTitle(title: string): string {
  * Fallback: the lighter headline/section extractor if the DOM walk yields nothing.
  */
 function cloneSectionsFromHtml(html: string, baseUrl: string): Record<string, unknown>[] {
+  // Faithful, structure-preserving copy of the client's OWN page (architect D-143/145): keep the
+  // real element order + captured styles via htmlToSections(faithful). We deliberately DO NOT fall
+  // back to the lossy extractPageContent→contentToBlocks text rebuild here — silently degrading a
+  // "rebuild my site" into generic blocks is exactly the structure-loss bug. If this yields
+  // nothing (e.g. a SPA captured without the render bridge), return [] so the caller can flag
+  // low-fidelity and offer a re-capture instead of shipping a degraded page.
   try {
-    const ordered = htmlToSections(html, baseUrl);
-    if (ordered.length >= 2) return ordered;
-  } catch { /* fall back */ }
-  try {
-    const ex = extractPageContent(html, baseUrl);
-    return contentToBlocks(ex).map((b) => b.content);
-  } catch { return []; }
+    return htmlToSections(html, baseUrl, { faithful: true });
+  } catch {
+    return [];
+  }
 }
 
 /** Turn the wizard intake (+ learned existing-site content / competitor research) into a planner brief. */
