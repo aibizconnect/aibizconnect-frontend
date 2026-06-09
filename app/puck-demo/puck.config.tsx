@@ -31,6 +31,37 @@ const FONTS: Record<string, string> = {
 const fontField = { type: "select" as const, label: "Font", options: Object.keys(FONTS).map((f) => ({ label: f, value: f })) };
 const fontSelect = (label: string) => ({ type: "select" as const, label, options: Object.keys(FONTS).map((f) => ({ label: f, value: f })) });
 
+// Responsive header nav: desktop row on wide screens, ☰ hamburger panel on narrow.
+function HeaderNav({ menu, cta, ctaHref, fg, dark }: any) {
+  const [narrow, setNarrow] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { const f = () => setNarrow(window.innerWidth <= 900); f(); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  if (narrow) {
+    return (
+      <div style={{ position: "relative" }}>
+        <button type="button" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ background: "none", border: 0, fontSize: 26, color: fg, cursor: "pointer", lineHeight: 1, padding: 4 }}>{open ? "✕" : "☰"}</button>
+        {open && (
+          <div style={{ position: "absolute", right: 0, top: "calc(100% + 12px)", background: dark ? LX.ink : "#fff", border: `1px solid ${dark ? "#2A251F" : LX.hair}`, borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,.16)", padding: 10, minWidth: 230, zIndex: 50 }}>
+            {(menu || []).map((m: any, i: number) => (
+              <div key={i}>
+                <a href={m.href || "#"} style={{ display: "block", padding: "10px 12px", color: fg, textDecoration: "none", fontFamily: sans, fontSize: 15, fontWeight: 500 }}>{m.label}</a>
+                {(m.children || []).map((c: any, j: number) => <a key={j} href={c.href || "#"} style={{ display: "block", padding: "8px 12px 8px 26px", color: dark ? "#CFC7BB" : LX.body, textDecoration: "none", fontFamily: sans, fontSize: 14 }}>{c.label}</a>)}
+              </div>
+            ))}
+            <a href={ctaHref || "#"} style={{ display: "block", textAlign: "center", marginTop: 8, border: `1px solid ${fg}`, color: fg, font: `600 13px/1 ${sans}`, letterSpacing: 0.5, textTransform: "uppercase", padding: 12, textDecoration: "none" }}>{cta}</a>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <>
+      <div style={{ display: "flex", gap: 28, alignItems: "center" }}>{(menu || []).map((m: any, i: number) => <NavItem key={i} item={m} color={fg} />)}</div>
+      <a href={ctaHref || "#"} style={{ border: `1px solid ${fg}`, color: fg, font: `600 13px/1 ${sans}`, letterSpacing: 0.5, textTransform: "uppercase", padding: "10px 22px", textDecoration: "none" }}>{cta}</a>
+    </>
+  );
+}
+
 // Nav item with hover submenu (for the Header menu editor).
 function NavItem({ item, color }: { item: any; color: string }) {
   const [open, setOpen] = useState(false);
@@ -193,6 +224,11 @@ export const config: Config = {
     },
     render: ({ children, headingFont, bodyFont, customCss }: any) => (
       <div style={{ ["--pk-heading" as any]: FONTS[headingFont] || "'Playfair Display',serif", ["--pk-body" as any]: FONTS[bodyFont] || "'Inter',sans-serif" }}>
+        {/* Base responsive rules: multi-column grids stack on mobile, 3-up → 2-up on tablet. */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width:768px){ .pk-cols{ grid-template-columns:1fr !important; gap:20px !important; } }
+          @media (min-width:769px) and (max-width:1024px){ .pk-cols-3{ grid-template-columns:1fr 1fr !important; } }
+        ` }} />
         {customCss ? <style dangerouslySetInnerHTML={{ __html: customCss }} /> : null}
         {children}
       </div>
@@ -222,7 +258,7 @@ export const config: Config = {
       defaultProps: { gap: 40, _style: { padY: 0, padX: 0 } },
       render: ({ gap, _style }: any) => (
         <div style={outerCss(_style)}>
-          <div style={{ ...innerCss(_style), display: "grid", gridTemplateColumns: "1fr 1fr", gap, alignItems: "center" }}>
+          <div className="pk-cols" style={{ ...innerCss(_style), display: "grid", gridTemplateColumns: "1fr 1fr", gap, alignItems: "center" }}>
             <div><DropZone zone="left" /></div><div><DropZone zone="right" /></div>
           </div>
         </div>
@@ -234,7 +270,7 @@ export const config: Config = {
       defaultProps: { gap: 30, _style: { padY: 0, padX: 0 } },
       render: ({ gap, _style }: any) => (
         <div style={outerCss(_style)}>
-          <div style={{ ...innerCss(_style), display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap, alignItems: "stretch" }}>
+          <div className="pk-cols pk-cols-3" style={{ ...innerCss(_style), display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap, alignItems: "stretch" }}>
             <div><DropZone zone="c1" /></div><div><DropZone zone="c2" /></div><div><DropZone zone="c3" /></div>
           </div>
         </div>
@@ -347,7 +383,7 @@ export const config: Config = {
       defaultProps: { columns: 3, gap: 12, radius: 6, images: PRESET_IMAGES.slice(0, 6).map((u) => ({ url: u })) },
       defaultStyle: { padY: 8 },
       inner: ({ columns, gap, radius, images }: any) => (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns || 3},1fr)`, gap }}>
+        <div className="pk-cols pk-cols-3" style={{ display: "grid", gridTemplateColumns: `repeat(${columns || 3},1fr)`, gap }}>
           {(images || []).map((im: any, i: number) => <img key={i} src={im.url} alt="" style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: radius }} />)}
         </div>
       ),
@@ -417,8 +453,7 @@ export const config: Config = {
               {logoType === "image" && logoImage
                 ? <img src={logoImage} alt={logoText} style={{ height: logoHeight || 30, width: "auto", objectFit: "contain" }} />
                 : <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 600, color: fg }}>{logoText}</div>}
-              <div style={{ display: "flex", gap: 28, alignItems: "center" }}>{(menu || []).map((m: any, i: number) => <NavItem key={i} item={m} color={fg} />)}</div>
-              <a href={ctaHref || "#"} style={{ border: `1px solid ${fg}`, color: fg, font: `600 13px/1 ${sans}`, letterSpacing: 0.5, textTransform: "uppercase", padding: "10px 22px", textDecoration: "none" }}>{cta}</a>
+              <HeaderNav menu={menu} cta={cta} ctaHref={ctaHref} fg={fg} dark={d} />
             </div>
           </div>
         );
@@ -490,7 +525,7 @@ export const config: Config = {
           <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
             <div style={{ font: `600 13px/1 ${sans}`, letterSpacing: 2.2, textTransform: "uppercase", color: LX.gold, marginBottom: 14 }}>{eyebrow}</div>
             <h2 style={{ fontFamily: serif, fontSize: 40, fontWeight: 600, color: LX.ink, margin: "0 0 56px" }}>{title}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 30, textAlign: "left" }}>
+            <div className="pk-cols pk-cols-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 30, textAlign: "left" }}>
               {(cards || []).map((c: any, i: number) => (
                 <div key={i} style={{ background: LX.white, border: `1px solid ${LX.hair}`, padding: "36px 30px" }}>
                   <div style={{ fontSize: 26, color: LX.gold, marginBottom: 18 }}>{c.icon}</div>
@@ -514,7 +549,7 @@ export const config: Config = {
       defaultProps: { bg: LX.ivory, animate: true, duration: 2, stats: [{ value: "120+", label: "Residences" }, { value: "18", label: "Years of craft" }, { value: "100%", label: "Bespoke" }] },
       render: ({ bg, animate, duration, stats }: any) => (
         <div style={{ background: bg || LX.ivory, borderTop: `1px solid ${LX.hair}`, borderBottom: `1px solid ${LX.hair}`, padding: "92px 24px" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: `repeat(${(stats || []).length || 3},1fr)`, gap: 24 }}>
+          <div className="pk-cols pk-cols-3" style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: `repeat(${(stats || []).length || 3},1fr)`, gap: 24 }}>
             {(stats || []).map((s: any, i: number) => (
               <div key={i} style={{ textAlign: "center" }}>
                 <AnimatedNumber value={s.value} animate={animate !== false} duration={duration || 2}
