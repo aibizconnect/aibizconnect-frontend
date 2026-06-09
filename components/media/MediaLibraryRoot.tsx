@@ -108,6 +108,7 @@ export default function MediaLibraryRoot({
   const [confirmState, setConfirmState] = useState<{ text: string; resolve: (v: boolean) => void } | null>(null);
   const ask = (text: string) => new Promise<boolean>((resolve) => setConfirmState({ text, resolve }));
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [moveProgress, setMoveProgress] = useState<{ done: number; total: number } | null>(null);
   const [tagBusy, setTagBusy] = useState(false);
   async function tagFromNames() {
     setTagBusy(true);
@@ -347,11 +348,21 @@ export default function MediaLibraryRoot({
     const ids = Array.from(selected);
     if (!ids.length) return;
     if (!(await ask(`Add ${ids.length} photo(s) to the System library (available to all tenants)? Your originals stay in your media.`))) return;
+    // Promote in small chunks so we can show live copy progress (and avoid one long request).
+    let promoted = 0, skipped = 0;
+    const CHUNK = 3;
+    setMoveProgress({ done: 0, total: ids.length });
     try {
-      const r = await promoteMediaToSystem(tenantId, ids);
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const r = await promoteMediaToSystem(tenantId, chunk);
+        promoted += r.promoted; skipped += r.skipped;
+        setMoveProgress({ done: Math.min(ids.length, i + chunk.length), total: ids.length });
+      }
       setSelected(new Set()); reloadMedia();
-      notify(`Added ${r.promoted} to System${r.skipped ? `, skipped ${r.skipped} (duplicates/errors)` : ""}.`);
+      notify(`Added ${promoted} to System${skipped ? `, skipped ${skipped} (duplicates/errors)` : ""}.`);
     } catch (e: any) { notify(e?.message ?? "Could not move to System."); }
+    finally { setMoveProgress(null); }
   }
 
   // Admin/staff: remove a promoted/uploaded SYSTEM photo (not the bundled SVG packs).
@@ -676,6 +687,19 @@ export default function MediaLibraryRoot({
             </p>
             <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-[#1e3a8a] transition-all duration-300" style={{ width: `${uploadProgress.total ? Math.max(8, Math.round((uploadProgress.done / uploadProgress.total) * 100)) : 8}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-slate-400">Please keep this tab open.</p>
+          </div>
+        </div>
+      )}
+      {moveProgress && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <p className="text-sm font-medium text-slate-800">
+              {moveProgress.done >= moveProgress.total ? "Finishing up…" : `Copying ${moveProgress.done} of ${moveProgress.total} to System…`}
+            </p>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-[#1e3a8a] transition-all duration-300" style={{ width: `${moveProgress.total ? Math.max(8, Math.round((moveProgress.done / moveProgress.total) * 100)) : 8}%` }} />
             </div>
             <p className="mt-2 text-xs text-slate-400">Please keep this tab open.</p>
           </div>
