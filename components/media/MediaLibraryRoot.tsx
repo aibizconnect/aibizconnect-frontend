@@ -349,20 +349,22 @@ export default function MediaLibraryRoot({
     if (!ids.length) return;
     if (!(await ask(`Add ${ids.length} photo(s) to the System library (available to all tenants)? Your originals stay in your media.`))) return;
     // Promote in small chunks so we can show live copy progress (and avoid one long request).
-    let promoted = 0, skipped = 0;
+    // Each chunk is isolated — a failure or duplicate in one NEVER aborts the rest.
+    let promoted = 0, skipped = 0, failed = 0;
     const CHUNK = 3;
     setMoveProgress({ done: 0, total: ids.length });
     try {
       for (let i = 0; i < ids.length; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK);
-        const r = await promoteMediaToSystem(tenantId, chunk);
-        promoted += r.promoted; skipped += r.skipped;
+        try {
+          const r = await promoteMediaToSystem(tenantId, chunk);
+          promoted += r.promoted; skipped += r.skipped;
+        } catch { failed += chunk.length; } // keep going with the remaining chunks
         setMoveProgress({ done: Math.min(ids.length, i + chunk.length), total: ids.length });
       }
       setSelected(new Set()); reloadMedia();
-      notify(`Added ${promoted} to System${skipped ? `, skipped ${skipped} (duplicates/errors)` : ""}.`);
-    } catch (e: any) { notify(e?.message ?? "Could not move to System."); }
-    finally { setMoveProgress(null); }
+      notify(`Added ${promoted} to System${skipped ? `, skipped ${skipped} already there` : ""}${failed ? `, ${failed} failed` : ""}.`);
+    } finally { setMoveProgress(null); }
   }
 
   // Admin/staff: remove a promoted/uploaded SYSTEM photo (not the bundled SVG packs).

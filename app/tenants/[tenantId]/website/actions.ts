@@ -2300,7 +2300,6 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
   const { canManageSystemLibrary } = await import("@/lib/auth/platform-admin");
   if (!(await canManageSystemLibrary())) throw new Error("Not authorized — AI Biz Connect admin/staff only.");
   const supabase = createSupabaseServiceClient();
-  const base = Date.now();
   let promoted = 0, skipped = 0;
   const errors: string[] = [];
   // Resolve a single "Promoted" system folder ONCE (no per-image AI vision — that made a
@@ -2314,23 +2313,33 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
 
   // Promote in parallel: each item is just a storage copy + insert (fast), so a batch of N
   // completes well within the action budget. Failures are isolated per item.
-  await Promise.all(mediaIds.map(async (id, i) => {
+  await Promise.all(mediaIds.map(async (id) => {
     try {
       const { data: row } = await supabase
         .from("website_media").select("url, storage_path, filename, mime_type, size_bytes, tags")
         .eq("tenant_id", tenantId).eq("id", id).maybeSingle();
       if (!row) { skipped++; return; }
       const r = row as any;
-      // Already in System? (same URL) — skip duplicates.
-      const { data: dup } = await supabase
-        .from("website_media").select("id").eq("tenant_id", SYSTEM_TENANT_ID).eq("url", r.url).limit(1);
-      if (dup && dup.length) { skipped++; return; }
+      const ext = (r.filename?.split(".").pop() || "png").toLowerCase();
+      // Deterministic System path keyed off the SOURCE media id → re-promoting the same
+      // asset always maps to the same path, so duplicates are detected reliably (the old
+      // check compared the tenant URL against the post-copy System URL and never matched).
+      const dest = `${SYSTEM_TENANT_ID}/uploads/promoted/${id}.${ext}`;
+      // Dedup by the deterministic dest path (safe, no special-char issues). For external
+      // images (no storage_path) fall back to a URL match.
+      const { data: dupPath } = await supabase
+        .from("website_media").select("id").eq("tenant_id", SYSTEM_TENANT_ID).eq("storage_path", dest).limit(1);
+      let isDup = !!(dupPath && dupPath.length);
+      if (!isDup && !r.storage_path) {
+        const { data: dupUrl } = await supabase
+          .from("website_media").select("id").eq("tenant_id", SYSTEM_TENANT_ID).eq("url", r.url).limit(1);
+        isDup = !!(dupUrl && dupUrl.length);
+      }
+      if (isDup) { skipped++; return; }
 
       let url = r.url as string;
       let storagePath: string | null = null;
-      const ext = (r.filename?.split(".").pop() || "png").toLowerCase();
       if (r.storage_path) {
-        const dest = `${SYSTEM_TENANT_ID}/uploads/promoted/${base}-${i}.${ext}`;
         const copy = await copyObject(r.storage_path, dest);
         if (copy.ok) { storagePath = dest; url = copy.publicUrl || url; }
         // If copy fails (e.g. cross-path perms), fall back to referencing the original URL.
