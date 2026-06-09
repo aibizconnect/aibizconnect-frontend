@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { SectionType, SectionContent } from "@/lib/sections/schemas";
 import { PREBUILT_TEMPLATES, PREBUILT_CATEGORIES, applyTemplateImages, type PrebuiltTemplate } from "@/lib/sections/prebuilt-templates";
+import { LAYOUT_RECIPES, composeSection, type LayoutRecipe } from "@/lib/sections/layout-recipes";
 import { listMedia } from "@/app/tenants/[tenantId]/website/actions";
 import { SectionView } from "@/components/sections/registry";
 import { DEFAULT_THEME } from "@/lib/sections/theme";
@@ -94,6 +95,24 @@ function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?
 }
 
 type HoverState = { t: PrebuiltTemplate; sections: SectionContent[]; top: number; left: number } | null;
+
+/** One Phase-3 layout recipe as an insertable row. Composes the recipe with on-brand
+ *  fact-free defaults; the section inherits the site theme via --abc-* tokens. */
+function RecipeRow({ r, onInsert }: { r: LayoutRecipe; onInsert?: (sections: SectionContent[]) => void }) {
+  const compose = () => [composeSection(r) as unknown as SectionContent];
+  return (
+    <button
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/abc-template", JSON.stringify(compose())); }}
+      onClick={() => onInsert?.(compose())}
+      title={`${r.name} — generated, on-brand`}
+      className="group flex w-full cursor-grab items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-sky-400 text-[12px] text-white">✦</span>
+      <span className="flex-1 truncate text-[13px] font-medium text-slate-900">{r.name}</span>
+      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">{r.semanticType}</span>
+    </button>
+  );
+}
 
 /** One prebuilt template as a list row (GHL-style). Minimal icon + name; hovering opens
  *  the larger FLOATING preview to the right. Drag onto the canvas or click to insert. */
@@ -193,6 +212,7 @@ function AddAccordion(props: {
   type Item = { key: string; title: string } & (
     | { kind: "group"; items: QuickItem[] }
     | { kind: "prebuiltCat"; templates: PrebuiltTemplate[] }
+    | { kind: "recipes"; recipes: LayoutRecipe[] }
     | { kind: "saved" } | { kind: "soon" }
   );
   const items: Item[] = [];
@@ -202,6 +222,10 @@ function AddAccordion(props: {
       if (its.length) items.push({ key: g.group, title: g.group, kind: "group", items: its });
     }
   } else {
+    // AI Sections (Beta) — token-driven generated recipes (Phase-3). Insert composes the
+    // recipe with on-brand fact-free defaults; --abc-* tokens make it match the site theme.
+    const recs = LAYOUT_RECIPES.filter((r) => r.name.toLowerCase().includes(ql));
+    if (recs.length) items.push({ key: "recipes", title: "AI Sections (Beta)", kind: "recipes", recipes: recs });
     // Each Prebuilt category is its own collapsible header (like the element groups),
     // expanding to its templates as one-per-row items.
     for (const cat of PREBUILT_CATEGORIES) {
@@ -215,7 +239,7 @@ function AddAccordion(props: {
   return (
     <div className="flex flex-col">
       {items.map((it, i) => {
-        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat") : (it.key in open ? open[it.key] : i === 0);
+        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat" || it.kind === "recipes") : (it.key in open ? open[it.key] : i === 0);
         const soon = it.kind === "soon";
         return (
           <div key={it.key} className="border-b border-slate-100 last:border-0">
@@ -227,6 +251,7 @@ function AddAccordion(props: {
               <span className="flex items-center gap-1.5 text-slate-400">
                 {it.kind === "group" && <span className="text-[10px]">{it.items.length}</span>}
                 {it.kind === "prebuiltCat" && <span className="text-[10px]">{it.templates.length}</span>}
+                {it.kind === "recipes" && <span className="text-[10px]">{it.recipes.length}</span>}
                 <Chevron open={isOpen} />
               </span>
             </button>
@@ -234,6 +259,7 @@ function AddAccordion(props: {
               <div className="pb-3.5 pt-0.5">
                 {it.kind === "group" && <div className="flex flex-col gap-1.5">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
                 {it.kind === "prebuiltCat" && <div className="flex flex-col gap-2">{it.templates.map((t) => <PrebuiltRow key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>}
+                {it.kind === "recipes" && <div className="flex flex-col gap-1.5">{it.recipes.map((r) => <RecipeRow key={r.key} r={r} onInsert={onInsert} />)}</div>}
                 {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
                 {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
               </div>
