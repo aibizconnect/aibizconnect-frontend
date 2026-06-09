@@ -134,6 +134,7 @@ export async function generateSite(tenantId: string, websiteId: string): Promise
   const createdPages: GenerateResult["createdPages"] = [];
   const buildNotes: string[] = [];
   let pagesWithHeroCta = 0;
+  const aiBudget = { left: 3 }; // AI hero-image cap shared across this build (architect D-134).
   for (const n of tree) {
     // Resolve sections: rebuilt pages reuse their blocks; new pages get fact-free templated copy.
     let sections: Record<string, unknown>[] = [];
@@ -151,6 +152,12 @@ export async function generateSite(tenantId: string, websiteId: string): Promise
     if (hasHero && hasCta) pagesWithHeroCta++;
     try {
       const page = await createPage(tenantId, { title: n.title, slug: n.slug, isHome: n.page_type === "home", websiteId });
+      // Ingest external/stock images into the tenant Media Library + rewrite URLs (durable,
+      // reusable). AI hero fill capped across this build. Best-effort.
+      try {
+        const { ingestSectionImages } = await import("@/lib/sites/image-ingestion");
+        sections = await ingestSectionImages(tenantId, sections as any[], { websiteId, aiBudget, profile: { businessName: (profile as any)?.businessName, industry: (profile as any)?.industry, tone: (profile as any)?.tone } }) as any[];
+      } catch { /* keep originals */ }
       await saveDraft(page.id, tenantId, { draft_sections: sections as any });
       createdPages.push({ id: page.id, title: page.title, slug: page.slug });
     } catch (e: any) { buildNotes.push(`"${n.title}" skipped: ${e?.message ?? e}`); }

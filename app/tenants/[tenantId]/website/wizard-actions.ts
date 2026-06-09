@@ -741,6 +741,9 @@ export async function generateWizardPages(
   let created = 0;
   const usedSlugs = new Set<string>();
   let homeAssigned = false;
+  // AI hero-image budget shared across the whole build (architect cap: 3 per build).
+  const aiBudget = { left: 3 };
+  const aiProfile = { businessName: (wizard as any)?.businessName, industry: (wizard as any)?.industry || (wizard as any)?.niche, tone: (wizard as any)?.tone };
   for (const pg of chosen) {
     let base = (pg.slug || pg.title || "page").toLowerCase()
       .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "page";
@@ -772,6 +775,14 @@ export async function generateWizardPages(
         if (Array.isArray(src.schemas) && src.schemas.length) draft_seo.schemas = src.schemas;
         if (src.canonical) draft_seo.canonical_url = src.canonical;
         if (src.image) { draft_seo.image = src.image; draft_seo.seo_image_url = src.image; }
+      }
+      // Ingest external/stock images into the tenant Media Library + rewrite URLs (durable,
+      // reusable), and AI-fill a missing hero where enabled (capped per build). Best-effort.
+      if (sections.length) {
+        try {
+          const { ingestSectionImages } = await import("@/lib/sites/image-ingestion");
+          sections = await ingestSectionImages(tenantId, sections as any[], { websiteId, aiBudget, profile: aiProfile }) as any[];
+        } catch { /* keep originals on failure */ }
       }
       await saveDraft(page.id, tenantId, {
         ...(sections.length ? { draft_sections: sections as any } : {}),
@@ -904,6 +915,18 @@ export async function addSuggestedPage(
       const { applyTemplateImages } = await import("@/lib/sections/prebuilt-templates");
       sections = applyTemplateImages(sections as any, learnedImages) as any[];
     } catch { /* keep originals */ }
+  }
+  // Ingest images into the tenant Media Library + rewrite URLs (durable/reusable). One AI hero
+  // allowed for this single page when enabled. Best-effort.
+  if (sections.length) {
+    try {
+      const { ingestSectionImages } = await import("@/lib/sites/image-ingestion");
+      sections = await ingestSectionImages(tenantId, sections as any[], {
+        websiteId,
+        aiBudget: { left: 1 },
+        profile: { businessName: (w as any)?.businessName, industry: (w as any)?.industry || (w as any)?.niche, tone: (w as any)?.tone },
+      }) as any[];
+    } catch { /* keep originals on failure */ }
   }
   try {
     await saveDraft(page.id, tenantId, {
