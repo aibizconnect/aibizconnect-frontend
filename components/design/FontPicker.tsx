@@ -1,26 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GOOGLE_FONTS, ensureAllGoogleFonts, ensureGoogleFont, fontStack } from "@/lib/fonts";
 
 /**
- * Google-Fonts picker: a button showing the current font, opening a scrollable
- * list where each family is rendered in its own typeface (Canva/polished).
- * Size & weight are set elsewhere (the right-column typography fields).
+ * Google-Fonts picker: a button showing the current font, opening a scrollable list where
+ * each family renders in its own typeface. The dropdown is PORTALED to <body> with fixed
+ * positioning so it's never clipped by a parent's overflow (e.g. the floating left panel).
  */
 export default function FontPicker({ value, onChange, customFonts = [] }: { value?: string; onChange: (v: string) => void; customFonts?: string[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
 
-  // Load the catalogue when first opened so each name shows in its own face.
   useEffect(() => { if (open) ensureAllGoogleFonts(); }, [open]);
-  // Keep the current selection rendering even before opening.
   useEffect(() => { ensureGoogleFont(value); }, [value]);
-  // Close on outside click.
+  // Close on outside click (button + portaled menu are the "inside").
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
@@ -31,6 +36,20 @@ export default function FontPicker({ value, onChange, customFonts = [] }: { valu
   const googleMatches = GOOGLE_FONTS.filter(match);
   const showDefault = match("");
   const total = customMatches.length + googleMatches.length + (showDefault ? 1 : 0);
+
+  const toggle = () => {
+    if (!open) {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) {
+        const width = Math.max(r.width, 224);
+        const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+        const top = Math.min(r.bottom + 4, window.innerHeight - 300);
+        setPos({ top: Math.max(8, top), left, width });
+      }
+      setQ("");
+    }
+    setOpen((o) => !o);
+  };
 
   const Option = (f: string) => (
     <button key={f || "default"} type="button"
@@ -43,15 +62,16 @@ export default function FontPicker({ value, onChange, customFonts = [] }: { valu
   );
 
   return (
-    <div ref={ref} className="relative w-44">
-      <button type="button" onClick={() => setOpen((o) => !o)}
+    <div className="relative w-44">
+      <button ref={btnRef} type="button" onClick={toggle}
         className="flex w-full items-center justify-between rounded border border-gray-300 px-2 py-1 text-sm hover:border-gray-400"
         style={{ fontFamily: fontStack(value) }}>
         <span className="truncate">{current}</span>
         <span className="ml-1 shrink-0 text-gray-400">▾</span>
       </button>
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 max-h-72 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+      {open && pos && createPortal(
+        <div ref={popRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
+          className="z-[9998] max-h-72 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search fonts…"
             className="w-full border-b border-gray-100 px-3 py-2 text-sm outline-none" />
           <div className="max-h-60 overflow-y-auto py-1">
@@ -67,7 +87,8 @@ export default function FontPicker({ value, onChange, customFonts = [] }: { valu
             {googleMatches.map(Option)}
             {total === 0 && <p className="px-3 py-2 text-xs text-gray-400">No matches</p>}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
