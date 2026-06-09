@@ -24,6 +24,12 @@ function looksLikeSpaShell(html: string): boolean {
   return hasEmptyMount || (!hasStructure && textLen < 300);
 }
 
+/** Bearer header for the render bridge when SITE_RENDER_TOKEN is configured (prod, public bridge). */
+function renderAuthHeaders(): Record<string, string> {
+  const t = process.env.SITE_RENDER_TOKEN;
+  return t ? { authorization: `Bearer ${t}` } : {};
+}
+
 export async function fetchPage(url: string, maxBytes = 600_000): Promise<string | null> {
   const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
   let raw: string | null = null;
@@ -39,7 +45,7 @@ export async function fetchPage(url: string, maxBytes = 600_000): Promise<string
   const bridge = process.env.SITE_RENDER_URL;
   if (bridge) {
     try {
-      const r = await fetch(`${bridge.replace(/\/+$/, "")}/render?url=${encodeURIComponent(target)}`, { signal: AbortSignal.timeout(60000) });
+      const r = await fetch(`${bridge.replace(/\/+$/, "")}/render?url=${encodeURIComponent(target)}`, { signal: AbortSignal.timeout(60000), headers: renderAuthHeaders() });
       if (r.ok) {
         const rendered = (await r.text()).slice(0, maxBytes);
         // Prefer the rendered DOM whenever it carries computed styles (data-cs) or is richer than
@@ -63,7 +69,7 @@ export async function renderHtmlToDom(html: string, maxBytes = 1_500_000): Promi
   try {
     const r = await fetch(`${bridge.replace(/\/+$/, "")}/render-html`, {
       method: "POST",
-      headers: { "content-type": "text/html; charset=utf-8" },
+      headers: { "content-type": "text/html; charset=utf-8", ...renderAuthHeaders() },
       body: html,
       signal: AbortSignal.timeout(60000),
     });

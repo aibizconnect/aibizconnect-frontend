@@ -22,11 +22,20 @@ const PORT = Number(process.env.RENDER_PORT || 8787);
 const CDP = process.env.CHROME_CDP_URL || "http://127.0.0.1:9222";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+// In prod the bridge runs in a container (Playwright base image) with bundled Chromium and no CDP
+// Chrome — set RENDER_USE_BUNDLED=1 to skip the CDP/system-Chrome attempts and launch directly.
+const USE_BUNDLED = process.env.RENDER_USE_BUNDLED === "1";
+const LAUNCH_ARGS = ["--no-sandbox", "--disable-dev-shm-usage"]; // required in most containers
 let browser = null;
 async function getBrowser() {
   if (browser && browser.isConnected()) return browser;
-  try { browser = await chromium.connectOverCDP(CDP); console.log("[render] using existing Chrome via CDP", CDP); }
-  catch { browser = await chromium.launch({ channel: "chrome", headless: true }); console.log("[render] launched headless system Chrome"); }
+  if (!USE_BUNDLED) {
+    try { browser = await chromium.connectOverCDP(CDP); console.log("[render] using existing Chrome via CDP", CDP); return browser; } catch { /* try launch */ }
+    try { browser = await chromium.launch({ channel: "chrome", headless: true, args: LAUNCH_ARGS }); console.log("[render] launched headless system Chrome"); return browser; } catch { /* fall through to bundled */ }
+  }
+  // Bundled Chromium (works in the Playwright Docker image / any host without system Chrome).
+  browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
+  console.log("[render] launched bundled Chromium");
   return browser;
 }
 
@@ -121,9 +130,22 @@ const readBody = (req, cap = 4_000_000) => new Promise((resolve, reject) => {
   req.on("error", reject);
 });
 
+// Optional shared-secret: when RENDER_TOKEN is set (recommended in prod since the bridge is public),
+// require it via `Authorization: Bearer <token>` or `?token=`. Health check stays open.
+const TOKEN = process.env.RENDER_TOKEN || "";
+const authed = (req, url) => {
+  if (!TOKEN) return true;
+  const h = req.headers["authorization"] || "";
+  if (h === `Bearer ${TOKEN}`) return true;
+  return url.searchParams.get("token") === TOKEN;
+};
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
+    // GET /healthz — liveness probe (open, no token).
+    if (url.pathname === "/healthz") { res.writeHead(200, { "content-type": "text/plain" }); return res.end("ok"); }
+    if (!authed(req, url)) { res.writeHead(401, { "content-type": "text/plain" }); return res.end("unauthorized"); }
     // GET /render?url=<page> — render a live URL.
     if (url.pathname === "/render") {
       const target = url.searchParams.get("url");

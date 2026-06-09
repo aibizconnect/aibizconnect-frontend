@@ -1,0 +1,13 @@
+{
+  "name": "aibizconnect-render-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless render bridge: resolves a URL or raw HTML to a DOM annotated with computed styles (data-cs).",
+  "scripts": {
+    "start": "node render-server.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.48.0"
+  }
+}
