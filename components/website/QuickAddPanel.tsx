@@ -78,16 +78,17 @@ const Chevron = ({ open }: { open: boolean }) => (
 );
 
 function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?: number) => void }) {
+  // One per row — a full-width horizontal item (icon + label), stacked in a single column.
   return (
     <button disabled={!!it.soon} draggable={!it.soon}
       onDragStart={(e) => { if (it.type) e.dataTransfer.setData("text/abc-element", it.cols ? `row:${it.cols}` : it.type); }}
       onClick={() => it.type && onPick(it.type, it.cols)}
-      className={`group flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition ${it.soon ? "cursor-not-allowed border-slate-100 opacity-50" : "cursor-grab border-slate-200 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm active:cursor-grabbing"}`}>
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-900">
+      className={`group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition ${it.soon ? "cursor-not-allowed border-slate-100 opacity-50" : "cursor-grab border-slate-200 hover:border-slate-400 hover:bg-slate-50 active:cursor-grabbing"}`}>
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-900">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d={it.icon} /></svg>
       </span>
-      <span className="text-[11px] font-medium leading-tight text-slate-700">{it.label}</span>
-      {it.soon && <span className="text-[8px] uppercase text-slate-400">soon</span>}
+      <span className="text-[13px] font-medium text-slate-700">{it.label}</span>
+      {it.soon && <span className="ml-auto text-[8px] uppercase text-slate-400">soon</span>}
     </button>
   );
 }
@@ -220,7 +221,7 @@ function AddAccordion(props: {
             </button>
             {isOpen && (
               <div className="pb-3.5 pt-0.5">
-                {it.kind === "group" && <div className="grid grid-cols-2 gap-2">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
+                {it.kind === "group" && <div className="flex flex-col gap-1.5">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
                 {it.kind === "prebuilt" && <div className="h-[440px]"><PrebuiltTemplates q={q} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} cat={prebuiltCat} setCat={setPrebuiltCat} /></div>}
                 {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
                 {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
