@@ -17,7 +17,7 @@ export default async function TenantLayout({
     <div className="min-h-screen bg-slate-50">
       <LeftNav tenantId={tenantId} user={user} canImpersonate={canImpersonate} actingAs={imp.actingAs} isPlatformAdmin={isPlatformAdmin} />
 
-      <main className="ml-[248px] min-h-screen text-slate-900">
+      <main className="min-h-screen text-slate-900 transition-[margin] duration-200" style={{ marginLeft: "var(--nav-w, 248px)" }}>
         {imp.actingAs && <ImpersonationBanner actingAs={imp.actingAs} realEmail={imp.realEmail} />}
         <div className="p-8">{children}</div>
       </main>

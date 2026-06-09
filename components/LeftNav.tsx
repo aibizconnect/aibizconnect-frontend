@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { startImpersonation } from "@/app/tenants/[tenantId]/website/actions";
 
 /**
@@ -89,6 +89,14 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
   const [actEmail, setActEmail] = useState("");
   const [actBusy, setActBusy] = useState(false);
   const [actErr, setActErr] = useState<string | null>(null);
+  // Collapsed (icons-only) state, persisted; drives a --nav-w CSS var so the page content
+  // (main margin-left: var(--nav-w)) follows the rail width.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { setCollapsed(localStorage.getItem("nav-collapsed") === "1"); }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--nav-w", collapsed ? "72px" : "248px");
+    try { localStorage.setItem("nav-collapsed", collapsed ? "1" : "0"); } catch { /* ignore */ }
+  }, [collapsed]);
 
   async function beginActAs(e: React.FormEvent) {
     e.preventDefault();
@@ -103,72 +111,78 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
   const Row = ({ item }: { item: Item }) => {
     const href = item.route ? `/tenants/${tenantId}/${item.route}` : "#";
     const active = !!item.route && pathname.startsWith(href);
-    const base = "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition";
+    const base = `group flex items-center gap-3 rounded-lg py-2 text-sm transition ${collapsed ? "justify-center px-2" : "px-3"}`;
     if (item.soon) {
       return (
-        <div className={`${base} cursor-default text-slate-500`} title="Coming soon">
+        <div className={`${base} cursor-default text-slate-500`} title={collapsed ? `${item.label} — coming soon` : "Coming soon"}>
           <Icon k={item.key} />
-          <span className="flex-1">{item.label}</span>
-          <span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-slate-400">soon</span>
+          {!collapsed && <><span className="flex-1">{item.label}</span><span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-slate-400">soon</span></>}
         </div>
       );
     }
     return (
-      <Link href={href} className={`${base} ${active ? "bg-[#1e3a8a] font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+      <Link href={href} title={collapsed ? item.label : undefined} className={`${base} ${active ? "bg-[#1e3a8a] font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
         <Icon k={item.key} />
-        <span>{item.label}</span>
+        {!collapsed && <span>{item.label}</span>}
       </Link>
     );
   };
+  const pad = collapsed ? "px-2" : "px-3";
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-[248px] flex-col bg-[#0a1628] text-slate-200">
-      {/* Brand */}
-      <div className="flex items-center justify-center border-b border-white/5 px-4 py-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logos/wordmark-white.png" alt="AIBizConnect" className="h-6 w-auto" />
+    <aside className={`fixed left-0 top-0 z-40 flex h-screen flex-col bg-[#0a1628] text-slate-200 transition-[width] duration-200 ${collapsed ? "w-[72px]" : "w-[248px]"}`}>
+      {/* Brand + collapse toggle */}
+      <div className={`flex items-center border-b border-white/5 py-4 ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
+        {!collapsed && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/logos/wordmark-white.png" alt="AIBizConnect" className="h-6 w-auto" />
+        )}
+        <button onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Expand menu" : "Collapse menu"}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 transition-transform ${collapsed ? "rotate-180" : ""}`}><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
       </div>
 
       {/* Tenant chip */}
-      <div className="px-3 pt-3">
-        <button className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left hover:bg-white/10">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-[#2563eb] to-[#22d3ee] text-[11px] font-bold text-white">AB</span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-white">AI Biz Connect</span>
-            <span className="block truncate text-[11px] text-slate-400">{user ? `Signed in: ${user.name}` : "Richmond Hill, Ontario"}</span>
-          </span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-slate-400"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
+      <div className={`${pad} pt-3`}>
+        <button title="AI Biz Connect" className={`flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#2563eb] to-[#22d3ee] text-[11px] font-bold text-white">AB</span>
+          {!collapsed && <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-white">AI Biz Connect</span>
+              <span className="block truncate text-[11px] text-slate-400">{user ? `Signed in: ${user.name}` : "Richmond Hill, Ontario"}</span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-slate-400"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
+          </>}
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 pt-3">
-        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-400">
+      <div className={`${pad} pt-3`}>
+        <div title="Search" className={`flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 text-slate-400 ${collapsed ? "justify-center p-2" : "px-3 py-2 text-sm"}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-          <span className="flex-1">Search</span>
-          <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">ctrlK</span>
+          {!collapsed && <><span className="flex-1">Search</span><span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">ctrlK</span></>}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+      <nav className={`mt-3 flex-1 space-y-0.5 overflow-y-auto pb-4 ${pad}`}>
         {GROUP_1.map((i) => <Row key={i.key} item={i} />)}
         <div className="my-2 border-t border-white/5" />
         {GROUP_2.map((i) => <Row key={i.key} item={i} />)}
         <div className="my-2 border-t border-white/5" />
         {canImpersonate && <Row item={{ label: "Team", key: "contacts", route: "team" }} />}
         {isPlatformAdmin && (
-          <Link href="/platform" className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white" title="Platform admin panel">
+          <Link href="/platform" title="Platform admin panel" className={`group flex items-center gap-3 rounded-lg py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white ${collapsed ? "justify-center px-2" : "px-3"}`}>
             <Icon k="settings" />
-            <span className="flex-1">Platform</span>
-            <span className="rounded bg-violet-500/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-violet-200">admin</span>
+            {!collapsed && <><span className="flex-1">Platform</span><span className="rounded bg-violet-500/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-violet-200">admin</span></>}
           </Link>
         )}
         <Row item={{ label: "Settings", key: "settings", route: "settings" }} />
       </nav>
 
-      {/* Superadmin: act as another team member */}
-      {canImpersonate && !actingAs && (
+      {/* Superadmin: act as another team member (hidden when collapsed) */}
+      {canImpersonate && !actingAs && !collapsed && (
         <div className="border-t border-white/5 px-3 py-2">
           {actOpen ? (
             <form onSubmit={beginActAs} className="space-y-1.5">
@@ -192,24 +206,35 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
       )}
 
       {/* Signed-in user (or a sign-in prompt when no session) */}
-      <div className="border-t border-white/5 px-3 py-3">
+      <div className={`border-t border-white/5 py-3 ${pad}`}>
         {user ? (
-          <div className="flex items-center gap-2">
-            <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[11px] font-bold text-white">{initials(user.name)}</Link>
-            <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-white hover:underline">{user.name}</span>
-              <span className="block truncate text-[11px] text-slate-400">{user.email}</span>
-            </Link>
-            <form action="/auth/signout" method="post">
-              <button type="submit" title="Sign out" className="rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
-              </button>
-            </form>
-          </div>
+          collapsed ? (
+            <div className="flex flex-col items-center gap-2">
+              <Link href={`/tenants/${tenantId}/account`} title={`${user.name} — account`} className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[11px] font-bold text-white">{initials(user.name)}</Link>
+              <form action="/auth/signout" method="post">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[11px] font-bold text-white">{initials(user.name)}</Link>
+              <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-white hover:underline">{user.name}</span>
+                <span className="block truncate text-[11px] text-slate-400">{user.email}</span>
+              </Link>
+              <form action="/auth/signout" method="post">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+                </button>
+              </form>
+            </div>
+          )
         ) : (
-          <Link href="/login" className="flex items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20">
+          <Link href="/login" title="Sign in" className={`flex items-center justify-center gap-2 rounded-lg bg-white/10 py-2 text-sm font-medium text-white transition hover:bg-white/20 ${collapsed ? "px-2" : "px-3"}`}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" /></svg>
-            Sign in
+            {!collapsed && "Sign in"}
           </Link>
         )}
       </div>
