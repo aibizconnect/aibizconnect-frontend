@@ -1,0 +1,18 @@
+{
+  "name": "aibizconnect-render-bridge-cf",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker render bridge (Browser Rendering): URL/HTML → DOM annotated with computed styles (data-cs).",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^0.0.14"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0",
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.6.2"
+  }
+}

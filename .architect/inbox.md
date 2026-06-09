@@ -1,48 +1,39 @@
-# Brief: host our agents + render bridge in prod → fully autonomous website pipeline
+# Decision request: host the render bridge on Cloudflare (reuse existing account)
 
-Ali's goal: "our agents live on a host and EVERYTHING is autonomous." Today the autonomous
-build/import pipeline only reaches true fidelity locally because the render bridge
-(`scripts/render-server.mjs`, a Playwright headless browser) runs on Ali's machine. We need a
-production architecture where the pipeline runs server-side with NO manual steps.
+Ali wants ONE place, not a new host. We already use Cloudflare (R2 for all media:
+R2_ACCOUNT_ID/R2_BUCKET/R2_PUBLIC_BASE). App is on Vercel. You earlier ruled self-host on
+Fly.io (D-158) — Ali prefers Cloudflare to consolidate. Please re-evaluate and rule.
 
-## Current state (what exists)
-- App: Next.js (App Router) on Vercel, Supabase + external backend, R2 media.
-- Build pipeline: `wizard-actions.generateWizardPages` → clone/AI/Stitch → editable draft pages.
-- Stitch path (autonomous, via Stitch MCP): create design system → generate screens →
-  `importStitchScreen` → render bridge resolves Tailwind → `htmlToSections` → image ingestion.
-- Render bridge: `scripts/render-server.mjs` exposes `GET /render?url=` and `POST /render-html`,
-  annotates every element with computed styles (`data-cs`) + harvests @font-face/:root/keyframes.
-  Gated by `SITE_RENDER_URL`. NOT deployed in prod → prod imports are low-fidelity.
-- MCPs (Stitch, etc.) are available inside the Claude/agent session, NOT to the Vercel runtime.
+## The need (unchanged)
+A service that loads a URL or RAW HTML in headless Chromium and returns the DOM annotated with
+per-element computed styles (data-cs) + harvested @font-face/:root/keyframes. This is our custom
+in-page annotation (page.evaluate over a KEEP whitelist), NOT a screenshot/scrape — see
+scripts/render-server.mjs (`/render?url=`, `POST /render-html`). Stitch exports are Tailwind-CDN
+classes that only resolve in a real browser, so fidelity REQUIRES this.
 
-## The two hard questions
-1. **Render bridge hosting.** Vercel serverless can't run a persistent Playwright Chromium. Options:
-   (a) Browserless.io / ScrapingBee (managed headless) — point `SITE_RENDER_URL` at it, but our
-   `data-cs` annotation + CDN-Tailwind settle logic is custom — can we run our annotation script via
-   their `/function` or BrowserQL, or do we self-host? (b) Self-host `render-server.mjs` as a small
-   always-on container (Fly.io / Render.com / Railway / a cheap VPS) — cheapest control, we own the
-   annotation. (c) Cloud Run / a serverless container with playwright. Rank these for cost + fidelity
-   + ops, and pick a default.
-2. **Autonomous agent execution in prod.** Today the orchestration (call Stitch MCP, decide pages,
-   import) happens in an interactive Claude session. To be autonomous server-side we need a headless
-   agent runner. Options: (a) Claude Agent SDK running on the same host as the render bridge, driven
-   by a queue/cron, with the Stitch + our-app tools available headlessly. (b) Move the Stitch calls
-   server-side via Stitch's REST API (do we need our own Google/Stitch API credentials in the
-   backend rather than the MCP?) so the Next backend can run the whole pipeline without an agent.
-   (c) A hybrid: a worker service that wraps both. Which is the right production shape, and what are
-   the credential/secrets implications (Stitch API key, Supabase service role, R2)?
-
-## Constraints
-- Don't break the Vercel app; the render bridge + agent runner should be SEPARATE services the app
-  calls via env-configured URLs (so local dev still works unchanged).
-- Secrets stay server-side; no secret values in client or URLs.
-- Drafts-only, tenant-scoped, durable images — all existing guarantees must hold.
-- Prefer the simplest thing that is genuinely autonomous and affordable at small scale, with a clear
-  upgrade path.
+## Cloudflare option to evaluate
+**Cloudflare Browser Rendering** via a Worker with a `browser` binding using `@cloudflare/puppeteer`:
+- Worker exposes the same two endpoints; inside, `puppeteer.launch(env.MYBROWSER)` → `page.goto` or
+  `page.setContent` → run our SAME annotation `page.evaluate(...)` → return `page.content()`.
+- Reuses the existing Cloudflare account (same place as R2). Token-guard via a Worker secret.
+- Concerns to rule on:
+  1. Does Browser Rendering support `page.evaluate` with our custom annotation + reading
+     `document.styleSheets` for @font-face/:root/keyframes? (vs the limited REST endpoints
+     /screenshot /content /scrape which can't run our annotation.)
+  2. Tailwind CDN `<script src=cdn.tailwindcss.com>` must EXECUTE inside the render (JS enabled) for
+     setContent of Stitch HTML — is that allowed/automatic in Browser Rendering?
+  3. Limits: Browser Rendering session caps/concurrency, CPU time per request, free-tier vs paid,
+     cold start. Good enough for on-demand site/Stitch imports at small scale?
+  4. Worker request body size for POST /render-html (Stitch docs ~20–200KB, but captured pages can
+     be larger). Any cap we must chunk around?
+- If a hard blocker exists, is **Cloudflare Containers** (newer, runs a real container = our exact
+  render-server.mjs Dockerfile, already written) the better Cloudflare-native path? Compare Workers-
+  Browser-Rendering vs Cloudflare-Containers for THIS workload (custom in-page annotation, JS exec,
+  always-similar logic) on fidelity, limits, cost, ops.
 
 ## Deliverable
-A concrete, ranked, phased production architecture: (1) where the render bridge runs and how
-`SITE_RENDER_URL` is wired; (2) how the autonomous build agent runs headless and triggers
-(queue/cron/webhook on tenant signup or "build my site"); (3) the credentials/secrets list and where
-each lives; (4) a minimal first deployment we can stand up now, and the upgrade path. Name the files/
-services to add. Assume the pipeline above.
+Rule: Cloudflare Browser Rendering Worker vs Cloudflare Containers vs keep Fly fallback. Pick the
+default, name the files to add (e.g. `deploy/render-bridge-cf/` worker + wrangler.toml), the bindings/
+secrets, and how the Vercel app wires SITE_RENDER_URL/SITE_RENDER_TOKEN to it. Keep our existing
+render-server.mjs as the source of the annotation logic so local dev is unchanged. Note any fidelity
+caveat vs the self-hosted container so we degrade honestly.

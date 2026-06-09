@@ -1,0 +1,25 @@
+# Cloudflare Worker — AIBizConnect render bridge (architect D-162/D-163).
+# Runs under the aibizconnect.app zone (NOT *.workers.dev) per Ali's standing rule.
+#
+# Deploy:
+#   cd deploy/render-bridge-cf
+#   npm install
+#   npx wrangler secret put RENDER_TOKEN      # paste a long random string (same value in Vercel)
+#   npx wrangler deploy
+# Then in Vercel:  SITE_RENDER_URL=https://render.aibizconnect.app  SITE_RENDER_TOKEN=<same token>
+
+name = "aibizconnect-render-bridge"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Headless Chromium binding (Cloudflare Browser Rendering). Requires the Workers Paid plan.
+browser = { binding = "MYBROWSER" }
+
+# Serve on a custom hostname under the aibizconnect.app zone (custom domain → auto-creates the route
+# + cert). Requires aibizconnect.app to be active in this Cloudflare account.
+routes = [
+  { pattern = "render.aibizconnect.app", custom_domain = true }
+]
+
+# RENDER_TOKEN is set as a SECRET (wrangler secret put RENDER_TOKEN), not here.
