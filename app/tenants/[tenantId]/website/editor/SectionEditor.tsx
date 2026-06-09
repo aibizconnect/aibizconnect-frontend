@@ -395,7 +395,7 @@ export default function SectionEditor({
     // Changing a Row's column count must resize its children / widths / colStyles
     // so the structure stays consistent (no orphaned or missing cells).
     if (type === "row" && key === "columns") {
-      const n = Math.max(1, Math.min(6, Number(fieldValue) || 1));
+      const n = Math.max(1, Math.min(12, Number(fieldValue) || 1));
       next.columns = n;
       const ch: any[] = Array.isArray(next.children) ? next.children.slice() : [];
       while (ch.length < n) ch.push([]);

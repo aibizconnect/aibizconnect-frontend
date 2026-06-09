@@ -173,7 +173,7 @@ export function withFreshUids<T extends AnyNode>(node: T): T {
 
 /** Set a row's column count, adding empty columns or trimming, re-normalising widths. */
 export function setRowColumns(tree: AstTree, rowUid: string, count: number): AstTree {
-  const n = Math.max(1, Math.min(6, count));
+  const n = Math.max(1, Math.min(12, count));
   const next = clone(tree);
   walk(next, (node) => {
     if (node.uid === rowUid && node.kind === "row") {
@@ -213,7 +213,7 @@ export function makeColumn(): ColumnNode {
   return { uid: newUid(), kind: "column", props: {}, children: [] };
 }
 export function makeRowNode(columns: number): RowNode {
-  const n = Math.max(1, Math.min(6, columns));
+  const n = Math.max(1, Math.min(12, columns));
   return { uid: newUid(), kind: "row", props: {}, columns: Array.from({ length: n }, makeColumn), widths: Array.from({ length: n }, () => 1 / n) };
 }
 export function makeSection(rows?: RowNode[]): SectionNode {

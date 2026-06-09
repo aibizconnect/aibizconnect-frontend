@@ -149,7 +149,7 @@ function legacyChildToNode(content: any): ColumnChild {
 }
 
 function legacyRowToRowNode(item: any): RowNode {
-  const cols = Math.max(1, Math.min(6, item.columns || 1));
+  const cols = Math.max(1, Math.min(12, item.columns || 1));
   const widths: number[] =
     Array.isArray(item.widths) && item.widths.length === cols ? item.widths : Array.from({ length: cols }, () => 1 / cols);
   const colStyles: any[] = Array.isArray(item.colStyles) ? item.colStyles : [];

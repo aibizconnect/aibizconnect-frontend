@@ -71,7 +71,7 @@ export default function RowEditor(props: RowEditorProps) {
   } = props;
   const nested = pathPrefix.length > 0;
   const keyOf = (path: ElPath) => `${rowUid}::${path.map((s) => `${s.col}.${s.idx}`).join("-")}`;
-  const cols = Math.max(1, Math.min(6, content.columns || 1));
+  const cols = Math.max(1, Math.min(12, content.columns || 1));
   const widths: number[] =
     Array.isArray(content.widths) && content.widths.length === cols
       ? content.widths

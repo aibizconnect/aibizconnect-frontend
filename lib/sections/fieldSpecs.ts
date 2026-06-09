@@ -205,7 +205,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   spacer: [{ kind: "select", key: "size", label: "Height", options: ["sm", "md", "lg"] }],
   html: [{ kind: "text", key: "code", label: "Custom HTML", multiline: true }],
   row: [
-    { kind: "select", key: "columns", label: "Columns", options: ["1", "2", "3", "4", "5", "6"] },
+    { kind: "select", key: "columns", label: "Columns", options: ["1", "2", "3", "4", "5", "6", "7", "8"] },
     { kind: "number", key: "gap", label: "Gap", min: 0, max: 120, step: 2, unit: "px" },
     { kind: "select", key: "contentWidth", label: "Content width", options: ["boxed", "full"] },
     { kind: "select", key: "valign", label: "Vertical align", options: ["top", "center", "bottom"] },
@@ -236,7 +236,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   faq: [{ kind: "array", key: "items", label: "Questions", itemLabel: "Q&A", itemFields: [{ kind: "text", key: "q", label: "Question" }, { kind: "text", key: "a", label: "Answer", multiline: true }] }],
   gallery: [
     { kind: "array", key: "images", label: "Images", itemLabel: "Image", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] },
-    { kind: "number", key: "columns", label: "Columns", min: 2, max: 6 },
+    { kind: "number", key: "columns", label: "Columns", min: 2, max: 8 },
     { kind: "boolean", key: "lightbox", label: "Click to enlarge (lightbox)" },
   ],
   logos: [

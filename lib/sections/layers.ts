@@ -76,7 +76,7 @@ function row(id: string, n: number, columns: LayerNode[]): LayerNode {
 /** Recursively build the columns of a `row` content. Every element (at any depth)
  * is selectable via its full path. Nested rows recurse with the accumulated path. */
 function rowColumns(content: any, si: number, prefix: ElPath, idBase: string): LayerNode[] {
-  const cols = Math.max(1, Math.min(6, content.columns || 1));
+  const cols = Math.max(1, Math.min(12, content.columns || 1));
   const columns: LayerNode[] = [];
   for (let c = 0; c < cols; c++) {
     const cell: any[] = Array.isArray(content.children?.[c]) ? content.children[c] : [];
