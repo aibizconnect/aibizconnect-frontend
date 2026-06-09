@@ -182,11 +182,11 @@ export function StylesPanel({ value, onChange, onPickImage }: { value?: ElementS
         <BackgroundControls s={s} set={set} onPickImage={onPickImage} />
       </Group>
 
-      <Group title="Spacing">
+      <Group title="Spacing" defaultOpen={false}>
         <BoxModel s={s} set={set} />
       </Group>
 
-      <Group title="Border & corners">
+      <Group title="Border & corners" defaultOpen={false}>
         <Row label="Style">
           <select className={sel} value={s.borderStyle} onChange={(e) => set({ borderStyle: e.target.value as ElementStyle["borderStyle"] })}>
             <option value="none">None</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option>
@@ -219,7 +219,7 @@ export function StylesPanel({ value, onChange, onPickImage }: { value?: ElementS
         </Row>
       </Group>
 
-      <Group title="Shadow">
+      <Group title="Shadow" defaultOpen={false}>
         <Row label="Box shadow">
           <select className={sel} value={s.shadow} onChange={(e) => set({ shadow: e.target.value as ElementStyle["shadow"] })}>
             <option value="none">None</option><option value="soft">Soft</option><option value="elevated">Elevated</option>
