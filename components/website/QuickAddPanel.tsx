@@ -180,11 +180,12 @@ function PrebuiltTemplates({ q, onInsert, imgUrls, onHover, cat, setCat }: { q: 
  *  Sections, Saved Assets, and the coming-soon Marketplace/Store. Each item expands to its own
  *  content. Only the first group is open by default; searching auto-expands matching items. */
 function AddAccordion(props: {
+  mode: "elements" | "library";
   q: string; onPick: (t: SectionType, c?: number) => void; onInsert?: (s: SectionContent[]) => void;
   imgUrls: string[]; onHover: (h: HoverState) => void; prebuiltCat: string; setPrebuiltCat: (c: string) => void;
   savedSlot?: React.ReactNode;
 }) {
-  const { q, onPick, onInsert, imgUrls, onHover, prebuiltCat, setPrebuiltCat, savedSlot } = props;
+  const { mode, q, onPick, onInsert, imgUrls, onHover, prebuiltCat, setPrebuiltCat, savedSlot } = props;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const searching = q.trim().length > 0;
   const ql = q.toLowerCase();
@@ -194,13 +195,16 @@ function AddAccordion(props: {
     | { kind: "prebuilt" } | { kind: "saved" } | { kind: "soon" }
   );
   const items: Item[] = [];
-  for (const g of ADD_GROUPS) {
-    const its = g.items.filter((it) => it.label.toLowerCase().includes(ql));
-    if (its.length) items.push({ key: g.group, title: g.group, kind: "group", items: its });
+  if (mode === "elements") {
+    for (const g of ADD_GROUPS) {
+      const its = g.items.filter((it) => it.label.toLowerCase().includes(ql));
+      if (its.length) items.push({ key: g.group, title: g.group, kind: "group", items: its });
+    }
+  } else {
+    items.push({ key: "prebuilt", title: "Prebuilt Sections", kind: "prebuilt" });
+    items.push({ key: "saved", title: "Saved Assets", kind: "saved" });
+    if (!searching) { items.push({ key: "market", title: "Widget Marketplace", kind: "soon" }); items.push({ key: "store", title: "Store", kind: "soon" }); }
   }
-  items.push({ key: "prebuilt", title: "Prebuilt Sections", kind: "prebuilt" });
-  items.push({ key: "saved", title: "Saved Assets", kind: "saved" });
-  if (!searching) { items.push({ key: "market", title: "Widget Marketplace", kind: "soon" }); items.push({ key: "store", title: "Store", kind: "soon" }); }
 
   return (
     <div className="flex flex-col">
@@ -235,6 +239,7 @@ function AddAccordion(props: {
 }
 
 export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSections, tenantId }: { onPick: (type: SectionType, cols?: number) => void; onAi?: () => void; savedSlot?: React.ReactNode; onInsertSections?: (sections: SectionContent[]) => void; tenantId?: string }) {
+  const [view, setView] = useState<"elements" | "library">("elements");
   const [q, setQ] = useState("");
   const [imgUrls, setImgUrls] = useState<string[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
@@ -254,13 +259,22 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       .catch(() => {});
   }, [tenantId]);
 
-  // One column, no tabs: search + a single collapsible accordion of everything.
+  // Two views via a top toggle: "Elements & Rows" (the element accordion) and
+  // "Prebuilt & Saved" (prebuilt + saved). One column, collapsible items in each.
   return (
     <div className="flex h-full min-w-0 flex-col">
+      <div className="mb-2 flex gap-1 rounded-lg bg-slate-100 p-1">
+        {([["elements", "Elements & Rows"], ["library", "Prebuilt & Saved"]] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`flex-1 rounded-md px-2 py-1.5 text-[13px] font-medium transition ${view === v ? "bg-white text-[#1e3a8a] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
         className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <AddAccordion q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} prebuiltCat={prebuiltCat} setPrebuiltCat={setPrebuiltCat} savedSlot={savedSlot} />
+        <AddAccordion mode={view} q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} prebuiltCat={prebuiltCat} setPrebuiltCat={setPrebuiltCat} savedSlot={savedSlot} />
       </div>
       {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
 
