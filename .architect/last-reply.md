@@ -1,243 +1,234 @@
-Here is the reconciled Phase 1 spec, leveraging existing structures and addressing the identified gaps.
+Here is the tight, build-ready Phase 2 spec for the Canonical Block Contract, additive and backward-compatible.
 
 ---
-### 1. Canonical Store & Bridging
+**RULING 113: Acceptance of Phase 1 Implementation & Rejection of `brand_tokens_v2` Column**
 
-**RULING 107 (Revised): `website_brand_settings` as Canonical Store for `brand_tokens_v2`**
-
-`public.website_brand_settings` is the canonical database store for website-specific brand tokens. To consolidate the existing fragmented JSONB columns (`color_palette`, `font_pairing`, `spacing_scale`, `button_style`, `theme`) and legacy scalars, a **single new `brand_tokens_v2` JSONB column** is required. This column will hold the canonical `BrandTokens` structure.
-
-**SQL Migration (0043_add_brand_tokens_v2_to_website_brand_settings.sql):**
-
-```sql
--- Migration 0043_add_brand_tokens_v2_to_website_brand_settings.sql
-
-ALTER TABLE public.website_brand_settings
-ADD COLUMN IF NOT EXISTS brand_tokens_v2 jsonb NOT NULL DEFAULT '{}'::jsonb;
-
-COMMENT ON COLUMN public.website_brand_settings.brand_tokens_v2 IS 'Consolidated, canonical design token system for colors, typography, spacing, etc.';
-```
-
-**Bridging Strategy:**
-*   **During Migration:** A one-time data migration will populate `brand_tokens_v2` by merging data from `color_palette`, `font_pairing`, `spacing_scale`, `button_style`, `theme` (0013), and legacy scalar columns.
-*   **Post-Migration:** All new code (generation, editor, renderer) will read and write *only* to `brand_tokens_v2`. The older JSONB columns and scalars will be considered deprecated and can be eventually removed in future migrations.
+The Builder's implementation of Phase 1 is **ACCEPTED**. The use of `resolveBrandTokens` to dynamically merge existing `website_brand_settings` columns into the canonical `BrandTokens` object, without adding a new `brand_tokens_v2` column, is a superior approach. It achieves the goal of a unified token system while being fully reversible and avoiding schema changes. The `resolveBrandTokens` function now serves as the canonical source.
 
 ---
-### 2. Standardized `--abc-*` CSS Variable Contract
+### 1. Target Shape for `website_page_blocks.content` (Additive Evolution)
 
-**RULING 110 (Revised): Standardize on the Existing `--abc-*` CSS Variable Contract**
+**RULING 114: Additive Evolution of `website_page_blocks.content` to Canonical Block Contract**
 
-The existing `--abc-*` CSS variable naming convention (e.g., `--abc-color-primary`, `--abc-font-heading`) from `lib/design/tokens.ts` `tokensToCssVars` is **approved and standardized**.
+The target shape will evolve the existing structure by adding explicit `metadata` and `style_token` fields, and formalizing `layout_style` and `animation_style` as top-level properties.
 
-**CSS Variable Contract:**
+**Target Shape for a single block (JSON for `website_page_blocks.content`):**
 
-| Category      | Token Path in `BrandTokens` | CSS Variable Name              | Example Value        |
-| :------------ | :-------------------------- | :----------------------------- | :------------------- |
-| **Colors**    | `colors.primary.value`      | `--abc-color-primary`          | `#1e3a8a`            |
-|               | `colors.accent.value`       | `--abc-color-accent`           | `#22d3ee`            |
-|               | `colors.surface.value`      | `--abc-color-surface`          | `#f8fafc`            |
-|               | `colors.background.value`   | `--abc-color-background`       | `#ffffff`            |
-|               | `colors.foreground.value`   | `--abc-color-foreground`       | `#0f172a`            |
-|               | `colors.muted.value`        | `--abc-color-muted`            | `#64748b`            |
-|               | `colors.border.value`       | `--abc-color-border`           | `#e2e8f0`            |
-|               | `colors.success.value`      | `--abc-color-success`          | `#28a745`            |
-|               | `colors.warning.value`      | `--abc-color-warning`          | `#ffc107`            |
-|               | `colors.danger.value`       | `--abc-color-danger`           | `#dc3545`            |
-| **Typography**| `typography.fontHeading.value` | `--abc-font-heading`          | `Roboto, sans-serif` |
-|               | `typography.fontBody.value` | `--abc-font-body`              | `Roboto, sans-serif` |
-|               | `typography.fontMono.value` | `--abc-font-mono`              | `monospace`          |
-|               | `typography.fontDisplayBrand.value` | `--abc-font-display-brand` | `Montserrat, sans-serif` |
-|               | `typography.baseSizePx`     | `--abc-base-size`              | `16px`               |
-|               | `typography.scale.<key>.value` | `--abc-font-size-<key>`     | `1.25rem` (for `xl`) |
-| **Spacing**   | `spacing.unitPx`            | `--abc-space-unit`             | `16px`               |
-|               | `spacing.<key>Px`           | `--abc-space-<key>`            | `8px` (for `sm`)     |
-| **Radius**    | `radiusPx`                  | `--abc-radius`                 | `10px`               |
-| **Shadows**   | `elevation.<key>`           | `--abc-shadow-<key>`           | `0 4px 6px ...`      |
-| **Breakpoints**| `breakpoints.<key>`        | `--abc-breakpoint-<key>`       | `640px` (for `sm`)   |
-
----
-### 3. `resolveWebsiteBrandTokens` and `tokensToCssVars` Injection
-
-**RULING 112: Unified Token Resolution and Injection**
-
-A single `resolveWebsiteBrandTokens(websiteId)` function will be the authoritative source for a `BrandTokens` object, and `tokensToCssVars` will be the single injection point for CSS variables.
-
-**`resolveWebsiteBrandTokens(websiteId)` Contract:**
-
-```typescript
-// lib/server/brand-tokens-resolver.ts (server-only)
-
-import { BrandTokens, BrandTokensSchema } from '../design/tokens'; // Assuming this is the existing BrandTokens schema
-import { db } from './supabase'; // Assuming Supabase client
-import { z } from 'zod';
-
-// Define schemas for existing legacy columns (for migration purposes)
-const LegacyColorPaletteSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
-const LegacyFontPairingSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
-const LegacySpacingScaleSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
-const LegacyButtonStyleSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
-const LegacyThemeSchema = z.object({ /* ... as per existing 0013 migration */ }).partial().passthrough();
-
-/**
- * Resolves the canonical BrandTokens object for a given website.
- * Merges data from legacy columns into brand_tokens_v2 if necessary.
- *
- * @param websiteId The ID of the website.
- * @returns A validated BrandTokens object.
- */
-export async function resolveWebsiteBrandTokens(websiteId: string): Promise<BrandTokens> {
-  const { data: settings, error } = await db.from('website_brand_settings')
-    .select('*')
-    .eq('website_id', websiteId)
-    .single();
-
-  if (error || !settings) {
-    // Handle error or return default BrandTokens
-    console.error("Error fetching website_brand_settings:", error);
-    return BrandTokensSchema.parse({}); // Return default/empty BrandTokens
-  }
-
-  let brandTokens: BrandTokens;
-
-  // Check if brand_tokens_v2 is already populated and valid
-  if (settings.brand_tokens_v2 && Object.keys(settings.brand_tokens_v2).length > 0) {
-    const parseResult = BrandTokensSchema.safeParse(settings.brand_tokens_v2);
-    if (parseResult.success) {
-      brandTokens = parseResult.data;
-    } else {
-      console.warn(`Invalid brand_tokens_v2 for website ${websiteId}, attempting migration from legacy.`);
-      // Fall through to migration logic if invalid
-      brandTokens = BrandTokensSchema.parse({}); // Start with default
-    }
-  } else {
-    // brand_tokens_v2 is empty or null, perform migration from legacy columns
-    console.log(`Migrating legacy brand settings for website ${websiteId}.`);
-    brandTokens = BrandTokensSchema.parse({}); // Start with default
-
-    // Merge from existing color_palette
-    const colorPalette = LegacyColorPaletteSchema.safeParse(settings.color_palette);
-    if (colorPalette.success) {
-      Object.assign(brandTokens.colors, {
-        primary: { value: colorPalette.data.primary || '#1e3a8a' },
-        accent: { value: colorPalette.data.accent || '#22d3ee' },
-        surface: { value: colorPalette.data.surface || '#f8fafc' },
-        background: { value: colorPalette.data.background || '#ffffff' },
-        foreground: { value: colorPalette.data.foreground || '#0f172a' },
-        muted: { value: colorPalette.data.muted || '#64748b' },
-        border: { value: colorPalette.data.border || '#e2e8f0' },
-        // Map other colors, ensure defaults if missing
-        success: { value: '#28a745' }, warning: { value: '#ffc107' }, danger: { value: '#dc3545' },
-      });
-    }
-
-    // Merge from existing font_pairing
-    const fontPairing = LegacyFontPairingSchema.safeParse(settings.font_pairing);
-    if (fontPairing.success) {
-      Object.assign(brandTokens.typography, {
-        fontHeading: { value: `${fontPairing.data.heading || 'Roboto'}, sans-serif` },
-        fontBody: { value: `${fontPairing.data.body || 'Roboto'}, sans-serif` },
-      });
-    }
-
-    // Merge from spacing_scale
-    const spacingScale = LegacySpacingScaleSchema.safeParse(settings.spacing_scale);
-    if (spacingScale.success && spacingScale.data.base) {
-      Object.assign(brandTokens.spacing, {
-        unitPx: `${spacingScale.data.base}px`,
-        // Derive other spacing tokens based on base unit if possible, or use defaults
-        xs: `${spacingScale.data.base * 0.25}px`, sm: `${spacingScale.data.base * 0.5}px`, md: `${spacingScale.data.base}px`,
-        lg: `${spacingScale.data.base * 1.5}px`, xl: `${spacingScale.data.base * 2}px`,
-      });
-    }
-
-    // Merge from button_style (e.g., borderRadius)
-    const buttonStyle = LegacyButtonStyleSchema.safeParse(settings.button_style);
-    if (buttonStyle.success && buttonStyle.data.borderRadius) {
-      Object.assign(brandTokens.radius, {
-        md: buttonStyle.data.borderRadius, // Map to a specific radius token
-      });
-    }
-
-    // Merge from legacy 'theme' (0013) and scalar primary_color, etc.
-    // This part requires specific knowledge of the 'theme' JSONB structure and scalar names.
-    // Builder: Implement specific mapping logic here based on the actual content of 'theme' and scalars.
-    // Example: if (settings.primary_color) brandTokens.colors.primary.value = settings.primary_color;
-
-    // After merging, update the DB to persist the new canonical form
-    const { error: updateError } = await db.from('website_brand_settings')
-      .update({ brand_tokens_v2: brandTokens })
-      .eq('website_id', websiteId);
-    if (updateError) {
-      console.error("Error updating brand_tokens_v2 after migration:", updateError);
-    }
-  }
-
-  return brandTokens;
+```json
+// This is the shape for a single block stored in website_page_blocks.content
+{
+  "id": "uuid", // Unique ID for this specific block instance (generated on creation if not present)
+  "type": "hero" | "features" | "cta" | "text" | "heading" | "image" | "gallery" | "contact-form" | "faq" | "button" | "list" | "video" | "html" | "row", // Discriminator
+  "metadata": { // NEW: Explicit metadata container
+    "name": "string", // Renamed from existing '_name'
+    "description": "string", // Optional, for editor context
+    "is_global": "boolean", // Existing, but formalized here
+    "is_editable": "boolean", // NEW: False for 'html' type, true for others
+    "source_id": "string", // Optional: ID from original extraction or template
+    "user_edited": "boolean" // NEW: Flag to prevent overwriting tenant edits on re-import
+  },
+  "style_token": "string", // NEW: Canonical vocabulary token (e.g., "text-heading-h1", "button-primary", "color-surface")
+  "layout_style": { // NEW: Explicit container for layout styles (from existing '_style' for layout-specific props)
+    // Properties from the computed-style whitelist (D-091), e.g., "paddingTop": "string", "display": "string", "width": "string",
+    "customCss": "string" // Block-specific custom CSS (from existing '_style' for customCss)
+  },
+  "animation_style": { // NEW: Explicit container for animation styles (from existing '_anim')
+    "type": "fade-in" | "slide-up",
+    "duration": "number",
+    "delay": "number"
+  },
+  "content": { // Existing type-specific content structure, now explicitly nested
+    // --- Specific to "hero" type ---
+    "hero": {
+      "heading": { "text": "string", "level": "h1", "text_style": { /* ElementStyle */ } },
+      "subheading": { "text": "string", "text_style": { /* ElementStyle */ } },
+      "ctas": [{ "text": "string", "link": "string", "button_style": { /* ElementStyle */ } }],
+      "background": { "type": "image" | "color" | "gradient", "value": "string", "overlay_color": "string" }
+    },
+    // --- Specific to "row" type ---
+    "row": {
+      "columns": [{
+        "id": "uuid",
+        "blocks": [ /* array of nested blocks, recursively */ ],
+        "width": "number", // 1-12 grid units
+        "layout_style": { /* column-specific layout styles */ } // NEW: layout_style for columns
+      }],
+      "gap": "string", // e.g., "16px"
+      "valign": "top" | "middle" | "bottom",
+      "content_width": "full" | "boxed"
+    },
+    // --- Specific to "text" type ---
+    "text": {
+      "content": "string",
+      "text_style": { /* ElementStyle */ }
+    },
+    // ... other block types with their specific content structures
+  },
+  // Existing _kind (e.g., "header"|"footer") will be moved into metadata.is_global or a dedicated metadata.kind
+  // Existing _style (ElementStyle) will be split: layout_style for layout, and specific element_style for content.
+  // Existing _anim will be moved into animation_style.
+  // Existing _name will be moved into metadata.name.
 }
 ```
 
-**`tokensToCssVars` Injection Point:**
-The `tokensToCssVars(brandTokens: BrandTokens)` function (from `lib/design/tokens.ts`) will be called with the result of `resolveWebsiteBrandTokens`. Its output (a string of CSS variable declarations) will be injected into the `<head>` of:
-*   `app/sites/[tenantId]/[slug]/page.tsx` (public renderer)
-*   The editor canvas component (for live editing)
+---
+### 2. Coexistence of `_style` (ElementStyle) and `style_token`
+
+**RULING 115: Style Resolution Order**
+
+Block-level `_style` (ElementStyle) and `style_token` will coexist with a clear resolution order:
+
+1.  **`style_token` (Highest Precedence for Base Styles):** The `style_token` (e.g., `text-heading-h1`, `color-primary`) will resolve to the `--abc-*` CSS variables (RULING 111 revised). These provide the foundational, token-driven styling.
+2.  **`layout_style` (Layout Overrides):** The `layout_style` object (RULING 114) will apply specific layout properties (padding, margin, width, display, flex properties) as inline styles, overriding any layout-related properties derived from `style_token`.
+3.  **Element-Specific `text_style`/`button_style` (Fine-Grained Overrides):** The existing `ElementStyle` objects (e.g., `hero.heading.text_style`, `text.text_style`) will apply fine-grained presentational overrides (e.g., specific `font-size`, `color`, `background-color`) as inline styles, taking precedence over both `style_token` and `layout_style` for those specific properties.
+4.  **`customCss` (Lowest Precedence, for advanced overrides):** The `customCss` string within `layout_style` will be injected as block-specific CSS, allowing advanced overrides via selectors.
+
+**Principle:** Tokens provide the default, `layout_style` provides structural overrides, and `ElementStyle` provides specific content overrides.
 
 ---
-### 4. Minimal `style_token` Vocabulary
+### 3. Backward-Compatible Read/Normalize Function
 
-**RULING 111 (Revised): Phase 1 `style_token` Vocabulary Mapped to `--abc-*`**
+**RULING 116: `normalizeBlock(rawBlock)` Contract**
 
-The canonical vocabulary for `style_token` will directly map to the `--abc-*` CSS variables.
+A backward-compatible `normalizeBlock(rawBlock)` function will upgrade legacy blocks to the canonical shape on read, without writing back to the database.
 
-*   **Colors:**
-    *   `color-primary` → `var(--abc-color-primary)`
-    *   `color-accent` → `var(--abc-color-accent)`
-    *   `color-surface` → `var(--abc-color-surface)`
-    *   `color-background` → `var(--abc-color-background)`
-    *   `color-foreground` → `var(--abc-color-foreground)`
-    *   `color-muted` → `var(--abc-color-muted)`
-    *   `color-border` → `var(--abc-color-border)`
-    *   `color-success` → `var(--abc-color-success)`
-    *   `color-error` → `var(--abc-color-danger)` (using `danger` from `BrandTokens` for consistency)
-    *   `color-warning` → `var(--abc-color-warning)`
-*   **Typography (Font Families):**
-    *   `font-heading` → `var(--abc-font-heading)`
-    *   `font-body` → `var(--abc-font-body)`
-    *   `font-mono` → `var(--abc-font-mono)`
-    *   `font-display-brand` → `var(--abc-font-display-brand)`
-*   **Typography (Font Sizes):**
-    *   `font-size-xs` → `var(--abc-font-size-xs)`
-    *   `font-size-sm` → `var(--abc-font-size-sm)`
-    *   `font-size-md` → `var(--abc-font-size-md)`
-    *   `font-size-lg` → `var(--abc-font-size-lg)`
-    *   `font-size-xl` → `var(--abc-font-size-xl)`
-    *   `font-size-2xl` → `var(--abc-font-size-2xl)`
-    *   `font-size-3xl` → `var(--abc-font-size-3xl)`
-    *   `font-size-4xl` → `var(--abc-font-size-4xl)`
-    *   `font-size-5xl` → `var(--abc-font-size-5xl)`
-*   **Spacing:**
-    *   `space-unit` → `var(--abc-space-unit)`
-    *   `space-xs` → `var(--abc-space-xs)`
-    *   `space-sm` → `var(--abc-space-sm)`
-    *   `space-md` → `var(--abc-space-md)`
-    *   `space-lg` → `var(--abc-space-lg)`
-    *   `space-xl` → `var(--abc-space-xl)`
-    *   `space-2xl` → `var(--abc-space-2xl)`
-    *   `space-3xl` → `var(--abc-space-3xl)`
-*   **Border Radius:**
-    *   `radius-sm` → `var(--abc-radius-sm)`
-    *   `radius-md` → `var(--abc-radius-md)`
-    *   `radius-lg` → `var(--abc-radius-lg)`
-    *   `radius-full` → `var(--abc-radius-full)`
-*   **Shadows:**
-    *   `shadow-sm` → `var(--abc-shadow-sm)`
-    *   `shadow-md` → `var(--abc-shadow-md)`
-    *   `shadow-lg` → `var(--abc-shadow-lg)`
+```typescript
+// lib/sections/block-normalizer.ts
+
+import { z } from 'zod';
+import { CanonicalBlockSchema, BlockType } from './canonical-block-schema'; // New schema for RULING 114
+import { ElementStyleSchema } from '../design/element-style'; // Existing ElementStyle schema
+
+// Define a schema that represents the *oldest* possible block structure
+const LegacyBlockSchema = z.object({
+  id: z.string().uuid().optional(),
+  type: z.string() as z.ZodType<BlockType>, // Use BlockType enum
+  _style: ElementStyleSchema.optional(), // Old ElementStyle directly on block
+  _anim: z.object({ /* ... old anim structure */ }).optional(),
+  _kind: z.string().optional(), // Old header/footer kind
+  _name: z.string().optional(), // Old block name
+  // ... other legacy top-level properties specific to block types
+  columns: z.array(z.object({ // For row type
+    blocks: z.array(z.any()), // Recursive, will be normalized
+    _style: ElementStyleSchema.optional(), // Old ElementStyle on column
+    width: z.number().optional(),
+  })).optional(),
+  // ... other content-specific legacy fields
+}).passthrough(); // Allow unknown properties for maximum backward compatibility
+
+export type RawBlock = z.infer<typeof LegacyBlockSchema>;
+
+/**
+ * Normalizes a raw block (which might be in a legacy format) into the canonical block contract.
+ * This function is read-only and does not persist changes to the database.
+ *
+ * @param rawBlock The raw block object from the database.
+ * @returns A validated block conforming to the CanonicalBlockSchema.
+ */
+export function normalizeBlock(rawBlock: RawBlock): CanonicalBlockSchema {
+  // Start with a base canonical structure, applying defaults
+  const canonicalBlock: CanonicalBlockSchema = {
+    id: rawBlock.id || crypto.randomUUID(),
+    type: rawBlock.type,
+    metadata: {
+      name: rawBlock._name || `Unnamed ${rawBlock.type} block`,
+      description: "",
+      is_global: rawBlock._kind === 'header' || rawBlock._kind === 'footer',
+      is_editable: rawBlock.type !== 'html',
+      source_id: "",
+      user_edited: false, // Default to false, can be set true by editor
+    },
+    style_token: "", // Default, will be set by generation or editor
+    layout_style: {},
+    animation_style: {},
+    content: {}, // Will be populated based on type
+  };
+
+  // --- Migrate _style to layout_style and content-specific styles ---
+  if (rawBlock._style) {
+    // Extract layout-specific properties from _style to layout_style
+    canonicalBlock.layout_style = {
+      paddingTop: rawBlock._style.paddingTop,
+      // ... map other layout properties from computed-style whitelist (D-091)
+      customCss: rawBlock._style.customCss, // If customCss was part of _style
+    };
+
+    // Apply remaining _style properties to content-specific style fields
+    // This requires type-specific mapping. Example for 'hero' heading:
+    if (rawBlock.type === 'hero' && rawBlock.content?.hero?.heading) {
+      canonicalBlock.content.hero.heading.text_style = {
+        ...rawBlock._style, // Apply remaining _style as text_style
+        // ... remove properties already moved to layout_style
+      };
+    }
+    // Builder: Implement this mapping for all block types and their relevant content-specific style fields.
+  }
+
+  // --- Migrate _anim to animation_style ---
+  if (rawBlock._anim) {
+    canonicalBlock.animation_style = {
+      type: rawBlock._anim.type,
+      duration: rawBlock._anim.duration,
+      delay: rawBlock._anim.delay,
+    };
+  }
+
+  // --- Migrate _kind to metadata.is_global ---
+  if (rawBlock._kind === 'header' || rawBlock._kind === 'footer') {
+    canonicalBlock.metadata.is_global = true;
+  }
+
+  // --- Recursively normalize nested blocks (e.g., for 'row' type) ---
+  if (rawBlock.type === 'row' && rawBlock.columns) {
+    canonicalBlock.content.row = {
+      columns: rawBlock.columns.map(col => ({
+        id: col.id || crypto.randomUUID(),
+        blocks: col.blocks.map(normalizeBlock), // Recursive call
+        width: col.width,
+        layout_style: col._style ? { /* map column _style to layout_style */ } : {},
+      })),
+      gap: rawBlock.gap, // Assuming gap is top-level on row
+      valign: rawBlock.valign,
+      content_width: rawBlock.content_width,
+    };
+  } else {
+    // Builder: Implement direct content mapping for other block types
+    // canonicalBlock.content = { ... map rawBlock.content based on rawBlock.type ... };
+  }
+
+  // Final validation
+  return CanonicalBlockSchema.parse(canonicalBlock);
+}
+```
+
+---
+### 4. Supervisor Checks
+
+**RULING 117: Supervisor Verification Schema for Phase 2**
+
+```json
+{
+  "phase2_canonical_block_contract": [
+    { "id": "SEC-V1", "assertion": "The `normalizeBlock` function exists and correctly upgrades legacy block structures to the Canonical Block Contract (RULING 114).", "severity": "block" },
+    { "id": "SEC-V2", "assertion": "All blocks read from `website_page_blocks.content` are passed through `normalizeBlock` before being used by the editor or renderer.", "severity": "block" },
+    { "id": "SEC-V3", "assertion": "The `id` field is present and unique for each block instance (and nested column/block) after normalization.", "severity": "block" },
+    { "id": "SEC-V4", "assertion": "The `metadata` object (name, is_global, is_editable, user_edited) is correctly populated after normalization.", "severity": "block" },
+    { "id": "SEC-V5", "assertion": "The `style_token` field is present on blocks, defaulting to empty string if not explicitly set.", "severity": "block" },
+    { "id": "SEC-V6", "assertion": "The `layout_style` object correctly extracts layout-specific properties from legacy `_style` (and `col._style`) and applies them.", "severity": "block" },
+    { "id": "SEC-V7", "assertion": "The `animation_style` object correctly extracts animation properties from legacy `_anim`.", "severity": "block" },
+    { "id": "SEC-V8", "assertion": "The `content` object correctly nests type-specific content and style fields (e.g., `hero.heading.text_style`) after normalization.", "severity": "block" },
+    { "id": "SEC-V9", "assertion": "The editor's property inspector correctly displays and allows editing of `metadata`, `style_token`, `layout_style`, `animation_style`, and nested content styles.", "severity": "block" },
+    { "id": "SEC-V10", "assertion": "The renderer correctly applies styles based on the resolution order: `style_token` (CSS vars) → `layout_style` (inline) → content-specific `ElementStyle` (inline) → `customCss` (injected).", "severity": "block" },
+    { "id": "SEC-V11", "assertion": "Existing saved pages (from Phase 1 and before) render identically in the editor and public site after Phase 2 implementation, due to backward compatibility.", "severity": "block" },
+    { "id": "SEC-V12", "assertion": "New blocks created in the editor conform to the Canonical Block Contract (RULING 114) directly.", "severity": "block" }
+  ]
+}
+```
 
 ---
 DECISION-LOG
-[D-107] rule_sql_migration_brand_tokens_v2 — Ruled SQL migration 0043 to add `brand_tokens_v2` JSONB column to `website_brand_settings` as the canonical store (status: ruled)
-[D-108] rule_ts_zod_brand_tokens — Ruled `lib/design/tokens.ts` `BrandTokens` as the canonical TypeScript type and Zod schema (status: ruled)
-[D-109] rule_deterministic_migration_function_to_v2 — Ruled deterministic migration function to populate `brand_tokens_v2` from all legacy `website_brand_settings` columns (status: ruled)
-[D-110] rule_css_variable_contract — Ruled standardization on the existing `--abc-*` CSS variable contract (status: ruled)
-[D-111] rule_phase1_style_token_vocabulary_mapped — Ruled the minimal canonical `style_token` vocabulary for Phase 1, mapped to `--abc-*` CSS variables (status: ruled)
-[D-112] rule_unified_token_resolution_injection — Ruled `resolveWebsiteBrandTokens` as the unified token resolver and `tokensToCssVars` as the single injection point (status: ruled)
+[D-113] accept_phase1_implementation — Accepted Phase 1 implementation without new `brand_tokens_v2` column, using dynamic resolution (status: accepted)
+[D-114] rule_additive_block_evolution — Ruled additive evolution of `website_page_blocks.content` to Canonical Block Contract (status: ruled)
+[D-115] rule_style_resolution_order — Ruled the precise resolution order for `style_token`, `layout_style`, `ElementStyle`, and `customCss` (status: ruled)
+[D-116] rule_normalize_block_contract — Ruled `normalizeBlock(rawBlock)` contract for backward-compatible block normalization (status: ruled)
+[D-117] define_phase2_verification_checks — Defined Supervisor verification checks for Phase 2 (Canonical Block Contract) (status: defined)

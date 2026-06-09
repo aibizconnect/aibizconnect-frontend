@@ -19,6 +19,7 @@ import {
   validateThemePatch,
   type ThemeTokens,
 } from "@/lib/sections/theme";
+import { normalizeBlock } from "@/lib/sections/normalize";
 import { getCurrentUserId } from "@/lib/auth/current-user";
 import type { SitePreviewPage } from "@/lib/agent/website-generator";
 import { canUseFeature, FEATURES } from "@/lib/entitlements";
@@ -796,7 +797,9 @@ export async function getPageBlocks(
       id: b.id,
       name: b.name,
       type: b.type,
-      content: preview ? b.draft_content ?? b.content : b.content,
+      // Phase-2: pass content through the additive canonical normalizer (guarantees ids on
+      // nested row columns/blocks + a _meta view) without restructuring existing content.
+      content: normalizeBlock(preview ? b.draft_content ?? b.content : b.content, b.id),
     }));
 }
 
