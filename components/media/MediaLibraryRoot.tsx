@@ -351,6 +351,7 @@ export default function MediaLibraryRoot({
     // Promote in small chunks so we can show live copy progress (and avoid one long request).
     // Each chunk is isolated — a failure or duplicate in one NEVER aborts the rest.
     let promoted = 0, skipped = 0, failed = 0;
+    const errs: string[] = [];
     const CHUNK = 3;
     setMoveProgress({ done: 0, total: ids.length });
     try {
@@ -359,11 +360,13 @@ export default function MediaLibraryRoot({
         try {
           const r = await promoteMediaToSystem(tenantId, chunk);
           promoted += r.promoted; skipped += r.skipped;
-        } catch { failed += chunk.length; } // keep going with the remaining chunks
+          if (Array.isArray(r.errors)) errs.push(...r.errors);
+        } catch (e: any) { failed += chunk.length; if (e?.message) errs.push(e.message); } // keep going
         setMoveProgress({ done: Math.min(ids.length, i + chunk.length), total: ids.length });
       }
       setSelected(new Set()); reloadMedia();
-      notify(`Added ${promoted} to System${skipped ? `, skipped ${skipped} already there` : ""}${failed ? `, ${failed} failed` : ""}.`);
+      const reason = errs[0] ? ` — ${errs[0].slice(0, 120)}` : "";
+      notify(`Added ${promoted} to System${skipped ? `, skipped ${skipped}` : ""}${failed ? `, ${failed} failed` : ""}${(skipped || failed) ? reason : ""}.`);
     } finally { setMoveProgress(null); }
   }
 

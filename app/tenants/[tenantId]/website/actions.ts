@@ -2340,9 +2340,13 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
       let url = r.url as string;
       let storagePath: string | null = null;
       if (r.storage_path) {
-        const copy = await copyObject(r.storage_path, dest);
-        if (copy.ok) { storagePath = dest; url = copy.publicUrl || url; }
-        // If copy fails (e.g. cross-path perms), fall back to referencing the original URL.
+        // Copy is best-effort: if it FAILS or THROWS, fall back to referencing the original
+        // URL and still insert (previously a thrown copy skipped the whole item — which is
+        // why only 1 of a batch landed and the rest "skipped").
+        try {
+          const copy = await copyObject(r.storage_path, dest);
+          if (copy.ok) { storagePath = dest; url = copy.publicUrl || url; }
+        } catch { /* keep tenant url */ }
       }
 
       const { error } = await supabase.from("website_media").insert({
