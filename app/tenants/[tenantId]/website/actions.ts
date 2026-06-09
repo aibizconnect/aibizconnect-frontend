@@ -2382,15 +2382,28 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[],
 
       let url = r.url as string;
       let storagePath: string | null = null;
+      // 1) Try a direct storage copy (fast path).
       if (r.storage_path) {
-        // Copy is best-effort: if it FAILS or THROWS, fall back to referencing the original
-        // URL and still insert (previously a thrown copy skipped the whole item — which is
-        // why only 1 of a batch landed and the rest "skipped").
         try {
           const copy = await copyObject(r.storage_path, dest);
           if (copy.ok) { storagePath = dest; url = copy.publicUrl || url; }
-        } catch { /* keep tenant url */ }
+        } catch { /* fall through to URL re-upload */ }
       }
+      // 2) Copy failed → fetch the public URL and write the object ourselves, so storage_path is
+      //    ALWAYS a real System path. (storage_path is NOT NULL — inserting null was rejected,
+      //    which is why nothing landed.)
+      if (!storagePath && r.url) {
+        try {
+          const resp = await fetch(r.url, { signal: AbortSignal.timeout(15000) });
+          if (resp.ok) {
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const up = await putObject(dest, buf, r.mime_type || "image/png");
+            if (up.ok) { storagePath = dest; url = up.publicUrl || url; }
+          }
+        } catch { /* give up below */ }
+      }
+      // 3) Still no usable object → skip this item (never insert a null storage_path).
+      if (!storagePath) { skipped++; errors.push(`copy failed for ${r.filename || id}`); return; }
 
       // Merge the source tags + the confirmed AI-suggested tags so the asset is searchable
       // and lands in the right System category (tags drive the System grouping).
