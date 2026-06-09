@@ -2090,6 +2090,49 @@ export async function getPlatformAudit(limit = 100): Promise<import("@/lib/audit
 }
 
 export interface DeclutterResult { scanned: number; matched: number; removed: number; dryRun: boolean; sampleNames: string[]; }
+export interface DedupeResult { scanned: number; duplicateGroups: number; removed: number; dryRun: boolean; sampleNames: string[]; }
+
+/**
+ * De-duplicate the SYSTEM library: rows that share the same filename + byte-size + mime are the
+ * same asset (left over from earlier buggy promote runs). Keep the OLDEST in each group, remove
+ * the rest (storage objects + rows). Superadmin only; dry-run by default (pass {dryRun:false}).
+ */
+export async function dedupeSystemMedia(opts?: { dryRun?: boolean }): Promise<DedupeResult> {
+  const { isPlatformSuperAdmin } = await import("@/lib/auth/platform-admin");
+  if (!(await isPlatformSuperAdmin())) throw new Error("Not authorized — superadmin only.");
+  const dryRun = opts?.dryRun !== false;
+  const supabase = createSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from("website_media").select("id, filename, size_bytes, mime_type, storage_path, created_at")
+    .eq("tenant_id", SYSTEM_TENANT_ID).order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as any[];
+
+  // Group by a content-identity key. size_bytes must be present (>0) to call it a duplicate —
+  // never collapse rows that merely share a name.
+  const groups = new Map<string, any[]>();
+  for (const r of rows) {
+    if (!r.size_bytes) continue;
+    const key = `${(r.filename || "").toLowerCase()}|${r.size_bytes}|${r.mime_type || ""}`;
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(r);
+  }
+  const dupGroups = [...groups.values()].filter((g) => g.length > 1);
+  const targets = dupGroups.flatMap((g) => g.slice(1)); // keep g[0] (oldest)
+  const sampleNames = targets.slice(0, 12).map((r) => r.filename ?? "(unnamed)");
+
+  if (dryRun) return { scanned: rows.length, duplicateGroups: dupGroups.length, removed: 0, dryRun: true, sampleNames };
+
+  const paths = targets.map((r) => r.storage_path).filter((p): p is string => !!p);
+  for (let i = 0; i < paths.length; i += 100) await removeObjects(paths.slice(i, i + 100));
+  let removed = 0;
+  const ids = targets.map((r) => r.id);
+  for (let i = 0; i < ids.length; i += 200) {
+    const { error: delErr, count } = await supabase
+      .from("website_media").delete({ count: "exact" }).in("id", ids.slice(i, i + 200));
+    if (!delErr && typeof count === "number") removed += count;
+  }
+  return { scanned: rows.length, duplicateGroups: dupGroups.length, removed, dryRun: false, sampleNames };
+}
 
 /**
  * Declutter the global SYSTEM asset library (platform-admin only). Targets the OLD
