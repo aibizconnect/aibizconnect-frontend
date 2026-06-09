@@ -95,3 +95,42 @@ export async function importHtmlAsDraftPage(
 
   return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity, imagesIngested };
 }
+
+/**
+ * Import a Stitch screen DIRECTLY by its exported-HTML URL — no copy/paste. The Stitch MCP's
+ * `get_screen` returns `htmlCode.downloadUrl` (a self-contained Tailwind-CDN HTML doc); pass that
+ * URL here. We fetch it, then hand off to importHtmlAsDraftPage, which renders it through the bridge
+ * (resolving Tailwind classes → true computed styles), ingests images, and creates an editable page.
+ *
+ * `htmlUrl` must be an https Google usercontent download link from the Stitch MCP. We fetch
+ * server-side (no secrets, no PII) and cap the body.
+ */
+export async function importStitchScreen(
+  tenantId: string,
+  websiteId: string,
+  htmlUrl: string,
+  title: string,
+  opts?: { isHome?: boolean },
+): Promise<ImportHtmlResult> {
+  await requireTenantAccess(tenantId);
+  let parsed: URL;
+  try { parsed = new URL(htmlUrl); } catch { return { ok: false, message: "Invalid Stitch HTML URL." }; }
+  if (parsed.protocol !== "https:") return { ok: false, message: "Stitch HTML URL must be https." };
+  // Only accept Google usercontent hosts the Stitch MCP actually serves from.
+  if (!/(^|\.)usercontent\.google\.com$/.test(parsed.hostname) && !/(^|\.)googleusercontent\.com$/.test(parsed.hostname)) {
+    return { ok: false, message: "URL is not a Stitch (Google usercontent) export link." };
+  }
+
+  let html: string;
+  try {
+    const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(30000), redirect: "follow" });
+    if (!res.ok) return { ok: false, message: `Could not fetch Stitch HTML (${res.status}).` };
+    html = (await res.text()).slice(0, 2_000_000);
+  } catch (e: any) {
+    return { ok: false, message: `Fetch failed: ${e?.message ?? e}` };
+  }
+  if (!html || html.length < 40) return { ok: false, message: "Stitch HTML was empty." };
+
+  // baseUrl = stitch.local keeps relative-URL absolutization harmless; Stitch assets are absolute.
+  return importHtmlAsDraftPage(tenantId, websiteId, html, title, { baseUrl: "https://stitch.local", isHome: opts?.isHome });
+}

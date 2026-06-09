@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Solutions | AIBizConnect</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Shared Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#a078ff",
+                    "obsidian-surface": "#0C1F35",
+                    "secondary-fixed-dim": "#4dd6ff",
+                    "on-primary-fixed": "#23005c",
+                    "tertiary": "#a5c8ff",
+                    "background": "#051424",
+                    "surface-tint": "#d0bcff",
+                    "on-tertiary-container": "#002a52",
+                    "obsidian-deep": "#061525",
+                    "secondary-fixed": "#b7eaff",
+                    "tertiary-container": "#2892fd",
+                    "error-container": "#93000a",
+                    "on-background": "#d5e4fa",
+                    "on-primary": "#3c0091",
+                    "electric-violet": "#8B5CF6",
+                    "surface-container-low": "#0e1c2d",
+                    "error": "#ffb4ab",
+                    "on-surface": "#d5e4fa",
+                    "inverse-on-surface": "#233143",
+                    "secondary-container": "#05c6f2",
+                    "surface-container-highest": "#283647",
+                    "on-tertiary": "#00315e",
+                    "on-primary-fixed-variant": "#5516be",
+                    "hyper-blue": "#188BF6",
+                    "on-tertiary-fixed": "#001c3a",
+                    "ghost-white": "#F2F4F8",
+                    "on-secondary-container": "#004e61",
+                    "surface-dim": "#051424",
+                    "primary-fixed": "#e9ddff",
+                    "on-secondary-fixed-variant": "#004e61",
+                    "secondary": "#81deff",
+                    "inverse-primary": "#6d3bd7",
+                    "surface-container-lowest": "#010f1f",
+                    "surface-container-high": "#1d2b3c",
+                    "on-tertiary-fixed-variant": "#004785",
+                    "tertiary-fixed": "#d4e3ff",
+                    "on-error-container": "#ffdad6",
+                    "outline": "#958ea0",
+                    "surface-bright": "#2c3a4c",
+                    "surface-container": "#122031",
+                    "on-secondary-fixed": "#001f28",
+                    "cyan-pulse": "#06C6F2",
+                    "on-error": "#690005",
+                    "primary-fixed-dim": "#d0bcff",
+                    "on-secondary": "#003543",
+                    "primary": "#d0bcff",
+                    "tertiary-fixed-dim": "#a5c8ff",
+                    "inverse-surface": "#d5e4fa",
+                    "on-primary-container": "#340080",
+                    "outline-variant": "#494454",
+                    "on-surface-variant": "#cbc3d7",
+                    "surface": "#051424",
+                    "surface-variant": "#283647"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "40px",
+                    "base": "8px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px",
+                    "container-max": "1280px",
+                    "bento-gap": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(12, 31, 53, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(6, 198, 242, 0.4);
+            box-shadow: 0 0 20px rgba(6, 198, 242, 0.15);
+        }
+        .text-glow-primary {
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+        .bento-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(12, 1fr);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-electric-violet/30 min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-obsidian-deep/70 backdrop-blur-xl border-b border-white/10 shadow-sm">
+<div class="flex justify-between items-center px-margin-desktop py-4 max-w-container-max mx-auto">
+<div class="font-headline-md text-headline-md font-bold text-ghost-white tracking-tight">AIBizConnect</div>
+<div class="hidden md:flex items-center space-x-gutter">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-cyan-pulse transition-all duration-300" href="#">Home</a>
+<a class="font-body-md text-body-md text-electric-violet border-b-2 border-electric-violet pb-1" href="#">Solutions</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-cyan-pulse transition-all duration-300" href="#">Case Studies</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-cyan-pulse transition-all duration-300" href="#">Contact</a>
+</div>
+<button class="bg-electric-violet text-ghost-white px-6 py-2 rounded-lg font-label-md hover:opacity-90 active:scale-95 transition-all duration-300">
+                Book a Call
+            </button>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-grow pt-32 pb-24 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
+<!-- Hero Section -->
+<header class="mb-20">
+<span class="text-cyan-pulse font-label-sm uppercase tracking-widest block mb-4">Enterprise-Grade Solutions</span>
+<h1 class="font-headline-xl text-headline-xl text-ghost-white mb-6 max-w-2xl leading-tight">
+                Tactile Utility for <span class="text-electric-violet text-glow-primary">Modern Business.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+                We bridge the gap between complex AI capabilities and everyday operational excellence. No fluff, just outcomes.
+            </p>
+</header>
+<!-- Bento Solutions Grid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-bento-gap">
+<!-- Pillar 1: Workflow Automation -->
+<section class="md:col-span-8 glass-card rounded-xl p-8 flex flex-col justify-between overflow-hidden relative group">
+<div class="relative z-10">
+<div class="w-12 h-12 bg-electric-violet/20 rounded-lg flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-electric-violet" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-ghost-white mb-4">Workflow Automation</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8 max-w-md">
+                        Efficiency without the maintenance. Our agents handle repetitive tasks, data entry, and multi-step scheduling across your entire stack.
+                    </p>
+<div class="flex flex-wrap gap-4 mb-8">
+<div class="bg-surface-container-high px-4 py-2 rounded-full border border-white/5 flex items-center">
+<span class="material-symbols-outlined text-cyan-pulse text-sm mr-2">check_circle</span>
+<span class="font-label-md text-ghost-white">Zero-Latency Sync</span>
+</div>
+<div class="bg-surface-container-high px-4 py-2 rounded-full border border-white/5 flex items-center">
+<span class="material-symbols-outlined text-cyan-pulse text-sm mr-2">check_circle</span>
+<span class="font-label-md text-ghost-white">ERP Integration</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-auto pt-6 border-t border-white/5 relative z-10">
+<div class="flex flex-col">
+<span class="text-cyan-pulse font-headline-md">40%</span>
+<span class="font-label-sm text-on-surface-variant uppercase">OpEx Reduction</span>
+</div>
+<button class="group/btn flex items-center text-ghost-white font-label-md gap-2">
+                        View Technical Specs
+                        <span class="material-symbols-outlined transition-transform group-hover/btn:translate-x-1">arrow_forward</span>
+</button>
+</div>
+<!-- Background Decoration -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-electric-violet/5 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-electric-violet/10 transition-colors"></div>
+</section>
+<!-- ROI Highlight Box -->
+<div class="md:col-span-4 bg-obsidian-surface rounded-xl p-8 flex flex-col items-center justify-center text-center border border-electric-violet/20">
+<div class="w-16 h-16 rounded-full bg-cyan-pulse/10 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-cyan-pulse text-4xl">trending_up</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-ghost-white mb-2">Measurable Growth</h3>
+<p class="font-body-md text-on-surface-variant mb-6">Our solutions aren't just tools; they're revenue multipliers.</p>
+<div class="w-full bg-surface-container-low rounded-lg p-4 text-left">
+<div class="flex justify-between items-center mb-2">
+<span class="text-label-sm text-on-surface-variant">AVERAGE ROI</span>
+<span class="text-label-sm text-cyan-pulse font-bold">3.2x</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="w-[85%] h-full bg-cyan-pulse"></div>
+</div>
+</div>
+</div>
+<!-- Pillar 2: Customer Experience -->
+<section class="md:col-span-6 glass-card rounded-xl p-8 flex flex-col group">
+<div class="w-12 h-12 bg-hyper-blue/20 rounded-lg flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-hyper-blue" style="font-variation-settings: 'FILL' 1;">forum</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-ghost-white mb-4">Customer Experience</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8">
+                    Chatbots that actually sound like you. We deploy Neural-Linguistic models trained on your brand’s specific tone of voice and knowledge base.
+                </p>
+<ul class="space-y-4 mb-8 flex-grow">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-electric-violet mt-1">auto_awesome</span>
+<span class="font-body-md text-on-surface">Context-aware memory systems</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-electric-violet mt-1">auto_awesome</span>
+<span class="font-body-md text-on-surface">Seamless human-handoff logic</span>
+</li>
+</ul>
+<div class="pt-6 border-t border-white/5">
+<div class="flex items-baseline gap-2">
+<span class="text-ghost-white font-headline-md">24/7</span>
+<span class="text-on-surface-variant font-label-md">Availability</span>
+</div>
+</div>
+</section>
+<!-- Image Feature -->
+<div class="md:col-span-6 rounded-xl overflow-hidden relative group">
+<img alt="Professional business interaction" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A cinematic, high-contrast photograph of a diverse team of business professionals collaborating in a high-tech modern office environment. Deep obsidian surfaces and electric violet lighting accents create a sophisticated atmosphere. They are gathered around a sleek glass table with holographic data projections, representing human-tech synergy. The lighting is dramatic, highlighting expressions of focused problem-solving." src="https://lh3.googleusercontent.com/aida/ADBb0uhvIckbkaT9NR9tbeiMcdaIwnHsUb7Wgw2DfQUR9zbcOuSr37ZT_N9NNkM7jMCEpz70_bo1OLQ5T64XkxZZXNVRk4n0Bzz4BJyD56HTk0uUUxHLSfVK_8p8K9e5Y2tPsQLEOo5-Py8KgrvKmwAnq3pgv3s0TH1tYA5P3RhS6m7TIjLIVi4tRH1XcQfKkDA-nu8X8_mjARbnXCp6A4OnmL240jykAFfY2q1kAxhmqfX6OZWtUrdymmF7DtZK"/>
+<div class="absolute inset-0 bg-gradient-to-t from-obsidian-deep via-transparent to-transparent opacity-60"></div>
+<div class="absolute bottom-6 left-6 right-6">
+<div class="glass-card p-4 rounded-lg flex items-center gap-4">
+<span class="material-symbols-outlined text-cyan-pulse">diversity_3</span>
+<p class="text-ghost-white font-label-md">Trusted by 500+ Small Business Leaders</p>
+</div>
+</div>
+</div>
+<!-- Pillar 3: Data Insights -->
+<section class="md:col-span-12 glass-card rounded-xl p-8 md:p-12 relative group overflow-hidden">
+<div class="grid md:grid-cols-2 gap-12 relative z-10">
+<div>
+<div class="w-12 h-12 bg-cyan-pulse/20 rounded-lg flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-cyan-pulse" style="font-variation-settings: 'FILL' 1;">query_stats</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-ghost-white mb-4">Data Insights</h2>
+<p class="font-body-lg text-on-surface-variant mb-6">
+                            Turning your messy spreadsheets into clear decisions. Our analytics engine ingests raw historical data and outputs predictive trends you can actually use.
+                        </p>
+<div class="space-y-6">
+<div class="flex items-center gap-4">
+<div class="h-12 w-1 border-l-2 border-electric-violet"></div>
+<div>
+<h4 class="text-ghost-white font-label-md">Predictive Modeling</h4>
+<p class="text-on-surface-variant text-sm">Forecast inventory and seasonal demand with 98% accuracy.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="h-12 w-1 border-l-2 border-cyan-pulse"></div>
+<div>
+<h4 class="text-ghost-white font-label-md">Dynamic Visualization</h4>
+<p class="text-on-surface-variant text-sm">Real-time dashboards that eliminate manual reporting cycles.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-6 border border-white/5 self-center">
+<div class="flex justify-between items-center mb-8">
+<span class="font-label-md text-ghost-white">Decision Velocity</span>
+<span class="text-cyan-pulse font-bold">+280%</span>
+</div>
+<div class="flex items-end gap-2 h-32">
+<div class="flex-1 bg-surface-container-high rounded-t h-[20%] transition-all duration-1000 group-hover:h-[40%]"></div>
+<div class="flex-1 bg-surface-container-high rounded-t h-[35%] transition-all duration-1000 group-hover:h-[65%]"></div>
+<div class="flex-1 bg-electric-violet rounded-t h-[50%] transition-all duration-1000 group-hover:h-[85%]"></div>
+<div class="flex-1 bg-cyan-pulse rounded-t h-[40%] transition-all duration-1000 group-hover:h-[95%]"></div>
+<div class="flex-1 bg-surface-container-high rounded-t h-[25%] transition-all duration-1000 group-hover:h-[55%]"></div>
+</div>
+<p class="text-on-surface-variant text-xs mt-6 text-center italic">"The clarity we gained in one month was worth three years of manual audit."</p>
+</div>
+</div>
+<!-- Background Pattern -->
+<div class="absolute top-0 right-0 w-full h-full opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 32px 32px;"></div>
+</section>
+</div>
+<!-- CTA Section -->
+<section class="mt-32 text-center">
+<h3 class="font-headline-lg text-headline-lg text-ghost-white mb-6">Ready to upgrade your infrastructure?</h3>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-electric-violet text-ghost-white px-10 py-4 rounded-xl font-label-md hover:shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-all duration-300">
+                    Schedule a Consultation
+                </button>
+<button class="border border-cyan-pulse text-cyan-pulse px-10 py-4 rounded-xl font-label-md hover:bg-cyan-pulse/5 transition-all duration-300">
+                    Download Services Deck
+                </button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-obsidian-surface border-t border-white/5 w-full mt-auto">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-bento-gap px-margin-desktop py-12 max-w-container-max mx-auto">
+<div class="space-y-4">
+<div class="font-headline-md text-headline-md text-ghost-white font-bold">AIBizConnect</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-xs">
+                    © 2024 AIBizConnect. AI-Driven Growth for Small Business.
+                </p>
+</div>
+<div class="grid grid-cols-2 gap-8">
+<div class="flex flex-col gap-3">
+<span class="text-ghost-white font-label-md mb-2">Platform</span>
+<a class="text-on-surface-variant hover:text-cyan-pulse underline transition-all" href="#">Solutions</a>
+<a class="text-on-surface-variant hover:text-cyan-pulse underline transition-all" href="#">Case Studies</a>
+</div>
+<div class="flex flex-col gap-3">
+<span class="text-ghost-white font-label-md mb-2">Company</span>
+<a class="text-on-surface-variant hover:text-cyan-pulse underline transition-all" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant hover:text-cyan-pulse underline transition-all" href="#">Terms of Service</a>
+</div>
+</div>
+<div class="flex flex-col md:items-end gap-6">
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:border-cyan-pulse transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-cyan-pulse">share</span>
+</a>
+<a class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:border-cyan-pulse transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-cyan-pulse">public</span>
+</a>
+</div>
+<p class="text-on-surface-variant text-sm md:text-right">
+                    Empowering 10,000+ businesses globally with ethical AI.
+                </p>
+</div>
+</div>
+</footer>
+<script>
+        // Simple scroll reveal for cards
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('.glass-card');
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
+
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                observer.observe(card);
+            });
+        });
+    </script>
+</body></html>
