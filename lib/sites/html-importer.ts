@@ -213,7 +213,10 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
   const findCardGrid = (band: HTMLElement): { el: HTMLElement; cards: HTMLElement[]; cols: number } | null => {
     let best: { el: HTMLElement; cards: HTMLElement[]; cols: number } | null = null;
     let bestScore = 0;
-    for (const el of band.querySelectorAll("div, ul, section")) {
+    // Include the BAND ITSELF as a candidate: many designs (incl. Stitch/Tailwind output) put the
+    // cards as DIRECT children of the <section> with no inner wrapper — querySelectorAll skips the
+    // band, so those grids were missed and collapsed to a single column.
+    for (const el of [band, ...band.querySelectorAll("div, ul, section")]) {
       const kids = elementChildren(el).filter((k) => !DROP.has(tagOf(k)));
       if (kids.length < 2 || kids.length > 12) continue;
       const cardish = kids.filter((k) => (k.querySelector && k.querySelector("h1,h2,h3,h4,h5,h6")) || clean(k.text).length > 8);
@@ -242,6 +245,20 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
         if (b.length) { cols.push(b); colStyles.push(parseDataCs(card.getAttribute("data-cs")).style); }
       }
       if (cols.length >= 2) {
+        if (grid.el === band) {
+          // The band ITSELF is the card grid (cards are direct children) → emit a multi-column
+          // row directly, no 1-col wrapper, no double-collect.
+          const row: Record<string, unknown> = {
+            type: "row", columns: Math.min(cols.length, 12), contentWidth: "boxed", gap: 16,
+            _name: "Cards", children: cols, colStyles,
+          };
+          if (Object.keys(bandStyle).length) row._style = bandStyle;
+          result.push(row);
+          built = true;
+          if (result.length >= 60) break;
+          continue;
+        }
+        // Grid is nested inside the band → keep any intro content + the grid as a nested row.
         const intro = collectBlocks(band, grid.el); // band content WITHOUT the grid subtree
         const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
         const nested: Record<string, unknown> = {
