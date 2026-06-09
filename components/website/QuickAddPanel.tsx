@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { SectionType, SectionContent } from "@/lib/sections/schemas";
 import { PREBUILT_TEMPLATES, PREBUILT_CATEGORIES, applyTemplateImages, type PrebuiltTemplate } from "@/lib/sections/prebuilt-templates";
 import { LAYOUT_RECIPES, composeSection, type LayoutRecipe } from "@/lib/sections/layout-recipes";
+import { PAGE_ARCHETYPES, type PageArchetype } from "@/lib/sites/page-archetypes";
 import { listMedia } from "@/app/tenants/[tenantId]/website/actions";
 import { SectionView } from "@/components/sections/registry";
 import { DEFAULT_THEME } from "@/lib/sections/theme";
@@ -137,6 +138,36 @@ function RecipeRow({ r, onInsert, tenantId }: { r: LayoutRecipe; onInsert?: (sec
   );
 }
 
+/** One Phase-4 page archetype as an insertable row. Inserts a full ordered page of recipe
+ *  sections — default (free, instant) on click, or AI-written copy via the ✨ button. */
+function PageRow({ a, onInsert, tenantId }: { a: PageArchetype; onInsert?: (sections: SectionContent[]) => void; tenantId?: string }) {
+  const [busy, setBusy] = useState(false);
+  const run = async (ai: boolean, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!tenantId || busy) return;
+    setBusy(true);
+    try {
+      const { generatePageSections } = await import("@/app/tenants/[tenantId]/website/editor/recipe-actions");
+      const res = await generatePageSections(tenantId, a.key, ai);
+      if (res.ok && res.sections?.length) onInsert?.(res.sections as unknown as SectionContent[]);
+    } catch { /* ignore — nothing inserted */ } finally { setBusy(false); }
+  };
+  return (
+    <div onClick={() => run(false)} title={`${a.name} — ${a.sections.length} sections`}
+      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-sm">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-400 text-[12px] text-white">▤</span>
+      <span className="flex-1 truncate text-[13px] font-medium text-slate-900">{a.name}</span>
+      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">{a.sections.length} sec</span>
+      {tenantId && (
+        <button type="button" onClick={(e) => run(true, e)} disabled={busy} title="Build the page with AI-written on-brand copy"
+          className="shrink-0 rounded-md bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-1.5 py-1 text-[10px] font-semibold text-white disabled:opacity-60">
+          {busy ? "…" : "✨ AI"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** One prebuilt template as a list row (GHL-style). Minimal icon + name; hovering opens
  *  the larger FLOATING preview to the right. Drag onto the canvas or click to insert. */
 function PrebuiltRow({ t, onInsert, imgUrls, onHover }: { t: PrebuiltTemplate; onInsert?: (sections: SectionContent[]) => void; imgUrls: string[]; onHover: (h: HoverState) => void }) {
@@ -236,6 +267,7 @@ function AddAccordion(props: {
     | { kind: "group"; items: QuickItem[] }
     | { kind: "prebuiltCat"; templates: PrebuiltTemplate[] }
     | { kind: "recipes"; recipes: LayoutRecipe[] }
+    | { kind: "pages"; pages: PageArchetype[] }
     | { kind: "saved" } | { kind: "soon" }
   );
   const items: Item[] = [];
@@ -247,6 +279,8 @@ function AddAccordion(props: {
   } else {
     // AI Sections (Beta) — token-driven generated recipes (Phase-3). Insert composes the
     // recipe with on-brand fact-free defaults; --abc-* tokens make it match the site theme.
+    const pages = PAGE_ARCHETYPES.filter((a) => a.name.toLowerCase().includes(ql));
+    if (pages.length) items.push({ key: "pages", title: "Page Layouts (Beta)", kind: "pages", pages });
     const recs = LAYOUT_RECIPES.filter((r) => r.name.toLowerCase().includes(ql));
     if (recs.length) items.push({ key: "recipes", title: "AI Sections (Beta)", kind: "recipes", recipes: recs });
     // Each Prebuilt category is its own collapsible header (like the element groups),
@@ -262,7 +296,7 @@ function AddAccordion(props: {
   return (
     <div className="flex flex-col">
       {items.map((it, i) => {
-        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat" || it.kind === "recipes") : (it.key in open ? open[it.key] : i === 0);
+        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat" || it.kind === "recipes" || it.kind === "pages") : (it.key in open ? open[it.key] : i === 0);
         const soon = it.kind === "soon";
         return (
           <div key={it.key} className="border-b border-slate-100 last:border-0">
@@ -275,6 +309,7 @@ function AddAccordion(props: {
                 {it.kind === "group" && <span className="text-[10px]">{it.items.length}</span>}
                 {it.kind === "prebuiltCat" && <span className="text-[10px]">{it.templates.length}</span>}
                 {it.kind === "recipes" && <span className="text-[10px]">{it.recipes.length}</span>}
+                {it.kind === "pages" && <span className="text-[10px]">{it.pages.length}</span>}
                 <Chevron open={isOpen} />
               </span>
             </button>
@@ -283,6 +318,7 @@ function AddAccordion(props: {
                 {it.kind === "group" && <div className="flex flex-col gap-1.5">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
                 {it.kind === "prebuiltCat" && <div className="flex flex-col gap-2">{it.templates.map((t) => <PrebuiltRow key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>}
                 {it.kind === "recipes" && <div className="flex flex-col gap-1.5">{it.recipes.map((r) => <RecipeRow key={r.key} r={r} onInsert={onInsert} tenantId={tenantId} />)}</div>}
+                {it.kind === "pages" && <div className="flex flex-col gap-1.5">{it.pages.map((a) => <PageRow key={a.key} a={a} onInsert={onInsert} tenantId={tenantId} />)}</div>}
                 {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
                 {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
               </div>
