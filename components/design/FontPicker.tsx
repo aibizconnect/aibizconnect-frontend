@@ -54,15 +54,15 @@ export default function FontPicker({ value, onChange, customFonts = [] }: { valu
   const Option = (f: string) => (
     <button key={f || "default"} type="button"
       onClick={() => { onChange(f); ensureGoogleFont(f); setOpen(false); }}
-      className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[15px] hover:bg-slate-100 ${value === f ? "bg-[#1e3a8a]/10" : ""}`}
+      className={`flex w-full items-center justify-between px-3 py-1 text-left text-[13px] hover:bg-slate-100 ${value === f ? "bg-[#1e3a8a]/10" : ""}`}
       style={{ fontFamily: fontStack(f) }}>
       <span className="truncate">{f || "(default)"}</span>
-      {value === f && <span className="text-[#1e3a8a]">✓</span>}
+      {value === f && <span className="text-[11px] text-[#1e3a8a]">✓</span>}
     </button>
   );
 
   return (
-    <div className="relative w-44">
+    <div className="relative w-full">
       <button ref={btnRef} type="button" onClick={toggle}
         className="flex w-full items-center justify-between rounded border border-gray-300 px-2 py-1 text-sm hover:border-gray-400"
         style={{ fontFamily: fontStack(value) }}>
@@ -73,7 +73,7 @@ export default function FontPicker({ value, onChange, customFonts = [] }: { valu
         <div ref={popRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
           className="z-[9998] max-h-72 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search fonts…"
-            className="w-full border-b border-gray-100 px-3 py-2 text-sm outline-none" />
+            className="w-full border-b border-gray-100 px-3 py-1.5 text-[13px] outline-none" />
           <div className="max-h-60 overflow-y-auto py-1">
             {showDefault && Option("")}
             {customMatches.length > 0 && (
