@@ -642,7 +642,7 @@ export default function Canvas({
     const out: CellRef[] = [];
     const walk = (content: any, uid: string, container: ElPath) => {
       if (!content || content.type !== "row" || !Array.isArray(content.children)) return;
-      const cols = Math.max(1, Math.min(6, content.columns || content.children.length || 1));
+      const cols = Math.max(1, Math.min(12, content.columns || content.children.length || 1));
       for (let c = 0; c < cols; c++) {
         const cell = content.children[c];
         if (!Array.isArray(cell)) continue;
@@ -695,7 +695,7 @@ export default function Canvas({
     mutateRow(rowUid, (row) => {
       const cont = container.length ? containerAt(row, container) : row;
       if (!cont) return;
-      const n = Math.max(1, Math.min(6, cont.columns || 1));
+      const n = Math.max(1, Math.min(12, cont.columns || 1));
       let w: number[] = Array.isArray(cont.widths) && cont.widths.length === n ? cont.widths.slice() : Array.from({ length: n }, () => 1 / n);
       const i = dividerIndex, j = dividerIndex + 1;
       if (j >= n) return;
@@ -715,7 +715,7 @@ export default function Canvas({
     mutateRow(rowUid, (row) => {
       const cont = container.length ? containerAt(row, container) : row;
       if (!cont) return;
-      const n = Math.max(1, Math.min(6, cont.columns || 1));
+      const n = Math.max(1, Math.min(12, cont.columns || 1));
       if (n >= 6) return;
       if (!Array.isArray(cont.children)) cont.children = [];
       cont.children.splice(col + 1, 0, JSON.parse(JSON.stringify(cont.children[col] ?? [])));
@@ -728,7 +728,7 @@ export default function Canvas({
     mutateRow(rowUid, (row) => {
       const cont = container.length ? containerAt(row, container) : row;
       if (!cont) return;
-      const n = Math.max(1, Math.min(6, cont.columns || 1));
+      const n = Math.max(1, Math.min(12, cont.columns || 1));
       if (n <= 1) return;
       if (Array.isArray(cont.children)) cont.children.splice(col, 1);
       if (Array.isArray(cont.colStyles)) cont.colStyles.splice(col, 1);
@@ -756,7 +756,7 @@ export default function Canvas({
     mutateRow(rowUid, (row) => {
       const cont = container.length ? containerAt(row, container) : row;
       if (!cont) return;
-      const n = Math.max(1, Math.min(6, cont.columns || 1));
+      const n = Math.max(1, Math.min(12, cont.columns || 1));
       let w: number[] = Array.isArray(cont.widths) && cont.widths.length === n ? cont.widths.slice() : Array.from({ length: n }, () => 1 / n);
       if (n < 2) { cont.widths = [1]; return; }
       const target = Math.max(0.05, Math.min(0.95, pct / 100));
@@ -770,7 +770,7 @@ export default function Canvas({
     if (!colSel) return 0;
     const row = itemsRef.current.find((i) => i.uid === colSel.rowUid)?.content;
     const cont = row ? (colSel.container.length ? containerAt(row, colSel.container) : row) : null;
-    const n = Math.max(1, Math.min(6, cont?.columns || 1));
+    const n = Math.max(1, Math.min(12, cont?.columns || 1));
     const w: number[] = Array.isArray(cont?.widths) && cont.widths.length === n ? cont.widths : Array.from({ length: n }, () => 1 / n);
     return Math.round((w[colSel.col] ?? 1 / n) * 100);
   }

@@ -71,14 +71,16 @@ const SECTION_PRESETS: Group = { group: "Add a Section", items: [
   { label: "Medium", icon: I.cols, type: "row", cols: 1 }, { label: "Small", icon: I.cols, type: "row", cols: 1 },
 ] };
 
-type Tab = "quick" | "sections" | "rows" | "elements" | "prebuilt" | "saved" | "market" | "store";
-const TOP_NAV: { tab: Tab; label: string; soon?: boolean }[] = [
-  { tab: "quick", label: "Quick Add" }, { tab: "sections", label: "Sections" }, { tab: "rows", label: "Rows" },
-  { tab: "elements", label: "Elements" }, { tab: "prebuilt", label: "Prebuilt Sections" }, { tab: "saved", label: "Saved Assets" },
-  { tab: "market", label: "Widget Marketplace", soon: true }, { tab: "store", label: "Store", soon: true },
+type Tab = "add" | "prebuilt" | "saved" | "market" | "store";
+const TOP_NAV: { tab: Tab; label: string }[] = [
+  { tab: "add", label: "Add" }, { tab: "prebuilt", label: "Prebuilt" }, { tab: "saved", label: "Saved" },
 ];
-// Category shortcuts → jump to Elements filtered to that group.
-const CATEGORY_NAV = ["Buttons", "Forms & Surveys", "Social Media Icons", "Countdown Timers", "Images", "Progress Bar"];
+// Shown as muted "soon" links at the BOTTOM of the panel.
+const BOTTOM_NAV: { tab: Tab; label: string }[] = [
+  { tab: "market", label: "Widget Marketplace" }, { tab: "store", label: "Store" },
+];
+// "Add" tab = one collapsible accordion: Sections, Rows, then every element group.
+const ADD_GROUPS: Group[] = [SECTION_PRESETS, ROWS_GROUP, ...ELEMENT_GROUPS];
 
 function Tile({ it, onPick }: { it: QuickItem; onPick: (type: SectionType, cols?: number) => void }) {
   return (
@@ -213,9 +215,8 @@ function Groups({ groups, q, onPick }: { groups: Group[]; q: string; onPick: (t:
 }
 
 export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSections, tenantId }: { onPick: (type: SectionType, cols?: number) => void; onAi?: () => void; savedSlot?: React.ReactNode; onInsertSections?: (sections: SectionContent[]) => void; tenantId?: string }) {
-  const [tab, setTab] = useState<Tab>("quick");
+  const [tab, setTab] = useState<Tab>("add");
   const [q, setQ] = useState("");
-  const [catFilter, setCatFilter] = useState<string | null>(null);
   const [imgUrls, setImgUrls] = useState<string[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
   const [prebuiltCat, setPrebuiltCat] = useState<string>(PREBUILT_CATEGORIES[0]);
@@ -234,45 +235,41 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       .catch(() => {});
   }, [tenantId]);
 
-  const elementGroups = catFilter ? ELEMENT_GROUPS.filter((g) => g.group === catFilter) : ELEMENT_GROUPS;
   const content = (() => {
     switch (tab) {
-      case "sections": return <Groups groups={[SECTION_PRESETS]} q={q} onPick={onPick} />;
-      case "rows": return <Groups groups={[ROWS_GROUP]} q={q} onPick={onPick} />;
-      case "elements": return <Groups groups={elementGroups} q={q} onPick={onPick} />;
       case "prebuilt": return <PrebuiltTemplates q={q} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} cat={prebuiltCat} setCat={setPrebuiltCat} />;
       case "saved": return savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections will appear here and in the Templates tool.</div>;
       case "market": case "store": return <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Coming soon.</div>;
-      default: return <Groups groups={[ROWS_GROUP, ...ELEMENT_GROUPS]} q={q} onPick={onPick} />;
+      default: return <Groups groups={ADD_GROUPS} q={q} onPick={onPick} />;
     }
   })();
 
+  // Single column (no left rail): a compact segmented tab row, a search, then the content.
   return (
-    <div className="flex h-full">
-      {/* left sub-nav */}
-      <div className="w-32 shrink-0 overflow-y-auto border-r border-slate-100 pr-2 text-sm">
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="mb-2 flex gap-1 rounded-lg bg-slate-100 p-1">
         {TOP_NAV.map((n) => (
-          <button key={n.tab} disabled={n.soon} onClick={() => { setTab(n.tab); setCatFilter(null); }}
-            className={`block w-full rounded-lg px-2 py-1.5 text-left ${tab === n.tab ? "bg-[#1e3a8a]/10 font-semibold text-[#1e3a8a]" : n.soon ? "text-slate-300" : "text-slate-600 hover:bg-slate-50"}`}>
-            {n.label}{n.soon && <span className="ml-1 text-[8px] uppercase">soon</span>}
+          <button key={n.tab} onClick={() => setTab(n.tab)}
+            className={`flex-1 rounded-md px-2 py-1.5 text-[13px] font-medium transition ${tab === n.tab ? "bg-white text-[#1e3a8a] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+            {n.label}
           </button>
         ))}
-        <div className="my-2 border-t border-slate-100" />
-        {CATEGORY_NAV.map((c) => (
-          <button key={c} onClick={() => { setTab("elements"); setCatFilter(c); }}
-            className={`block w-full rounded-lg px-2 py-1.5 text-left ${tab === "elements" && catFilter === c ? "bg-[#1e3a8a]/10 font-semibold text-[#1e3a8a]" : "text-slate-600 hover:bg-slate-50"}`}>
-            {c}
+      </div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
+        className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">{content}</div>
+
+      {/* Bottom of the list: Widget Marketplace + Store (coming soon). */}
+      <div className="mt-2 border-t border-slate-100 pt-2">
+        {BOTTOM_NAV.map((n) => (
+          <button key={n.tab} onClick={() => setTab(n.tab)}
+            className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] ${tab === n.tab ? "bg-[#1e3a8a]/10 font-semibold text-[#1e3a8a]" : "text-slate-400 hover:bg-slate-50"}`}>
+            {n.label}<span className="text-[8px] uppercase">soon</span>
           </button>
         ))}
       </div>
 
-      {/* content */}
-      <div className="flex min-w-0 flex-1 flex-col pl-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
-          className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1">{content}</div>
-        {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
-      </div>
+      {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
 
       {/* Floating preview of the hovered prebuilt block (rendered above everything). */}
       {tab === "prebuilt" && hover && <FloatingPreview hover={hover} />}

@@ -150,7 +150,7 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
     case "html":
       return <HtmlSection content={c} theme={theme} />;
     case "row": {
-      const baseCols = Math.max(1, Math.min(6, c.columns || 1));
+      const baseCols = Math.max(1, Math.min(12, c.columns || 1));
       // Mobile stacking is ON BY DEFAULT (Copilot-ratified platform baseline). A tenant
       // opts OUT per row via keepRowOnMobile. Legacy explicit stackOnMobile still honored.
       const explicitStack = c._responsive?.mobile?.stackOnMobile ?? c._style?.stackOnMobile;
