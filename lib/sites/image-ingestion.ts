@@ -88,10 +88,19 @@ export async function ingestSectionImages(
             // store it in the SYSTEM library (read-by-all, copy-on-use). The tenant page just
             // references the public system URL. Usage is still metered to the triggering tenant.
             const gen = await imagenGenerateAndImport(SYSTEM_TENANT_ID, prompt, { count: 1, aspectRatio: "16:9", namePrefix: "AI hero" });
-            const url = gen.images?.[0]?.url;
-            if (url) {
-              out[i] = { ...s, backgroundImageUrl: url };
+            const sysImg = gen.images?.[0];
+            if (sysImg?.url) {
               opts.aiBudget.left -= 1;
+              // Copy-on-use: the tenant ALSO gets their own copy (Ali). Reference the tenant
+              // copy on the page so it's theirs/editable; the SYSTEM original stays the reusable
+              // master. Fall back to the system URL if the copy fails.
+              let useUrl = sysImg.url;
+              try {
+                const { importSystemAssetToTenant } = await import("@/app/tenants/[tenantId]/website/actions");
+                const copy = await importSystemAssetToTenant(tenantId, sysImg.id);
+                if (copy?.url) useUrl = copy.url;
+              } catch { /* keep system url */ }
+              out[i] = { ...s, backgroundImageUrl: useUrl };
               try { const { recordAiUsage } = await import("@/app/tenants/[tenantId]/website/actions"); await recordAiUsage(tenantId, "image_generation", 1, { context: "build_hero", ownedBy: "system" }); } catch { /* metering best-effort */ }
             }
           }
