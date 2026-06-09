@@ -182,17 +182,18 @@ function PrebuiltTemplates({ q, onInsert, imgUrls, onHover, cat, setCat }: { q: 
 function AddAccordion(props: {
   mode: "elements" | "library";
   q: string; onPick: (t: SectionType, c?: number) => void; onInsert?: (s: SectionContent[]) => void;
-  imgUrls: string[]; onHover: (h: HoverState) => void; prebuiltCat: string; setPrebuiltCat: (c: string) => void;
+  imgUrls: string[]; onHover: (h: HoverState) => void;
   savedSlot?: React.ReactNode;
 }) {
-  const { mode, q, onPick, onInsert, imgUrls, onHover, prebuiltCat, setPrebuiltCat, savedSlot } = props;
+  const { mode, q, onPick, onInsert, imgUrls, onHover, savedSlot } = props;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const searching = q.trim().length > 0;
   const ql = q.toLowerCase();
 
   type Item = { key: string; title: string } & (
     | { kind: "group"; items: QuickItem[] }
-    | { kind: "prebuilt" } | { kind: "saved" } | { kind: "soon" }
+    | { kind: "prebuiltCat"; templates: PrebuiltTemplate[] }
+    | { kind: "saved" } | { kind: "soon" }
   );
   const items: Item[] = [];
   if (mode === "elements") {
@@ -201,7 +202,12 @@ function AddAccordion(props: {
       if (its.length) items.push({ key: g.group, title: g.group, kind: "group", items: its });
     }
   } else {
-    items.push({ key: "prebuilt", title: "Prebuilt Sections", kind: "prebuilt" });
+    // Each Prebuilt category is its own collapsible header (like the element groups),
+    // expanding to its templates as one-per-row items.
+    for (const cat of PREBUILT_CATEGORIES) {
+      const ts = PREBUILT_TEMPLATES.filter((t) => t.category === cat && (t.name.toLowerCase().includes(ql) || t.blurb.toLowerCase().includes(ql)));
+      if (ts.length) items.push({ key: `pb:${cat}`, title: cat, kind: "prebuiltCat", templates: ts });
+    }
     items.push({ key: "saved", title: "Saved Assets", kind: "saved" });
     if (!searching) { items.push({ key: "market", title: "Widget Marketplace", kind: "soon" }); items.push({ key: "store", title: "Store", kind: "soon" }); }
   }
@@ -209,7 +215,7 @@ function AddAccordion(props: {
   return (
     <div className="flex flex-col">
       {items.map((it, i) => {
-        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuilt") : (it.key in open ? open[it.key] : i === 0);
+        const isOpen = searching ? (it.kind === "group" || it.kind === "prebuiltCat") : (it.key in open ? open[it.key] : i === 0);
         const soon = it.kind === "soon";
         return (
           <div key={it.key} className="border-b border-slate-100 last:border-0">
@@ -220,13 +226,14 @@ function AddAccordion(props: {
               </span>
               <span className="flex items-center gap-1.5 text-slate-400">
                 {it.kind === "group" && <span className="text-[10px]">{it.items.length}</span>}
+                {it.kind === "prebuiltCat" && <span className="text-[10px]">{it.templates.length}</span>}
                 <Chevron open={isOpen} />
               </span>
             </button>
             {isOpen && (
               <div className="pb-3.5 pt-0.5">
                 {it.kind === "group" && <div className="flex flex-col gap-1.5">{it.items.map((t) => <Tile key={t.label} it={t} onPick={onPick} />)}</div>}
-                {it.kind === "prebuilt" && <div className="h-[440px]"><PrebuiltTemplates q={q} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} cat={prebuiltCat} setCat={setPrebuiltCat} /></div>}
+                {it.kind === "prebuiltCat" && <div className="flex flex-col gap-2">{it.templates.map((t) => <PrebuiltRow key={t.id} t={t} onInsert={onInsert} imgUrls={imgUrls} onHover={onHover} />)}</div>}
                 {it.kind === "saved" && (savedSlot ?? <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">Save any section with its ⭐ on the canvas — your saved sections appear here.</div>)}
                 {soon && <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Coming soon.</div>}
               </div>
@@ -243,7 +250,6 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
   const [q, setQ] = useState("");
   const [imgUrls, setImgUrls] = useState<string[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
-  const [prebuiltCat, setPrebuiltCat] = useState<string>(PREBUILT_CATEGORIES[0]);
 
   // Load the tenant's PHOTO images once so prebuilt templates can drop in using real photos.
   // Exclude brand assets (logos / wordmarks / mascot / icons) so a hero never gets a logo.
@@ -274,7 +280,7 @@ export default function QuickAddPanel({ onPick, onAi, savedSlot, onInsertSection
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
         className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <AddAccordion mode={view} q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} prebuiltCat={prebuiltCat} setPrebuiltCat={setPrebuiltCat} savedSlot={savedSlot} />
+        <AddAccordion mode={view} q={q} onPick={onPick} onInsert={onInsertSections} imgUrls={imgUrls} onHover={setHover} savedSlot={savedSlot} />
       </div>
       {onAi && <button onClick={onAi} className="mt-2 w-full rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-semibold text-white">✨ Describe it — AI builds a section</button>}
 
