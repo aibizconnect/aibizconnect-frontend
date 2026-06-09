@@ -135,6 +135,7 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
   const [own, setOwn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [openRole, setOpenRole] = useState<Record<string, boolean>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -223,13 +224,22 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
         <p className="mt-1 text-xs leading-relaxed text-slate-500">Set the font, size &amp; style for each text role. These apply across the whole site; any element can override them on the right. <b>Reset all text</b> snaps every element back to these settings.</p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {FONT_ROLES.map((r) => {
+      <div className="flex flex-col">
+        {FONT_ROLES.map((r, i) => {
           const rs = typo[r.key] || {};
+          const isOpen = r.key in openRole ? openRole[r.key] : i === 0; // first role open by default
           return (
-            <div key={r.key} className="rounded-lg border border-slate-200 px-2.5 py-2">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
+            <div key={r.key} className="border-b border-slate-100 last:border-0">
+              <button type="button" onClick={() => setOpenRole((o) => ({ ...o, [r.key]: !isOpen }))}
+                className="flex w-full items-center justify-between py-2.5 text-left">
                 <span className="text-sm font-medium text-slate-700">{r.label}</span>
+                <span className="flex items-center gap-2 text-slate-400">
+                  {rs.fontFamily && <span className="max-w-[100px] truncate text-[11px]" style={{ fontFamily: `"${rs.fontFamily}", sans-serif` }}>{rs.fontFamily}</span>}
+                  <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                </span>
+              </button>
+              {isOpen && <div className="pb-3 pt-0.5">
+              <div className="mb-1.5">
                 <FontPicker value={rs.fontFamily} onChange={(v) => setRoleStyle(r.key, { fontFamily: v })} customFonts={customNames} />
               </div>
               <div className="flex items-center gap-1.5">
@@ -271,6 +281,7 @@ export function TypographyPanel({ tenantId, websiteId, onChanged, onResetAll }: 
                   <option value="lowercase">lower</option>
                 </select>
               </div>
+              </div>}
             </div>
           );
         })}
