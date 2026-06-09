@@ -34,21 +34,11 @@ export function AddElementsPanel({
   onApplied: () => void;
   onInsertSections?: (sections: SectionContent[]) => void;
 }) {
-  const [tab, setTab] = useState<"elements" | "library">("elements");
+  // QuickAddPanel owns the Elements & Rows / Prebuilt & Saved toggle now (no duplicate here).
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 flex gap-1">
-        <button className={tabBtn(tab === "elements")} onClick={() => setTab("elements")}>Elements & Rows</button>
-        <button className={tabBtn(tab === "library")} onClick={() => setTab("library")}>Prebuilt & Saved</button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "elements" ? (
-          <QuickAddPanel onPick={onPick} onInsertSections={onInsertSections} tenantId={tenantId}
-            savedSlot={<SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={onApplied} />} />
-        ) : (
-          <SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={onApplied} />
-        )}
-      </div>
+      <QuickAddPanel onPick={onPick} onInsertSections={onInsertSections} tenantId={tenantId}
+        savedSlot={<SectionTemplatesPanel tenantId={tenantId} selectedPageId={selectedPageId} websiteId={websiteId} onApplied={onApplied} />} />
     </div>
   );
 }
