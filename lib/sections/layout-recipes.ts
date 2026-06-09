@@ -30,7 +30,9 @@ export interface RecipeSlot {
   default: string;
 }
 
-export type SemanticType = "hero" | "features" | "split" | "cta" | "about" | "text_block";
+export type SemanticType =
+  | "hero" | "features" | "split" | "cta" | "about" | "text_block"
+  | "testimonials" | "contact" | "faq" | "pricing" | "gallery";
 
 export interface LayoutRecipe {
   key: string;
@@ -181,6 +183,122 @@ export const LAYOUT_RECIPES: LayoutRecipe[] = [
         { type: "heading", text: "{{headline}}", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)", lineHeight: 1.2 },
         { type: "button", label: "{{cta_label}}", href: "{{cta_href}}", align: "center", variant: "solid", size: "lg", hover: "grow", bgColor: "var(--abc-color-accent)" },
       ]],
+    },
+  },
+
+  // --- Recipe-expansion (architect D-130). These emit our EXISTING composite section types
+  //     directly (testimonials/contact-form/faq/pricing/gallery) — renderer-valid as-is. ---
+  {
+    key: "testimonials-grid",
+    name: "Testimonials — grid",
+    semanticType: "testimonials",
+    slots: [
+      { key: "heading", contentType: "text", default: "What clients say", maxLength: 60 },
+      { key: "q1", contentType: "text", default: "They made the whole process feel effortless and clear.", maxLength: 180, brief: "Generic positive quote — never attribute to a real named person" },
+      { key: "n1", contentType: "text", default: "Client", maxLength: 40 },
+      { key: "r1", contentType: "text", default: "", maxLength: 40 },
+      { key: "q2", contentType: "text", default: "Professional, responsive, and a pleasure to work with.", maxLength: 180 },
+      { key: "n2", contentType: "text", default: "Client", maxLength: 40 },
+      { key: "r2", contentType: "text", default: "", maxLength: 40 },
+      { key: "q3", contentType: "text", default: "Exactly the outcome we hoped for — highly recommend.", maxLength: 180 },
+      { key: "n3", contentType: "text", default: "Client", maxLength: 40 },
+      { key: "r3", contentType: "text", default: "", maxLength: 40 },
+    ],
+    template: {
+      type: "testimonials",
+      heading: "{{heading}}",
+      layout: "grid",
+      items: [
+        { name: "{{n1}}", role: "{{r1}}", quote: "{{q1}}" },
+        { name: "{{n2}}", role: "{{r2}}", quote: "{{q2}}" },
+        { name: "{{n3}}", role: "{{r3}}", quote: "{{q3}}" },
+      ],
+    },
+  },
+  {
+    key: "contact-form-basic",
+    name: "Contact form",
+    semanticType: "contact",
+    slots: [
+      { key: "heading", contentType: "text", default: "Get in touch", maxLength: 60 },
+      { key: "subheading", contentType: "text", default: "Tell us a little about what you're looking for and we'll be in touch shortly.", maxLength: 160 },
+      { key: "submit", contentType: "text", default: "Send message", maxLength: 30 },
+    ],
+    template: {
+      type: "contact-form",
+      heading: "{{heading}}",
+      subheading: "{{subheading}}",
+      submitLabel: "{{submit}}",
+      successMessage: "Thanks — we'll be in touch soon.",
+      fields: [
+        { name: "name", label: "Name", type: "text" },
+        { name: "email", label: "Email", type: "email" },
+        { name: "phone", label: "Phone", type: "tel" },
+        { name: "message", label: "Message", type: "textarea" },
+      ],
+    },
+  },
+  {
+    key: "faq-accordion",
+    name: "FAQ",
+    semanticType: "faq",
+    slots: [
+      { key: "q1", contentType: "text", default: "How do we get started?", maxLength: 100 },
+      { key: "a1", contentType: "text", default: "Reach out through the contact form and we'll walk you through the next steps.", maxLength: 280 },
+      { key: "q2", contentType: "text", default: "What does it cost?", maxLength: 100 },
+      { key: "a2", contentType: "text", default: "Pricing depends on scope — we'll give you a clear, tailored quote up front.", maxLength: 280 },
+      { key: "q3", contentType: "text", default: "How long does it take?", maxLength: 100 },
+      { key: "a3", contentType: "text", default: "Timelines vary by project; we'll set clear expectations before we begin.", maxLength: 280 },
+      { key: "q4", contentType: "text", default: "Do you offer ongoing support?", maxLength: 100 },
+      { key: "a4", contentType: "text", default: "Yes — we're here for the long term, not just the launch.", maxLength: 280 },
+    ],
+    template: {
+      type: "faq",
+      items: [
+        { q: "{{q1}}", a: "{{a1}}" },
+        { q: "{{q2}}", a: "{{a2}}" },
+        { q: "{{q3}}", a: "{{a3}}" },
+        { q: "{{q4}}", a: "{{a4}}" },
+      ],
+    },
+  },
+  {
+    key: "pricing-tiers",
+    name: "Pricing — three tiers",
+    semanticType: "pricing",
+    slots: [
+      { key: "p1_name", contentType: "text", default: "Starter", maxLength: 30 },
+      { key: "p1_price", contentType: "text", default: "$—", maxLength: 16, brief: "Leave as $— unless a real price is provided" },
+      { key: "p2_name", contentType: "text", default: "Professional", maxLength: 30 },
+      { key: "p2_price", contentType: "text", default: "$—", maxLength: 16 },
+      { key: "p3_name", contentType: "text", default: "Premium", maxLength: 30 },
+      { key: "p3_price", contentType: "text", default: "$—", maxLength: 16 },
+    ],
+    template: {
+      type: "pricing",
+      plans: [
+        { name: "{{p1_name}}", price: "{{p1_price}}", period: "/mo", features: [{ text: "Core features" }, { text: "Email support" }], ctaLabel: "Choose", ctaHref: "#contact" },
+        { name: "{{p2_name}}", price: "{{p2_price}}", period: "/mo", features: [{ text: "Everything in Starter" }, { text: "Priority support" }, { text: "Advanced options" }], ctaLabel: "Choose", ctaHref: "#contact" },
+        { name: "{{p3_name}}", price: "{{p3_price}}", period: "/mo", features: [{ text: "Everything in Professional" }, { text: "Dedicated contact" }, { text: "Custom work" }], ctaLabel: "Choose", ctaHref: "#contact" },
+      ],
+    },
+  },
+  {
+    key: "gallery-grid",
+    name: "Gallery — grid",
+    semanticType: "gallery",
+    slots: [
+      // Gallery images come from the media pipeline / defaults — never the LLM (image_url slots).
+      { key: "i1", contentType: "image_url", default: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&q=70" },
+      { key: "i2", contentType: "image_url", default: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900&q=70" },
+      { key: "i3", contentType: "image_url", default: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=900&q=70" },
+      { key: "i4", contentType: "image_url", default: "https://images.unsplash.com/photo-1531973576160-7125cd663d86?w=900&q=70" },
+    ],
+    template: {
+      type: "gallery",
+      columns: 4,
+      lightbox: true,
+      images: [{ url: "{{i1}}" }, { url: "{{i2}}" }, { url: "{{i3}}" }, { url: "{{i4}}" }],
     },
   },
 ];
