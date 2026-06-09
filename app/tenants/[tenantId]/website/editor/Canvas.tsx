@@ -20,6 +20,7 @@ import {
   listTemplates,
   createGlobalBlock,
   attachBlockToPage,
+  detachBlockFromPage,
   getPageBackground,
   type ResolvedBlock,
 } from "../actions";
@@ -974,11 +975,20 @@ export default function Canvas({
   }
 
   async function deleteSection(index: number) {
-    if (!(await confirmDialog("Delete this section?", { danger: true, confirmText: "Delete" }))) return;
     const removed = items[index];
+    const gid = (removed?.content as any)?._global as string | undefined;
+    const msg = gid
+      ? "Remove this header/footer from this page? (It stays available in Saved Assets and on other pages.)"
+      : "Delete this section?";
+    if (!(await confirmDialog(msg, { danger: true, confirmText: "Delete" }))) return;
     const next = items.filter((_, i) => i !== index);
     commit(next);
     if (removed.uid === selectedUid) setSelectedUid(null);
+    // A pinned GLOBAL block (Header/Footer) isn't in draft_sections — it's attached via a
+    // page→block ref. Detach it so it doesn't reload on the next visit.
+    if (gid && selectedPageId) {
+      try { await detachBlockFromPage(selectedPageId, tenantId, gid); } catch { /* best-effort */ }
+    }
   }
 
   // Top-level section drag: mark the source path; dragover sets the black-line
