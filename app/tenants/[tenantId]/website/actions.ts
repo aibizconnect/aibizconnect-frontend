@@ -3,7 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
-import { putObject, copyObject, removeObjects, downloadObject, publicUrlFor } from "@/lib/media/storage";
+import { putObject, copyObject, removeObjects, publicUrlFor } from "@/lib/media/storage";
 import { imagenGenerateAndImport, imageGenEnabled as aiImageGenEnabled, hasKey as aiHasImageKey } from "@/lib/ai/generateAiImages";
 import {
   sectionSchema,
@@ -2301,20 +2301,30 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
   if (!(await canManageSystemLibrary())) throw new Error("Not authorized — AI Biz Connect admin/staff only.");
   const supabase = createSupabaseServiceClient();
   const base = Date.now();
-  let promoted = 0, skipped = 0, i = 0;
+  let promoted = 0, skipped = 0;
   const errors: string[] = [];
-  for (const id of mediaIds) {
-    i++;
+  // Resolve a single "Promoted" system folder ONCE (no per-image AI vision — that made a
+  // 12-image batch exceed the server-action timeout so only the first one landed). Vision
+  // re-categorization can run later via the System declutter/backfill pass.
+  let promotedFolderId: string | null = null;
+  try {
+    const { ensureSystemFolderPath } = await import("@/lib/media/systemFolders");
+    promotedFolderId = await ensureSystemFolderPath("/System/Promoted");
+  } catch { /* fall back to root */ }
+
+  // Promote in parallel: each item is just a storage copy + insert (fast), so a batch of N
+  // completes well within the action budget. Failures are isolated per item.
+  await Promise.all(mediaIds.map(async (id, i) => {
     try {
       const { data: row } = await supabase
-        .from("website_media").select("url, storage_path, filename, mime_type, size_bytes")
+        .from("website_media").select("url, storage_path, filename, mime_type, size_bytes, tags")
         .eq("tenant_id", tenantId).eq("id", id).maybeSingle();
-      if (!row) { skipped++; continue; }
+      if (!row) { skipped++; return; }
       const r = row as any;
       // Already in System? (same URL) — skip duplicates.
       const { data: dup } = await supabase
         .from("website_media").select("id").eq("tenant_id", SYSTEM_TENANT_ID).eq("url", r.url).limit(1);
-      if (dup && dup.length) { skipped++; continue; }
+      if (dup && dup.length) { skipped++; return; }
 
       let url = r.url as string;
       let storagePath: string | null = null;
@@ -2326,31 +2336,15 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
         // If copy fails (e.g. cross-path perms), fall back to referencing the original URL.
       }
 
-      // AI-tag the promoted image → System category folder + a clean display name (best-effort).
-      let folderId: string | null = null;
-      let displayName = r.filename || "Asset";
-      try {
-        const { aiCategorizeImage } = await import("@/lib/ai/generateAiImages");
-        const { ensureSystemFolderPath } = await import("@/lib/media/systemFolders");
-        let buf: Buffer | null = null;
-        if (storagePath) { buf = await downloadObject(storagePath); }
-        if (!buf) { const resp = await fetch(url); if (resp.ok) buf = Buffer.from(await resp.arrayBuffer()); }
-        if (buf) {
-          const cat = await aiCategorizeImage(buf, r.mime_type || "image/png");
-          const category = cat?.category && cat.category !== "Uncategorized" ? cat.category : "Promoted";
-          folderId = await ensureSystemFolderPath(`/System/${category}`);
-          if (cat?.name) displayName = `${cat.name}.${ext}`;
-        }
-      } catch { /* tagging is best-effort — the asset still promotes */ }
-
       const { error } = await supabase.from("website_media").insert({
-        tenant_id: SYSTEM_TENANT_ID, url, storage_path: storagePath, folder_id: folderId,
-        filename: displayName, mime_type: r.mime_type || "image/*", size_bytes: r.size_bytes ?? null,
+        tenant_id: SYSTEM_TENANT_ID, url, storage_path: storagePath, folder_id: promotedFolderId,
+        filename: r.filename || "Asset", mime_type: r.mime_type || "image/*", size_bytes: r.size_bytes ?? null,
+        ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags } : {}),
       });
-      if (error) { skipped++; errors.push(error.message); continue; }
+      if (error) { skipped++; errors.push(error.message); return; }
       promoted++;
     } catch (e: any) { skipped++; errors.push(e?.message ?? String(e)); }
-  }
+  }));
   return { promoted, skipped, errors };
 }
 
