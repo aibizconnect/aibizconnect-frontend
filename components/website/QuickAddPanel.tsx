@@ -178,20 +178,37 @@ function PrebuiltTemplates({ q, onInsert, imgUrls, onHover, cat, setCat }: { q: 
   );
 }
 
+/** Clean, Puck-style collapsible accordion of element groups: a tidy header row with a
+ *  chevron, generous spacing, light dividers — only the first group open by default so the
+ *  panel never feels crowded. Searching auto-expands every matching group. */
 function Groups({ groups, q, onPick }: { groups: Group[]; q: string; onPick: (t: SectionType, c?: number) => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const searching = q.trim().length > 0;
+  const visible = groups
+    .map((g) => ({ g, items: g.items.filter((it) => it.label.toLowerCase().includes(q.toLowerCase())) }))
+    .filter((x) => x.items.length);
   return (
-    <>
-      {groups.map((g) => {
-        const items = g.items.filter((it) => it.label.toLowerCase().includes(q.toLowerCase()));
-        if (!items.length) return null;
+    <div className="flex flex-col">
+      {visible.map(({ g, items }, i) => {
+        const isOpen = searching ? true : (g.group in open ? open[g.group] : i === 0);
         return (
-          <div key={g.group} className="mb-5">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{g.group}</div>
-            <div className="grid grid-cols-2 gap-2">{items.map((it) => <Tile key={it.label} it={it} onPick={onPick} />)}</div>
+          <div key={g.group} className="border-b border-slate-100 last:border-0">
+            <button
+              type="button"
+              onClick={() => setOpen((o) => ({ ...o, [g.group]: !isOpen }))}
+              className="flex w-full items-center justify-between py-2.5 text-left"
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{g.group}</span>
+              <span className="flex items-center gap-1.5 text-slate-400">
+                <span className="text-[10px]">{items.length}</span>
+                <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </span>
+            </button>
+            {isOpen && <div className="grid grid-cols-2 gap-2 pb-3.5 pt-0.5">{items.map((it) => <Tile key={it.label} it={it} onPick={onPick} />)}</div>}
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
