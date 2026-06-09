@@ -2296,7 +2296,7 @@ export interface PromoteResult { promoted: number; skipped: number; errors: stri
  * in everyone's System assets. The tenant KEEPS their original (copy, not destructive).
  * External/stock images (no storage_path) are referenced by URL.
  */
-export async function promoteMediaToSystem(tenantId: string, mediaIds: string[]): Promise<PromoteResult> {
+export async function promoteMediaToSystem(tenantId: string, mediaIds: string[], extraTags?: string[]): Promise<PromoteResult> {
   const { canManageSystemLibrary } = await import("@/lib/auth/platform-admin");
   if (!(await canManageSystemLibrary())) throw new Error("Not authorized — AI Biz Connect admin/staff only.");
   const supabase = createSupabaseServiceClient();
@@ -2349,16 +2349,52 @@ export async function promoteMediaToSystem(tenantId: string, mediaIds: string[])
         } catch { /* keep tenant url */ }
       }
 
+      // Merge the source tags + the confirmed AI-suggested tags so the asset is searchable
+      // and lands in the right System category (tags drive the System grouping).
+      const mergedTags = Array.from(new Set([
+        ...(Array.isArray(r.tags) ? r.tags : []),
+        ...((extraTags || []).map((t) => String(t).toLowerCase().trim()).filter(Boolean)),
+      ]));
       const { error } = await supabase.from("website_media").insert({
         tenant_id: SYSTEM_TENANT_ID, url, storage_path: storagePath, folder_id: promotedFolderId,
         filename: r.filename || "Asset", mime_type: r.mime_type || "image/*", size_bytes: r.size_bytes ?? null,
-        ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags } : {}),
+        ...(mergedTags.length ? { tags: mergedTags } : {}),
       });
       if (error) { skipped++; errors.push(error.message); return; }
       promoted++;
     } catch (e: any) { skipped++; errors.push(e?.message ?? String(e)); }
   }));
   return { promoted, skipped, errors };
+}
+
+/**
+ * AI-suggest search tags for the given tenant media (vision via aiCategorizeImage), merged with
+ * the image's existing tags + filename tokens. Best-effort, never throws; returns [] tags for
+ * any it can't read. Used by the "Move to System" tagging dialog (suggest + optional edit).
+ */
+export async function suggestMediaTags(tenantId: string, mediaIds: string[]): Promise<{ id: string; tags: string[] }[]> {
+  await requireTenantAccess(tenantId);
+  const supabase = createSupabaseServiceClient();
+  const { aiCategorizeImage } = await import("@/lib/ai/generateAiImages");
+  const { downloadObject } = await import("@/lib/media/storage");
+  const STOP = new Set(["the", "and", "for", "with", "png", "jpg", "jpeg", "webp", "gif", "image", "img", "asset", "uncategorized", "promoted"]);
+  const toks = (s: string) => (s || "").toLowerCase().split(/[\/\s,_.+-]+/).filter((t) => t.length >= 3 && /^[a-z]+$/.test(t) && !STOP.has(t));
+  const out = await Promise.all(mediaIds.slice(0, 24).map(async (id) => {
+    try {
+      const { data: r } = await supabase
+        .from("website_media").select("storage_path, url, mime_type, filename, tags")
+        .eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+      if (!r) return { id, tags: [] as string[] };
+      let buf: Buffer | null = null;
+      if (r.storage_path) { try { buf = await downloadObject(r.storage_path); } catch { /* fall through */ } }
+      if (!buf) { try { const resp = await fetch(r.url); if (resp.ok) buf = Buffer.from(await resp.arrayBuffer()); } catch { /* ignore */ } }
+      let ai: string[] = [];
+      if (buf) { const cat = await aiCategorizeImage(buf, r.mime_type || "image/png"); if (cat) ai = [...toks(cat.category), ...toks(cat.name)]; }
+      const merged = Array.from(new Set([...(Array.isArray(r.tags) ? r.tags : []), ...ai, ...(ai.length ? [] : toks(r.filename))])).slice(0, 8);
+      return { id, tags: merged };
+    } catch { return { id, tags: [] as string[] }; }
+  }));
+  return out;
 }
 
 /**

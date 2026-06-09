@@ -5,7 +5,7 @@ import {
   listMedia, uploadMedia, deleteMedia, importStockMedia, importAiMedia, importCanvaMedia,
   getSystemAssets, getMediaUsage, getTenantQuota,
   listFolders, createFolder, renameFolder, deleteFolder, moveMediaToFolder, moveFolder, getFolderImageCount, ensureDefaultMediaFolders,
-  searchProvider, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, getAiUsage, getAllAiUsage,
+  searchProvider, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, suggestMediaTags, getAiUsage, getAllAiUsage,
   type MediaItem, type MediaSource, type SystemAsset, type MediaFolder, type StockProvider, type ProviderResult, type AiUsage, type TenantAiUsage,
 } from "@/app/tenants/[tenantId]/website/actions";
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
@@ -109,6 +109,11 @@ export default function MediaLibraryRoot({
   const ask = (text: string) => new Promise<boolean>((resolve) => setConfirmState({ text, resolve }));
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [moveProgress, setMoveProgress] = useState<{ done: number; total: number } | null>(null);
+  // "Move to System" tagging dialog (AI suggests, user can edit, then move).
+  const [promoteIds, setPromoteIds] = useState<string[] | null>(null);
+  const [promoteTags, setPromoteTags] = useState<string[]>([]);
+  const [promoteSuggesting, setPromoteSuggesting] = useState(false);
+  const [promoteTagInput, setPromoteTagInput] = useState("");
   const [tagBusy, setTagBusy] = useState(false);
   async function tagFromNames() {
     setTagBusy(true);
@@ -344,10 +349,25 @@ export default function MediaLibraryRoot({
     setItems((p) => p.filter((m) => !selected.has(m.id))); setSelected(new Set()); reloadUsage();
   }
   // Admin/staff: promote selected tenant photos into the shared SYSTEM library.
-  async function moveToSystem() {
+  // Open the tagging dialog and ask AI to suggest tags (suggest + optional edit).
+  async function openMoveToSystem() {
     const ids = Array.from(selected);
     if (!ids.length) return;
-    if (!(await ask(`Add ${ids.length} photo(s) to the System library (available to all tenants)? Your originals stay in your media.`))) return;
+    setPromoteIds(ids); setPromoteTags([]); setPromoteTagInput(""); setPromoteSuggesting(true);
+    try {
+      const sugg = await suggestMediaTags(tenantId, ids);
+      const union = Array.from(new Set(sugg.flatMap((s) => s.tags))).slice(0, 12);
+      setPromoteTags(union);
+    } catch { /* leave empty — user can add their own */ }
+    finally { setPromoteSuggesting(false); }
+  }
+  const addPromoteTag = (t: string) => { const v = t.trim().toLowerCase(); if (v && !promoteTags.includes(v)) setPromoteTags((x) => [...x, v]); setPromoteTagInput(""); };
+
+  async function moveToSystem() {
+    const ids = promoteIds ?? [];
+    const tags = promoteTags;
+    if (!ids.length) return;
+    setPromoteIds(null); // close dialog; progress modal takes over
     // Promote in small chunks so we can show live copy progress (and avoid one long request).
     // Each chunk is isolated — a failure or duplicate in one NEVER aborts the rest.
     let promoted = 0, skipped = 0, failed = 0;
@@ -358,7 +378,7 @@ export default function MediaLibraryRoot({
       for (let i = 0; i < ids.length; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK);
         try {
-          const r = await promoteMediaToSystem(tenantId, chunk);
+          const r = await promoteMediaToSystem(tenantId, chunk, tags);
           promoted += r.promoted; skipped += r.skipped;
           if (Array.isArray(r.errors)) errs.push(...r.errors);
         } catch (e: any) { failed += chunk.length; if (e?.message) errs.push(e.message); } // keep going
@@ -592,7 +612,7 @@ export default function MediaLibraryRoot({
       <span>{selected.size} selected <span className="text-slate-400">· tip: drag over photos to select many</span></span>
       <div className="flex gap-3">
         <button onClick={() => setSelected(new Set())} className="text-slate-500 hover:underline">Clear</button>
-        {(isSysManager || isAdmin) && <button onClick={moveToSystem} className="font-medium text-sky-700 hover:underline" title="Add the selected photos to the shared System library">↑ Move to System</button>}
+        {(isSysManager || isAdmin) && <button onClick={openMoveToSystem} className="font-medium text-sky-700 hover:underline" title="Tag &amp; add the selected photos to the shared System library">↑ Move to System</button>}
         <button onClick={bulkDelete} className="text-red-600 hover:underline">Delete selected</button>
       </div>
     </div>
@@ -694,6 +714,30 @@ export default function MediaLibraryRoot({
               <div className="h-full rounded-full bg-[#1e3a8a] transition-all duration-300" style={{ width: `${uploadProgress.total ? Math.max(8, Math.round((uploadProgress.done / uploadProgress.total) * 100)) : 8}%` }} />
             </div>
             <p className="mt-2 text-xs text-slate-400">Please keep this tab open.</p>
+          </div>
+        </div>
+      )}
+      {promoteIds && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setPromoteIds(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-slate-800">Add {promoteIds.length} image{promoteIds.length === 1 ? "" : "s"} to the System library</h3>
+            <p className="mt-1 text-xs text-slate-500">Tag them so they’re easy to find. {promoteSuggesting ? "AI is suggesting tags…" : "AI suggested these — edit or add your own, then move."}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 p-2">
+              {promoteSuggesting && <span className="text-xs text-slate-400">✨ thinking…</span>}
+              {promoteTags.map((t) => (
+                <span key={t} className="inline-flex items-center gap-1 rounded-full bg-[#1e3a8a]/10 px-2 py-0.5 text-[11px] text-[#1e3a8a]">
+                  {t}<button type="button" onClick={() => setPromoteTags((x) => x.filter((y) => y !== t))} className="text-[#1e3a8a]/60 hover:text-[#1e3a8a]">×</button>
+                </span>
+              ))}
+              <input value={promoteTagInput} onChange={(e) => setPromoteTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addPromoteTag(promoteTagInput); } }}
+                placeholder={promoteTags.length ? "Add tag…" : "Type a tag, Enter"} className="min-w-[100px] flex-1 text-xs outline-none" />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setPromoteIds(null)} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onClick={moveToSystem} disabled={promoteSuggesting}
+                className="rounded-lg bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">Move to System</button>
+            </div>
           </div>
         </div>
       )}
