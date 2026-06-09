@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { listSitePages, createPage, duplicatePage, deletePage, renamePageDraft, canDeletePages, type SitePage } from "../actions";
-import { notifyError, confirmDialog, promptDialog } from "@/lib/ui/dialogs";
+import { importHtmlAsDraftPage } from "../stitch-actions";
+import { notify, notifyError, confirmDialog, promptDialog } from "@/lib/ui/dialogs";
 
 /**
  * polished Pages panel (editor left column). Clean list: drag handle · file icon ·
@@ -27,6 +28,28 @@ export default function PageList({ tenantId, websiteId, reloadKey, onSelectPage,
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [canDelete, setCanDelete] = useState(false); // does THIS user have delete rights?
   const [pending, start] = useTransition();
+  // "Import design HTML → page" (Stitch/Figma/site-capture → editable sections).
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTitle, setImportTitle] = useState("");
+  const [importHtml, setImportHtml] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+
+  async function runImport() {
+    if (!websiteId || !importHtml.trim() || importBusy) return;
+    setImportBusy(true);
+    try {
+      const res = await importHtmlAsDraftPage(tenantId, websiteId, importHtml, importTitle.trim() || "Imported design");
+      if (res.ok && res.pageId) {
+        setImportOpen(false); setImportHtml(""); setImportTitle("");
+        setPages(await listSitePages(tenantId, websiteId ?? undefined));
+        onSelectPage?.(res.pageId, { id: res.pageId, slug: res.slug || "", title: importTitle.trim() || "Imported design", is_public: false });
+        notify(`Imported ${res.sectionCount} section${res.sectionCount === 1 ? "" : "s"} into a new page.`, { variant: "success" });
+      } else {
+        notifyError(res.message || "Could not import that HTML.");
+      }
+    } catch (e: any) { notifyError(e?.message ?? "Import failed."); }
+    finally { setImportBusy(false); }
+  }
 
   const reload = () => start(async () => setPages(await listSitePages(tenantId, websiteId ?? undefined)));
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [tenantId, reloadKey]);
@@ -133,6 +156,30 @@ export default function PageList({ tenantId, websiteId, reloadKey, onSelectPage,
         className="mt-3 w-full rounded-lg bg-[#1e3a8a] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1e3a8a]/90 disabled:opacity-60">
         ＋ Add new page
       </button>
+      {/* import design HTML → editable page (Stitch / Figma / site-capture) */}
+      <button onClick={() => setImportOpen(true)} disabled={pending || !websiteId}
+        title={websiteId ? "Paste design HTML (Stitch/Figma/site) → a new editable page" : "Open a website first"}
+        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+        ⬇ Import design HTML
+      </button>
+
+      {importOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4" onClick={() => !importBusy && setImportOpen(false)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-slate-800">Import design → editable page</h3>
+            <p className="mt-1 text-xs text-slate-500">Paste HTML from Stitch, Figma, or a captured site. It’s segmented into our sections — every element stays editable.</p>
+            <input value={importTitle} onChange={(e) => setImportTitle(e.target.value)} placeholder="Page title"
+              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
+            <textarea value={importHtml} onChange={(e) => setImportHtml(e.target.value)} placeholder="<main>…paste your design HTML here…</main>"
+              className="mt-2 h-44 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 font-mono text-[11px] outline-none focus:border-[#1e3a8a]" />
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={() => setImportOpen(false)} disabled={importBusy} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onClick={runImport} disabled={importBusy || !importHtml.trim()}
+                className="rounded-lg bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">{importBusy ? "Importing…" : "Import → new page"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
