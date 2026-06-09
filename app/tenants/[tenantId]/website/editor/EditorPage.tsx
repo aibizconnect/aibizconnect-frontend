@@ -64,11 +64,6 @@ const PANEL_TITLE: Record<Mode, string> = {
 export default function EditorPage({ tenantId, initialPageId }: EditorPageProps) {
   const [mode, setMode] = useState<Mode>("add");
   const [leftOpen, setLeftOpen] = useState(false);  // both columns collapsed on open
-  const [panelHover, setPanelHover] = useState(true); // left panel overlay: expanded on hover, collapses to a strip otherwise
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const expandPanel = () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setPanelHover(true); };
-  const collapsePanelSoon = () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => setPanelHover(false), 320); };
-  useEffect(() => { if (leftOpen) setPanelHover(true); }, [leftOpen, mode]);
   const [addSignal, setAddSignal] = useState(0);    // bump → Canvas inserts addType
   const [addType, setAddType] = useState<SectionType | null>(null);
   const [addCols, setAddCols] = useState<number | undefined>(undefined);
@@ -325,33 +320,14 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
       {/* 3 columns: middle (canvas) always visible; left + right collapsible.
           Bounded to the viewport so the panels scroll internally (keeps the Pages
           "Add new page" button and the canvas usable on long pages). */}
-      <div className="relative flex h-[calc(100vh-160px)] min-h-0">
-        {/* LEFT PANEL = floating overlay so the canvas is full-width. Hovering expands it;
-            moving the mouse away (or starting a drag) collapses it to a thin strip so the
-            canvas underneath stays visible for dropping. ✕ closes it entirely. */}
+      <div className="flex h-[calc(100vh-160px)] min-h-0 gap-3">
         {leftOpen && (
-          <div
-            onMouseEnter={expandPanel}
-            onMouseLeave={collapsePanelSoon}
-            onDragStartCapture={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setPanelHover(false); }}
-            className={`editor-compact absolute left-0 top-0 z-30 h-full overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-2xl transition-[width] duration-200 ${panelHover ? (mode === "add" ? "w-[380px]" : "w-72") : "w-9"}`}>
-            {/* Fixed-width inner so the tiles stay MOUNTED (and stay draggable) while the wrapper
-                width animates — collapsing never unmounts the content, so a drag never breaks. */}
-            <div className={`flex h-full flex-col ${mode === "add" ? "w-[380px]" : "w-72"}`}>
-              <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                <span className="text-sm font-semibold text-slate-700">{PANEL_TITLE[mode]}</span>
-                <button onClick={() => setLeftOpen(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">✕</button>
-              </div>
-              <div className={`min-h-0 flex-1 p-3 ${mode === "editor" || mode === "add" ? "overflow-hidden" : "overflow-y-auto"}`}>{LeftPanelBody()}</div>
+          <div className={`editor-compact flex shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${mode === "add" ? "w-[380px]" : "w-72"}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+              <span className="text-sm font-semibold text-slate-700">{PANEL_TITLE[mode]}</span>
+              <button onClick={() => setLeftOpen(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">✕</button>
             </div>
-            {/* Collapsed strip cover (over the still-mounted content) — hover to reopen. */}
-            {!panelHover && (
-              <div onMouseEnter={expandPanel} title={`${PANEL_TITLE[mode]} — hover to open`}
-                className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center gap-2 bg-white py-3 text-slate-400 hover:bg-slate-50 hover:text-[#1e3a8a]">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                <span className="mt-1 rotate-180 text-[10px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">{PANEL_TITLE[mode]}</span>
-              </div>
-            )}
+            <div className={`min-h-0 flex-1 p-3 ${mode === "editor" || mode === "add" ? "overflow-hidden" : "overflow-y-auto"}`}>{LeftPanelBody()}</div>
           </div>
         )}
 
