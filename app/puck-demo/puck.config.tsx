@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Config, Fields } from "@measured/puck";
 import { DropZone } from "@measured/puck";
+import { useMedia } from "./media-context";
 
 /**
  * Full-featured Puck prototype config. Every primitive + container carries a universal
@@ -74,13 +75,14 @@ const PRESET_IMAGES = [
   "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=70",
   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=70",
 ];
-const imagePickerField = {
-  type: "custom" as const,
-  label: "Image",
-  render: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+function ImagePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const media = useMedia();
+  const imgs = media.length ? media : PRESET_IMAGES;
+  return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
-        {PRESET_IMAGES.map((u) => (
+      {media.length > 0 && <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>From your Media Library</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8, maxHeight: 180, overflowY: "auto" }}>
+        {imgs.map((u) => (
           <button key={u} type="button" onClick={() => onChange(u)}
             style={{ padding: 0, border: value === u ? "2px solid #1e3a8a" : "1px solid #e2e8f0", borderRadius: 6, overflow: "hidden", cursor: "pointer", height: 48, background: "none" }}>
             <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -90,7 +92,12 @@ const imagePickerField = {
       <input value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="Or paste an image URL"
         style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
     </div>
-  ),
+  );
+}
+const imagePickerField = {
+  type: "custom" as const,
+  label: "Image",
+  render: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => <ImagePicker value={value} onChange={onChange} />,
 };
 
 // ── Universal Style group ───────────────────────────────────────────────────────
