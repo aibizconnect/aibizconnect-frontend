@@ -6,7 +6,7 @@ import { SectionView } from "@/components/sections/registry";
 import { ComponentRenderer } from "@/components/design/ComponentRenderer";
 import { adaptSection } from "@/lib/design/section-adapter";
 import { styleToCss, animClasses, bgLayerCss, bgFadeOverlayCss, hasBgLayer, backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
-import { DEFAULT_BRAND_TOKENS, tokensToCssVars } from "@/lib/design/tokens";
+import { DEFAULT_BRAND_TOKENS, tokensToCssVars, resolveBrandTokens } from "@/lib/design/tokens";
 import { getDesignSystemEnabled } from "@/lib/design/brand-memory";
 import { getPageBlocks } from "../../../tenants/[tenantId]/website/actions";
 import SitePopups from "@/components/website/SitePopups";
@@ -210,7 +210,11 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
   const pageBgLayer = pageBgHasImage ? bgLayerCss(pageBg ?? undefined) : null;
   const pageBgOverlay = pageBgHasImage ? bgFadeOverlayCss(pageBg ?? undefined) : null;
 
+  // Phase-1 design tokens: inject the canonical --abc-* CSS variables that element-style
+  // and sections render against (was missing at public render). Bridged from the merged
+  // brand row via resolveBrandTokens → tokensToCssVars (architect D-110/D-112).
   const brandStyle = {
+    ...tokensToCssVars(resolveBrandTokens(brand)),
     "--primary": brand?.primary_color,
     "--secondary": brand?.secondary_color,
     "--accent": brand?.accent_color,

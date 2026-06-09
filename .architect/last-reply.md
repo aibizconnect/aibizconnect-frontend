@@ -1,144 +1,243 @@
-Here is the decisive recommendation for high-fidelity editable import.
+Here is the reconciled Phase 1 spec, leveraging existing structures and addressing the identified gaps.
 
 ---
-### 1. Approach and Computed-Style Whitelist
+### 1. Canonical Store & Bridging
 
-**RULING 91: Hybrid Approach (C) with Specific Computed-Style Whitelist**
+**RULING 107 (Revised): `website_brand_settings` as Canonical Store for `brand_tokens_v2`**
 
-The **Hybrid approach (C)** is approved:
-*   **Computed-style capture** for layout, spacing, typography, colors, backgrounds, and borders. This ensures visual fidelity for the most critical presentational aspects directly on the elements.
-*   **Global CSS capture** for `@font-face` rules, CSS variables, and keyframes. This handles custom fonts and complex effects that aren't easily translated to individual element styles.
+`public.website_brand_settings` is the canonical database store for website-specific brand tokens. To consolidate the existing fragmented JSONB columns (`color_palette`, `font_pairing`, `spacing_scale`, `button_style`, `theme`) and legacy scalars, a **single new `brand_tokens_v2` JSONB column** is required. This column will hold the canonical `BrandTokens` structure.
 
-**Computed-Style Property Whitelist (Minimal & Sufficient):**
-This whitelist should be captured for every relevant DOM element during the render bridge walk.
+**SQL Migration (0043_add_brand_tokens_v2_to_website_brand_settings.sql):**
 
-*   **Layout & Box Model:**
-    *   `display` (e.g., block, flex, grid, inline-block)
-    *   `position` (e.g., relative, absolute, static)
-    *   `top`, `right`, `bottom`, `left` (if `position` is not static)
-    *   `width`, `min-width`, `max-width`
-    *   `height`, `min-height`, `max-height`
-    *   `padding-top`, `padding-right`, `padding-bottom`, `padding-left`
-    *   `margin-top`, `margin-right`, `margin-bottom`, `margin-left`
-    *   `gap` (for flex/grid containers)
-    *   `flex-direction`, `justify-content`, `align-items`, `flex-wrap` (for flex containers)
-    *   `grid-template-columns`, `grid-template-rows`, `grid-auto-flow` (for grid containers)
-    *   `text-align`
-    *   `vertical-align`
-    *   `overflow`
-*   **Typography:**
-    *   `font-family`
-    *   `font-size`
-    *   `font-weight`
-    *   `line-height`
-    *   `letter-spacing`
-    *   `text-transform`
-    *   `text-decoration`
-*   **Colors & Backgrounds:**
-    *   `color`
-    *   `background-color`
-    *   `background-image` (e.g., gradients, URLs)
-    *   `background-position`, `background-size`, `background-repeat`
-*   **Borders & Shadows:**
-    *   `border-top-width`, `border-right-width`, `border-bottom-width`, `border-left-width`
-    *   `border-top-style`, `border-right-style`, `border-bottom-style`, `border-left-style`
-    *   `border-top-color`, `border-right-color`, `border-bottom-color`, `border-left-color`
-    *   `border-top-left-radius`, `border-top-right-radius`, `border-bottom-left-radius`, `border-bottom-right-radius`
-    *   `box-shadow`
-*   **Other:**
-    *   `opacity`
-    *   `z-index`
-    *   `cursor`
+```sql
+-- Migration 0043_add_brand_tokens_v2_to_website_brand_settings.sql
+
+ALTER TABLE public.website_brand_settings
+ADD COLUMN IF NOT EXISTS brand_tokens_v2 jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN public.website_brand_settings.brand_tokens_v2 IS 'Consolidated, canonical design token system for colors, typography, spacing, etc.';
+```
+
+**Bridging Strategy:**
+*   **During Migration:** A one-time data migration will populate `brand_tokens_v2` by merging data from `color_palette`, `font_pairing`, `spacing_scale`, `button_style`, `theme` (0013), and legacy scalar columns.
+*   **Post-Migration:** All new code (generation, editor, renderer) will read and write *only* to `brand_tokens_v2`. The older JSONB columns and scalars will be considered deprecated and can be eventually removed in future migrations.
 
 ---
-### 2. Global CSS Storage
+### 2. Standardized `--abc-*` CSS Variable Contract
 
-**RULING 92: Global CSS Storage**
+**RULING 110 (Revised): Standardize on the Existing `--abc-*` CSS Variable Contract**
 
-A new column `custom_css` (TEXT) should be added to `public.websites` to store site-wide custom CSS.
+The existing `--abc-*` CSS variable naming convention (e.g., `--abc-color-primary`, `--abc-font-heading`) from `lib/design/tokens.ts` `tokensToCssVars` is **approved and standardized**.
 
-*   **Storage:** `public.websites.custom_css` (TEXT).
-*   **Content:** Capture `@font-face` rules, CSS variables, and keyframes from the source site's computed styles.
-*   **Size Cap:** Implement a size cap (e.g., 256KB) for `custom_css`. If the captured CSS exceeds this, prioritize `@font-face` and CSS variables, then truncate.
-*   **Stripping:** Strip framework resets (e.g., normalize.css, Tailwind base styles) and highly specific utility classes that won't apply in our renderer's DOM structure. Focus on structural and branding CSS.
-*   **Tailwind-compiled CSS:** For sites using Tailwind, rely primarily on the **computed-style capture** (RULING 91) rather than attempting to capture and reapply the vast, utility-driven CSS. Only extract `@font-face` and CSS variables from Tailwind sites.
+**CSS Variable Contract:**
 
----
-### 3. Renderer Extension
-
-**RULING 93: Renderer Extension for `_style`**
-
-The section renderer **must be extended so that EVERY element type honors a generic `_style: record<string, any>` object**.
-
-*   **Rationale:** This is the most flexible and maintainable approach. It avoids a complex migration of adding specific style fields to every element schema and ensures that captured styles apply uniformly.
-*   **Implementation:**
-    *   Update all element schemas to include a `_style: record<string, any>` field.
-    *   The renderer should apply these `_style` properties directly as inline styles (or via a CSS-in-JS solution) to the rendered DOM element.
-*   **Migration Risk:** This is a schema change, but adding a new field (even to many tables/schemas) is generally safe. The primary risk is ensuring the renderer correctly applies these styles without conflicts with existing typed style fields. `_style` should take precedence for any overlapping properties.
-
----
-### 4. Fonts → Typography Panel
-
-**RULING 94: Fonts Integration into Typography**
-
-*   **Typography Store:** Extracted `font-family` values should be written to `website_brand_settings.font_pairing` (e.g., `heading`, `body`) and potentially a new `website_brand_settings.custom_fonts` array for additional detected fonts.
-*   **Font Loading:**
-    *   **Google Fonts:** If `font-family` matches a Google Font, automatically generate and inject the `<link>` tag for that font into the site's `<head>` (managed by the platform).
-    *   **Custom `@font-face`:** The captured `@font-face` rules (from `public.websites.custom_css`) will ensure custom fonts load.
-    *   **Font Fallbacks:** Ensure the generated CSS always includes generic font fallbacks (e.g., `sans-serif`, `serif`).
+| Category      | Token Path in `BrandTokens` | CSS Variable Name              | Example Value        |
+| :------------ | :-------------------------- | :----------------------------- | :------------------- |
+| **Colors**    | `colors.primary.value`      | `--abc-color-primary`          | `#1e3a8a`            |
+|               | `colors.accent.value`       | `--abc-color-accent`           | `#22d3ee`            |
+|               | `colors.surface.value`      | `--abc-color-surface`          | `#f8fafc`            |
+|               | `colors.background.value`   | `--abc-color-background`       | `#ffffff`            |
+|               | `colors.foreground.value`   | `--abc-color-foreground`       | `#0f172a`            |
+|               | `colors.muted.value`        | `--abc-color-muted`            | `#64748b`            |
+|               | `colors.border.value`       | `--abc-color-border`           | `#e2e8f0`            |
+|               | `colors.success.value`      | `--abc-color-success`          | `#28a745`            |
+|               | `colors.warning.value`      | `--abc-color-warning`          | `#ffc107`            |
+|               | `colors.danger.value`       | `--abc-color-danger`           | `#dc3545`            |
+| **Typography**| `typography.fontHeading.value` | `--abc-font-heading`          | `Roboto, sans-serif` |
+|               | `typography.fontBody.value` | `--abc-font-body`              | `Roboto, sans-serif` |
+|               | `typography.fontMono.value` | `--abc-font-mono`              | `monospace`          |
+|               | `typography.fontDisplayBrand.value` | `--abc-font-display-brand` | `Montserrat, sans-serif` |
+|               | `typography.baseSizePx`     | `--abc-base-size`              | `16px`               |
+|               | `typography.scale.<key>.value` | `--abc-font-size-<key>`     | `1.25rem` (for `xl`) |
+| **Spacing**   | `spacing.unitPx`            | `--abc-space-unit`             | `16px`               |
+|               | `spacing.<key>Px`           | `--abc-space-<key>`            | `8px` (for `sm`)     |
+| **Radius**    | `radiusPx`                  | `--abc-radius`                 | `10px`               |
+| **Shadows**   | `elevation.<key>`           | `--abc-shadow-<key>`           | `0 4px 6px ...`      |
+| **Breakpoints**| `breakpoints.<key>`        | `--abc-breakpoint-<key>`       | `640px` (for `sm`)   |
 
 ---
-### 5. Layers Tree
+### 3. `resolveWebsiteBrandTokens` and `tokensToCssVars` Injection
 
-**RULING 95: Layers Tree Structure**
+**RULING 112: Unified Token Resolution and Injection**
 
-The importer's `htmlToSections` (or equivalent) must correctly identify and represent nested rows and columns.
+A single `resolveWebsiteBrandTokens(websiteId)` function will be the authoritative source for a `BrandTokens` object, and `tokensToCssVars` will be the single injection point for CSS variables.
 
-*   **Structural Requirements:** The importer must detect `display: flex` or `display: grid` containers and their direct children to correctly map to `rowSchema` and `colStyles`. This means the `_style` object for a `row` should contain `gap`, `flex-direction`, etc., and the `colStyles` array for its children should contain `width`, `padding`, etc.
-*   **Selection Mapping:** Ensure that selecting a visual element in the editor's canvas correctly highlights its corresponding node in the Layers tree, and vice-versa. This requires a robust mapping between the rendered DOM and our internal section/element IDs.
+**`resolveWebsiteBrandTokens(websiteId)` Contract:**
 
----
-### 6. Gotchas & Performance
+```typescript
+// lib/server/brand-tokens-resolver.ts (server-only)
 
-**RULING 96: Gotchas & Performance**
+import { BrandTokens, BrandTokensSchema } from '../design/tokens'; // Assuming this is the existing BrandTokens schema
+import { db } from './supabase'; // Assuming Supabase client
+import { z } from 'zod';
 
-*   **Performance:** The render bridge payload will be larger due to computed styles. Optimize the Playwright script to only capture styles for visible, relevant elements, and minimize the number of style properties (as per whitelist).
-*   **Idempotency:** On re-import, the system should:
-    *   **Preserve Tenant Edits:** If a tenant has manually edited a section's `_style` or a global CSS rule, the re-import should *not* overwrite these edits. This requires tracking user edits (e.g., a `user_edited: boolean` flag on sections/elements, or only applying styles if the field is `null` or matches a known system-generated default).
-    *   **Merge Global CSS:** Merge new `@font-face`/CSS variables into existing `custom_css`, avoiding duplicates.
-*   **Size Caps:** Implement size caps for `custom_css` (RULING 92) and potentially for the `_style` JSONB fields on elements.
-*   **Complexity:** This is a significant undertaking. Prioritize the most impactful style properties first.
+// Define schemas for existing legacy columns (for migration purposes)
+const LegacyColorPaletteSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
+const LegacyFontPairingSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
+const LegacySpacingScaleSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
+const LegacyButtonStyleSchema = z.object({ /* ... as per existing 0031 migration */ }).partial().passthrough();
+const LegacyThemeSchema = z.object({ /* ... as per existing 0013 migration */ }).partial().passthrough();
 
----
-### 7. Supervisor Verification Checks
+/**
+ * Resolves the canonical BrandTokens object for a given website.
+ * Merges data from legacy columns into brand_tokens_v2 if necessary.
+ *
+ * @param websiteId The ID of the website.
+ * @returns A validated BrandTokens object.
+ */
+export async function resolveWebsiteBrandTokens(websiteId: string): Promise<BrandTokens> {
+  const { data: settings, error } = await db.from('website_brand_settings')
+    .select('*')
+    .eq('website_id', websiteId)
+    .single();
 
-**RULING 97: Supervisor Verification Schema for High-Fidelity Import**
+  if (error || !settings) {
+    // Handle error or return default BrandTokens
+    console.error("Error fetching website_brand_settings:", error);
+    return BrandTokensSchema.parse({}); // Return default/empty BrandTokens
+  }
 
-```json
-{
-  "high_fidelity_import": [
-    { "id": "FID-V1", "assertion": "The render bridge captures the specified whitelist of computed CSS properties for relevant DOM elements.", "severity": "block" },
-    { "id": "FID-V2", "assertion": "The `public.websites` table has a `custom_css` (TEXT) column to store site-wide custom CSS.", "severity": "block" },
-    { "id": "FID-V3", "assertion": "The importer extracts `@font-face` rules, CSS variables, and keyframes into `public.websites.custom_css`.", "severity": "block" },
-    { "id": "FID-V4", "assertion": "The `public.websites.custom_css` field respects a size cap (e.g., 256KB) and prioritizes `@font-face`/CSS variables.", "severity": "block" },
-    { "id": "FID-V5", "assertion": "All element schemas (sections, rows, columns, elements) are extended to include a generic `_style: record<string, any>` field.", "severity": "block" },
-    { "id": "FID-V6", "assertion": "The renderer correctly applies properties from the `_style` object as inline styles to the corresponding DOM elements, taking precedence over conflicting typed style fields.", "severity": "block" },
-    { "id": "FID-V7", "assertion": "Extracted `font-family` values are written to `website_brand_settings.font_pairing` and/or a `custom_fonts` array.", "severity": "block" },
-    { "id": "FID-V8", "assertion": "Google Fonts are automatically loaded via `<link>` tags, and custom `@font-face` rules from `custom_css` are applied.", "severity": "block" },
-    { "id": "FID-V9", "assertion": "The importer correctly detects and maps nested `display: flex`/`grid` containers and their children to `rowSchema` and `colStyles`.", "severity": "block" },
-    { "id": "FID-V10", "assertion": "The Layers tree accurately reflects the imported section/row/column/element structure, and selection in the editor maps correctly to the tree nodes.", "severity": "block" },
-    { "id": "FID-V11", "assertion": "On re-import, the system preserves tenant's manual edits to `_style` fields or `custom_css` (e.g., by only applying if `null` or system-generated).", "severity": "block" },
-    { "id": "FID-V12", "assertion": "Captured styles (padding, spacing, colors, font-sizes, alignment, widths) are visually faithful to the original site in the editor.", "severity": "block" }
-  ]
+  let brandTokens: BrandTokens;
+
+  // Check if brand_tokens_v2 is already populated and valid
+  if (settings.brand_tokens_v2 && Object.keys(settings.brand_tokens_v2).length > 0) {
+    const parseResult = BrandTokensSchema.safeParse(settings.brand_tokens_v2);
+    if (parseResult.success) {
+      brandTokens = parseResult.data;
+    } else {
+      console.warn(`Invalid brand_tokens_v2 for website ${websiteId}, attempting migration from legacy.`);
+      // Fall through to migration logic if invalid
+      brandTokens = BrandTokensSchema.parse({}); // Start with default
+    }
+  } else {
+    // brand_tokens_v2 is empty or null, perform migration from legacy columns
+    console.log(`Migrating legacy brand settings for website ${websiteId}.`);
+    brandTokens = BrandTokensSchema.parse({}); // Start with default
+
+    // Merge from existing color_palette
+    const colorPalette = LegacyColorPaletteSchema.safeParse(settings.color_palette);
+    if (colorPalette.success) {
+      Object.assign(brandTokens.colors, {
+        primary: { value: colorPalette.data.primary || '#1e3a8a' },
+        accent: { value: colorPalette.data.accent || '#22d3ee' },
+        surface: { value: colorPalette.data.surface || '#f8fafc' },
+        background: { value: colorPalette.data.background || '#ffffff' },
+        foreground: { value: colorPalette.data.foreground || '#0f172a' },
+        muted: { value: colorPalette.data.muted || '#64748b' },
+        border: { value: colorPalette.data.border || '#e2e8f0' },
+        // Map other colors, ensure defaults if missing
+        success: { value: '#28a745' }, warning: { value: '#ffc107' }, danger: { value: '#dc3545' },
+      });
+    }
+
+    // Merge from existing font_pairing
+    const fontPairing = LegacyFontPairingSchema.safeParse(settings.font_pairing);
+    if (fontPairing.success) {
+      Object.assign(brandTokens.typography, {
+        fontHeading: { value: `${fontPairing.data.heading || 'Roboto'}, sans-serif` },
+        fontBody: { value: `${fontPairing.data.body || 'Roboto'}, sans-serif` },
+      });
+    }
+
+    // Merge from spacing_scale
+    const spacingScale = LegacySpacingScaleSchema.safeParse(settings.spacing_scale);
+    if (spacingScale.success && spacingScale.data.base) {
+      Object.assign(brandTokens.spacing, {
+        unitPx: `${spacingScale.data.base}px`,
+        // Derive other spacing tokens based on base unit if possible, or use defaults
+        xs: `${spacingScale.data.base * 0.25}px`, sm: `${spacingScale.data.base * 0.5}px`, md: `${spacingScale.data.base}px`,
+        lg: `${spacingScale.data.base * 1.5}px`, xl: `${spacingScale.data.base * 2}px`,
+      });
+    }
+
+    // Merge from button_style (e.g., borderRadius)
+    const buttonStyle = LegacyButtonStyleSchema.safeParse(settings.button_style);
+    if (buttonStyle.success && buttonStyle.data.borderRadius) {
+      Object.assign(brandTokens.radius, {
+        md: buttonStyle.data.borderRadius, // Map to a specific radius token
+      });
+    }
+
+    // Merge from legacy 'theme' (0013) and scalar primary_color, etc.
+    // This part requires specific knowledge of the 'theme' JSONB structure and scalar names.
+    // Builder: Implement specific mapping logic here based on the actual content of 'theme' and scalars.
+    // Example: if (settings.primary_color) brandTokens.colors.primary.value = settings.primary_color;
+
+    // After merging, update the DB to persist the new canonical form
+    const { error: updateError } = await db.from('website_brand_settings')
+      .update({ brand_tokens_v2: brandTokens })
+      .eq('website_id', websiteId);
+    if (updateError) {
+      console.error("Error updating brand_tokens_v2 after migration:", updateError);
+    }
+  }
+
+  return brandTokens;
 }
 ```
 
+**`tokensToCssVars` Injection Point:**
+The `tokensToCssVars(brandTokens: BrandTokens)` function (from `lib/design/tokens.ts`) will be called with the result of `resolveWebsiteBrandTokens`. Its output (a string of CSS variable declarations) will be injected into the `<head>` of:
+*   `app/sites/[tenantId]/[slug]/page.tsx` (public renderer)
+*   The editor canvas component (for live editing)
+
+---
+### 4. Minimal `style_token` Vocabulary
+
+**RULING 111 (Revised): Phase 1 `style_token` Vocabulary Mapped to `--abc-*`**
+
+The canonical vocabulary for `style_token` will directly map to the `--abc-*` CSS variables.
+
+*   **Colors:**
+    *   `color-primary` → `var(--abc-color-primary)`
+    *   `color-accent` → `var(--abc-color-accent)`
+    *   `color-surface` → `var(--abc-color-surface)`
+    *   `color-background` → `var(--abc-color-background)`
+    *   `color-foreground` → `var(--abc-color-foreground)`
+    *   `color-muted` → `var(--abc-color-muted)`
+    *   `color-border` → `var(--abc-color-border)`
+    *   `color-success` → `var(--abc-color-success)`
+    *   `color-error` → `var(--abc-color-danger)` (using `danger` from `BrandTokens` for consistency)
+    *   `color-warning` → `var(--abc-color-warning)`
+*   **Typography (Font Families):**
+    *   `font-heading` → `var(--abc-font-heading)`
+    *   `font-body` → `var(--abc-font-body)`
+    *   `font-mono` → `var(--abc-font-mono)`
+    *   `font-display-brand` → `var(--abc-font-display-brand)`
+*   **Typography (Font Sizes):**
+    *   `font-size-xs` → `var(--abc-font-size-xs)`
+    *   `font-size-sm` → `var(--abc-font-size-sm)`
+    *   `font-size-md` → `var(--abc-font-size-md)`
+    *   `font-size-lg` → `var(--abc-font-size-lg)`
+    *   `font-size-xl` → `var(--abc-font-size-xl)`
+    *   `font-size-2xl` → `var(--abc-font-size-2xl)`
+    *   `font-size-3xl` → `var(--abc-font-size-3xl)`
+    *   `font-size-4xl` → `var(--abc-font-size-4xl)`
+    *   `font-size-5xl` → `var(--abc-font-size-5xl)`
+*   **Spacing:**
+    *   `space-unit` → `var(--abc-space-unit)`
+    *   `space-xs` → `var(--abc-space-xs)`
+    *   `space-sm` → `var(--abc-space-sm)`
+    *   `space-md` → `var(--abc-space-md)`
+    *   `space-lg` → `var(--abc-space-lg)`
+    *   `space-xl` → `var(--abc-space-xl)`
+    *   `space-2xl` → `var(--abc-space-2xl)`
+    *   `space-3xl` → `var(--abc-space-3xl)`
+*   **Border Radius:**
+    *   `radius-sm` → `var(--abc-radius-sm)`
+    *   `radius-md` → `var(--abc-radius-md)`
+    *   `radius-lg` → `var(--abc-radius-lg)`
+    *   `radius-full` → `var(--abc-radius-full)`
+*   **Shadows:**
+    *   `shadow-sm` → `var(--abc-shadow-sm)`
+    *   `shadow-md` → `var(--abc-shadow-md)`
+    *   `shadow-lg` → `var(--abc-shadow-lg)`
+
 ---
 DECISION-LOG
-[D-091] rule_high_fidelity_approach — Ruled Hybrid approach (C) for high-fidelity import with specific computed-style whitelist (status: ruled)
-[D-092] rule_global_css_storage — Ruled `public.websites.custom_css` for global CSS storage with size caps and stripping rules (status: ruled)
-[D-093] rule_renderer_extension — Ruled to extend renderer for generic `_style` object on all elements (status: ruled)
-[D-094] rule_fonts_typography_integration — Ruled on integrating extracted fonts into Typography panel and font loading (status: ruled)
-[D-095] rule_layers_tree_structure — Ruled on structural requirements for Layers tree (status: ruled)
-[D-096] rule_fidelity_gotchas — Ruled on performance, idempotency, size caps, and not overwriting tenant edits (status: ruled)
-[D-097] define_fidelity_verification_checks — Defined Supervisor verification checks for high-fidelity import (status: defined)
+[D-107] rule_sql_migration_brand_tokens_v2 — Ruled SQL migration 0043 to add `brand_tokens_v2` JSONB column to `website_brand_settings` as the canonical store (status: ruled)
+[D-108] rule_ts_zod_brand_tokens — Ruled `lib/design/tokens.ts` `BrandTokens` as the canonical TypeScript type and Zod schema (status: ruled)
+[D-109] rule_deterministic_migration_function_to_v2 — Ruled deterministic migration function to populate `brand_tokens_v2` from all legacy `website_brand_settings` columns (status: ruled)
+[D-110] rule_css_variable_contract — Ruled standardization on the existing `--abc-*` CSS variable contract (status: ruled)
+[D-111] rule_phase1_style_token_vocabulary_mapped — Ruled the minimal canonical `style_token` vocabulary for Phase 1, mapped to `--abc-*` CSS variables (status: ruled)
+[D-112] rule_unified_token_resolution_injection — Ruled `resolveWebsiteBrandTokens` as the unified token resolver and `tokensToCssVars` as the single injection point (status: ruled)

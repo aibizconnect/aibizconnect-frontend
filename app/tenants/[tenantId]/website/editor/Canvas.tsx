@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
 import SectionEditor from "./SectionEditor";
@@ -40,6 +40,7 @@ import {
   roleFamilies,
   type ThemeTokens,
 } from "@/lib/sections/theme";
+import { resolveBrandTokens, tokensToCssVars } from "@/lib/design/tokens";
 import { decomposePage } from "@/lib/sections/decompose";
 import { ensureGoogleFont, injectCustomFont } from "@/lib/fonts";
 import { backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
@@ -135,6 +136,7 @@ export default function Canvas({
   const [hoverKey, setHoverKey] = useState<string | null>(null); // innermost hovered element (single)
   const addTarget = useRef<{ rowUid: string; container: ElPath; col: number; idx: number } | null>(null);
   const [theme, setTheme] = useState<ThemeTokens>(DEFAULT_THEME);
+  const [brandVars, setBrandVars] = useState<Record<string, string>>({});
   const [pageBg, setPageBg] = useState<ElementStyle | null>(null);
   // Baseline snapshot of each loaded GLOBAL block (header/footer) content, so we can
   // tell when a global element actually changed and only then ask for consent.
@@ -247,12 +249,16 @@ export default function Canvas({
       // actually carries customFonts, else the first.
       const { data: rows } = await supabase
         .from("website_brand_settings")
-        .select("primary_color, secondary_color, accent_color, font_heading, font_body, theme")
+        .select("primary_color, secondary_color, accent_color, font_heading, font_body, theme, color_palette, font_pairing, button_style")
         .eq("tenant_id", tenantId);
       // Merge ALL brand rows (font fields can be split across rows) → one complete brand,
       // so the heading/body fonts + every custom font load on first paint (no Typography needed).
-      const t = resolveTheme(mergeBrandRows(Array.isArray(rows) ? rows : []));
+      const merged = mergeBrandRows(Array.isArray(rows) ? rows : []);
+      const t = resolveTheme(merged);
       setTheme(t);
+      // Phase-1 design tokens: inject the same --abc-* CSS vars the public site uses, so the
+      // editor canvas is WYSIWYG with the published page (architect D-110/D-112).
+      setBrandVars(tokensToCssVars(resolveBrandTokens(merged)));
       // Load the global role fonts + any uploaded custom fonts so the canvas renders them.
       roleFamilies(t).forEach((f) => ensureGoogleFont(f));
       (Array.isArray(t.customFonts) ? t.customFonts : []).forEach((f) => injectCustomFont(f.name, f.src));
@@ -1173,7 +1179,7 @@ export default function Canvas({
           {/* Live page-background preview (inline image/colour/gradient behind sections;
               blur renders on the Preview/public layered path). */}
           <div className="abc-canvas-fonts mx-auto transition-all"
-            style={{ maxWidth: DEVICE_W[device], ...(pageBg ? backgroundOnlyCss(pageBg) : {}), fontFamily: theme?.fonts?.body ? `${theme.fonts.body}, system-ui, sans-serif` : undefined }}
+            style={{ ...brandVars, maxWidth: DEVICE_W[device], ...(pageBg ? backgroundOnlyCss(pageBg) : {}), fontFamily: theme?.fonts?.body ? `${theme.fonts.body}, system-ui, sans-serif` : undefined } as CSSProperties}
             onDragEnd={() => setDrop(null)}>
           {/* Base theme fonts (WYSIWYG parity with the public site): body font on the
               container + heading font for h1–h6. :where() = 0 specificity, so explicit

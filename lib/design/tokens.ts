@@ -107,5 +107,80 @@ export function tokensToCssVars(t: BrandTokens): Record<string, string> {
   v["--abc-space-unit"] = `${t.spacing.unitPx}px`;
   v["--abc-radius"] = `${t.spacing.radiusPx}px`;
   v["--abc-maxw"] = `${t.spacing.maxWidthPx}px`;
+
+  // Derived scales (Phase-1 design tokens, architect D-110/D-111). All derived from the
+  // base tokens above so they re-theme in one shot — no schema change. Additive only.
+  const base = t.typography.baseSizePx; // px
+  const fontSizes: Record<string, number> = {
+    xs: 0.75, sm: 0.875, md: 1, lg: 1.125, xl: 1.25,
+    "2xl": 1.5, "3xl": 1.875, "4xl": 2.25, "5xl": 3,
+  };
+  for (const [k, mult] of Object.entries(fontSizes)) v[`--abc-font-size-${k}`] = `${(base * mult).toFixed(2)}px`;
+
+  const unit = t.spacing.unitPx; // base spacing unit (e.g. 4px)
+  const spaceScale: Record<string, number> = { xs: 1, sm: 2, md: 4, lg: 6, xl: 8, "2xl": 12, "3xl": 16 };
+  for (const [k, mult] of Object.entries(spaceScale)) v[`--abc-space-${k}`] = `${unit * mult}px`;
+
+  const r = t.spacing.radiusPx;
+  v["--abc-radius-sm"] = `${Math.round(r / 3)}px`;
+  v["--abc-radius-md"] = `${r}px`;
+  v["--abc-radius-lg"] = `${Math.round(r * 1.5)}px`;
+  v["--abc-radius-full"] = "9999px";
+
+  v["--abc-shadow-sm"] = "0 1px 2px rgba(0,0,0,0.05)";
+  v["--abc-shadow-md"] = "0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)";
+  v["--abc-shadow-lg"] = "0 10px 25px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.08)";
   return v;
+}
+
+/**
+ * Phase-1 token bridge (architect D-109/D-112). Deterministically map a MERGED
+ * website_brand_settings row (see mergeBrandRows) into the canonical BrandTokens, with
+ * SAFE light fallbacks (the migration-0031 palette defaults) so injecting --abc-* vars can
+ * never darken an existing light tenant site. Pure function, no DB, never throws.
+ *
+ * Source-of-truth precedence per field: color_palette / font_pairing (0031 JSONB) →
+ * legacy scalar columns (primary_color, font_heading…) → light defaults.
+ */
+export function resolveBrandTokens(brand: any): BrandTokens {
+  const b = brand ?? {};
+  const pal = (b.color_palette && typeof b.color_palette === "object") ? b.color_palette : {};
+  const fonts = (b.font_pairing && typeof b.font_pairing === "object") ? b.font_pairing : {};
+  const okHex = (s: any) => typeof s === "string" && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s);
+  const pickHex = (...vals: any[]) => vals.find(okHex) as string | undefined;
+  const pickStr = (...vals: any[]) => vals.find((s) => typeof s === "string" && s.trim() !== "") as string | undefined;
+
+  // LIGHT defaults — match migration 0031 color_palette / font_pairing defaults.
+  const primary = pickHex(pal.primary, b.primary_color) ?? "#1e3a8a";
+  const accent = pickHex(pal.accent, b.accent_color) ?? "#22d3ee";
+  const surface = pickHex(pal.surface) ?? "#f8fafc";
+  const background = pickHex(pal.background) ?? "#ffffff";
+  const foreground = pickHex(pal.foreground) ?? "#0f172a";
+  const muted = pickHex(pal.muted) ?? "#64748b";
+  const border = pickHex(pal.border) ?? "#e2e8f0";
+
+  const fontHeading = pickStr(fonts.heading, b.font_heading) ?? "Inter, system-ui, sans-serif";
+  const fontBody = pickStr(fonts.body, b.font_body) ?? "Inter, system-ui, sans-serif";
+
+  // Radius from button_style.borderRadius (e.g. "10px") when present.
+  let radiusPx = 12;
+  const br = b.button_style && typeof b.button_style === "object" ? b.button_style.borderRadius : undefined;
+  if (typeof br === "string") { const n = parseInt(br, 10); if (Number.isFinite(n)) radiusPx = Math.max(0, Math.min(48, n)); }
+
+  const candidate = {
+    colors: {
+      primary, primaryContrast: "#ffffff", accent,
+      surface, surfaceContrast: foreground, background, foreground, muted, border,
+    },
+    typography: {
+      fontHeading: fontHeading.includes(",") ? fontHeading : `${fontHeading}, system-ui, sans-serif`,
+      fontBody: fontBody.includes(",") ? fontBody : `${fontBody}, system-ui, sans-serif`,
+      fontDisplayBrand: "MontserratAlt1, Inter, sans-serif",
+      scale: "default" as const,
+      baseSizePx: 16,
+    },
+    spacing: { unitPx: 4, radiusPx, maxWidthPx: 1200 },
+  };
+  const parsed = brandTokensSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : DEFAULT_BRAND_TOKENS;
 }
