@@ -11,7 +11,7 @@ import { config, initialData } from "./puck.config";
  * nested columns, undo/redo. Data persists to localStorage so you can refine and "Preview".
  * This is the "evaluate Puck" experiment; it does not touch the existing editor.
  */
-const KEY = "puck-demo-data-v1";
+const KEY = "puck-demo-data-v2";
 
 export default function PuckDemoPage() {
   const [data, setData] = useState<Data | null>(null);
