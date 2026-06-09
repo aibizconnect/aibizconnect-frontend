@@ -15,7 +15,7 @@ const sans = "'Inter', sans-serif";
 
 type Props = {
   Header: { brand: string; links: string; cta: string };
-  Hero: { eyebrow: string; title: string; subtitle: string; cta1: string; cta2: string; bg: "ivory" | "white" | "ink"; image: string };
+  Hero: { eyebrow: string; title: string; subtitle: string; cta1: string; cta2: string; bg: "ivory" | "white" | "ink"; image: string; imageFit: "cover" | "contain"; imagePosition: "center" | "top" | "bottom"; overlay: "none" | "light" | "dark"; overlayStrength: number; minH: number };
   Heading: { text: string; level: "h1" | "h2" | "h3"; align: "left" | "center" | "right" };
   Text: { text: string; align: "left" | "center" | "right" };
   Button: { label: string; variant: "solid" | "outline"; align: "left" | "center" | "right" };
@@ -230,20 +230,29 @@ export const config: Config<Props> = {
       fields: {
         eyebrow: { type: "text" }, title: { type: "textarea" }, subtitle: { type: "textarea" },
         cta1: { type: "text", label: "Primary button" }, cta2: { type: "text", label: "Secondary button" },
-        bg: { type: "select", options: [{ label: "Ivory", value: "ivory" }, { label: "White", value: "white" }, { label: "Ink (dark)", value: "ink" }] },
-        image: { type: "text", label: "Background image URL (optional)" },
+        bg: { type: "select", label: "Background (no image)", options: [{ label: "Ivory", value: "ivory" }, { label: "White", value: "white" }, { label: "Ink (dark)", value: "ink" }] },
+        image: { type: "text", label: "Background image URL" },
+        imageFit: { type: "radio", label: "Image fit", options: [{ label: "Cover", value: "cover" }, { label: "Contain", value: "contain" }] },
+        imagePosition: { type: "select", label: "Image position", options: [{ label: "Center", value: "center" }, { label: "Top", value: "top" }, { label: "Bottom", value: "bottom" }] },
+        overlay: { type: "radio", label: "Overlay", options: [{ label: "None", value: "none" }, { label: "Light", value: "light" }, { label: "Dark", value: "dark" }] },
+        overlayStrength: { type: "number", label: "Overlay strength (0–100%)", min: 0, max: 100 },
+        minH: { type: "number", label: "Min height (px)" },
       },
-      defaultProps: { eyebrow: "Bespoke Atelier", title: "Spaces composed with intention.", subtitle: "A considered approach — where material, light and proportion meet restraint.", cta1: "Book a consultation", cta2: "View portfolio", bg: "ivory", image: "" },
-      render: ({ eyebrow, title, subtitle, cta1, cta2, bg, image }) => {
-        const dark = bg === "ink";
+      defaultProps: { eyebrow: "Bespoke Atelier", title: "Spaces composed with intention.", subtitle: "A considered approach — where material, light and proportion meet restraint.", cta1: "Book a consultation", cta2: "View portfolio", bg: "ivory", image: "", imageFit: "cover", imagePosition: "center", overlay: "light", overlayStrength: 50, minH: 540 },
+      render: ({ eyebrow, title, subtitle, cta1, cta2, bg, image, imageFit, imagePosition, overlay, overlayStrength, minH }) => {
         const back = bg === "ink" ? LX.ink : bg === "white" ? LX.white : LX.ivory;
-        const text = dark ? LX.ivory : LX.ink;
-        const sub = dark ? "#CFC7BB" : LX.body;
+        const a = Math.max(0, Math.min(100, overlayStrength ?? 50)) / 100;
+        const rgb = overlay === "dark" ? "0,0,0" : "255,255,255";
+        const veil = !image || overlay === "none" ? "" : `linear-gradient(rgba(${rgb},${a}),rgba(${rgb},${a})),`;
         const bgStyle = image
-          ? { backgroundImage: `linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,.5)), url(${image})`, backgroundSize: "cover", backgroundPosition: "center" }
+          ? { backgroundImage: `${veil}url(${image})`, backgroundSize: imageFit, backgroundPosition: imagePosition, backgroundRepeat: "no-repeat" }
           : { background: back };
+        // Text color: dark text on light/ivory/white or light overlay; light text on ink or dark overlay.
+        const isDark = image ? overlay === "dark" : bg === "ink";
+        const text = isDark ? LX.ivory : LX.ink;
+        const sub = isDark ? "#CFC7BB" : LX.body;
         return (
-          <div style={{ ...bgStyle, padding: "140px 24px", textAlign: "center" }}>
+          <div style={{ ...bgStyle, padding: "140px 24px", textAlign: "center", minHeight: minH || undefined, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
               <div style={{ font: `600 13px/1 ${sans}`, letterSpacing: 2.2, textTransform: "uppercase", color: LX.gold, marginBottom: 18 }}>{eyebrow}</div>
               <h1 style={{ fontFamily: serif, fontSize: 60, fontWeight: 600, lineHeight: 1.05, letterSpacing: -0.6, color: text, margin: 0 }}>{title}</h1>
@@ -311,7 +320,7 @@ export const initialData = {
   zones: {},
   content: [
     { type: "Header", props: { id: "hdr-1", brand: "Aurelia & Co.", links: "Home, Services, Portfolio, About, Contact", cta: "Login" } },
-    { type: "Hero", props: { id: "hero-1", eyebrow: "Bespoke Atelier", title: "Spaces composed with intention, crafted to endure.", subtitle: "A considered approach — where material, light and proportion meet restraint. Built for those who value the quiet confidence of timeless design.", cta1: "Book a consultation", cta2: "View portfolio", bg: "ivory", image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=70" } },
+    { type: "Hero", props: { id: "hero-1", eyebrow: "Bespoke Atelier", title: "Spaces composed with intention, crafted to endure.", subtitle: "A considered approach — where material, light and proportion meet restraint. Built for those who value the quiet confidence of timeless design.", cta1: "Book a consultation", cta2: "View portfolio", bg: "ivory", image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=70", imageFit: "cover", imagePosition: "center", overlay: "light", overlayStrength: 55, minH: 560 } },
     { type: "Features3", props: { id: "feat-1", eyebrow: "What we offer", title: "A practice built on detail", cards: [
       { icon: "◇", title: "Full-service design", body: "From first sketch to final styling — a single, coherent vision carried through every room." },
       { icon: "❖", title: "Material curation", body: "Natural stone, aged brass, hand-finished timber. Sourced for warmth and longevity." },
