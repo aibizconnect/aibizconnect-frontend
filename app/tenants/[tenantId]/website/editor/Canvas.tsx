@@ -45,6 +45,15 @@ import { ensureGoogleFont, injectCustomFont } from "@/lib/fonts";
 import { backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
 import { notify, notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
+/** Classify a section as a header/footer (for labels + the multi-header save reminder).
+ *  Prefers an explicit _kind tag; else a global chrome block (by name) or a row with a menu. */
+function sectionKind(c: any): "header" | "footer" | null {
+  if (c?._kind === "header" || c?._kind === "footer") return c._kind;
+  if (c?._global) return /footer/i.test(c?._globalName || "") ? "footer" : "header";
+  if (c?.type === "row" && Array.isArray(c.children) && c.children.some((col: any) => Array.isArray(col) && col.some((ch: any) => ch?.type === "menu"))) return "header";
+  return null;
+}
+
 interface CanvasProps {
   tenantId: string;
   websiteId?: string | null;
@@ -343,6 +352,11 @@ export default function Canvas({
     // persist to the global-block store (so the edit applies on every page), not
     // into this page's draft_sections. Everything else is a normal page section.
     const all = itemsRef.current.map((i) => i.content as any);
+    // Reminder: warn if the page ends up with more than one header or footer.
+    const nH = all.filter((c) => sectionKind(c) === "header").length;
+    const nF = all.filter((c) => sectionKind(c) === "footer").length;
+    if (nH > 1) notify(`This page has ${nH} headers — usually a page has just one.`, { variant: "warning", title: "Multiple headers" });
+    if (nF > 1) notify(`This page has ${nF} footers — usually a page has just one.`, { variant: "warning", title: "Multiple footers" });
     const sections = all.filter((c) => !c?._global);
     // Page sections always save immediately.
     onSaveStateChange?.("saving");
@@ -1184,7 +1198,7 @@ export default function Canvas({
               >
                 {/* per-section toolbar (move / save asset / duplicate / delete) */}
                 <div className="absolute -top-3 right-3 z-10 hidden items-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm group-hover/sec:flex">
-                  <span className="px-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{sectionLabels[item.content.type as SectionType] ?? "Element"}</span>
+                  <span className="px-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{(() => { const k = sectionKind(item.content); return k ? (k === "header" ? "Header" : "Footer") : (sectionLabels[item.content.type as SectionType] ?? "Element"); })()}</span>
                   <button onClick={(e) => { e.stopPropagation(); moveSection(index, -1); }} title="Move up" className="rounded p-1 text-slate-500 hover:bg-slate-100">↑</button>
                   <button onClick={(e) => { e.stopPropagation(); moveSection(index, 1); }} title="Move down" className="rounded p-1 text-slate-500 hover:bg-slate-100">↓</button>
                   <button onClick={(e) => { e.stopPropagation(); openRewrite(index); }} title="Rewrite with AI" className="rounded p-1 text-[#7c3aed] hover:bg-slate-100">✦</button>
@@ -1257,7 +1271,7 @@ export default function Canvas({
                   ? `${(childContent as any)._name || sectionLabels[(childContent as any).type as SectionType] || "Element"} · in column`
                   : colSel
                   ? `Column ${colSel.col + 1}`
-                  : (selectedSection as any)?._name || sectionLabels[(selectedSection as any)?.type as SectionType] || "Element"}
+                  : (() => { const k = sectionKind(selectedSection); return k ? (k === "header" ? "Header" : "Footer") : ((selectedSection as any)?._name || sectionLabels[(selectedSection as any)?.type as SectionType] || "Element"); })()}
               </span>
               <button onClick={() => { setSelectedUid(null); setChildSel(null); setColSel(null); }} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">✕</button>
             </div>

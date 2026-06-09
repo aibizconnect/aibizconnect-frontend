@@ -53,7 +53,7 @@ const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
     id: "lux-header", name: "Luxury — Header", category: "Contemporary Luxury", icon: "▭",
     blurb: "Serif wordmark · menu · login",
     sections: [{
-      type: "row", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
+      type: "row", _kind: "header", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
       _style: { bg: LX.ivory, pt: 20, pb: 20, paddingX: 24, borderStyle: "solid", borderWidth: 1, borderColor: LX.hair },
       colStyles: [{ itemsAlign: "start" }, { itemsAlign: "center" }, { itemsAlign: "end" }] as any,
       children: [
@@ -153,7 +153,7 @@ const LUXURY_TEMPLATES: PrebuiltTemplate[] = [
     id: "lux-footer", name: "Luxury — Footer", category: "Contemporary Luxury", icon: "▭",
     blurb: "Dark ink footer with brand, links & copyright",
     sections: [{
-      type: "row", columns: 1, contentWidth: "boxed", gap: 14, widths: [1], valign: "center",
+      type: "row", _kind: "footer", columns: 1, contentWidth: "boxed", gap: 14, widths: [1], valign: "center",
       _style: { bg: LX.ink, pt: 64, pb: 52, paddingX: 24, align: "center" },
       children: [[
         { type: "heading", text: "Aurelia & Co.", level: "h3", align: "center", color: LX.ivory, fontFamily: SERIF, fontWeight: "600", letterSpacing: 0.3 } as SectionContent,
@@ -200,7 +200,7 @@ function header(id: string, name: string, blurb: string, p: Pal, o: { login: str
   return {
     id, name, blurb, category: "Headers", icon: "▭",
     sections: [{
-      type: "row", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
+      type: "row", _kind: "header", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.25, 0.5, 0.25],
       _style: { bg: p.bg, pt: 16, pb: 16, paddingX: 24, ...(o.hairline ? { borderStyle: "solid", borderWidth: 1, borderColor: p.hair } : {}) },
       colStyles: [{ itemsAlign: "start" }, { itemsAlign: "center" }, { itemsAlign: "end" }] as any,
       children: [
@@ -259,7 +259,7 @@ function footer(id: string, name: string, blurb: string, p: Pal): PrebuiltTempla
   return {
     id, name, blurb, category: "Footers", icon: "▬",
     sections: [{
-      type: "row", columns: 1, contentWidth: "boxed", gap: 12, valign: "center", widths: [1],
+      type: "row", _kind: "footer", columns: 1, contentWidth: "boxed", gap: 12, valign: "center", widths: [1],
       _style: { bg: p.bg, pt: 56, pb: 48, paddingX: 24, align: "center" },
       children: [[
         { type: "heading", text: "Brand", level: "h3", align: "center", color: p.text, fontWeight: "700" } as SectionContent,

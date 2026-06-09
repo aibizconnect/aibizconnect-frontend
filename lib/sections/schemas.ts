@@ -329,6 +329,7 @@ export const rowSchema = z.object({
   colStyles: z.array(z.record(z.string(), z.any())).optional(), // per-column ElementStyle (bg/padding/align/border)
   _style: z.record(z.string(), z.any()).optional(),             // row-as-container style
   _anim: z.record(z.string(), z.any()).optional(),
+  _kind: z.enum(["header", "footer"]).optional(),               // tags a row as a Header/Footer
 });
 
 /** Discriminated union over `type` — validates any section's content. */

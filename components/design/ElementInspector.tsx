@@ -50,9 +50,13 @@ function BoxModel({ s, set }: { s: ElementStyle; set: (p: Partial<ElementStyle>)
   // Display fallbacks: padding → 20, margin → 5.
   const pad = (k: "pt" | "pr" | "pb" | "pl", shorthand?: number) => (s[k] as number) ?? shorthand ?? 20;
   const mar = (k: "mt" | "mr" | "mb" | "ml", shorthand?: number) => (s[k] as number) ?? shorthand ?? 5;
-  // When locked, changing ANY side sets all 4 paddings + 4 margins to that value.
-  const apply = (key: keyof ElementStyle, n: number) =>
-    set(locked ? { pt: n, pr: n, pb: n, pl: n, mt: n, mr: n, mb: n, ml: n } : ({ [key]: n } as Partial<ElementStyle>));
+  // When locked, changing any PADDING sets all 4 paddings; any MARGIN sets all 4 margins
+  // (the two groups stay independent).
+  const apply = (key: keyof ElementStyle, n: number) => {
+    if (!locked) return set({ [key]: n } as Partial<ElementStyle>);
+    const isPad = (key as string).startsWith("p");
+    set(isPad ? { pt: n, pr: n, pb: n, pl: n } : { mt: n, mr: n, mb: n, ml: n });
+  };
   return (
     <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-2">
       <div className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Margin</div>
