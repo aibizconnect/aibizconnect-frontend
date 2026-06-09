@@ -1,85 +1,91 @@
-Here are the decisive rulings for the autonomous capture-to-rebuild pipeline, addressing the fidelity bug.
+Here is the concrete, ranked, phased plan for "religious HTML import," maximizing visual fidelity while preserving editability and asset durability.
 
 ---
-### 1. Canonical Autonomous Capture Pipeline
+### Phase 0: Foundational Rulings (Pre-requisites)
 
-**RULING 141: Mandate Rendered-DOM-with-Computed-Styles for ALL Captures.**
+**RULING 146: Mandate Render Bridge for All HTML Imports.**
+*   **Rationale:** This is the only way to reliably obtain computed styles (`data-cs`) for *any* HTML source (live site, pasted markup with classes, Figma export). Attempting to parse and resolve CSS in-process (Option A) is extremely complex, error-prone, and will never match browser rendering perfectly. A tiny Tailwind mapper (Option B) is too limited. The render bridge is the single source of truth for visual fidelity.
+*   **Action:** All `htmlToSections` calls (including `importHtmlAsDraftPage` and `cloneSectionsFromHtml`) must ensure their `html` input comes from a render bridge pass that injects `data-cs`. If `SITE_RENDER_URL` is unset (local dev) or the render bridge fails, the import **must fail gracefully** and inform the user of low fidelity (RULING 144).
 
-Every capture (client's own site, or any URL) **must go through a rendered-DOM-with-computed-styles step (data-cs) by default**. The render bridge is now **mandatory** for all captures, not opt-in or SPA-only.
-
-*   **Rationale:** The core problem is loss of fidelity and structure. Relying on static HTML fetch without computed styles inherently loses critical layout, spacing, and typography information, leading to "flat output." For SPA sites, it's a complete failure. To achieve "visually faithful AND editable" (D-091), the system *must* have access to the fully rendered DOM with computed styles. This elevates `htmlToSections` to its full potential.
-*   **Action:** Modify `fetchPage` to *always* use the render bridge. The `looksLikeSpaShell` check becomes irrelevant for determining *if* to render, only for *how* to interpret the initial fetch.
-
----
-### 2. Production Renderer for `SITE_RENDER_URL`
-
-**RULING 142: Hosted Browserless/ScrapingBee-style Endpoint for Production Renderer.**
-
-For production, use a **Browserless/ScrapingBee-style hosted endpoint** via `SITE_RENDER_URL`.
-
-*   **Rationale:**
-    *   **Reliability & Scalability:** These services are purpose-built for headless browser automation, offering high reliability, scalability, and managed infrastructure.
-    *   **Cost Management:** They provide clear pricing models, allowing for predictable cost management.
-    *   **Decoupling:** Decouples the rendering infrastructure from our Vercel deployment, avoiding potential cold start issues or resource contention with our core application logic.
-    *   **MCP vs. Dedicated:** While MCP has Chrome, it's not designed for high-volume, programmatic HTML rendering for external sites. It's for internal AI tasks.
-*   **Action:** Configure `SITE_RENDER_URL` to point to a chosen hosted headless browser service. Implement robust error handling and retry logic for calls to this endpoint.
+**RULING 147: Implement Production Render Bridge.**
+*   **Rationale:** RULING 146 is blocked without a production-ready `SITE_RENDER_URL`.
+*   **Action:** Prioritize implementation of the hosted Browserless/ScrapingBee-style endpoint for `SITE_RENDER_URL` (RULING 142).
 
 ---
-### 3. Elimination of Lossy Fallback
+### Phase 1: Asset Durability & Core Fidelity (Immediate Impact)
 
-**RULING 143: Eliminate Lossy `extractPageContent` Fallback for Rebuilds; Retain for Net-New Analysis.**
-
-The lossy `extractPageContent` → `contentToBlocks` fallback **must be eliminated** for the "rebuild my existing site" path.
-
-*   **Rationale:** Silently degrading fidelity and structure undermines the core value proposition. If a faithful DOM cannot be obtained, the user must be informed.
-*   **Action for Rebuild Path:** If the render bridge (RULING 141) fails to return a usable DOM (e.g., timeout, service error), the system **must inform the user** that it cannot capture the site faithfully and offer options (e.g., retry, manual content input, proceed with a basic template). It must *not* fall back to `extractPageContent` for rebuilding.
-*   **Retention for Net-New Analysis:** `extractPageContent` can be retained for the "analyze for a NET-NEW build" path where only high-level semantic extraction (business name, services, tone) is needed, and visual fidelity is not the goal.
-
----
-### 4. Fidelity Contract for Capture Failures
-
-**RULING 144: Mark Page Low-Fidelity and Offer Re-capture on Render Bridge Failure.**
-
-When the capture process (via the mandatory render bridge) fails to yield a usable DOM with `data-cs` (RULING 141), the system **must mark the page as low-fidelity** and offer a re-capture.
-
+**RULING 148: Ingest All Imported Images into Media Library.**
+*   **Rationale:** Fragile hotlinks are a critical durability and reusability issue. Ingesting images makes them tenant-owned, durable, and available in the editor's media picker.
 *   **Action:**
-    1.  If `fetchPage` (now always using the render bridge) fails to return a valid DOM or `htmlToSections` yields an empty/unusable structure:
-        *   Set `website_pages.status` to `capture_failed` or `low_fidelity`.
-        *   Store an error message in `website_pages.capture_error_details` (new JSONB column).
-        *   Present a clear message to the user in the editor/wizard: "We couldn't faithfully capture your site. Please try again or provide content manually."
-        *   Offer a "Re-capture" button that re-initiates the `fetchPage` process.
-    2.  Do *not* proceed with a partial or lossy build for the "rebuild" path.
+    1.  **Modify `htmlToSections`:** Enhance `htmlToSections` to collect all `src` attributes from `<img>` tags and `url()` values from `background-image` CSS properties (from `data-cs` or inline styles) during its DOM walk.
+    2.  **Post-Decomposition Pass:** After `htmlToSections` returns the `BlockContent[]`, run `lib/sites/image-ingestion.ts ingestPageImages(tenantId, websiteId, pageId, sections)` (D-133) to process this array. This function will use `lib/media/ingest.ts ingestExternalImage` (D-132) to fetch, deduplicate, store, and rewrite URLs.
+    3.  **Files to Change:** `lib/sites/html-importer.ts`, `lib/sites/image-ingestion.ts`, `stitch-actions.ts`, `wizard-actions.ts`.
+*   **Sequencing:** This must happen *before* saving the draft page, so the saved `BlockContent` contains durable URLs.
 
 ---
-### 5. Decision Logic for Capture vs. Generation
+### Phase 2: Enhanced Section Segmentation & Fidelity Mapping
 
-**RULING 145: Decision Logic for Capture vs. Generation Paths.**
+**RULING 149: Implement Visual Grouping for Section Segmentation.**
+*   **Rationale:** Relying solely on top-level `main` children for band detection is too simplistic. Visual cues (background changes, significant vertical spacing) are stronger indicators of distinct sections/bands.
+*   **Action:**
+    1.  **Enhance Render Bridge:** The render bridge should not just inject `data-cs`, but also analyze visual grouping. It can identify contiguous blocks of elements sharing a common background color/image, or separated by significant vertical margins/padding.
+    2.  **`htmlToSections` Band Detection:** Modify `htmlToSections` to use this visual grouping information (e.g., injected as `data-band-id` or `data-band-props`) to create top-level `row` blocks that represent these visual bands.
+    3.  **Heuristic:** Prioritize background changes and large vertical spacing (e.g., `margin-top` > 48px or `padding-top` > 48px) as primary band delimiters.
+*   **Files to Change:** `scripts/render-server.mjs`, `lib/sites/html-importer.ts`.
 
-The decision logic will be as follows:
+**RULING 150: Refined Style Fidelity Mapping.**
+*   **Rationale:** We need a clear line for which CSS properties are promoted to our block system vs. dropped, balancing fidelity with editability.
+*   **Action:**
+    1.  **Promote to `_style`/`layout_style`:** The computed-style whitelist (D-091) is the core. These properties (padding, margin, flexbox/grid, width/height, font-size/family/weight, color, background, border, shadow, etc.) *must* be mapped to `_style` (ElementStyle) or `layout_style` (RULING 114) on the most granular editable element.
+    2.  **Promote to `custom_css`:** Complex CSS (e.g., `@keyframes`, very specific pseudo-selectors, complex `filter` properties) that cannot be mapped to `_style` should be captured into `public.websites.custom_css` (D-092) for site-wide application.
+    3.  **Drop:** Highly specific, non-reusable, or conflicting CSS (e.g., `!important` overrides from source, `transition` properties that might conflict with our animations, obscure vendor prefixes) should be dropped.
+    4.  **Files to Change:** `lib/sites/style-capture.ts`, `lib/sites/html-importer.ts`.
 
-*   **Scenario (a) Client provides their own site URL (for "Rebuild My Site"):**
-    1.  **Mandatory Render Bridge Capture:** Attempt `fetchPage` via the render bridge (RULING 141).
-    2.  **`htmlToSections`:** Process the rendered DOM with `htmlToSections` (using "faithful" mode).
-    3.  **Image Ingestion:** Run `ingestPageImages` (D-133).
-    4.  **Success:** Proceed with `website_page_tree` generation, linking captured sections.
-    5.  **Failure:** Mark page low-fidelity, offer re-capture (RULING 144). *Do not fall back to lossy methods.*
+---
+### Phase 3: Two-Way Fidelity Check & Low-Fidelity Flagging
 
-*   **Scenario (b) Client provides a completed profile/no site (for "Build a Net-New Site"):**
-    1.  **`website_analysis_results`:** Use existing `website_analysis_results` (from Step 1a/1b) for business profile, industry, tone, growth intent.
-    2.  **Page Archetype Generation:** Use `buildPage` (D-127) with `ai:true` to generate pages based on archetypes and `LayoutRecipe`s (D-120), filling slots with fact-free content.
-    3.  **AI Image Creation:** Trigger AI image creation (D-134) for suitable slots.
+**RULING 151: Implement Two-Way Fidelity Check with Visual Diff.**
+*   **Rationale:** To guarantee "religious import" and reliably flag low-fidelity pages (D-144), we need an automated way to compare the rebuilt output against the source.
+*   **Action:**
+    1.  **Render Rebuilt Page:** After `saveDraft` (with ingested images and mapped styles), use the same render bridge (RULING 142) to render our *rebuilt draft page* back to HTML.
+    2.  **Visual Diff:** Perform a visual diff (pixel-based comparison) between the screenshot of the *original source page* and the screenshot of our *rebuilt draft page*.
+    3.  **Score & Flag:** Store a fidelity score (e.g., 0-100) in `website_pages.fidelity_score` (new column) and `website_pages.status='low_fidelity'` (D-144) if the score falls below a threshold (e.g., <85).
+    4.  **Cheapest Reliable Approach:** Use a service like Percy.io or Chromatic for visual regression testing, or implement a custom Playwright-based pixel diff. Given cost, a custom Playwright-based pixel diff (e.g., `pixelmatch` library) is the cheapest reliable approach.
+*   **Files to Change:** `lib/sites/site-clone.ts`, `lib/sites/html-importer.ts`, `wizard-actions.ts`, `stitch-actions.ts`, `website_pages` table (new `fidelity_score` column).
 
-*   **Scenario (c) Client provides a competitor/not-their site (for "Analyze a Competitor"):**
-    1.  **Mandatory Render Bridge Capture:** Attempt `fetchPage` via the render bridge (RULING 141).
-    2.  **`htmlToSections`:** Process the rendered DOM with `htmlToSections` (using "faithful" mode).
-    3.  **No Image Ingestion/AI Images:** Do *not* ingest images or generate AI images for competitor sites.
-    4.  **`website_analysis_results`:** Use `extractPageContent` (semantic-only, RULING 143) to populate `website_analysis_results` for competitive analysis purposes.
-    5.  **No Page Generation:** Do not generate pages for competitor sites. This is for analysis only.
+---
+**Supervisor Verification Checks (New/Updated):**
+
+**RULING 152: Supervisor Verification Schema for Religious HTML Import**
+
+```json
+{
+  "religious_html_import": [
+    { "id": "REL-V1", "assertion": "All `htmlToSections` calls (including `importHtmlAsDraftPage` and `cloneSectionsFromHtml`) receive HTML input from a render bridge pass that injects `data-cs` attributes.", "severity": "block" },
+    { "id": "REL-V2", "assertion": "If the render bridge fails or `SITE_RENDER_URL` is unset, the import process fails gracefully and informs the user of low fidelity, rather than proceeding with unstyled primitives.", "severity": "block" },
+    { "id": "REL-V3", "assertion": "The system correctly collects all unique image URLs (from `<img>` and `background-image` CSS) from the source HTML during import.", "severity": "block" },
+    { "id": "REL-V4", "assertion": "All collected image URLs are successfully ingested into the tenant Media Library via `ingestExternalImage` and `ingestPageImages` before saving the draft page.", "severity": "block" },
+    { "id": "REL-V5", "assertion": "Image URLs in the saved `BlockContent` are rewritten to point to the tenant's Media Library URLs.", "severity": "block" },
+    { "id": "REL-V6", "assertion": "The render bridge is enhanced to analyze visual grouping (background changes, significant vertical spacing) and inject this information into the DOM.", "severity": "block" },
+    { "id": "REL-V7", "assertion": "The `htmlToSections` function is enhanced to use visual grouping information to create top-level `row` blocks representing distinct visual bands.", "severity": "block" },
+    { "id": "REL-V8", "assertion": "The `htmlToSections` function correctly maps CSS Grid/Flexbox layouts to our `row` with `columns` structure, inferring `width` and nesting blocks.", "severity": "block" },
+    { "id": "REL-V9", "assertion": "The `style-capture.ts` and `html-importer.ts` correctly promote properties from the computed-style whitelist (D-091) to `_style`/`layout_style` on the most granular editable elements.", "severity": "block" },
+    { "id": "REL-V10", "assertion": "Complex CSS (e.g., `@font-face`, CSS variables, `@keyframes`) is captured into `public.websites.custom_css` (D-092).", "severity": "block" },
+    { "id": "REL-V11", "assertion": "Obscure or conflicting CSS (e.g., `!important` overrides, transition properties) is dropped during style mapping.", "severity": "block" },
+    { "id": "REL-V12", "assertion": "A two-way fidelity check is implemented: the rebuilt draft page is rendered, screenshotted, and visually diffed against the original source page.", "severity": "block" },
+    { "id": "REL-V13", "assertion": "A `fidelity_score` (numeric) column is added to `website_pages` table.", "severity": "block" },
+    { "id": "REL-V14", "assertion": "If the fidelity score falls below a threshold (e.g., <85), `website_pages.status` is set to `low_fidelity` and `website_pages.capture_error_details` (new JSONB column) is populated.", "severity": "block" },
+    { "id": "REL-V15", "assertion": "The editor/wizard UI clearly indicates pages with `low_fidelity` status and offers a 'Re-capture' option.", "severity": "block" }
+  ]
+}
+```
 
 ---
 DECISION-LOG
-[D-141] rule_canonical_capture_pipeline — Ruled mandatory rendered-DOM-with-computed-styles for all captures (status: ruled)
-[D-142] rule_prod_renderer — Ruled hosted Browserless/ScrapingBee-style endpoint for production renderer (status: ruled)
-[D-143] rule_eliminate_lossy_fallback — Ruled elimination of lossy `extractPageContent` fallback for rebuilds, retained for net-new analysis (status: ruled)
-[D-144] rule_fidelity_contract_capture_failures — Ruled to mark page low-fidelity and offer re-capture on render bridge failure (status: ruled)
-[D-145] rule_decision_logic_capture_generation — Ruled decision logic for capture vs. generation paths (status: ruled)
+[D-146] rule_mandate_render_bridge — Ruled to mandate render bridge for all HTML imports (status: ruled)
+[D-147] rule_implement_prod_render_bridge — Ruled to prioritize implementation of production render bridge (status: ruled)
+[D-148] rule_ingest_all_imported_images — Ruled to ingest all imported images into Media Library (status: ruled)
+[D-149] rule_enhanced_section_segmentation — Ruled to implement visual grouping for section segmentation (status: ruled)
+[D-150] rule_refined_style_fidelity_mapping — Ruled refined style fidelity mapping (promote/drop CSS properties) (status: ruled)
+[D-151] rule_two_way_fidelity_check — Ruled to implement two-way fidelity check with visual diff (status: ruled)
+[D-152] define_religious_html_import_checks — Defined Supervisor verification checks for religious HTML import (status: defined)

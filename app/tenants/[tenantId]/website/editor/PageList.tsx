@@ -43,7 +43,14 @@ export default function PageList({ tenantId, websiteId, reloadKey, onSelectPage,
         setImportOpen(false); setImportHtml(""); setImportTitle("");
         setPages(await listSitePages(tenantId, websiteId ?? undefined));
         onSelectPage?.(res.pageId, { id: res.pageId, slug: res.slug || "", title: importTitle.trim() || "Imported design", is_public: false });
-        notify(`Imported ${res.sectionCount} section${res.sectionCount === 1 ? "" : "s"} into a new page.`, { variant: "success" });
+        if (res.fidelity === "low") {
+          notify(
+            `Imported ${res.sectionCount} section${res.sectionCount === 1 ? "" : "s"} — but as low-fidelity (no computed styles captured). Run the render bridge (SITE_RENDER_URL) and re-import for a true-to-design copy.`,
+            { variant: "warning", duration: 9000 },
+          );
+        } else {
+          notify(`Imported ${res.sectionCount} section${res.sectionCount === 1 ? "" : "s"} as a true-to-design copy.`, { variant: "success" });
+        }
       } else {
         notifyError(res.message || "Could not import that HTML.");
       }

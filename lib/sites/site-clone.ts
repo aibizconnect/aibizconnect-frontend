@@ -51,6 +51,30 @@ export async function fetchPage(url: string, maxBytes = 600_000): Promise<string
   return raw;
 }
 
+/**
+ * Render RAW pasted HTML (Stitch/Figma/hand-authored, no URL) through the render bridge so its
+ * utility/inline classes resolve to real computed styles annotated as `data-cs` — giving the
+ * importer a TRUE-to-design copy instead of unstyled primitives. Returns null when no bridge is
+ * configured or the render fails, so callers can flag low fidelity (architect D-146).
+ */
+export async function renderHtmlToDom(html: string, maxBytes = 1_500_000): Promise<string | null> {
+  const bridge = process.env.SITE_RENDER_URL;
+  if (!bridge || !html) return null;
+  try {
+    const r = await fetch(`${bridge.replace(/\/+$/, "")}/render-html`, {
+      method: "POST",
+      headers: { "content-type": "text/html; charset=utf-8" },
+      body: html,
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!r.ok) return null;
+    const rendered = (await r.text()).slice(0, maxBytes);
+    return rendered && rendered.includes("data-cs") ? rendered : null;
+  } catch {
+    return null;
+  }
+}
+
 function originOf(url: string): string {
   try { return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { return ""; }
 }
