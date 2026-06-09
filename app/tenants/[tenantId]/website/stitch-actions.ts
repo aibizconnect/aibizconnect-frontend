@@ -42,7 +42,9 @@ export async function importHtmlAsDraftPage(
 
   let raw: Record<string, unknown>[];
   try {
-    raw = htmlToSections(html, opts?.baseUrl || "https://stitch.local");
+    // Faithful mode: keep the design's real structure/order as editable primitives instead of
+    // collapsing the first section into our composite hero template.
+    raw = htmlToSections(html, opts?.baseUrl || "https://stitch.local", { faithful: true });
   } catch (e: any) {
     return { ok: false, message: `Decompose failed: ${e?.message ?? e}` };
   }

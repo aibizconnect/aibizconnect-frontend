@@ -27,7 +27,12 @@ function clean(t: string): string {
   return (t || "").replace(/\s+/g, " ").trim();
 }
 
-export function htmlToSections(html: string, baseUrl: string): Record<string, unknown>[] {
+export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?: boolean }): Record<string, unknown>[] {
+  // `faithful` (design-import mode): do NOT collapse the first section into our opinionated
+  // composite `hero` block (which imposes our 2-column-with-image layout + only keeps one
+  // paragraph). Keep every band as a row of editable PRIMITIVES in the design's real order, so
+  // the imported page matches the source instead of our hero template.
+  const faithful = !!opts?.faithful;
   let root: HTMLElement;
   try { root = parse(html, { comment: false, blockTextElements: { script: false, noscript: false, style: false, pre: true } }); }
   catch { return []; }
@@ -193,7 +198,7 @@ export function htmlToSections(html: string, baseUrl: string): Record<string, un
 
   // 1) Hero band first (detected + removed so it isn't re-emitted below).
   const result: Record<string, unknown>[] = [];
-  const hero = detectHero(main);
+  const hero = faithful ? null : detectHero(main);
   if (hero) result.push(hero);
 
   // 2) Find the container whose direct children are the page's section bands (descend through a
