@@ -24,6 +24,27 @@ The underlying capability is reachable for developers via the **Claude API** + *
 SDK** (`@anthropic-ai/claude-agent-sdk`, `ANTHROPIC_API_KEY`) — the consumer tool itself has no
 public API today, but the model (Opus/Sonnet) and agent loop are API-accessible.
 
+### Correction: there is NO "Claude Design MCP"
+Claude Design is a **browser canvas** (`claude.ai/design`) — a product surface, **not** a
+connector you mount into Claude Code. For **design-to-code in Claude Code**, the connector
+people actually wire in is **Figma's MCP**, not a "Claude Design MCP":
+```bash
+claude mcp add --transport http figma https://mcp.figma.com/mcp --scope user
+# or: claude plugin install figma@claude-plugins-official
+```
+Then authenticate via the OAuth flow Claude Code triggers. **Prereqs:** a paid Claude plan
+(Pro/Max/Team/Enterprise — free can't access Claude Design or the remote Figma MCP) **and** a
+Figma account on Professional/Org/Enterprise (free Figma can't run Dev Mode MCP).
+
+**MCP vs Skill (for clarity):**
+- **MCP** = the *connector* mechanism — registers external apps/APIs/DBs (e.g. Figma) into the
+  session in a standardized way.
+- **Skill** = a packaged *playbook* (`SKILL.md` + scripts) that guides how Claude performs a
+  task; it does **not** connect to an external app.
+
+So: use **Claude Design in-browser** to create; use **Figma MCP** when you want a design file to
+flow into a Claude Code coding session.
+
 ## 2. Why this is strategically important to us
 
 Claude Design's core loop is **exactly the architecture we just shipped** (Phases 1–4):
@@ -48,6 +69,18 @@ Use Claude Design to design AIBizConnect's **own** assets and template library:
   `lib/sections/prebuilt-templates.ts` / `layout-recipes.ts` (or via our HTML importer).
 - Produce marketing one-pagers, pitch decks, onboarding screens.
 - *Payoff:* faster, higher-craft template production than hand-authoring. No platform change.
+
+**End-to-end design→code loop for this repo (team workflow):**
+1. **Design** in Claude Design (browser) *or* in Figma.
+2. If using Figma, connect **Figma's MCP** to Claude Code:
+   `claude mcp add --transport http figma https://mcp.figma.com/mcp --scope user` → OAuth.
+3. In Claude Code, point at the Figma frame → generate components that **respect our existing
+   `--abc-*` tokens** (instruct it to emit our section content shape, not raw CSS).
+4. Land the output as a new entry in `lib/sections/layout-recipes.ts` /
+   `prebuilt-templates.ts` (or HTML → our importer), verify with `scripts/verify-recipes.mjs`.
+5. Deploy via the normal Vercel pipeline.
+   *(Claude Design's own "export HTML / handoff to Claude Code" achieves step 3–4 without Figma
+   when you design in the canvas directly.)*
 
 ### Tier B — Parity patterns to adopt in our builder (product features)
 Lift the UX ideas that users will love:
