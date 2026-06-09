@@ -1,16 +1,16 @@
 /**
- * In-page annotation logic — the SAME computed-style capture as scripts/render-server.mjs, so the
- * Cloudflare Worker bridge produces byte-compatible output (annotated DOM with data-cs + an injected
- * <style id="__imported_css">). Keep this in sync with render-server.mjs annotateAndSerialize().
+ * In-page annotation logic — SAME computed-style capture as scripts/render-server.mjs.
  *
- * These functions are passed to puppeteer `page.evaluate(...)` and run INSIDE the browser, so they
- * must be self-contained (no imports, no outer-scope refs).
+ * IMPORTANT: these are exported as STRING expressions (IIFEs), not functions. Passing a bundled
+ * function to @cloudflare/puppeteer `page.evaluate` triggers esbuild's `__name` helper, which is not
+ * defined in the browser context ("__name is not defined"). A string is evaluated verbatim in-page,
+ * sidestepping that entirely. Keep in sync with render-server.mjs annotateAndSerialize().
  */
 
-/** Annotate every <body> element with a whitelist of computed styles as `data-cs`. Runs in-page. */
-export function annotateComputedStyles(): void {
+/** IIFE: annotate every <body> element with whitelisted computed styles as `data-cs`. Returns void. */
+export const ANNOTATE_JS = `(() => {
   const KEEP = ["paddingTop","paddingRight","paddingBottom","paddingLeft","marginTop","marginRight","marginBottom","marginLeft","color","backgroundColor","backgroundImage","fontSize","fontWeight","lineHeight","letterSpacing","textAlign","textTransform","borderTopLeftRadius","borderTopRightRadius","borderBottomLeftRadius","borderBottomRightRadius","display","gap","justifyContent","alignItems","maxWidth","boxShadow","gridTemplateColumns","flexWrap"];
-  const def = (k: string, v: string): boolean => {
+  const def = (k, v) => {
     if (!v) return true;
     if (/(padding|margin|gap)/i.test(k) && v === "0px") return true;
     if (/Radius$/.test(k) && v === "0px") return true;
@@ -31,26 +31,26 @@ export function annotateComputedStyles(): void {
   let i = 0;
   for (const el of Array.from(document.querySelectorAll("body *"))) {
     if (i++ > 5000) break;
-    const cs = getComputedStyle(el as Element);
-    const parts: string[] = [];
-    for (const k of KEEP) { const v = (cs as any)[k] as string; if (!def(k, v)) parts.push(k + ":" + v); }
-    if (parts.length) (el as Element).setAttribute("data-cs", parts.join("|"));
+    const cs = getComputedStyle(el);
+    const parts = [];
+    for (const k of KEEP) { const v = cs[k]; if (!def(k, v)) parts.push(k + ":" + v); }
+    if (parts.length) el.setAttribute("data-cs", parts.join("|"));
   }
-}
+})()`;
 
-/** Harvest @font-face / :root / keyframes rules into one string for site-wide custom CSS. In-page. */
-export function harvestImportedCss(): string {
+/** IIFE expression: harvest @font-face / :root / keyframes into one string. Returns the CSS string. */
+export const HARVEST_JS = `(() => {
   let out = "";
   for (const sheet of Array.from(document.styleSheets)) {
-    let rules: CSSRuleList | undefined;
-    try { rules = (sheet as CSSStyleSheet).cssRules; } catch { continue; }
+    let rules;
+    try { rules = sheet.cssRules; } catch (e) { continue; }
     if (!rules) continue;
     for (const r of Array.from(rules)) {
       const t = r.constructor.name;
-      if (t === "CSSFontFaceRule" || t === "CSSKeyframesRule") out += r.cssText + "\n";
-      else if ((r as CSSStyleRule).selectorText && /:root/.test((r as CSSStyleRule).selectorText)) out += r.cssText + "\n";
+      if (t === "CSSFontFaceRule" || t === "CSSKeyframesRule") out += r.cssText + "\\n";
+      else if (r.selectorText && /:root/.test(r.selectorText)) out += r.cssText + "\\n";
       if (out.length > 256000) return out;
     }
   }
   return out;
-}
+})()`;

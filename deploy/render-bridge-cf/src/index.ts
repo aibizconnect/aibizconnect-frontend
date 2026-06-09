@@ -13,7 +13,7 @@
  * Runs under the aibizconnect.app zone (route render.aibizconnect.app) — see wrangler.toml.
  */
 import puppeteer from "@cloudflare/puppeteer";
-import { annotateComputedStyles, harvestImportedCss } from "./annotate";
+import { ANNOTATE_JS, HARVEST_JS } from "./annotate";
 
 export interface Env {
   MYBROWSER: Fetcher;
@@ -31,9 +31,9 @@ function authed(req: Request, url: URL, env: Env): boolean {
 
 /** Annotate the current page and serialize to HTML with the imported-CSS block injected. */
 async function annotateAndSerialize(page: any): Promise<string> {
-  await page.evaluate(annotateComputedStyles);
+  await page.evaluate(ANNOTATE_JS);
   let importedCss = "";
-  try { importedCss = await page.evaluate(harvestImportedCss); } catch { /* optional */ }
+  try { importedCss = (await page.evaluate(HARVEST_JS)) as string; } catch { /* optional */ }
   let html: string = await page.content();
   if (importedCss) {
     const block = `\n<style id="__imported_css">\n${importedCss}\n</style>\n`;
