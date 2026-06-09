@@ -324,7 +324,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
         {/* Left panel = overlay ON TOP of the canvas (canvas stays full-width). Stays open
             until closed with ✕ — no auto-collapse. */}
         {leftOpen && (
-          <div className={`editor-compact absolute left-0 top-0 z-30 flex h-full flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-2xl ${mode === "add" ? "w-[380px]" : "w-72"}`}>
+          <div className={`editor-compact absolute left-0 top-0 z-[70] flex h-full flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-2xl ${mode === "add" ? "w-[380px]" : "w-72"}`}>
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
               <span className="text-sm font-semibold text-slate-700">{PANEL_TITLE[mode]}</span>
               <button onClick={() => setLeftOpen(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">✕</button>
