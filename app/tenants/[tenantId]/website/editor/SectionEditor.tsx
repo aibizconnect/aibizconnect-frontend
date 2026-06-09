@@ -15,7 +15,7 @@ import {
 import MediaPickerModal from "./MediaPickerModal";
 import FontPicker from "@/components/design/FontPicker";
 import { FONT_ROLES } from "@/lib/sections/theme";
-import { StylesPanel, AnimationsPanel } from "@/components/design/ElementInspector";
+import { StylesPanel, AnimationsPanel, Group } from "@/components/design/ElementInspector";
 import { resolveStyle, type ElementStyle, type ElementAnimation, type Breakpoint } from "@/lib/design/element-style";
 
 interface SectionEditorProps {
@@ -503,66 +503,55 @@ export default function SectionEditor({
         ))}
       </div>
 
-      {tab === "content" && (
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Element name</span>
-          <input
-            type="text"
-            value={value._name ?? ""}
-            placeholder={defaultName}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1"
-          />
-        </label>
-      )}
-
-      {tab === "content" && showRole && (
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Text role</span>
-          <select
-            value={(value as any)._role ?? ""}
-            onChange={(e) => setRole(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1 text-sm"
-          >
-            <option value="">Auto (by type)</option>
-            {FONT_ROLES.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
-            ))}
-          </select>
-          <span className="text-[11px] text-gray-400">Uses the font set for this role in the Typography panel. Pick a Font below to override just this element.</span>
-        </label>
-      )}
-
-      {tab === "content" && type === "menu" && (
-        <MenuItemsEditor
-          items={(value.items ?? []) as MenuItem[]}
-          onChange={(next) => setField("items", next)}
-        />
-      )}
-
-      {/* For menus, surface Font family RIGHT under "+ Add Menu Item" so its dropdown has
-          room to open within the sticky panel (it was buried below several fields). */}
-      {tab === "content" && type === "menu" && specs.find((s) => s.key === "fontFamily") && (
-        <FieldRenderer
-          key="menu-fontFamily"
-          spec={specs.find((s) => s.key === "fontFamily")!}
-          value={value.fontFamily}
-          onChange={(v) => setField("fontFamily", v)}
-          onPickImage={tenantId ? handlePickImage : undefined}
-          customFonts={customFonts}
-        />
-      )}
-
-      {tab === "content" && specs.filter((spec) => !(type === "menu" && spec.key === "fontFamily")).map((spec) => (
-        <FieldRenderer
-          key={spec.key}
-          spec={spec}
-          value={value[spec.key]}
-          onChange={(v) => setField(spec.key, v)}
-          onPickImage={tenantId ? handlePickImage : undefined}
-          customFonts={customFonts}
-        />
-      ))}
+      {tab === "content" && (() => {
+        // Group the General fields into the SAME collapsible accordion the Styles tab uses,
+        // so every element type has a consistent right-panel design (not a flat list).
+        const catOf = (key: string): "Typography" | "Link" | "Layout" | "Content" => {
+          const k = key.toLowerCase();
+          if (/href|target|^rel$|opens|^link$/.test(k)) return "Link";
+          if (/font|weight|italic|lineheight|letterspacing|transform|^color$|gradient|bgcolor|textcolor/.test(k)) return "Typography";
+          if (/align|width|fullwidth|variant|^size$|columns|widths|^gap$|valign|minheight|height|objectfit|rounding|radius|direction|^layout$|scroll|grayscale|lightbox|bulletstyle|thickness/.test(k)) return "Layout";
+          return "Content";
+        };
+        const menuFont = type === "menu" ? specs.find((s) => s.key === "fontFamily") : undefined;
+        const buckets: Record<string, any[]> = { Content: [], Typography: [], Link: [], Layout: [] };
+        for (const spec of specs) {
+          if (type === "menu" && spec.key === "fontFamily") continue; // surfaced in General
+          buckets[catOf(spec.key)].push(spec);
+        }
+        const renderSpec = (spec: any) => (
+          <FieldRenderer key={spec.key} spec={spec} value={value[spec.key]}
+            onChange={(v) => setField(spec.key, v)} onPickImage={tenantId ? handlePickImage : undefined} customFonts={customFonts} />
+        );
+        return (
+          <>
+            <Group title="General">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium">Element name</span>
+                <input type="text" value={value._name ?? ""} placeholder={defaultName}
+                  onChange={(e) => setName(e.target.value)} className="rounded border border-gray-300 px-2 py-1" />
+              </label>
+              {showRole && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm font-medium">Text role</span>
+                  <select value={(value as any)._role ?? ""} onChange={(e) => setRole(e.target.value)}
+                    className="rounded border border-gray-300 px-2 py-1 text-sm">
+                    <option value="">Auto (by type)</option>
+                    {FONT_ROLES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                  </select>
+                  <span className="text-[11px] text-gray-400">Uses the font set for this role in the Typography panel. Pick a Font below to override just this element.</span>
+                </label>
+              )}
+              {type === "menu" && <MenuItemsEditor items={(value.items ?? []) as MenuItem[]} onChange={(next) => setField("items", next)} />}
+              {menuFont && renderSpec(menuFont)}
+              {buckets.Content.map(renderSpec)}
+            </Group>
+            {buckets.Typography.length > 0 && <Group title="Typography" defaultOpen={false}>{buckets.Typography.map(renderSpec)}</Group>}
+            {buckets.Link.length > 0 && <Group title="Link & behavior" defaultOpen={false}>{buckets.Link.map(renderSpec)}</Group>}
+            {buckets.Layout.length > 0 && <Group title="Layout & size" defaultOpen={false}>{buckets.Layout.map(renderSpec)}</Group>}
+          </>
+        );
+      })()}
 
       {tab === "styles" && (
         <>

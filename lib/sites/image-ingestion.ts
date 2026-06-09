@@ -25,17 +25,21 @@ export interface IngestPassOptions {
 
 type Content = Record<string, any>;
 
-/** Collect every external image URL in a section content tree. */
-function collectUrls(c: Content, out: Set<string>): void {
+/** Collect external image URLs in a content tree, tagging each with its section context. */
+function collectUrls(c: Content, ctx: string[], out: Map<string, Set<string>>): void {
   if (!c || typeof c !== "object") return;
-  if (typeof c.backgroundImageUrl === "string") out.add(c.backgroundImageUrl);
-  if (c.type === "image" && typeof c.url === "string") out.add(c.url);
-  if (c.type === "gallery" && Array.isArray(c.images)) for (const im of c.images) if (im && typeof im.url === "string") out.add(im.url);
-  if (c.type === "logos" && Array.isArray(c.images)) for (const im of c.images) if (im && typeof im.url === "string") out.add(im.url);
-  const st = c._style;
-  if (st && typeof st.bgImage === "string") out.add(st.bgImage);
-  // Rows: children is an array of columns, each an array of block contents.
-  if (c.type === "row" && Array.isArray(c.children)) for (const col of c.children) if (Array.isArray(col)) for (const b of col) collectUrls(b, out);
+  const tagsFor = (kind: string) => [...ctx, kind];
+  const add = (url: any, kind: string) => {
+    if (typeof url !== "string" || !url) return;
+    if (!out.has(url)) out.set(url, new Set());
+    for (const t of tagsFor(kind)) if (t) out.get(url)!.add(t.toLowerCase());
+  };
+  if (typeof c.backgroundImageUrl === "string") add(c.backgroundImageUrl, "background");
+  if (c.type === "image") add(c.url, "image");
+  if (c.type === "gallery" && Array.isArray(c.images)) for (const im of c.images) if (im) add(im.url, "gallery");
+  if (c.type === "logos" && Array.isArray(c.images)) for (const im of c.images) if (im) add(im.url, "logo");
+  if (c._style && typeof c._style.bgImage === "string") add(c._style.bgImage, "background");
+  if (c.type === "row" && Array.isArray(c.children)) for (const col of c.children) if (Array.isArray(col)) for (const b of col) collectUrls(b, ctx, out);
 }
 
 /** Rewrite external URLs in a content tree using the map (returns a new object). */
@@ -62,14 +66,18 @@ export async function ingestSectionImages(
 ): Promise<Content[]> {
   if (!Array.isArray(sections) || !sections.length) return sections;
 
-  // 1. Collect unique external URLs.
-  const urls = new Set<string>();
-  for (const s of sections) collectUrls(s, urls);
+  // 1. Collect unique external URLs, each tagged with its section type + industry for search.
+  const urlTags = new Map<string, Set<string>>();
+  const industry = opts.profile?.industry;
+  for (const s of sections) {
+    const ctx = [s?.type, industry, "website"].filter(Boolean) as string[];
+    collectUrls(s, ctx, urlTags);
+  }
 
   // 2. Ingest in parallel, build the rewrite map.
   const map = new Map<string, string>();
-  await Promise.all(Array.from(urls).map(async (u) => {
-    const r = await ingestExternalImage(tenantId, u, { websiteId: opts.websiteId, sourceType: "external_url" });
+  await Promise.all(Array.from(urlTags.entries()).map(async ([u, tags]) => {
+    const r = await ingestExternalImage(tenantId, u, { websiteId: opts.websiteId, sourceType: "external_url", tags: [...tags] });
     if (r) map.set(u, r.url);
   }));
 

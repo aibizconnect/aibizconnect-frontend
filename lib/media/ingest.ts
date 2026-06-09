@@ -17,6 +17,25 @@ export interface IngestOptions {
   folderId?: string | null;
   /** stored on the row's tags for provenance. */
   sourceType?: "external_url" | "stock_image" | "ai_generated";
+  /** extra search tags (e.g. section type, industry) — merged + deduped onto the row. */
+  tags?: string[];
+}
+
+const STOP_TOKENS = new Set(["the", "and", "for", "with", "img", "image", "images", "photo", "photos", "jpg", "jpeg", "png", "webp", "www", "com", "net", "org", "https", "http", "cdn", "assets", "uploads", "media", "content", "wp", "static"]);
+
+/** Derive a few human search tags from an image URL's path (filename + folder tokens). */
+function deriveUrlTags(srcUrl: string): string[] {
+  try {
+    const u = new URL(srcUrl);
+    const parts = `${u.hostname.split(".")[0]} ${u.pathname}`.split(/[\/\-_.+%0-9]+/);
+    const seen = new Set<string>();
+    for (const raw of parts) {
+      const t = raw.trim().toLowerCase();
+      if (t.length >= 3 && t.length <= 24 && /^[a-z]+$/.test(t) && !STOP_TOKENS.has(t)) seen.add(t);
+      if (seen.size >= 6) break;
+    }
+    return [...seen];
+  } catch { return []; }
 }
 
 export interface IngestedMedia { id: string; url: string; storagePath: string; isNew: boolean }
@@ -69,7 +88,12 @@ export async function ingestExternalImage(
     const up = await putObject(storagePath, buf, mime);
     if (!up.ok || !up.publicUrl) return null;
 
-    const tags = ["imported", options.sourceType || "external_url"];
+    // Tag generously so users can search/find images in the Media Library.
+    const tags = Array.from(new Set([
+      "imported", options.sourceType || "external_url",
+      ...deriveUrlTags(srcUrl),
+      ...(options.tags || []).map((t) => String(t).toLowerCase().trim()).filter(Boolean),
+    ]));
     const { data: row } = await supabase.from("website_media").insert({
       tenant_id: tenantId,
       url: up.publicUrl,
