@@ -363,7 +363,9 @@ export const rowSchema = z.object({
   columns: z.coerce.number().int().min(1).max(12).default(1),
   widths: z.array(z.number()).optional(), // per-column fractional ratios, sum = 1
   gap: z.coerce.number().optional(),
-  contentWidth: z.enum(["boxed", "full"]).optional(),   // center content at max-width vs full-bleed
+  // Section WIDTH TIERS (Ali, element-system review): full = edge-to-edge; wide = 1200px
+  // (legacy "boxed" renders identically to wide); medium = 960px; small = 720px.
+  contentWidth: z.enum(["boxed", "full", "wide", "medium", "small"]).optional(),
   valign: z.enum(["top", "center", "bottom"]).optional(), // vertical alignment of columns
   minHeight: z.coerce.number().optional(),              // px
   // Responsive (Copilot-ratified): rows AUTO-STACK to 1 column under 768px by default.
@@ -595,6 +597,18 @@ export function defaultContentFor(type: SectionType): SectionContent {
         return { type: "countdown", mode: "date", target: t, units: "dhms", display: "cells", title: "Limited-time offer" } as SectionContent;
       }
     }
+    // Section WIDTH TIER presets (Ali): row@full / row@wide / row@medium / row@small.
+    if (base === "row" && ["full", "wide", "medium", "small"].includes(variant)) {
+      const r = makeRow(1);
+      (r as any).contentWidth = variant;
+      return r;
+    }
+    // TEXT FAMILY per the Typography roles (Ali): Title / Subtitle / Section Header / Body / Quote.
+    if (base === "heading" && variant === "title") return { type: "heading", text: "Page title", level: "h1", _role: "title" } as any;
+    if (base === "heading" && variant === "section") return { type: "heading", text: "Section header", level: "h2", _role: "sectionHeader" } as any;
+    if (base === "subheading" && variant === "subtitle") return { type: "subheading", text: "A supporting subtitle", level: "h2", _role: "subtitle" } as any;
+    if (base === "text" && variant === "body") return { type: "text", text: "Body copy goes here.", _role: "body" } as any;
+    if (base === "text" && variant === "quote") return { type: "text", text: "“A quote worth remembering.”", italic: true, _role: "quote" } as any;
     return defaultContentFor(base as SectionType);
   }
   switch (type) {

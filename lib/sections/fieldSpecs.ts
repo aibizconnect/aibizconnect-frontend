@@ -211,7 +211,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   row: [
     { kind: "select", key: "columns", label: "Columns", options: ["1", "2", "3", "4", "5", "6", "7", "8"] },
     { kind: "number", key: "gap", label: "Gap", min: 0, max: 120, step: 2, unit: "px" },
-    { kind: "select", key: "contentWidth", label: "Content width", options: ["boxed", "full"] },
+    { kind: "select", key: "contentWidth", label: "Content width", options: ["full", "wide", "medium", "small", "boxed"] },
     { kind: "select", key: "valign", label: "Vertical align", options: ["top", "center", "bottom"] },
     { kind: "number", key: "minHeight", label: "Min height", min: 0, max: 1200, step: 10, unit: "px" },
     // Responsive (Copilot-ratified): rows auto-stack on mobile by default.

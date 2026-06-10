@@ -261,8 +261,12 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
         </>
       );
       // Boxed → center content at max-width (background/padding stay full-bleed via the _style wrapper).
-      const boxed = c.contentWidth === "boxed"
-        ? <div style={{ maxWidth: "var(--abc-maxw, 1200px)", marginLeft: "auto", marginRight: "auto" }}>{grid}</div>
+      // Section width tiers (Ali): full = edge-to-edge; wide/boxed = 1200px; medium = 960px;
+      // small = 720px. Boxed is the legacy name for wide.
+      const TIER_MAXW: Record<string, string> = { boxed: "var(--abc-maxw, 1200px)", wide: "var(--abc-maxw, 1200px)", medium: "960px", small: "720px" };
+      const maxW = TIER_MAXW[c.contentWidth as string];
+      const boxed = maxW
+        ? <div style={{ maxWidth: maxW, marginLeft: "auto", marginRight: "auto" }}>{grid}</div>
         : grid;
 
       // HEADER special-case (Ali's ruling): a row that contains a menu is a header. On

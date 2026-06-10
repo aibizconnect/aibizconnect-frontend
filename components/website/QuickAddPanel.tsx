@@ -32,9 +32,16 @@ const I = {
 // Leaf + composite ELEMENT groups (everything except Rows). Used by the Elements tab,
 // the Quick Add tab, and the category shortcuts.
 const ELEMENT_GROUPS: Group[] = [
+  // TEXT FAMILY mirrors the Typography roles (Ali): each tile seeds the matching _role so the
+  // site-wide Typography settings drive its look (Title / Subtitle / Headline / Section Header /
+  // Body / Quote).
   { group: "Text", items: [
-    { label: "Headline", icon: I.text, type: "heading" }, { label: "Sub-Headline", icon: I.text, type: "subheading" },
-    { label: "Paragraph", icon: I.text, type: "text" }, { label: "Rich Text", icon: I.text, type: "text" },
+    { label: "Title", icon: I.text, type: "heading@title" as SectionType },
+    { label: "Subtitle", icon: I.text, type: "subheading@subtitle" as SectionType },
+    { label: "Headline", icon: I.text, type: "heading" },
+    { label: "Section Header", icon: I.text, type: "heading@section" as SectionType },
+    { label: "Body", icon: I.text, type: "text@body" as SectionType },
+    { label: "Quote", icon: I.text, type: "text@quote" as SectionType },
   ]},
   { group: "Lists", items: [
     { label: "Bullet List", icon: I.list, type: "bullet-list" },
@@ -68,9 +75,13 @@ const ELEMENT_GROUPS: Group[] = [
 
 const ROWS_GROUP: Group = { group: "Rows", items: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ label: `${n} Column`, icon: I.cols, type: "row" as SectionType, cols: n })) };
 
+// REAL width tiers (Ali — these four used to create identical rows): full = edge-to-edge,
+// wide = 1200px, medium = 960px, small = 720px. The tier is editable later in the inspector.
 const SECTION_PRESETS: Group = { group: "Add a Section", items: [
-  { label: "Full Width", icon: I.cols, type: "row", cols: 1 }, { label: "Wide", icon: I.cols, type: "row", cols: 1 },
-  { label: "Medium", icon: I.cols, type: "row", cols: 1 }, { label: "Small", icon: I.cols, type: "row", cols: 1 },
+  { label: "Full Width", icon: I.cols, type: "row@full" as SectionType },
+  { label: "Wide", icon: I.cols, type: "row@wide" as SectionType },
+  { label: "Medium", icon: I.cols, type: "row@medium" as SectionType },
+  { label: "Small", icon: I.cols, type: "row@small" as SectionType },
 ] };
 
 // The whole panel = one collapsible accordion: Sections, Rows, every element group.

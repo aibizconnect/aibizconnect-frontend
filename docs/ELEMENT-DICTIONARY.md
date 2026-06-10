@@ -19,6 +19,60 @@
 Every element supports: `_style` (Styles tab), `_anim` (Animations tab), `_name` (display name),
 `_role` (typography role). Listed below are the element-specific CONTENT fields.
 
+## Walk the left panel (top → bottom)
+
+### 1. SECTION ("Add a Section")
+**Definition.** A Section is a top-level band of the page: one entry in `draft_sections`, rendered
+as a full-bleed strip carrying its own background/padding (`_style`). Internally it IS a Row
+(`type:"row"`) at page root — the Layers panel labels root rows "Section".
+
+**Width tiers** (Ali's spec — now real, not cosmetic):
+| Tier | Inner max-width | Use |
+|---|---|---|
+| Full Width | none (edge-to-edge) | hero strips, color bands, tickers |
+| Wide (= legacy "boxed") | 1200px (`--abc-maxw`) | standard content |
+| Medium | 960px | articles, forms |
+| Small | 720px | narrow copy, signatures |
+The background always spans edge-to-edge; the TIER constrains the content box. Editable any time:
+right panel → General → "Content width".
+
+**Recognition in imported HTML.** Band boundaries: semantic `<section>/<header>/<footer>`, an own
+background different from the page, or a ≥48px vertical gap (D-149). Width tier: read the inner
+wrapper's computed `max-width` → ≥1140px ⇒ wide, ~960 ⇒ medium, ~720 ⇒ small, none ⇒ full.
+
+**Controls.** Canvas hover toolbar + right-panel Actions: move ↑/↓ (reorders `draft_sections`),
+duplicate (deep JSON clone), delete, save-as-asset, AI rewrite. On an IMPORTED band the same
+actions write structural patches (move/duplicate-with-fresh-uids/remove) over the verbatim HTML.
+
+### 2. ROW ("Rows", 1–8 columns)
+**Definition.** The layout primitive: N columns (`children[col][]` arrays), per-column styles
+(`colStyles`), fractional widths (`widths`), gap, vertical align, min-height. Mobile: stacks to
+one column under 768px by default (`keepRowOnMobile` opts out, `reverseOnMobile` flips); tablet
+caps at 2–3 visible columns with wrap. A row containing a `menu` renders as a HEADER bar
+(logo + ☰ on mobile). Rows nest inside columns (sub-rows).
+**Recognition.** flex/grid containers; outermost layout grid wins (D-173); cards chunk per real
+`grid-template-columns` count (D-175).
+**Controls.** Column resize (drag divider), per-column +add/duplicate/delete, drag-drop children
+between cells, column style (bg/padding/align) in inspector.
+
+### 3. TEXT family — mirrors the Typography roles
+The site-wide Typography settings define roles; each Text tile seeds the matching `_role`, so
+global typography drives every instance (change Typography → all Body text follows).
+| Tile | Element | Role | HTML recognition |
+|---|---|---|---|
+| Title | heading h1 | `title` | the page's `<h1>` |
+| Subtitle | subheading | `subtitle` | `<h2>/<p>` directly under a Title, lighter weight |
+| Headline | heading (h2–h4) | `heading` | other `<h2>–<h4>` |
+| Section Header | heading h2 | `sectionHeader` | first heading of a band |
+| Body | text | `body` | `<p>` |
+| Quote | text (italic) | `quote` | `<blockquote>`, quoted+italic text |
+(Buttons/menus also have roles: `button`, `menu`, `submenu` — applied by their own elements.)
+
+### 4+. Continue down the panel
+Lists → Buttons → Icon → Images → Media → Sections (composites) → Forms & Surveys → Booking →
+Social → Ticker → Countdown Timers → Progress Bar → Layout (Divider/Spacer) → Custom.
+Per-element details in the master table below; pending upgrades are tracked in D-197..D-203.
+
 ## Master table
 
 | # | Type | Label | Purpose / behaviour | Key content fields | HTML recognition (projection signature) | Status / gaps |
