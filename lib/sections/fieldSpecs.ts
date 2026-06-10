@@ -254,7 +254,13 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "number", key: "height", label: "Height", min: 120, max: 800, unit: "px" },
     { kind: "select", key: "fit", label: "Image fit", options: ["cover", "contain"] },
   ],
-  countdown: [{ kind: "text", key: "label", label: "Label" }, { kind: "text", key: "target", label: "Target date (ISO)" }],
+  countdown: [
+    { kind: "text", key: "label", label: "Label" },
+    { kind: "select", key: "mode", label: "Mode", options: ["date", "evergreen"] },
+    { kind: "text", key: "target", label: "Target date (ISO) — date mode" },
+    { kind: "number", key: "minutes", label: "Duration (minutes) — evergreen", min: 1, step: 1 },
+    { kind: "select", key: "units", label: "Show", options: ["dhms", "hms", "ms"] },
+  ],
   map: [{ kind: "text", key: "query", label: "Location / address" }],
   qr: [{ kind: "text", key: "data", label: "QR content (URL/text)" }],
   icon: [

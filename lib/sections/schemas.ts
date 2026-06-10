@@ -228,7 +228,14 @@ export const sliderSchema = z.object({
   height: z.coerce.number().optional(),     // px
   fit: z.enum(["cover", "contain"]).optional(),
 });
-export const countdownSchema = z.object({ type: z.literal("countdown"), target: z.string(), label: z.string().optional() });
+export const countdownSchema = z.object({
+  type: z.literal("countdown"),
+  target: z.string().optional(),                       // ISO date — used when mode = "date"
+  mode: z.enum(["date", "evergreen"]).optional(),       // "date" (to target) | "evergreen" (per-visitor duration)
+  minutes: z.coerce.number().optional(),                // evergreen duration in minutes
+  units: z.enum(["dhms", "hms", "ms"]).optional(),      // which cells to show (days/hrs/min/sec)
+  label: z.string().optional(),
+});
 export const mapSchema = z.object({ type: z.literal("map"), query: z.string() });
 export const qrSchema = z.object({ type: z.literal("qr"), data: z.string(), size: z.number().optional() });
 // Icon / icon-box (GHL parity): an emoji or character, optionally with a heading + text below it.
@@ -530,6 +537,18 @@ export const sectionLabels: Record<SectionType, string> = {
 
 /** Sensible default content when a new section is added. */
 export function defaultContentFor(type: SectionType): SectionContent {
+  // Variant specs ("countdown@minute", "countdown@day") let one element type seed distinct presets
+  // from the palette. Parse off the "@variant" before the main switch.
+  const at = String(type).indexOf("@");
+  if (at > 0) {
+    const base = String(type).slice(0, at);
+    const variant = String(type).slice(at + 1);
+    if (base === "countdown") {
+      if (variant === "minute") return { type: "countdown", mode: "evergreen", minutes: 15, units: "ms", label: "Offer ends in" } as SectionContent;
+      if (variant === "day") return { type: "countdown", mode: "evergreen", minutes: 3 * 24 * 60, units: "dhms", label: "Limited-time offer" } as SectionContent;
+    }
+    return defaultContentFor(base as SectionType);
+  }
   switch (type) {
     case "hero":
       return { type: "hero", heading: "New Hero Section", subheading: "" };
@@ -599,7 +618,7 @@ export function defaultContentFor(type: SectionType): SectionContent {
     case "slider":
       return { type: "slider", images: [] };
     case "countdown":
-      return { type: "countdown", target: "2026-12-31T00:00:00Z", label: "Offer ends in" };
+      return { type: "countdown", mode: "date", target: "2026-12-31T00:00:00Z", units: "dhms", label: "Offer ends in" };
     case "map":
       return { type: "map", query: "Richmond Hill, Ontario" };
     case "qr":
