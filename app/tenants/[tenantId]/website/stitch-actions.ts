@@ -13,6 +13,7 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { htmlToSections } from "@/lib/sites/html-importer";
 import { htmlToLosslessSections } from "@/lib/sites/lossless-importer";
 import { deriveDesignTokens } from "@/lib/sites/design-bridge";
+import { inspectPage, type InspectorReport } from "@/lib/sites/inspector";
 import { renderHtmlToDom } from "@/lib/sites/site-clone";
 import { ingestSectionImages } from "@/lib/sites/image-ingestion";
 import { sectionSchema } from "@/lib/sections/schemas";
@@ -30,6 +31,8 @@ export interface ImportHtmlResult {
   fidelity?: "high" | "low";
   imagesIngested?: number;
   message?: string;
+  /** INSPECTOR (D-206): structural QA of the final output, run on every Bill import. */
+  inspection?: InspectorReport;
 }
 
 const slugify = (s: string) =>
@@ -178,7 +181,15 @@ export async function importHtmlAsDraftPage(
     } catch { /* theme derivation is best-effort — never blocks an import */ }
   }
 
-  return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity };
+  // INSPECTOR (D-206, Copilot: first-class stage): structural QA of what Bill just built —
+  // best-effort, never blocks the import; the report rides back to the caller + logs.
+  let inspection: InspectorReport | undefined;
+  try {
+    inspection = await inspectPage(draft.draft_sections as Record<string, unknown>[], customCss);
+    if (!inspection.ok) console.warn(`[inspector] page ${page.id} score ${inspection.score}:`, inspection.issues.map((i) => i.code).join(", "));
+  } catch { /* QA must never break the build */ }
+
+  return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity, inspection };
 }
 
 /**

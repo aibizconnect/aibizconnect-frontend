@@ -503,14 +503,15 @@ export default function SectionEditor({
         ))}
       </div>
 
-      {tab === "content" && (() => {
-        // Group the General fields into the SAME collapsible accordion the Styles tab uses,
-        // so every element type has a consistent right-panel design (not a flat list).
+      {(() => {
+        // INSPECTOR DISCIPLINE (Ali/D-205): General = WHAT it is/does (content, links, behavior);
+        // Styles = HOW it looks (typography, size, layout, color, padding); Animations = motion.
+        // Same collapsible Groups everywhere, so all 35+ element types feel identical.
         const catOf = (key: string): "Typography" | "Link" | "Layout" | "Content" => {
           const k = key.toLowerCase();
           if (/href|target|^rel$|opens|^link$/.test(k)) return "Link";
-          if (/font|weight|italic|lineheight|letterspacing|transform|^color$|gradient|bgcolor|textcolor/.test(k)) return "Typography";
-          if (/align|width|fullwidth|variant|^size$|columns|widths|^gap$|valign|minheight|height|objectfit|rounding|radius|direction|^layout$|scroll|grayscale|lightbox|bulletstyle|thickness/.test(k)) return "Layout";
+          if (/font|weight|italic|lineheight|letterspacing|transform|color$|^color$|gradient|^bg$|bgcolor|textcolor/.test(k)) return "Typography";
+          if (/align|width|fullwidth|variant|^size$|columns|widths|^gap$|valign|minheight|height|objectfit|rounding|radius|^layout$|scroll|grayscale|lightbox|bulletstyle|thickness|separator$|^display$/.test(k)) return "Layout";
           return "Content";
         };
         const menuFont = type === "menu" ? specs.find((s) => s.key === "fontFamily") : undefined;
@@ -523,7 +524,7 @@ export default function SectionEditor({
           <FieldRenderer key={spec.key} spec={spec} value={value[spec.key]}
             onChange={(v) => setField(spec.key, v)} onPickImage={tenantId ? handlePickImage : undefined} customFonts={customFonts} />
         );
-        return (
+        if (tab === "content") return (
           <>
             <Group title="General">
               <label className="flex flex-col gap-1">
@@ -546,11 +547,16 @@ export default function SectionEditor({
               {menuFont && renderSpec(menuFont)}
               {buckets.Content.map(renderSpec)}
             </Group>
-            {buckets.Typography.length > 0 && <Group title="Typography" defaultOpen={false}>{buckets.Typography.map(renderSpec)}</Group>}
             {buckets.Link.length > 0 && <Group title="Link & behavior" defaultOpen={false}>{buckets.Link.map(renderSpec)}</Group>}
+          </>
+        );
+        if (tab === "styles") return (
+          <>
+            {buckets.Typography.length > 0 && <Group title="Typography" defaultOpen={false}>{buckets.Typography.map(renderSpec)}</Group>}
             {buckets.Layout.length > 0 && <Group title="Layout & size" defaultOpen={false}>{buckets.Layout.map(renderSpec)}</Group>}
           </>
         );
+        return null;
       })()}
 
       {tab === "styles" && (
