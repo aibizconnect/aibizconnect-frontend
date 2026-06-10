@@ -14,6 +14,7 @@ import SaveAssetModal from "./SaveAssetModal";
 import {
   saveDraft,
   getEditorSections,
+  getPageCustomCss,
   generateSectionAI,
   rewriteSectionAI,
   getPageBlocks,
@@ -142,6 +143,9 @@ export default function Canvas({
   const [hoverKey, setHoverKey] = useState<string | null>(null); // innermost hovered element (single)
   const addTarget = useRef<{ rowUid: string; container: ElPath; col: number; idx: number } | null>(null);
   const [theme, setTheme] = useState<ThemeTokens>(DEFAULT_THEME);
+  // Imported design CSS now lives in the page's CUSTOM CSS slot (Ali) — loaded for the band
+  // iframes (legacy pages may still carry an imported-css section; both paths work).
+  const [pageCss, setPageCss] = useState<string>("");
   const [brandVars, setBrandVars] = useState<Record<string, string>>({});
   const [pageBg, setPageBg] = useState<ElementStyle | null>(null);
   // Baseline snapshot of each loaded GLOBAL block (header/footer) content, so we can
@@ -433,6 +437,8 @@ export default function Canvas({
       // Read via the service-client server action so UNPUBLISHED drafts load
       // (the browser client is RLS-limited to published pages).
       const contents: SectionContent[] = (await getEditorSections(selectedPageId, tenantId)) as SectionContent[];
+      // Imported design CSS (Custom CSS slot) for the band iframes — best-effort.
+      getPageCustomCss(selectedPageId, tenantId).then(setPageCss).catch(() => setPageCss(""));
       // Auto-decompose composites (hero/features/cta) into editable primitive
       // rows on open, so every element is selectable/editable. Idempotent —
       // already-decomposed rows pass through unchanged. Persists on next save.
@@ -1277,7 +1283,7 @@ export default function Canvas({
                   // editing via patches when selected.
                   <ImportedBandEditor
                     content={item.content as any}
-                    css={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.css || ""}
+                    css={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.css || pageCss}
                     fontHrefs={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.fontHrefs || []}
                     selected={selectedUid === item.uid}
                     externalSelUid={importedSel?.bandUid === item.uid ? importedSel.nodeUid : null}

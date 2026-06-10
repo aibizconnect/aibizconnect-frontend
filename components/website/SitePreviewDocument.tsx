@@ -117,9 +117,9 @@ export default async function SitePreviewDocument({
         {ld && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} />}
         {pageFonts.googleHref && <link rel="stylesheet" href={pageFonts.googleHref} />}
         {pageFonts.customFaces && <style dangerouslySetInnerHTML={{ __html: pageFonts.customFaces }} />}
-        {/* Preview ("Preview Custom Code") applies the page's custom CSS + site tracking the
-            same way the published site does. Embed/thumbnail mode stays clean (no scripts). */}
-        {!embed && (page as any)?.custom_css ? <style dangerouslySetInnerHTML={{ __html: (page as any).custom_css }} /> : null}
+        {/* The page's custom CSS applies EVERYWHERE it renders — including embed/thumbnail mode,
+            since lossless imports keep their design CSS here (Ali). Scripts stay non-embed only. */}
+        {(page as any)?.custom_css ? <style dangerouslySetInnerHTML={{ __html: (page as any).custom_css }} /> : null}
         {!embed && site && (site.ga4Id || site.gtmId || site.metaPixelId || site.headScripts || site.footerScripts) && (
           <SiteScripts ga4Id={site.ga4Id} gtmId={site.gtmId} metaPixelId={site.metaPixelId} headScripts={site.headScripts} footerScripts={site.footerScripts} />
         )}

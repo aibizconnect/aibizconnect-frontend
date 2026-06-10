@@ -132,6 +132,18 @@ export async function importHtmlAsDraftPage(
   } catch {
     page = await createPage(tenantId, { title, slug: `${slug}-${websiteId.slice(0, 8)}`, isHome: !!opts?.isHome, websiteId });
   }
+  // DESIGN CSS lives in the page's CUSTOM CSS slot (Ali) — NOT as a pseudo-section above the
+  // header. Font stylesheets ride along as @import lines (valid inside a <style> everywhere the
+  // page renders). The css carrier section is dropped AFTER theme derivation reads it.
+  let customCss: string | null = null;
+  if (mode === "lossless") {
+    const carrier = sections.find((s) => s.type === "imported-css") as { css?: string; fontHrefs?: string[] } | undefined;
+    if (carrier) {
+      const imports = Array.from(new Set(carrier.fontHrefs || [])).map((h) => `@import url("${h}");`).join("\n");
+      customCss = `${imports}${imports ? "\n" : ""}${carrier.css || ""}`.trim() || null;
+    }
+  }
+
   const draft: Record<string, unknown> = { draft_sections: sections as any };
   // SEO captured from the imported <head> lands in the page's draft SEO fields (D-178.4).
   if (seo.title || seo.description || seo.imageUrl) {
@@ -140,6 +152,10 @@ export async function importHtmlAsDraftPage(
       ...(seo.description ? { seo_description: seo.description } : {}),
       ...(seo.imageUrl ? { seo_image_url: seo.imageUrl } : {}),
     };
+  }
+  if (customCss) {
+    draft.custom_css = customCss;
+    draft.draft_sections = sections.filter((s) => s.type !== "imported-css") as any;
   }
   await saveDraft(page.id, tenantId, draft as any);
 
