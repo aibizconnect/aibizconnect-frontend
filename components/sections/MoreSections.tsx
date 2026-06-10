@@ -224,8 +224,10 @@ export function SurveySection({ content, theme }: { content: SurveyContent; them
 }
 
 export function CountdownSection({ content, theme }: { content: CountdownContent; theme?: ThemeTokens }) {
-  return <Countdown target={content.target} label={content.label} color={primary(theme)}
-    mode={content.mode} minutes={content.minutes} units={content.units} display={content.display}
+  return <Countdown color={primary(theme)} label={content.label}
+    mode={content.mode} from={content.from} to={content.to} duration={content.duration}
+    prefix={content.prefix} suffix={content.suffix} minutes={content.minutes} target={content.target}
+    units={content.units} display={content.display}
     title={content.title} footer={content.footer} preText={content.preText} postText={content.postText}
     font={content.font} fgColor={content.fgColor} bgColor={content.bgColor} size={content.size} align={content.align} />;
 }

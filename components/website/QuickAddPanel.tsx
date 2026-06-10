@@ -59,7 +59,7 @@ const ELEMENT_GROUPS: Group[] = [
   { group: "Social Media Icons", items: [{ label: "Social Icons", icon: I.social, type: "social" }] },
   { group: "Ticker", items: [{ label: "Ticker", icon: I.clock, type: "ticker" }] },
   { group: "Countdown Timers", items: [
-    { label: "Countdown", icon: I.clock, type: "countdown" }, { label: "Minute Timer", icon: I.clock, type: "countdown@minute" as SectionType }, { label: "Day Timer", icon: I.clock, type: "countdown@day" as SectionType },
+    { label: "Countdown", icon: I.clock, type: "countdown" }, { label: "Minute Timer", icon: I.clock, type: "countdown@minute" as SectionType }, { label: "Day Countdown", icon: I.clock, type: "countdown@day" as SectionType },
   ]},
   { group: "Progress Bar", items: [{ label: "Progress Bar", icon: I.price, type: "progress-bar" }, { label: "Number Counter", icon: I.price, type: "number-counter" }] },
   { group: "Layout", items: [{ label: "Divider", icon: I.divider, type: "divider" }, { label: "Spacer", icon: I.spacer, type: "spacer" }] },

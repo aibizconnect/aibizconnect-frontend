@@ -230,20 +230,30 @@ export const sliderSchema = z.object({
 });
 export const countdownSchema = z.object({
   type: z.literal("countdown"),
-  target: z.string().optional(),                       // ISO date — used when mode = "date"
-  mode: z.enum(["date", "evergreen"]).optional(),       // "date" (to target) | "evergreen" (per-visitor duration)
-  minutes: z.coerce.number().optional(),                // evergreen duration in minutes
-  units: z.enum(["dhms", "hms", "ms"]).optional(),      // which cells to show (days/hrs/min/sec)
+  // mode: "counter" = animate a NUMBER from→to over `duration` seconds; "timer" = HH:MM:SS ticking
+  // down from `minutes` on load (not per-visitor); "date" = count down to a target date/time.
+  mode: z.enum(["counter", "timer", "date"]).optional(),
+  // counter
+  from: z.coerce.number().optional(),                   // start number
+  to: z.coerce.number().optional(),                     // end number
+  duration: z.coerce.number().optional(),               // animation seconds (default ~2)
+  prefix: z.string().optional(),                        // e.g. "$"
+  suffix: z.string().optional(),                        // e.g. "+", "%"
+  // timer
+  minutes: z.coerce.number().optional(),                // timer duration in minutes
+  // date
+  target: z.string().optional(),                        // ISO date/time
+  units: z.enum(["dhms", "hms", "ms"]).optional(),      // which cells (days/hrs/min/sec)
   display: z.enum(["cells", "inline"]).optional(),      // stacked cells vs inline HH:MM:SS
   label: z.string().optional(),
-  title: z.string().optional(),                         // heading above
-  footer: z.string().optional(),                        // small note below
-  preText: z.string().optional(),                       // text before the timer
-  postText: z.string().optional(),                      // text after the timer
-  font: z.string().optional(),                          // font-family
-  fgColor: z.string().optional(),                       // digits color
-  bgColor: z.string().optional(),                       // block background
-  size: z.coerce.number().optional(),                   // digit font-size px
+  title: z.string().optional(),
+  footer: z.string().optional(),
+  preText: z.string().optional(),
+  postText: z.string().optional(),
+  font: z.string().optional(),
+  fgColor: z.string().optional(),
+  bgColor: z.string().optional(),
+  size: z.coerce.number().optional(),
   align: z.enum(["left", "center", "right"]).optional(),
 });
 export const mapSchema = z.object({ type: z.literal("map"), query: z.string() });
@@ -554,8 +564,13 @@ export function defaultContentFor(type: SectionType): SectionContent {
     const base = String(type).slice(0, at);
     const variant = String(type).slice(at + 1);
     if (base === "countdown") {
-      if (variant === "minute") return { type: "countdown", mode: "evergreen", minutes: 15, units: "hms", display: "inline", title: "Hurry — offer ends soon" } as SectionContent;
-      if (variant === "day") return { type: "countdown", mode: "evergreen", minutes: 3 * 24 * 60, units: "dhms", display: "cells", title: "Limited-time offer" } as SectionContent;
+      // Minute Timer: HH:MM:SS ticking down from 15 min on load (not per-visitor).
+      if (variant === "minute") return { type: "countdown", mode: "timer", minutes: 15, units: "hms", display: "inline", title: "Hurry — offer ends soon" } as SectionContent;
+      // Day Countdown: counts down to a date/time 3 days out.
+      if (variant === "day") {
+        const t = new Date(Date.now() + 3 * 86400000).toISOString();
+        return { type: "countdown", mode: "date", target: t, units: "dhms", display: "cells", title: "Limited-time offer" } as SectionContent;
+      }
     }
     return defaultContentFor(base as SectionType);
   }
@@ -628,7 +643,8 @@ export function defaultContentFor(type: SectionType): SectionContent {
     case "slider":
       return { type: "slider", images: [] };
     case "countdown":
-      return { type: "countdown", mode: "date", target: "2026-12-31T00:00:00Z", units: "dhms", label: "Offer ends in" };
+      // A number counter: animates from → to over `duration` seconds (e.g. "0 → 500+").
+      return { type: "countdown", mode: "counter", from: 0, to: 500, duration: 2, suffix: "+", size: 48 };
     case "map":
       return { type: "map", query: "Richmond Hill, Ontario" };
     case "qr":
