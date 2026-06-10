@@ -56,6 +56,7 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   };
   let seenText = new Set<string>();
   let skipEl: HTMLElement | null = null; // subtree the walk should skip (handled separately)
+  let skipIndex = -1; // out.length at the moment skipEl was encountered (where the grid SITS in DOM order)
   const pushText = (text: string, italic = false, el?: HTMLElement) => {
     const t = clean(text);
     if (t.length < 2) return;
@@ -242,7 +243,10 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     for (const raw of node.childNodes) {
       const el = raw as HTMLElement;
       if (!el || el.nodeType !== 1) continue; // element nodes only
-      if (skipEl && el === skipEl) continue;  // skip a subtree (e.g. a card grid handled separately)
+      // Skip a subtree (e.g. a card grid handled separately) but REMEMBER where it sat, so the
+      // caller can re-insert the grid row at its true DOM position (the footer © line comes AFTER
+      // the link columns — hardcoding intro-before-grid hoisted it to the top of the band).
+      if (skipEl && el === skipEl) { flushImgs(); skipIndex = out.length; continue; }
       const tag = tagOf(el);
       if (!tag || DROP.has(tag)) continue;
 
@@ -333,7 +337,7 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
 
   // Harvest a FRESH ordered block list from a subtree (resets the shared walk state).
   const collectBlocks = (node: HTMLElement, skip?: HTMLElement | null): Record<string, unknown>[] => {
-    out = []; imgRun = []; seenText = new Set<string>(); skipEl = skip ?? null;
+    out = []; imgRun = []; seenText = new Set<string>(); skipEl = skip ?? null; skipIndex = -1;
     walk(node); flushImgs(); skipEl = null;
     return out;
   };
@@ -363,9 +367,13 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   //    (bg + padding). Leaf blocks stay inside as editable children. No deep recursion (v1).
   // Find the dominant CARD GRID inside a band (a flex/grid container with 2–12 similar card children)
   // so feature/industry grids become a real multi-column row instead of stacked blocks.
-  const findCardGrid = (band: HTMLElement): { el: HTMLElement; cards: HTMLElement[]; cols: number } | null => {
-    let best: { el: HTMLElement; cards: HTMLElement[]; cols: number } | null = null;
-    let bestScore = 0;
+  const findCardGrid = (band: HTMLElement, flexOnly = false): { el: HTMLElement; cards: HTMLElement[]; cols: number } | null => {
+    type Cand = { el: HTMLElement; cards: HTMLElement[]; cols: number; depth: number; score: number; flex: boolean };
+    const cands: Cand[] = [];
+    const depthOf = (el: HTMLElement): number => { let d = 0; let p: any = el; while (p && p !== band) { p = p.parentNode; d++; } return d; };
+    // A grid INSIDE a <form> (e.g. Stitch's 2-up name/email field wrapper) belongs to the
+    // contact-form block — emitting it as a row would duplicate the fields as loose text.
+    const insideForm = (el: HTMLElement): boolean => { let p: any = el.parentNode; while (p && p !== band) { if ((p.rawTagName || "").toLowerCase() === "form") return true; p = p.parentNode; } return false; };
     // Include the BAND ITSELF as a candidate: many designs (incl. Stitch/Tailwind output) put the
     // cards as DIRECT children of the <section> with no inner wrapper — querySelectorAll skips the
     // band, so those grids were missed and collapsed to a single column.
@@ -374,18 +382,30 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (kids.length < 2 || kids.length > 12) continue;
       // A column counts if it has a heading, real text, OR an image — the last case matters for
       // split hero/feature layouts (text column + image column) where one side is image-only and
-      // would otherwise be ignored, collapsing a 2-column row into a single stack.
-      const cardish = kids.filter((k) => (k.querySelector && (k.querySelector("h1,h2,h3,h4,h5,h6") || k.querySelector("img,picture,svg"))) || clean(k.text).length > 8);
+      // would otherwise be ignored, collapsing a 2-column row into a single stack. Icon-font
+      // ligature words ("location_on") are NOT real text — cleanText strips them, so an icon+label
+      // flex pair doesn't masquerade as a 2-card grid.
+      const cardish = kids.filter((k) => (k.querySelector && (k.querySelector("h1,h2,h3,h4,h5,h6") || k.querySelector("img,picture,svg"))) || cleanText(k).length > 8);
       if (cardish.length < 2 || cardish.length < Math.ceil(kids.length * 0.6)) continue;
       const cs = el.getAttribute("data-cs") || "";
       // A VERTICAL flex column is a stack of bands, NOT a multi-column card grid — disqualify it
       // entirely so a whole page's sections aren't squashed into columns (D-149).
       if (/flexDirection:column/.test(cs)) continue;
+      if (insideForm(el)) continue;
       const gc = gridColumnCount(cs);
       const isFlexGrid = /display:(flex|grid)/.test(cs) || gc >= 2;
-      const score = kids.length * (isFlexGrid ? 3 : 1);
-      if (score > bestScore) { best = { el, cards: cardish, cols: gc || cardish.length }; bestScore = score; }
+      cands.push({ el, cards: cardish, cols: gc || cardish.length, depth: depthOf(el), score: kids.length * (isFlexGrid ? 3 : 1), flex: isFlexGrid });
     }
+    // The OUTERMOST real flex/grid wins — it's the page's LAYOUT grid (D-173). Scoring by card
+    // count picked the denser INNER grid (a 2x2 features grid beat the 2-col [features | bio]
+    // split), demoting the sibling column to loose intro text above the cards. Nested grids are
+    // handled by recursion in blocksFor. Non-flex fallback kept for raw-HTML imports (no data-cs),
+    // but never for nested passes (a plain block container is not a layout grid).
+    const flex = cands.filter((c) => c.flex).sort((a, b) => a.depth - b.depth || b.score - a.score);
+    if (flex.length) return flex[0];
+    if (flexOnly) return null;
+    let best: Cand | null = null;
+    for (const c of cands) if (!best || c.score > best.score) best = c;
     return best;
   };
 
@@ -468,6 +488,56 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return row;
   };
 
+  // Recursive layout builder (D-173): find the OUTERMOST grid in `root`, build one row per
+  // column-chunk of its cards (a 2-col grid with 4 cards → two 2-col rows, i.e. a true 2x2 —
+  // the renderer draws exactly `columns` cells per row, so wrapping must become extra rows),
+  // and RECURSE into each card so nested grids (the features 2x2 inside the [features | bio]
+  // split) keep their own structure instead of flattening. Content before/after the grid stays
+  // in DOM order via skipIndex (the footer © line must remain BELOW the link columns).
+  const blocksFor = (root: HTMLElement, depth: number): Record<string, unknown>[] => {
+    const grid = depth < 3 ? findCardGrid(root, depth > 0) : null;
+    if (!grid || grid.cards.length < 2) return collectBlocks(root);
+    const cols: Record<string, unknown>[][] = [];
+    const colStyles: Record<string, unknown>[] = [];
+    for (const card of grid.cards) {
+      const b = blocksFor(card, depth + 1);
+      if (b.length) { cols.push(b); colStyles.push(parseDataCs(card.getAttribute("data-cs")).style); }
+    }
+    if (cols.length < 2) return collectBlocks(root); // non-destructive fallback — full content
+    const colCount = Math.min(grid.cols >= 2 ? grid.cols : cols.length, 12);
+    const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
+    // The design's color often sits on a WRAPPER between root and grid (Stitch: white <section>
+    // → navy rounded p-16 card → 2-col grid). Adopt the nearest such wrapper's bg/bgImage +
+    // radius + padding onto the grid row, else the navy card vanishes (D-171).
+    if (!gridStyle.bg && !gridStyle.bgImage) {
+      let anc: any = grid.el.parentNode;
+      for (let i = 0; i < 4 && anc && anc !== root; i++) {
+        const ws = parseDataCs(anc.getAttribute?.("data-cs")).style;
+        if ((ws.bg && ws.bg !== pageBg) || ws.bgImage) {
+          for (const k of ["bg", "bgImage", "radius", "pt", "pr", "pb", "pl"]) {
+            if (ws[k] != null && gridStyle[k] == null) gridStyle[k] = ws[k];
+          }
+          break;
+        }
+        anc = anc.parentNode;
+      }
+    }
+    const rows: Record<string, unknown>[] = [];
+    for (let i = 0; i < cols.length; i += colCount) {
+      rows.push({
+        type: "row", columns: colCount, contentWidth: "boxed", gap: 16,
+        _name: "Cards", children: cols.slice(i, i + colCount), colStyles: colStyles.slice(i, i + colCount),
+      });
+    }
+    // Wrapper style only when the grid stays ONE row — repeating a navy card bg per chunk
+    // would draw the background twice.
+    if (rows.length === 1 && Object.keys(gridStyle).length) rows[0]._style = gridStyle;
+    if (grid.el === root) return rows;
+    const rest = collectBlocks(root, grid.el); // root content WITHOUT the grid subtree
+    const at = skipIndex >= 0 ? skipIndex : rest.length;
+    return [...rest.slice(0, at), ...rows, ...rest.slice(at)];
+  };
+
   const bandEls = expandBands(elementChildren(container), 0);
 
   for (const band of bandEls) {
@@ -494,66 +564,25 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       }
       if (best && best.weight > 120) { if (best.bg) bandStyle.bg = best.bg; if (best.bgImage) bandStyle.bgImage = best.bgImage; }
     }
-    let children: Record<string, unknown>[][] = [];
-
-    const grid = findCardGrid(band);
-    let built = false;
-    if (grid && grid.cards.length >= 2) {
-      const cols: Record<string, unknown>[][] = [];
-      const colStyles: Record<string, unknown>[] = [];
-      for (const card of grid.cards) {
-        const b = collectBlocks(card);
-        if (b.length) { cols.push(b); colStyles.push(parseDataCs(card.getAttribute("data-cs")).style); }
-      }
-      if (cols.length >= 2) {
-        if (grid.el === band) {
-          // The band ITSELF is the card grid (cards are direct children) → emit a multi-column
-          // row directly, no 1-col wrapper, no double-collect.
-          const row: Record<string, unknown> = {
-            type: "row", columns: Math.min(cols.length, 12), contentWidth: "boxed", gap: 16,
-            _name: "Cards", children: cols, colStyles,
-          };
-          if (Object.keys(bandStyle).length) row._style = bandStyle;
-          result.push(row);
-          built = true;
-          if (result.length >= 60) break;
-          continue;
-        }
-        // Grid is nested inside the band → keep any intro content + the grid as a nested row.
-        const intro = collectBlocks(band, grid.el); // band content WITHOUT the grid subtree
-        const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
-        // The design's color often sits on a WRAPPER between band and grid (Stitch: white <section>
-        // → navy rounded p-16 card → 2-col grid). The band keeps its own bg and the grid is
-        // transparent, so without this climb the navy card vanished (white headings on white band).
-        // Adopt the nearest such wrapper's bg/bgImage + radius + padding onto the nested row (D-171).
-        if (!gridStyle.bg && !gridStyle.bgImage) {
-          let anc: any = grid.el.parentNode;
-          for (let i = 0; i < 4 && anc && anc !== band; i++) {
-            const ws = parseDataCs(anc.getAttribute?.("data-cs")).style;
-            if ((ws.bg && ws.bg !== pageBg) || ws.bgImage) {
-              for (const k of ["bg", "bgImage", "radius", "pt", "pr", "pb", "pl"]) {
-                if (ws[k] != null && gridStyle[k] == null) gridStyle[k] = ws[k];
-              }
-              break;
-            }
-            anc = anc.parentNode;
-          }
-        }
-        const nested: Record<string, unknown> = {
-          type: "row", columns: Math.min(cols.length, 12), contentWidth: "boxed", gap: 16,
-          _name: "Cards", children: cols, colStyles,
-        };
-        if (Object.keys(gridStyle).length) nested._style = gridStyle;
-        children = [[...intro, nested]];
-        built = true;
-      }
+    const bandBlocks = blocksFor(band, 0);
+    if (!bandBlocks.length) continue;
+    // Merge a lone grid row into the band ONLY when their backgrounds agree — a navy rounded
+    // card inset in a white section must stay nested (band keeps the white frame + its padding),
+    // not be flattened into one full-width navy band.
+    const loneRow = bandBlocks.length === 1 && bandBlocks[0].type === "row" ? bandBlocks[0] : null;
+    const loneRowStyle = (loneRow?._style as Record<string, unknown>) || {};
+    const bgConflict = !!(loneRowStyle.bg || loneRowStyle.bgImage) && !!(bandStyle.bg || bandStyle.bgImage)
+      && (loneRowStyle.bg !== bandStyle.bg || !!loneRowStyle.bgImage !== !!bandStyle.bgImage);
+    if (loneRow && !bgConflict) {
+      // The band IS one grid row → emit it directly (no 1-col wrapper); band style fills gaps.
+      const merged = { ...bandStyle, ...loneRowStyle };
+      if (Object.keys(merged).length) loneRow._style = merged;
+      result.push(loneRow);
+    } else {
+      const row: Record<string, unknown> = { type: "row", columns: 1, contentWidth: "boxed", _name: bandName(bandBlocks), children: [bandBlocks] };
+      if (Object.keys(bandStyle).length) row._style = bandStyle;
+      result.push(row);
     }
-    if (!built) children = [collectBlocks(band)]; // non-destructive fallback — full band content
-
-    if (!children[0].length) continue;
-    const row: Record<string, unknown> = { type: "row", columns: 1, contentWidth: "boxed", _name: bandName(children[0]), children };
-    if (Object.keys(bandStyle).length) row._style = bandStyle;
-    result.push(row);
     if (result.length >= 60) break;
   }
 
