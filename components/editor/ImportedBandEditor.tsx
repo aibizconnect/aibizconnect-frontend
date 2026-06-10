@@ -53,13 +53,48 @@ function buildTree(html: string): TreeNode | null {
   return walk(rootEl, 0);
 }
 
-/** Find an element + its editable facts inside the PATCHED document (so fields prefill current values). */
+/** Find an element + its editable facts inside the PATCHED document (so fields prefill current values).
+ *  COMPOSITES (D-193): a <ul>/<ol> carries its items (with each <li>'s uid), a <form> carries its
+ *  fields (input + sibling-label uids) and submit button — so they project as our full Bullet-List /
+ *  Contact-Form elements instead of a pile of small text nodes. */
 export function nodeFacts(html: string, uid: string) {
   const doc = new DOMParser().parseFromString(`<div id="__root">${html}</div>`, "text/html");
   const el = doc.querySelector(`[data-uid="${uid}"]`);
   if (!el) return null;
   const tag = el.tagName.toLowerCase();
   const hasElementChildren = el.children.length > 0;
+  const clean = (s: string | null | undefined) => (s || "").replace(/\s+/g, " ").trim();
+
+  let items: { uid: string; text: string }[] | undefined;
+  if (tag === "ul" || tag === "ol") {
+    items = Array.from(el.children)
+      .filter((c) => c.tagName.toLowerCase() === "li" && c.getAttribute("data-uid"))
+      .map((li) => ({ uid: li.getAttribute("data-uid")!, text: clean(li.textContent) }));
+  }
+
+  let fields: { uid: string; labelUid: string | null; label: string; type: string; placeholder: string }[] | undefined;
+  let submit: { uid: string; label: string } | undefined;
+  if (tag === "form") {
+    fields = [];
+    for (const inp of Array.from(el.querySelectorAll("input, textarea, select"))) {
+      const itype = (inp.getAttribute("type") || (inp.tagName.toLowerCase() === "textarea" ? "textarea" : "text")).toLowerCase();
+      if (["submit", "button", "hidden", "checkbox", "radio", "image", "file"].includes(itype)) continue;
+      // sibling <label> within up to 2 ancestors (Stitch wraps label+input in a field div, D-170)
+      let labelEl: Element | null = null;
+      let p: Element | null = inp.parentElement;
+      for (let i = 0; i < 2 && p && !labelEl; i++) { labelEl = Array.from(p.children).find((c) => c.tagName.toLowerCase() === "label") ?? null; p = p.parentElement; }
+      fields.push({
+        uid: inp.getAttribute("data-uid") || "",
+        labelUid: labelEl?.getAttribute("data-uid") || null,
+        label: clean(labelEl?.textContent) || clean(inp.getAttribute("placeholder")),
+        type: itype === "email" ? "email" : itype === "tel" ? "tel" : inp.tagName.toLowerCase() === "textarea" ? "textarea" : "text",
+        placeholder: inp.getAttribute("placeholder") || "",
+      });
+    }
+    const sub = el.querySelector('button[type="submit"], input[type="submit"], button');
+    if (sub?.getAttribute("data-uid")) submit = { uid: sub.getAttribute("data-uid")!, label: clean(sub.textContent) || "Send" };
+  }
+
   return {
     uid,
     tag,
@@ -69,6 +104,9 @@ export function nodeFacts(html: string, uid: string) {
     href: tag === "a" ? el.getAttribute("href") || "" : null,
     // computed styles the bridge captured — prefills the projected element's inspector (D-188)
     dataCs: el.getAttribute("data-cs"),
+    items,
+    fields,
+    submit,
   };
 }
 

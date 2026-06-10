@@ -531,7 +531,7 @@ export default function Canvas({
   const importedProjected = useMemo(() => (importedSel ? projectNode(importedSel.facts) : null), [importedSel]);
   function applyImportedNodeUpdate(updated: Record<string, unknown>) {
     if (!importedSel || !importedProjected) return;
-    const ps = diffToPatches(importedProjected, updated, importedSel.nodeUid);
+    const ps = diffToPatches(importedProjected, updated, importedSel.nodeUid, importedSel.facts as any);
     if (!ps.length) return;
     const nx = items.map((x) => {
       if (x.uid !== importedSel.bandUid) return x;
