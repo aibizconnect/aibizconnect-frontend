@@ -216,34 +216,53 @@ function importedBandTree(html: string, si: number): LayerNode[] {
   if (!html) return [];
   let root: ParsedEl;
   try { root = parse(html, { comment: false }); } catch { return []; }
-  const walk = (el: ParsedEl, depth: number): LayerNode[] => {
+  // DIV PROTOCOL (Ali): a <div> is never a "Container" — it is identified by what it DOES:
+  //  · its direct children are mostly links            → MENU (links listed under it)
+  //  · it lays children out side-by-side (flex/grid)   → ROW · N columns
+  //  · it has its own background / rounded corners     → BOX (a visual card)
+  //  · anything else is markup scaffolding             → FLATTENED (children take its place)
+  // Header bands additionally read: Logo (first plain link before the menu) | Menu | Button.
+  const elKids = (n: ParsedEl) => ((n.childNodes || []) as ParsedEl[]).filter((c) => (c as any).nodeType === 1);
+  const isMenuGroup = (n: ParsedEl): boolean => {
+    const kids = elKids(n);
+    if (kids.length < 2) return false;
+    const links = kids.filter((k) => (k.rawTagName || "").toLowerCase() === "a");
+    return links.length >= 2 && links.length >= Math.ceil(kids.length * 0.8);
+  };
+  let logoSeen = false;
+  const bandTag = (root.querySelector("[data-uid]")?.rawTagName || "").toLowerCase();
+  const isHeaderBand = bandTag === "nav" || bandTag === "header";
+  const walk = (el: ParsedEl, depth: number, inMenu = false): LayerNode[] => {
     const out: LayerNode[] = [];
     for (const child of (el.childNodes || []) as ParsedEl[]) {
       if ((child as any).nodeType !== 1) continue;
       const tag = (child.rawTagName || "").toLowerCase();
       const uid = child.getAttribute?.("data-uid");
-      const kids = depth < 8 ? walk(child, depth + 1) : [];
-      if (!uid) { out.push(...kids); continue; }
-      const cls = child.getAttribute("class") || "";
-      const cs = child.getAttribute("data-cs") || "";
+      const cls = child.getAttribute?.("class") || "";
+      const cs = child.getAttribute?.("data-cs") || "";
       const isIcon = /material-symbols|material-icons/.test(cls);
+      const menuish = !inMenu && (tag === "div" || tag === "ul") && isMenuGroup(child);
+      const kids = depth < 8 ? walk(child, depth + 1, inMenu || menuish) : [];
+      if (!uid) { out.push(...kids); continue; }
+      const text = (child.textContent || "").replace(/\s+/g, " ").trim();
       let known = isIcon ? { label: "Icon", type: "icon" } : IMPORTED_KIND[tag];
-      // ANONYMOUS WRAPPERS (Ali: "why do we have Container in the Layers Tree???"): a div is
-      // only WORTH a tree entry when it IS something visual — a card/box (own background or
-      // border-radius) or a grid. Everything else is markup scaffolding → FLATTEN it away and
-      // hoist its children, so the tree reads like the design.
+      if (menuish) known = { label: "Menu", type: "menu" };
       if (!known) {
         const hasBg = /backgroundColor:|backgroundImage:/.test(cs);
         const hasRadius = /borderTopLeftRadius:/.test(cs);
         const isGrid = /gridTemplateColumns:/.test(cs);
+        const isFlexRow = /display:flex/.test(cs) && !/flexDirection:column/.test(cs);
+        const cols = elKids(child).length;
         if (hasBg || hasRadius) known = { label: "Box", type: "row" };
-        else if (isGrid) known = { label: "Grid", type: "row" };
+        else if (isGrid || (isFlexRow && cols >= 2)) known = { label: `Row · ${cols} columns`, type: "row" };
         else { out.push(...kids); continue; } // pure scaffolding — children take its place
       }
+      // Header reading (Ali): first plain link = the LOGO; an icon-only button = mobile ☰.
+      if (isHeaderBand && tag === "a" && !inMenu && !logoSeen && known?.type === "button") { known = { label: "Logo", type: "heading" }; logoSeen = true; }
+      if (tag === "button" && /^[a-z_ ]*$/.test(text) && text.length <= 10) known = { label: "Mobile menu ☰", type: "button" };
       const meta = known;
-      const text = (child.textContent || "").replace(/\s+/g, " ").trim();
-      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22)
-        : meta.label === "Box" || meta.label === "Grid" ? "" : text.slice(0, 24);
+      const bare = meta.label.startsWith("Row") || meta.label === "Box" || meta.label === "Menu";
+      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22) : bare ? "" : text.slice(0, 24);
       out.push({
         id: `${si}.n.${uid}`,
         kind: "element",

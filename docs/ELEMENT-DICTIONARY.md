@@ -155,5 +155,20 @@ Per-element details in the master table below; pending upgrades are tracked in D
 | repeated `<img>` grid | gallery (planned) |
 | `<hr>` | divider |
 
-Pending recognition (queued): menus/submenus, gallery/slider strips, tabs (`role=tablist`),
+Pending recognition (queued): gallery/slider strips, tabs (`role=tablist`),
 FAQ (`details/summary`), progress bars, icon fonts → icon element.
+
+## The DIV protocol (Ali's ruling)
+
+A `<div>` is never shown as a "Container" — it is identified by what it DOES:
+
+| The div… | Identified as | Right-panel attributes |
+|---|---|---|
+| direct children are mostly links (≥80%, ≥2) | **Menu** | full Menu inspector (items, submenus, hrefs) |
+| lays children side-by-side (flex-row / grid, ≥2 children) | **Row · N columns** | Box attributes (bg, radius, padding, max-width) |
+| has its own background or rounded corners | **Box** (visual card) | Box attributes |
+| anything else | **flattened** — children take its place in the tree | — |
+
+Header bands read as: **Section → Row (3 cols) → Logo \| Menu \| Button** — the first plain link
+before the menu is the **Logo**, the links group is the **Menu** (never the whole `<nav>`), the
+icon-only `<button>` is the **Mobile menu ☰**.

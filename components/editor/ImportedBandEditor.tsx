@@ -72,27 +72,27 @@ export function nodeFacts(html: string, uid: string) {
       .map((li) => ({ uid: li.getAttribute("data-uid")!, text: clean(li.textContent) }));
   }
 
-  // MENU recognition (Copilot queue #1): a <nav> — or a list whose items are links — projects as
-  // our Menu composite (items + one submenu level), each piece keeping its node uid for diff-back.
+  // MENU recognition — DIV PROTOCOL (Ali): a Menu is the LINKS GROUP — a container whose direct
+  // children are mostly links — NOT the whole <nav> (that's the header Row: logo | menu | button).
   let menuItems: { uid: string; label: string; href: string; children: { uid: string; label: string; href: string }[] }[] | undefined;
-  const linkOf = (host: Element): Element | null => host.tagName.toLowerCase() === "a" ? host : host.querySelector(":scope > a") || host.querySelector("a");
-  const isLinkList = (tag === "ul" && items && items.length >= 2 && Array.from(el.children).every((li) => !!li.querySelector("a")));
-  if (tag === "nav" || isLinkList) {
-    const hosts = tag === "nav"
-      ? Array.from(el.querySelectorAll(":scope > a, :scope > div > a, :scope > ul > li, :scope > div > ul > li"))
-      : Array.from(el.children).filter((c) => c.tagName.toLowerCase() === "li");
-    menuItems = [];
-    for (const host of hosts) {
-      const a = linkOf(host);
-      if (!a?.getAttribute("data-uid")) continue;
-      const label = clean(a.childNodes[0]?.textContent || a.textContent);
-      if (!label || /^[a-z][a-z0-9_]*$/.test(label)) continue; // skip icon ligature links
-      const children = Array.from(host.querySelectorAll("ul a"))
-        .filter((c) => c.getAttribute("data-uid"))
-        .map((c) => ({ uid: c.getAttribute("data-uid")!, label: clean(c.textContent), href: c.getAttribute("href") || "#" }));
-      menuItems.push({ uid: a.getAttribute("data-uid")!, label: label.slice(0, 40), href: a.getAttribute("href") || "#", children });
+  {
+    const kidsEls = Array.from(el.children);
+    const hosts = kidsEls.filter((c) => ["a", "li"].includes(c.tagName.toLowerCase()));
+    const isMenuGroup = kidsEls.length >= 2 && hosts.length >= 2 && hosts.length >= Math.ceil(kidsEls.length * 0.8);
+    if (isMenuGroup) {
+      menuItems = [];
+      for (const host of hosts) {
+        const a = host.tagName.toLowerCase() === "a" ? host : host.querySelector("a");
+        if (!a?.getAttribute("data-uid")) continue;
+        const label = clean(a.childNodes[0]?.textContent || a.textContent);
+        if (!label || /^[a-z][a-z0-9_]*$/.test(label)) continue; // skip icon ligature links
+        const children = Array.from(host.querySelectorAll("ul a"))
+          .filter((c) => c.getAttribute("data-uid"))
+          .map((c) => ({ uid: c.getAttribute("data-uid")!, label: clean(c.textContent), href: c.getAttribute("href") || "#" }));
+        menuItems.push({ uid: a.getAttribute("data-uid")!, label: label.slice(0, 40), href: a.getAttribute("href") || "#", children });
+      }
+      if (menuItems.length < 2) menuItems = undefined;
     }
-    if (menuItems.length < 2) menuItems = undefined;
   }
 
   let fields: { uid: string; labelUid: string | null; label: string; type: string; placeholder: string }[] | undefined;
@@ -273,30 +273,10 @@ export default function ImportedBandEditor({
 
   return (
     <div className="flex gap-2">
-      {/* LAYER TREE + node editor + audit list — only while this band is selected */}
-      {selected && (
+      {/* EDITS audit list only — the ONE Layer Tree lives in the left Layers panel (Ali: no
+          duplicate, worse tree inside the band). Node fields/actions live in the right panel. */}
+      {selected && patches.length > 0 && (
         <div className="w-60 shrink-0 space-y-2 self-start rounded-lg border border-slate-200 bg-white p-2">
-          <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Layer tree</div>
-          <div className="max-h-72 overflow-auto">{tree ? <Tree n={tree} /> : <div className="px-1 text-xs text-slate-400">—</div>}</div>
-
-          {/* Node fields now live in the standard RIGHT inspector (projection, D-188).
-              Structural ops stay here — every node is movable, duplicatable, removable. */}
-          {sel && facts && (
-            <div className="space-y-1.5 border-t border-slate-100 pt-2">
-              <div className="flex items-center gap-1 px-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Selected: {facts.tag}</span>
-                <span className="ml-auto flex items-center gap-0.5">
-                  <button title="Move up" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "up" })}>↑</button>
-                  <button title="Move down" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "down" })}>↓</button>
-                  <button title="Duplicate" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "duplicate", uid: sel, cloneId: `c${Date.now().toString(36)}${++cloneSeq}` })}>⧉</button>
-                  <button title="Hide" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "hide", uid: sel })}>👁</button>
-                  <button title="Remove" className="rounded px-1 py-0.5 text-[12px] text-red-500 hover:bg-red-50" onClick={() => { setPatch({ op: "remove", uid: sel }); setSel(null); }}>🗑</button>
-                </span>
-              </div>
-              <p className="px-1 text-[10px] text-slate-400">Edit text, image, link &amp; styles in the right panel →</p>
-            </div>
-          )}
-
           {patches.length > 0 && (
             <div className="space-y-1 border-t border-slate-100 pt-2">
               <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Edits ({patches.length})</div>
