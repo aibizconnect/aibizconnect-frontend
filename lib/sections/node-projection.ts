@@ -75,12 +75,19 @@ export function projectNode(f: NodeFacts): Record<string, unknown> | null {
   if (H.has(f.tag)) {
     return { type: "heading", text: f.text ?? "", level: f.tag, ...base };
   }
-  if (f.tag === "a" || f.tag === "button") {
+  if (f.tag === "button" || (f.tag === "a" && (style.bg || typeof style.radius === "number"))) {
+    // Real button chrome → Button element.
     const out: Record<string, unknown> = { type: "button", label: (f.text ?? "").slice(0, 80), href: f.href || "#" };
     if (style.bg) { out.bgColor = style.bg; out.variant = "solid"; }
     if (typo.color) out.textColor = typo.color;
     if (typeof style.radius === "number") out.radius = style.radius;
     return out;
+  }
+  if (f.tag === "a") {
+    // "Link" is not an element (Ali) — a plain anchor IS what it looks like: heading-styled
+    // brand text → H2; otherwise Text. The href stays intact in the HTML.
+    if ((typo.fontSize as number || 0) >= 20) return { type: "heading", text: f.text ?? "", level: "h2", ...base };
+    return { type: "text", text: f.text ?? "", ...base };
   }
   if (f.text != null && TEXTY.has(f.tag)) {
     return { type: "text", text: f.text, ...base };

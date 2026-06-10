@@ -234,15 +234,25 @@ function importedBandTree(html: string, si: number): LayerNode[] {
     id: `${si}.n.${uid ?? `x${nid++}`}`, kind, label, type, sectionIndex: si,
     ...(uid ? { nodeUid: uid } : {}), ...(children && children.length ? { children } : {}),
   });
-  /** Element-type name for a node (NO content): H1..H6, Paragraph, Text, Image, Button, Link… */
+  /** Element-type name for a node (NO content). "Link" is NOT an element (a link is the href
+   *  BEHAVIOR): an <a> identifies as what it LOOKS like — Image (contains one), Button (has
+   *  button chrome), H2 (heading-styled brand text), else Text. */
   const elementName = (tag: string, child: ParsedEl): { label: string; type: string } | null => {
     if (/^h[1-6]$/.test(tag)) return { label: tag.toUpperCase(), type: "heading" };
     const cls = child.getAttribute?.("class") || "";
+    const cs = child.getAttribute?.("data-cs") || "";
     if (/material-symbols|material-icons/.test(cls)) return { label: "Icon", type: "icon" };
+    if (tag === "a") {
+      if (child.querySelector?.("img, picture, svg")) return { label: "Image", type: "image" };
+      if (/backgroundColor:/.test(cs)) return { label: "Button", type: "button" };
+      const size = Number(/fontSize:(\d+)/.exec(cs)?.[1] || 0);
+      const weight = Number(/fontWeight:(\d+)/.exec(cs)?.[1] || 400);
+      if (size >= 20 || weight >= 700) return { label: "H2", type: "heading" }; // brand text
+      return { label: "Text", type: "text" };
+    }
     const map: Record<string, { label: string; type: string }> = {
       p: { label: "Paragraph", type: "text" }, span: { label: "Text", type: "text" },
       img: { label: "Image", type: "image" }, picture: { label: "Image", type: "image" },
-      a: { label: child.querySelector?.("img") ? "Image" : "Link", type: "button" },
       button: { label: "Button", type: "button" }, form: { label: "Form", type: "contact-form" },
       input: { label: "Field", type: "text" }, textarea: { label: "Field", type: "text" },
       label: { label: "Label", type: "text" }, ul: { label: "List", type: "bullet-list" },
@@ -261,9 +271,10 @@ function importedBandTree(html: string, si: number): LayerNode[] {
       const cs = child.getAttribute?.("data-cs") || "";
       const kids = elKids(child);
       if (depth > 10) continue;
-      // 1) Navigation Menu: a group whose direct children are mostly links.
+      // 1) Navigation Menu: a group whose direct children are mostly links. A LEAF — its items
+      //    are managed inside the Menu inspector, not as loose tree nodes (Ali).
       if (!inMenu && (tag === "div" || tag === "ul" || tag === "nav") && isMenuGroup(child)) {
-        out.push(node("Navigation Menu", "element", "menu", uid, walkContent(child, depth + 1, true)));
+        out.push(node("Navigation Menu", "element", "menu", uid, undefined));
         continue;
       }
       // 2) A real ELEMENT (named by type only).
@@ -288,7 +299,7 @@ function importedBandTree(html: string, si: number): LayerNode[] {
     const tag = (child.rawTagName || "").toLowerCase();
     const uid = child.getAttribute?.("data-uid") || undefined;
     if (!inMenu && (tag === "div" || tag === "ul" || tag === "nav") && isMenuGroup(child)) {
-      return [node("Navigation Menu", "element", "menu", uid, walkContent(child, depth, true))];
+      return [node("Navigation Menu", "element", "menu", uid, undefined)];
     }
     const named = elementName(tag, child);
     if (named) return [node(named.label, "element", named.type, uid, undefined)];
