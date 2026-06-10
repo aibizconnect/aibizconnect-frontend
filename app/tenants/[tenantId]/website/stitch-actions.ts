@@ -12,9 +12,11 @@
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { htmlToSections } from "@/lib/sites/html-importer";
 import { htmlToLosslessSections } from "@/lib/sites/lossless-importer";
+import { deriveDesignTokens } from "@/lib/sites/design-bridge";
 import { renderHtmlToDom } from "@/lib/sites/site-clone";
 import { ingestSectionImages } from "@/lib/sites/image-ingestion";
 import { sectionSchema } from "@/lib/sections/schemas";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createPage, saveDraft } from "./actions";
 
 export interface ImportHtmlResult {
@@ -140,6 +142,25 @@ export async function importHtmlAsDraftPage(
     };
   }
   await saveDraft(page.id, tenantId, draft as any);
+
+  // DESIGN BRIDGE (D-194, Copilot spec): derive brand tokens from the imported design so NATIVE
+  // palette elements inserted later match its typography/colors. Fill EMPTY fields only — the
+  // tenant's own theme edits always win; written once at import; deterministic for re-imports.
+  if (mode === "lossless") {
+    try {
+      const t = deriveDesignTokens(sections);
+      const sb = createSupabaseServiceClient();
+      const { data: brand } = await sb.from("website_brand_settings").select("*").eq("tenant_id", tenantId).limit(1).maybeSingle();
+      const fill: Record<string, unknown> = {};
+      const put = (col: string, v?: string) => { if (v && !(brand as any)?.[col]) fill[col] = v; };
+      put("primary_color", t.primary); put("secondary_color", t.secondary); put("accent_color", t.accent);
+      put("font_heading", t.fontHeading); put("font_body", t.fontBody);
+      if (Object.keys(fill).length) {
+        if (brand) await sb.from("website_brand_settings").update(fill).eq("tenant_id", tenantId);
+        else await sb.from("website_brand_settings").insert({ tenant_id: tenantId, ...fill });
+      }
+    } catch { /* theme derivation is best-effort — never blocks an import */ }
+  }
 
   return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity };
 }
