@@ -216,66 +216,90 @@ function importedBandTree(html: string, si: number): LayerNode[] {
   if (!html) return [];
   let root: ParsedEl;
   try { root = parse(html, { comment: false }); } catch { return []; }
-  // DIV PROTOCOL (Ali): a <div> is never a "Container" — it is identified by what it DOES:
-  //  · its direct children are mostly links            → MENU (links listed under it)
-  //  · it lays children out side-by-side (flex/grid)   → ROW · N columns
-  //  · it has its own background / rounded corners     → BOX (a visual card)
-  //  · anything else is markup scaffolding             → FLATTENED (children take its place)
-  // Header bands additionally read: Logo (first plain link before the menu) | Menu | Button.
+  // STRUCTURE PROTOCOL (Ali's ruling): the imported tree mirrors the native builder hierarchy
+  // EXACTLY — Section → Row → numbered Columns → Elements — and elements are named by their
+  // ELEMENT TYPE ONLY (H2, Image, Navigation Menu, Button), NEVER by their content.
+  //   Header:  1 Column Row → 1st Column → 3 Column Row → 1st Column(Image/H2) |
+  //            2nd Column(Navigation Menu) | 3rd Column(Button)
   const elKids = (n: ParsedEl) => ((n.childNodes || []) as ParsedEl[]).filter((c) => (c as any).nodeType === 1);
   const isMenuGroup = (n: ParsedEl): boolean => {
     const kids = elKids(n);
     if (kids.length < 2) return false;
-    const links = kids.filter((k) => (k.rawTagName || "").toLowerCase() === "a");
+    const links = kids.filter((k) => ["a", "li"].includes((k.rawTagName || "").toLowerCase()));
     return links.length >= 2 && links.length >= Math.ceil(kids.length * 0.8);
   };
-  let logoSeen = false;
-  const bandTag = (root.querySelector("[data-uid]")?.rawTagName || "").toLowerCase();
-  const isHeaderBand = bandTag === "nav" || bandTag === "header";
-  const walk = (el: ParsedEl, depth: number, inMenu = false): LayerNode[] => {
+  const ord = (i: number) => `${i + 1}${i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"} Column`;
+  let nid = 0;
+  const node = (label: string, kind: LayerKind, type: string, uid: string | undefined, children?: LayerNode[]): LayerNode => ({
+    id: `${si}.n.${uid ?? `x${nid++}`}`, kind, label, type, sectionIndex: si,
+    ...(uid ? { nodeUid: uid } : {}), ...(children && children.length ? { children } : {}),
+  });
+  /** Element-type name for a node (NO content): H1..H6, Paragraph, Text, Image, Button, Link… */
+  const elementName = (tag: string, child: ParsedEl): { label: string; type: string } | null => {
+    if (/^h[1-6]$/.test(tag)) return { label: tag.toUpperCase(), type: "heading" };
+    const cls = child.getAttribute?.("class") || "";
+    if (/material-symbols|material-icons/.test(cls)) return { label: "Icon", type: "icon" };
+    const map: Record<string, { label: string; type: string }> = {
+      p: { label: "Paragraph", type: "text" }, span: { label: "Text", type: "text" },
+      img: { label: "Image", type: "image" }, picture: { label: "Image", type: "image" },
+      a: { label: child.querySelector?.("img") ? "Image" : "Link", type: "button" },
+      button: { label: "Button", type: "button" }, form: { label: "Form", type: "contact-form" },
+      input: { label: "Field", type: "text" }, textarea: { label: "Field", type: "text" },
+      label: { label: "Label", type: "text" }, ul: { label: "List", type: "bullet-list" },
+      ol: { label: "Numbered List", type: "bullet-list" }, li: { label: "List Item", type: "text" },
+      blockquote: { label: "Quote", type: "text" }, svg: { label: "Icon", type: "icon" },
+      video: { label: "Video", type: "video" }, iframe: { label: "Embed", type: "video" },
+    };
+    return map[tag] ?? null;
+  };
+  /** The CONTENT of one column/box: identified elements + nested rows, in order. */
+  const walkContent = (el: ParsedEl, depth: number, inMenu = false): LayerNode[] => {
     const out: LayerNode[] = [];
-    for (const child of (el.childNodes || []) as ParsedEl[]) {
-      if ((child as any).nodeType !== 1) continue;
+    for (const child of elKids(el)) {
       const tag = (child.rawTagName || "").toLowerCase();
-      const uid = child.getAttribute?.("data-uid");
-      const cls = child.getAttribute?.("class") || "";
+      const uid = child.getAttribute?.("data-uid") || undefined;
       const cs = child.getAttribute?.("data-cs") || "";
-      const isIcon = /material-symbols|material-icons/.test(cls);
-      const menuish = !inMenu && (tag === "div" || tag === "ul") && isMenuGroup(child);
-      const kids = depth < 8 ? walk(child, depth + 1, inMenu || menuish) : [];
-      if (!uid) { out.push(...kids); continue; }
-      const text = (child.textContent || "").replace(/\s+/g, " ").trim();
-      let known = isIcon ? { label: "Icon", type: "icon" } : IMPORTED_KIND[tag];
-      if (menuish) known = { label: "Menu", type: "menu" };
-      if (!known) {
-        const hasBg = /backgroundColor:|backgroundImage:/.test(cs);
-        const hasRadius = /borderTopLeftRadius:/.test(cs);
-        const isGrid = /gridTemplateColumns:/.test(cs);
-        const isFlexRow = /display:flex/.test(cs) && !/flexDirection:column/.test(cs);
-        const cols = elKids(child).length;
-        if (hasBg || hasRadius) known = { label: "Box", type: "row" };
-        else if (isGrid || (isFlexRow && cols >= 2)) known = { label: `Row · ${cols} columns`, type: "row" };
-        else { out.push(...kids); continue; } // pure scaffolding — children take its place
+      const kids = elKids(child);
+      if (depth > 10) continue;
+      // 1) Navigation Menu: a group whose direct children are mostly links.
+      if (!inMenu && (tag === "div" || tag === "ul" || tag === "nav") && isMenuGroup(child)) {
+        out.push(node("Navigation Menu", "element", "menu", uid, walkContent(child, depth + 1, true)));
+        continue;
       }
-      // Header reading (Ali): first plain link = the LOGO; an icon-only button = mobile ☰.
-      if (isHeaderBand && tag === "a" && !inMenu && !logoSeen && known?.type === "button") { known = { label: "Logo", type: "heading" }; logoSeen = true; }
-      if (tag === "button" && /^[a-z_ ]*$/.test(text) && text.length <= 10) known = { label: "Mobile menu ☰", type: "button" };
-      const meta = known;
-      const bare = meta.label.startsWith("Row") || meta.label === "Box" || meta.label === "Menu";
-      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22) : bare ? "" : text.slice(0, 24);
-      out.push({
-        id: `${si}.n.${uid}`,
-        kind: "element",
-        label: snippet ? `${meta.label} · ${snippet}` : meta.label,
-        type: meta.type,
-        sectionIndex: si,
-        nodeUid: uid,
-        children: kids.length ? kids : undefined,
-      });
+      // 2) A real ELEMENT (named by type only).
+      const named = elementName(tag, child);
+      if (named) { out.push(node(named.label, "element", named.type, uid, undefined)); continue; }
+      // 3) A LAYOUT split (flex-row / grid, ≥2 children) → "N Column Row" with numbered Columns.
+      const isGrid = /gridTemplateColumns:/.test(cs);
+      const isFlexRow = /display:flex/.test(cs) && !/flexDirection:column/.test(cs);
+      if ((isGrid || isFlexRow) && kids.length >= 2) {
+        const cols = kids.map((k, i) => node(ord(i), "column", "row", k.getAttribute?.("data-uid") || undefined, columnContent(k, depth + 1, inMenu)));
+        out.push(node(`${kids.length} Column Row`, "row", "row", uid, cols));
+        continue;
+      }
+      // 4) A visual BOX (own bg/radius) keeps a node; plain wrappers flatten away.
+      const hasBg = /backgroundColor:|backgroundImage:/.test(cs);
+      const hasRadius = /borderTopLeftRadius:/.test(cs);
+      if (hasBg || hasRadius) { out.push(node("Box", "element", "row", uid, walkContent(child, depth + 1, inMenu))); continue; }
+      out.push(...walkContent(child, depth + 1, inMenu));
     }
     return out;
   };
-  return walk(root, 0);
+  /** What sits INSIDE a column: the child may itself be an element, a box, or more structure. */
+  const columnContent = (child: ParsedEl, depth: number, inMenu: boolean): LayerNode[] => {
+    const tag = (child.rawTagName || "").toLowerCase();
+    const uid = child.getAttribute?.("data-uid") || undefined;
+    if (!inMenu && (tag === "div" || tag === "ul" || tag === "nav") && isMenuGroup(child)) {
+      return [node("Navigation Menu", "element", "menu", uid, walkContent(child, depth, true))];
+    }
+    const named = elementName(tag, child);
+    if (named) return [node(named.label, "element", named.type, uid, undefined)];
+    return walkContent(child, depth, inMenu);
+  };
+  // Every band = "1 Column Row → 1st Column → content" (Ali's canonical shape).
+  const content = walkContent(root, 0);
+  if (!content.length) return [];
+  return [node("1 Column Row", "row", "row", undefined, [node("1st Column", "column", "row", undefined, content)])];
 }
 
 /** Section-level label (type-only spec): Header / Hero / Footer / Section N. */
