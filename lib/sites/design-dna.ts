@@ -72,13 +72,12 @@ const contemporaryLuxury: Aesthetic = {
       fonts: { heading: "Playfair Display", body: "Inter" },
       typography: {
         // Display & headings — Playfair Display, high contrast, tight tracking.
-        title:        typo("Playfair Display", role({ fontSize: 66, fontWeight: "600", lineHeight: 1.04, letterSpacing: -0.6, color: LUX.ink })),
-        heading:      typo("Playfair Display", role({ fontSize: 42, fontWeight: "600", lineHeight: 1.14, letterSpacing: -0.4, color: LUX.ink })),
-        subheading:   typo("Playfair Display", role({ fontSize: 27, fontWeight: "500", lineHeight: 1.25, color: LUX.ink })),
+        h1: typo("Playfair Display", role({ fontSize: 66, fontWeight: "600", lineHeight: 1.04, letterSpacing: -0.6, color: LUX.ink })),
+        h2: typo("Playfair Display", role({ fontSize: 42, fontWeight: "600", lineHeight: 1.14, letterSpacing: -0.4, color: LUX.ink })),
+        h3: typo("Playfair Display", role({ fontSize: 27, fontWeight: "500", lineHeight: 1.25, color: LUX.ink })),
+        h4: typo("Inter", role({ fontSize: 20, fontWeight: "300", lineHeight: 1.6, color: LUX.body })),
         // Eyebrow / section kicker — small, spaced, uppercase Inter in the accent.
-        sectionHeader: typo("Inter", role({ fontSize: 13, fontWeight: "600", letterSpacing: 2.2, textTransform: "uppercase", color: accent })),
-        // Supporting copy — light, airy, muted.
-        subtitle:     typo("Inter", role({ fontSize: 20, fontWeight: "300", lineHeight: 1.6, color: LUX.body })),
+        h5: typo("Inter", role({ fontSize: 13, fontWeight: "600", letterSpacing: 2.2, textTransform: "uppercase", color: accent })),
         body:         typo("Inter", role({ fontSize: 17, fontWeight: "400", lineHeight: 1.75, color: LUX.body })),
         quote:        typo("Playfair Display", role({ fontSize: 25, fontWeight: "500", italic: true, lineHeight: 1.5, color: LUX.ink })),
         button:       typo("Inter", role({ fontSize: 14, fontWeight: "600", letterSpacing: 0.6, textTransform: "uppercase" })),
@@ -151,11 +150,11 @@ const minimalEditorial: Aesthetic = {
       colors: { primary: EDI.ink, secondary: EDI.body, accent, background: EDI.white, text: EDI.ink },
       fonts: { heading: "Montserrat", body: "Inter" },
       typography: {
-        title:        typo("Montserrat", role({ fontSize: 58, fontWeight: "800", lineHeight: 1.05, letterSpacing: -1.2, color: EDI.ink })),
-        heading:      typo("Montserrat", role({ fontSize: 38, fontWeight: "700", lineHeight: 1.15, letterSpacing: -0.8, color: EDI.ink })),
-        subheading:   typo("Montserrat", role({ fontSize: 24, fontWeight: "600", lineHeight: 1.3, color: EDI.ink })),
-        sectionHeader: typo("Montserrat", role({ fontSize: 13, fontWeight: "700", letterSpacing: 1.8, textTransform: "uppercase", color: accent })),
-        subtitle:     typo("Inter", role({ fontSize: 20, fontWeight: "400", lineHeight: 1.6, color: EDI.body })),
+        h1: typo("Montserrat", role({ fontSize: 58, fontWeight: "800", lineHeight: 1.05, letterSpacing: -1.2, color: EDI.ink })),
+        h2: typo("Montserrat", role({ fontSize: 38, fontWeight: "700", lineHeight: 1.15, letterSpacing: -0.8, color: EDI.ink })),
+        h3: typo("Montserrat", role({ fontSize: 24, fontWeight: "600", lineHeight: 1.3, color: EDI.ink })),
+        h4: typo("Inter", role({ fontSize: 20, fontWeight: "400", lineHeight: 1.6, color: EDI.body })),
+        h5: typo("Montserrat", role({ fontSize: 13, fontWeight: "700", letterSpacing: 1.8, textTransform: "uppercase", color: accent })),
         body:         typo("Inter", role({ fontSize: 17, fontWeight: "400", lineHeight: 1.7, color: EDI.body })),
         quote:        typo("Inter", role({ fontSize: 22, fontWeight: "500", lineHeight: 1.5, color: EDI.ink })),
         button:       typo("Inter", role({ fontSize: 15, fontWeight: "600", letterSpacing: 0.2 })),

@@ -32,15 +32,15 @@ const I = {
 // Leaf + composite ELEMENT groups (everything except Rows). Used by the Elements tab,
 // the Quick Add tab, and the category shortcuts.
 const ELEMENT_GROUPS: Group[] = [
-  // TEXT FAMILY mirrors the Typography roles (Ali): each tile seeds the matching _role so the
-  // site-wide Typography settings drive its look (Title / Subtitle / Headline / Section Header /
-  // Body / Quote).
+  // TEXT = the plain H-scale (Ali): H1–H5, Body (P), Quote. Each maps 1:1 to a Typography role,
+  // so the site-wide Typography panel drives every instance.
   { group: "Text", items: [
-    { label: "Title", icon: I.text, type: "heading@title" as SectionType },
-    { label: "Subtitle", icon: I.text, type: "subheading@subtitle" as SectionType },
-    { label: "Headline", icon: I.text, type: "heading" },
-    { label: "Section Header", icon: I.text, type: "heading@section" as SectionType },
-    { label: "Body", icon: I.text, type: "text@body" as SectionType },
+    { label: "H1", icon: I.text, type: "heading@h1" as SectionType },
+    { label: "H2", icon: I.text, type: "heading@h2" as SectionType },
+    { label: "H3", icon: I.text, type: "heading@h3" as SectionType },
+    { label: "H4", icon: I.text, type: "heading@h4" as SectionType },
+    { label: "H5", icon: I.text, type: "heading@h5" as SectionType },
+    { label: "Body (P)", icon: I.text, type: "text" },
     { label: "Quote", icon: I.text, type: "text@quote" as SectionType },
   ]},
   { group: "Lists", items: [

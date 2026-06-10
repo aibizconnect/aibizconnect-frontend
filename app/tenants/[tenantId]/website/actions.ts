@@ -1490,6 +1490,17 @@ export interface DraftPatch {
   draft_slug?: string | null;
   draft_seo?: Record<string, unknown>;
   draft_sections?: unknown[];
+  /** Page-scoped CSS (the "Custom CSS" slot). Lossless imports store the design's compiled CSS
+   *  snapshot here (+ @import lines for its fonts) — NOT as a pseudo-section (Ali). */
+  custom_css?: string | null;
+}
+
+/** Read a page's custom_css (service client — drafts are RLS-hidden from the browser client). */
+export async function getPageCustomCss(pageId: string, tenantId: string): Promise<string> {
+  const supabase = createSupabaseServiceClient();
+  const { data } = await supabase
+    .from("website_pages").select("custom_css").eq("id", pageId).eq("tenant_id", tenantId).maybeSingle();
+  return (data?.custom_css as string) ?? "";
 }
 
 /** Save the editor's in-progress state into the page's draft_* fields. */

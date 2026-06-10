@@ -1,19 +1,27 @@
 // Step 29: tenant theme tokens (colors, fonts, radii, spacing).
 
-export type FontRole = "title" | "subtitle" | "heading" | "subheading" | "sectionHeader" | "body" | "quote" | "button" | "menu" | "submenu";
+// SIMPLIFIED roles (Ali): plain H1–H5, Body (P), Quote — no abstract names. Menu/Submenu (and
+// Button) keep their own styles. Legacy keys (title/subtitle/heading/subheading/sectionHeader)
+// still resolve via LEGACY_ROLE_MAP, so existing themes and content _role values keep working.
+export type FontRole = "h1" | "h2" | "h3" | "h4" | "h5" | "body" | "quote" | "button" | "menu" | "submenu";
 
 export const FONT_ROLES: { key: FontRole; label: string }[] = [
-  { key: "title", label: "Title" },
-  { key: "subtitle", label: "Subtitle" },
-  { key: "heading", label: "Heading" },
-  { key: "subheading", label: "Subheading" },
-  { key: "sectionHeader", label: "Section Header" },
-  { key: "body", label: "Body" },
+  { key: "h1", label: "H1" },
+  { key: "h2", label: "H2" },
+  { key: "h3", label: "H3" },
+  { key: "h4", label: "H4" },
+  { key: "h5", label: "H5" },
+  { key: "body", label: "Body (P)" },
   { key: "quote", label: "Quote" },
   { key: "button", label: "Button" },
   { key: "menu", label: "Menu" },
   { key: "submenu", label: "Submenu" },
 ];
+
+/** Old role keys → the H-scale (saved themes + content `_role` values keep resolving). */
+export const LEGACY_ROLE_MAP: Record<string, FontRole> = {
+  title: "h1", subtitle: "h3", heading: "h2", subheading: "h3", sectionHeader: "h2",
+};
 
 export interface CustomFont { name: string; src: string; format?: string }
 
@@ -46,9 +54,17 @@ export interface ThemeTokens {
   spacing: { sm: number; md: number; lg: number };
 }
 
-/** Normalize a role entry to a RoleStyle (legacy string == just a family). */
-export function roleStyleFor(theme: any, role: FontRole): RoleStyle {
-  const v = theme?.typography?.[role];
+/** Normalize a role entry to a RoleStyle (legacy string == just a family). Accepts old role
+ *  names too (mapped through LEGACY_ROLE_MAP) and falls back to a saved legacy-key entry when
+ *  the new key has no value yet. */
+export function roleStyleFor(theme: any, role: FontRole | string): RoleStyle {
+  const key = (LEGACY_ROLE_MAP[role as string] ?? role) as FontRole;
+  let v = theme?.typography?.[key];
+  if (v == null || (typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 0)) {
+    // theme saved under an old name? (e.g. typography.title before the H-scale rename)
+    const legacyKey = Object.keys(LEGACY_ROLE_MAP).find((k) => LEGACY_ROLE_MAP[k] === key && theme?.typography?.[k]);
+    if (legacyKey) v = theme.typography[legacyKey];
+  }
   if (typeof v === "string") return { fontFamily: v };
   return v && typeof v === "object" && !Array.isArray(v) ? (v as RoleStyle) : {};
 }
@@ -58,18 +74,15 @@ export function roleFamilies(theme: any): string[] {
   return FONT_ROLES.map((r) => roleStyleFor(theme, r.key).fontFamily).filter((f): f is string => !!f);
 }
 
-/** Map a text element to its semantic font role (so role fonts apply globally). */
+/** Map a text element to its font role — now simply its HEADING LEVEL (Ali's H-scale). */
 export function roleForElement(type: string, level?: string): FontRole {
-  if (type === "subheading") return "subtitle";
+  if (type === "subheading") return "h3";
   if (type === "text") return "body";
   if (type === "button") return "button";
-  // heading element → by level
-  switch (level) {
-    case "h1": return "title";
-    case "h2": return "heading";
-    case "h3": return "subheading";
-    default: return "sectionHeader";
-  }
+  // heading element → its own level (h6 styles as h5)
+  if (level === "h1" || level === "h2" || level === "h3" || level === "h4" || level === "h5") return level;
+  if (level === "h6") return "h5";
+  return "h2";
 }
 
 export const SAFE_FONTS = [
@@ -93,8 +106,8 @@ export const DEFAULT_THEME: ThemeTokens = {
   },
   fonts: { heading: "Inter", body: "Inter" },
   typography: {
-    title: { fontFamily: "Inter" }, subtitle: { fontFamily: "Inter" }, heading: { fontFamily: "Inter" },
-    subheading: { fontFamily: "Inter" }, sectionHeader: { fontFamily: "Inter" }, body: { fontFamily: "Inter" },
+    h1: { fontFamily: "Inter" }, h2: { fontFamily: "Inter" }, h3: { fontFamily: "Inter" },
+    h4: { fontFamily: "Inter" }, h5: { fontFamily: "Inter" }, body: { fontFamily: "Inter" },
     quote: { fontFamily: "Inter" }, button: { fontFamily: "Inter" },
     menu: { fontFamily: "Inter" }, submenu: { fontFamily: "Inter" },
   },
@@ -186,10 +199,16 @@ export function resolveTheme(brand: any): ThemeTokens {
     theme.typography = { ...DEFAULT_THEME.typography };
   } else {
     // Coerce each role to a RoleStyle object (legacy values were bare family strings).
+    // A theme saved under the OLD role names (title/heading/…) back-fills the new H-scale keys.
     const t: any = {};
+    const coerce = (v: any) => (typeof v === "string" ? { fontFamily: v } : (v && typeof v === "object" && !Array.isArray(v) ? v : {}));
     for (const r of FONT_ROLES) {
-      const v = (theme.typography as any)[r.key];
-      t[r.key] = typeof v === "string" ? { fontFamily: v } : (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+      let v = (theme.typography as any)[r.key];
+      if (v == null || (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)) {
+        const legacyKey = Object.keys(LEGACY_ROLE_MAP).find((k) => LEGACY_ROLE_MAP[k] === r.key && (theme.typography as any)[k]);
+        if (legacyKey) v = (theme.typography as any)[legacyKey];
+      }
+      t[r.key] = coerce(v);
     }
     theme.typography = t;
   }

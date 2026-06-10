@@ -603,11 +603,11 @@ export function defaultContentFor(type: SectionType): SectionContent {
       (r as any).contentWidth = variant;
       return r;
     }
-    // TEXT FAMILY per the Typography roles (Ali): Title / Subtitle / Section Header / Body / Quote.
-    if (base === "heading" && variant === "title") return { type: "heading", text: "Page title", level: "h1", _role: "title" } as any;
-    if (base === "heading" && variant === "section") return { type: "heading", text: "Section header", level: "h2", _role: "sectionHeader" } as any;
-    if (base === "subheading" && variant === "subtitle") return { type: "subheading", text: "A supporting subtitle", level: "h2", _role: "subtitle" } as any;
-    if (base === "text" && variant === "body") return { type: "text", text: "Body copy goes here.", _role: "body" } as any;
+    // TEXT = the plain H-scale (Ali): heading@h1..h5 seed the level (typography role follows the
+    // level automatically via roleForElement); Quote is italic text with the quote role.
+    if (base === "heading" && /^h[1-5]$/.test(variant)) {
+      return { type: "heading", text: variant.toUpperCase() + " heading", level: variant } as any;
+    }
     if (base === "text" && variant === "quote") return { type: "text", text: "“A quote worth remembering.”", italic: true, _role: "quote" } as any;
     return defaultContentFor(base as SectionType);
   }
