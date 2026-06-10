@@ -148,12 +148,29 @@ export async function importHtmlAsDraftPage(
   }
 
   const draft: Record<string, unknown> = { draft_sections: sections as any };
-  // SEO captured from the imported <head> lands in the page's draft SEO fields (D-178.4).
-  if (seo.title || seo.description || seo.imageUrl) {
+  // SEO captured from the imported <head> + auto-derived description (D-210) + GEO NAP →
+  // LocalBusiness schema (D-209). og:image falls back to the first content image (already
+  // ingested to the Media Library above).
+  const ogFallback = (() => {
+    for (const s of sections) {
+      const m = /<img[^>]*src="(https?:\/\/[^"]+)"/.exec(((s as any).html as string) || "");
+      if (m) return m[1];
+    }
+    return undefined;
+  })();
+  const anySeo = seo.title || seo.description || seo.imageUrl || ogFallback || (seo as any).phone || (seo as any).address;
+  if (anySeo) {
     draft.draft_seo = {
       ...(seo.title ? { seo_title: seo.title } : {}),
       ...(seo.description ? { seo_description: seo.description } : {}),
-      ...(seo.imageUrl ? { seo_image_url: seo.imageUrl } : {}),
+      ...((seo.imageUrl || ogFallback) ? { seo_image_url: seo.imageUrl || ogFallback } : {}),
+      ...((seo as any).phone || (seo as any).address ? {
+        schemas: ["LocalBusiness"],
+        ...((seo as any).phone ? { phone: (seo as any).phone } : {}),
+        ...((seo as any).email ? { email: (seo as any).email } : {}),
+        ...((seo as any).address ? { address: (seo as any).address } : {}),
+        ...((seo as any).areaServed ? { area_served: (seo as any).areaServed } : {}),
+      } : {}),
     };
   }
   if (customCss) {
@@ -185,7 +202,7 @@ export async function importHtmlAsDraftPage(
   // best-effort, never blocks the import; the report rides back to the caller + logs.
   let inspection: InspectorReport | undefined;
   try {
-    inspection = await inspectPage(draft.draft_sections as Record<string, unknown>[], customCss);
+    inspection = await inspectPage(draft.draft_sections as Record<string, unknown>[], customCss, { seo: (draft.draft_seo as Record<string, unknown>) ?? null });
     if (!inspection.ok) console.warn(`[inspector] page ${page.id} score ${inspection.score}:`, inspection.issues.map((i) => i.code).join(", "));
   } catch { /* QA must never break the build */ }
 

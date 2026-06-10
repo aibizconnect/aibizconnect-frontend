@@ -97,6 +97,7 @@ export default async function SitePreviewDocument({
     imageUrl: seoD.seo_image_url || (page as any)?.seo_image_url || undefined,
     schemaType: seoD.schema_type, schemaTypes: Array.isArray(seoD.schemas) ? seoD.schemas : undefined,
     author: seoD.author, language: seoD.language,
+    telephone: seoD.phone, email: seoD.email, address: seoD.address, areaServed: seoD.area_served,
     sections: sections.map((s) => s.content),
   });
 

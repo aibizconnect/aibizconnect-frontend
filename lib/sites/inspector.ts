@@ -27,7 +27,7 @@ const IMG_CHECK_CAP = 20;
 export async function inspectPage(
   sections: Record<string, unknown>[],
   customCss: string | null | undefined,
-  opts?: { checkImages?: boolean },
+  opts?: { checkImages?: boolean; seo?: Record<string, unknown> | null },
 ): Promise<InspectorReport> {
   const issues: InspectorIssue[] = [];
   const bands = sections.filter((s) => s.type === "imported-html") as { html?: string; _name?: string }[];
@@ -38,6 +38,21 @@ export async function inspectPage(
   if (bands.length && !css.trim()) {
     issues.push({ severity: "error", code: "css-missing", message: "Imported bands exist but no design CSS (custom_css or carrier) is attached — the page will render unstyled." });
   }
+
+  // 1b. MOBILE (D-211): imported pages must carry responsive rules — native sections stack by
+  // construction, but a design CSS with no @media queries renders desktop-only on phones.
+  if (bands.length && css.trim() && !/@media/i.test(css)) {
+    issues.push({ severity: "error", code: "mobile-no-media", message: "Design CSS contains no @media rules — the imported page will not adapt to mobile. Re-capture through the bridge." });
+  }
+
+  // 1c. SEO (D-211): title/description/og discipline + GEO schema when NAP is on the page.
+  const seo = opts?.seo || {};
+  const sTitle = String((seo as any).seo_title || "");
+  const sDesc = String((seo as any).seo_description || "");
+  if (!sTitle) issues.push({ severity: "warning", code: "seo-title-missing", message: "No SEO title set — search results fall back to the page name." });
+  if (!sDesc) issues.push({ severity: "warning", code: "seo-desc-missing", message: "No meta description — search/AI engines will improvise one." });
+  else if (sDesc.length < 50 || sDesc.length > 170) issues.push({ severity: "info", code: "seo-desc-length", message: `Meta description is ${sDesc.length} chars (sweet spot 50–160).` });
+  if (!(seo as any).seo_image_url) issues.push({ severity: "info", code: "seo-og-missing", message: "No social/OG image set — link shares render without a preview." });
 
   // 2. Per-band structural checks.
   let h1Count = 0;
@@ -68,6 +83,15 @@ export async function inspectPage(
       issues.push({ severity: "warning", code: "uid-coverage", message: `Band "${name}": only ${stamped}/${total} nodes carry data-uid — re-capture through the bridge for full editability.`, where: name });
     }
     if (/material-symbols|material-icons/.test(band.html || "")) ligatureSeen = true;
+  }
+
+  // 2b. GEO (D-209/D-211): the page shows a phone/address but carries no LocalBusiness schema.
+  const bandText = bands.map((b) => b.html || "").join(" ");
+  const hasNap = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/.test(bandText)
+    || /\d{1,5}\s+[A-Z][A-Za-z.'-]+\s+(Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Suite)/.test(bandText);
+  const schemas = Array.isArray((opts?.seo as any)?.schemas) ? ((opts?.seo as any).schemas as string[]) : [];
+  if (hasNap && !schemas.includes("LocalBusiness")) {
+    issues.push({ severity: "warning", code: "geo-no-localbusiness", message: "Phone/address detected on the page but no LocalBusiness schema is set — local search/maps and AI engines miss the entity." });
   }
 
   // 3. Icon font available when icon ligatures are used.

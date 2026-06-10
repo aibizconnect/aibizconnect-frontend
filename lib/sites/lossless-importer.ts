@@ -82,7 +82,11 @@ function cleanInline(s: string): string {
 
 export type LosslessImport = {
   sections: Record<string, unknown>[];
-  seo: { title?: string; description?: string; imageUrl?: string };
+  seo: {
+    title?: string; description?: string; imageUrl?: string;
+    // GEO (D-209): NAP auto-extracted from the page content → LocalBusiness schema.
+    phone?: string; email?: string; address?: string; areaServed?: string;
+  };
   css: string;
   fontHrefs: string[];
 };
@@ -113,6 +117,26 @@ export function htmlToLosslessSections(html: string, baseUrl = ""): LosslessImpo
   if (desc) seo.description = desc.slice(0, 300);
   const ogImg = root.querySelector('meta[property="og:image"]')?.getAttribute("content");
   if (ogImg) seo.imageUrl = ogImg;
+
+  // SEO auto-derivation (D-210): Stitch pages rarely carry a meta description — derive one from
+  // the first substantial paragraph, trimmed at a word boundary to ≤160 chars.
+  const bodyText = (sel: string) => root.querySelectorAll(sel).map((p) => (p.text || "").replace(/\s+/g, " ").trim());
+  if (!seo.description) {
+    const para = bodyText("p").find((t) => t.length >= 60);
+    if (para) seo.description = para.length <= 160 ? para : `${para.slice(0, 157).replace(/\s+\S*$/, "")}…`;
+  }
+  // GEO: NAP extraction (D-209) — phone, email, street address; city → areaServed.
+  const all = (root.querySelector("body")?.text || root.text || "").replace(/\s+/g, " ");
+  const phone = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/.exec(all)?.[0]?.trim();
+  if (phone) seo.phone = phone;
+  const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.exec(all)?.[0];
+  if (email) seo.email = email;
+  const addr = /\d{1,5}\s+[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+)*\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Drive|Dr\.?|Lane|Ln\.?|Way|Court|Ct\.?)(?:[,\s]+(?:Suite|Ste\.?|Unit|#)\s*[\w-]+)?(?:[,\s]+[A-Z][A-Za-z]+)*(?:[,\s]+[A-Z]{2}[,\s]+[A-Z0-9 ]{3,8})?/.exec(all)?.[0];
+  if (addr) {
+    seo.address = addr.trim().slice(0, 120);
+    const city = /([A-Z][a-zA-Z]+),?\s+[A-Z]{2}\b/.exec(addr)?.[1];
+    if (city) seo.areaServed = city;
+  }
 
   // Bands: descend through transparent single-child wrappers until the level whose children are
   // the page's top-to-bottom bands, then take EVERY element child in DOM order — nothing dropped,

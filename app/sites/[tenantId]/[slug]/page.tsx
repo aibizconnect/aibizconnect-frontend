@@ -248,6 +248,11 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     schemaTypes: Array.isArray(seoExtra.schemas) ? seoExtra.schemas : undefined,
     author: seoExtra.author,
     language: seoExtra.language,
+    // GEO (D-209): NAP captured at import (or set in page SEO) → LocalBusiness facts.
+    telephone: seoExtra.phone,
+    email: seoExtra.email,
+    address: seoExtra.address,
+    areaServed: seoExtra.area_served,
     sections: sections.map((s: any) => s.content),
   });
 

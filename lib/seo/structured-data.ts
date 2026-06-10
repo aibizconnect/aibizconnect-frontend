@@ -20,6 +20,12 @@ interface BuildArgs {
   language?: string;           // e.g. "en"
   sections?: any[];            // page sections (to derive FAQ schema)
   breadcrumbs?: { name: string; url: string }[];
+  // GEO (D-209): local-business facts — auto-extracted from imported pages (NAP) or set in
+  // page SEO; enrich the LocalBusiness node so maps/AI engines get the real entity.
+  telephone?: string;
+  email?: string;
+  address?: string;            // freeform postal address
+  areaServed?: string;         // city/region
 }
 
 function origin(url: string): string {
@@ -73,6 +79,11 @@ export function buildJsonLd(a: BuildArgs): object | null {
     if (a.description) node.description = a.description;
     if (a.imageUrl) node.image = a.imageUrl;
     if (["LocalBusiness", "Organization"].includes(t) && a.logoUrl) node.logo = a.logoUrl;
+    // GEO enrichment (D-209): real NAP on business-like nodes.
+    if (a.telephone) node.telephone = a.telephone;
+    if (a.email) node.email = a.email;
+    if (a.address) node.address = { "@type": "PostalAddress", streetAddress: a.address };
+    if (a.areaServed) node.areaServed = a.areaServed;
     node.isPartOf = { "@id": `${org}#organization` };
     graph.push(node);
   }
