@@ -59,7 +59,7 @@ export default {
     try {
       browser = await puppeteer.launch(env.MYBROWSER);
       const page = await browser.newPage();
-      await page.setViewport({ width: 1280, height: 1024 });
+      await page.setViewport({ width: 1440, height: 1024 }); // capture DESKTOP layout (above xl breakpoints)
 
       if (isRenderUrl) {
         const target = url.searchParams.get("url");

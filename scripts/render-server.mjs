@@ -105,6 +105,7 @@ async function render(target) {
   const ctx = b.contexts()[0] || await b.newContext({ userAgent: UA });
   const page = await ctx.newPage();
   try {
+    await page.setViewportSize({ width: 1440, height: 1024 }); // capture the DESKTOP layout (above xl breakpoints)
     await page.goto(target, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForTimeout(1200); // let late hydration settle
     return await annotateAndSerialize(page);
@@ -118,6 +119,7 @@ async function renderHtml(rawHtml) {
   const ctx = b.contexts()[0] || await b.newContext({ userAgent: UA });
   const page = await ctx.newPage();
   try {
+    await page.setViewportSize({ width: 1440, height: 1024 }); // capture the DESKTOP layout (above xl breakpoints)
     await page.setContent(rawHtml, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForTimeout(800); // let webfonts/Tailwind-CDN settle
     return await annotateAndSerialize(page);

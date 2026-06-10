@@ -139,6 +139,23 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return hero;
   };
 
+  // Icon fonts (Material Symbols/Icons, used heavily by Stitch) render a GLYPH in the browser but
+  // their TEXT is the ligature name ("star","bolt"). Reading that text verbatim prints the word and
+  // stacks each icon on its own line. Detect icon elements and map known names to a glyph; unknown
+  // icons are dropped (cleaner than printing "bolt"). A row of icons (e.g. a 5-star rating) collapses
+  // into ONE inline text so it stays horizontal.
+  const ICON_GLYPH: Record<string, string> = {
+    star: "★", grade: "★", star_rate: "★", star_half: "★", check: "✓", done: "✓", check_circle: "✓",
+    verified: "✓", task_alt: "✓", arrow_forward: "→", arrow_right_alt: "→", chevron_right: "›",
+  };
+  const isIconEl = (el: HTMLElement): boolean => {
+    const cls = (el.getAttribute("class") || "").toLowerCase();
+    if (!/\bmaterial-symbols|material-icons\b/.test(cls)) return false;
+    const t = clean(el.text);
+    return !!t && t.length <= 24 && /^[a-z0-9_ ]+$/.test(t); // ligature name, not real copy
+  };
+  const glyphFor = (el: HTMLElement): string => ICON_GLYPH[clean(el.text).toLowerCase()] || "";
+
   const walk = (node: HTMLElement) => {
     for (const raw of node.childNodes) {
       const el = raw as HTMLElement;
@@ -146,6 +163,18 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (skipEl && el === skipEl) continue;  // skip a subtree (e.g. a card grid handled separately)
       const tag = tagOf(el);
       if (!tag || DROP.has(tag)) continue;
+
+      // Icon-font handling (before generic text). A single icon → its glyph; an all-icon container
+      // (rating row) → one combined inline glyph string (kept horizontal, NOT one block per star).
+      if (isIconEl(el)) { const g = glyphFor(el); if (g) { flushImgs(); out.push(applyCapturedTypo({ type: "text", text: g }, el.getAttribute("data-cs"))); } continue; }
+      {
+        const kids = (el.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
+        if (kids.length >= 2 && kids.every(isIconEl)) {
+          const g = kids.map(glyphFor).join("");
+          if (g) { flushImgs(); out.push(applyCapturedTypo({ type: "text", text: g }, el.getAttribute("data-cs"))); }
+          continue;
+        }
+      }
 
       if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = clean(el.text); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
@@ -224,7 +253,10 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     for (const el of [band, ...band.querySelectorAll("div, ul, section")]) {
       const kids = elementChildren(el).filter((k) => !DROP.has(tagOf(k)));
       if (kids.length < 2 || kids.length > 12) continue;
-      const cardish = kids.filter((k) => (k.querySelector && k.querySelector("h1,h2,h3,h4,h5,h6")) || clean(k.text).length > 8);
+      // A column counts if it has a heading, real text, OR an image — the last case matters for
+      // split hero/feature layouts (text column + image column) where one side is image-only and
+      // would otherwise be ignored, collapsing a 2-column row into a single stack.
+      const cardish = kids.filter((k) => (k.querySelector && (k.querySelector("h1,h2,h3,h4,h5,h6") || k.querySelector("img,picture,svg"))) || clean(k.text).length > 8);
       if (cardish.length < 2 || cardish.length < Math.ceil(kids.length * 0.6)) continue;
       const cs = el.getAttribute("data-cs") || "";
       // A VERTICAL flex column is a stack of bands, NOT a multi-column card grid — disqualify it
