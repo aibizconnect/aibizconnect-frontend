@@ -13,6 +13,7 @@
  *    blueprint sub-node selects the parent composite section.
  */
 import { parse, type HTMLElement as ParsedEl } from "node-html-parser";
+import { applyPatches } from "@/lib/sites/lossless-importer";
 import type { SectionContent, SectionType } from "./schemas";
 import { sectionLabels } from "./schemas";
 
@@ -183,7 +184,14 @@ function blueprintFor(content: any, si: number): LayerNode[] {
       // LOSSLESS band: IDENTIFY every imported node and rebuild its real element tree, in DOM
       // order (Bill's pipeline, Ali: "inspect, identify, populate, reserve their location in the
       // tree of the layers and rebuild it, header to footer, one by one").
-      return importedBandTree((content as any).html || "", si);
+      // Build from the PATCHED html — a deleted/moved/duplicated element must be reflected in
+      // the Tree immediately, not just on the canvas (the original html stays immutable).
+      return importedBandTree(
+        Array.isArray((content as any).patches) && (content as any).patches.length
+          ? applyPatches((content as any).html || "", (content as any).patches)
+          : (content as any).html || "",
+        si,
+      );
     case "imported-css":
       return [];
     default:
