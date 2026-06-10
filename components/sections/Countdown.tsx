@@ -5,7 +5,10 @@ import { useEffect, useRef, useState } from "react";
 /**
  * Three behaviors via `mode`:
  *  - "counter": animate a NUMBER from `from` → `to` over `duration` seconds (e.g. "0 → 500+").
- *  - "timer":   HH:MM:SS ticking DOWN from `minutes` on each load (not per-visitor).
+ *  - "timer":   HH:MM:SS ticking DOWN from `minutes`, with a SCOPE (Ali/D-197):
+ *               "visit" (default) restarts each load; "visitor" persists per browser
+ *               (an evergreen deadline — returning visitors keep theirs); "global" counts
+ *               everyone to the same `target` moment (e.g. a Zoom call start).
  *  - "date":    count DOWN to a target date/time, shown as days/hrs/min/sec cells (or inline).
  * Styleable: title / preText / postText / footer, font, fg + bg color, digit size, alignment.
  */
@@ -13,13 +16,14 @@ export default function Countdown(props: {
   mode?: "counter" | "timer" | "date";
   from?: number; to?: number; duration?: number; prefix?: string; suffix?: string;
   minutes?: number; target?: string;
+  timerScope?: "visit" | "visitor" | "global"; timerId?: string;
   units?: "dhms" | "hms" | "ms"; display?: "cells" | "inline";
   color?: string; label?: string;
   title?: string; footer?: string; preText?: string; postText?: string;
   font?: string; fgColor?: string; bgColor?: string; size?: number; align?: "left" | "center" | "right";
 }) {
   const { mode = "date", from = 0, to = 100, duration = 2, prefix = "", suffix = "",
-    minutes, target, units, display = "cells", color, label,
+    minutes, target, timerScope = "visit", timerId, units, display = "cells", color, label,
     title, footer, preText, postText, font, fgColor, bgColor, size, align = "center" } = props;
   const fg = fgColor || color || "#1e3a8a";
   const digitStyle = { color: fg, fontFamily: font };
@@ -47,10 +51,24 @@ export default function Countdown(props: {
   useEffect(() => {
     if (mode === "counter") return;
     setNow(Date.now());
-    if (mode === "timer") startRef.current = Date.now();
+    if (mode === "timer") {
+      if (timerScope === "visitor") {
+        // EVERGREEN (per-visitor): the deadline anchors to this browser's FIRST view and
+        // survives reloads/returns until it expires (then it resets for a fresh window).
+        const key = `abc-timer-${timerId || `m${minutes ?? 15}`}`;
+        try {
+          const saved = Number(localStorage.getItem(key));
+          const dur = (minutes || 15) * 60000;
+          if (saved && Date.now() - saved < dur) startRef.current = saved;
+          else { startRef.current = Date.now(); localStorage.setItem(key, String(startRef.current)); }
+        } catch { startRef.current = Date.now(); }
+      } else if (timerScope !== "global") {
+        startRef.current = Date.now(); // "visit": restart each load
+      }
+    }
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [mode, minutes, target]);
+  }, [mode, minutes, target, timerScope, timerId]);
 
   const wrap = (inner: React.ReactNode) => (
     <div style={{ textAlign: align, background: bgColor, fontFamily: font, padding: bgColor ? 20 : undefined, borderRadius: bgColor ? 12 : undefined }}>
@@ -72,8 +90,13 @@ export default function Countdown(props: {
   let diff = 0;
   if (now != null) {
     if (mode === "timer") {
-      const dur = (minutes || 15) * 60000;
-      diff = startRef.current != null ? Math.max(0, dur - (now - startRef.current)) : dur;
+      if (timerScope === "global") {
+        // GLOBAL: everyone counts to the same moment (the target datetime).
+        diff = Math.max(0, new Date(target || Date.now()).getTime() - now);
+      } else {
+        const dur = (minutes || 15) * 60000;
+        diff = startRef.current != null ? Math.max(0, dur - (now - startRef.current)) : dur;
+      }
     } else {
       diff = Math.max(0, new Date(target || Date.now()).getTime() - now);
     }

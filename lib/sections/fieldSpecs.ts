@@ -219,9 +219,15 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "boolean", key: "reverseOnMobile", label: "Reverse order on mobile" },
   ],
   "bullet-list": [
-    { kind: "select", key: "bulletStyle", label: "Bullet style", options: ["disc", "circle", "square", "none", "check", "arrow"] },
+    { kind: "select", key: "bulletStyle", label: "Bullet style", options: ["disc", "circle", "square", "none", "check", "arrow", "number", "custom"] },
+    { kind: "text", key: "bulletIcon", label: "Custom bullet (char/emoji)" },
+    { kind: "number", key: "startAt", label: "Start number at", min: 0, max: 999, step: 1 },
+    { kind: "select", key: "columns", label: "Columns", options: ["1", "2"] },
     { kind: "select", key: "direction", label: "Icon side (LTR/RTL)", options: ["ltr", "rtl"] },
     { kind: "color", key: "color", label: "Bullet color" },
+    { kind: "color", key: "textColor", label: "Text color" },
+    { kind: "number", key: "fontSize", label: "Text size", min: 10, max: 48, step: 1, unit: "px" },
+    { kind: "select", key: "fontFamily", label: "Font family", options: FONT_OPTIONS },
     { kind: "array", key: "items", label: "Items", itemLabel: "Item", itemFields: [{ kind: "text", key: "text", label: "Text" }] },
   ],
   "number-counter": [
@@ -231,7 +237,15 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "text", key: "prefix", label: "Prefix (optional)" },
     { kind: "text", key: "suffix", label: "Suffix (optional)" }, { kind: "text", key: "label", label: "Label" },
   ],
-  "progress-bar": [{ kind: "text", key: "label", label: "Label" }, { kind: "number", key: "percent", label: "Percent", min: 0, max: 100, step: 1, unit: "%" }],
+  "progress-bar": [
+    { kind: "text", key: "label", label: "Label" },
+    { kind: "number", key: "percent", label: "Percent", min: 0, max: 100, step: 1, unit: "%" },
+    { kind: "color", key: "barColor", label: "Bar color" },
+    { kind: "color", key: "trackColor", label: "Track color" },
+    { kind: "number", key: "height", label: "Height", min: 4, max: 40, step: 1, unit: "px" },
+    { kind: "boolean", key: "showValue", label: "Show value (%)" },
+    { kind: "boolean", key: "animate", label: "Animate on view" },
+  ],
   pricing: [{ kind: "array", key: "plans", label: "Plans", itemLabel: "Plan", itemFields: [
     { kind: "text", key: "name", label: "Name" }, { kind: "text", key: "price", label: "Price" }, { kind: "text", key: "period", label: "Period" },
     { kind: "array", key: "features", label: "Features", itemLabel: "Feature", itemFields: [{ kind: "text", key: "text", label: "Feature" }] },
@@ -272,6 +286,7 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "text", key: "suffix", label: "Suffix (e.g. +)" },
     // timer
     { kind: "number", key: "minutes", label: "Duration (minutes) — timer", min: 1, step: 1 },
+    { kind: "select", key: "timerScope", label: "Timer scope", options: ["visit", "visitor", "global"] },
     // date
     { kind: "text", key: "target", label: "Target date/time (ISO) — date" },
     { kind: "select", key: "units", label: "Precision — timer/date", options: ["dhms", "hms", "ms"] },
@@ -304,7 +319,9 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     ] },
   ],
   ticker: [
-    { kind: "array", key: "items", label: "Items", itemLabel: "Item", itemFields: [{ kind: "text", key: "text", label: "Text" }] },
+    { kind: "array", key: "items", label: "Text items", itemLabel: "Item", itemFields: [{ kind: "text", key: "text", label: "Text" }] },
+    { kind: "array", key: "images", label: "Images", itemLabel: "Image", itemFields: [{ kind: "text", key: "url", label: "Image URL" }] },
+    { kind: "number", key: "imageHeight", label: "Image height", min: 16, max: 160, step: 2, unit: "px" },
     { kind: "number", key: "speed", label: "Speed", min: 5, max: 100 },
     { kind: "select", key: "direction", label: "Direction", options: ["left", "right"] },
     { kind: "color", key: "bg", label: "Background" },

@@ -45,6 +45,7 @@ const ELEMENT_GROUPS: Group[] = [
   ]},
   { group: "Lists", items: [
     { label: "Bullet List", icon: I.list, type: "bullet-list" },
+    { label: "Numbered List", icon: I.list, type: "bullet-list@numbered" as SectionType },
   ]},
   { group: "Buttons", items: [{ label: "Button", icon: I.btn, type: "button" }] },
   { group: "Icon", items: [{ label: "Icon", icon: I.star, type: "icon" }] },
@@ -64,11 +65,16 @@ const ELEMENT_GROUPS: Group[] = [
   { group: "Forms & Surveys", items: [{ label: "Contact Form", icon: I.form, type: "contact-form" }, { label: "Survey", icon: I.form, type: "survey" }] },
   { group: "Booking", items: [{ label: "Booking Calendar", icon: I.clock, type: "booking" }] },
   { group: "Social Media Icons", items: [{ label: "Social Icons", icon: I.social, type: "social" }] },
-  { group: "Ticker", items: [{ label: "Ticker", icon: I.clock, type: "ticker" }] },
+  { group: "Ticker", items: [
+    { label: "Text Ticker", icon: I.clock, type: "ticker" },
+    { label: "Image Ticker", icon: I.img, type: "ticker@images" as SectionType },
+  ]},
   { group: "Countdown Timers", items: [
     { label: "Countdown", icon: I.clock, type: "countdown" }, { label: "Minute Timer", icon: I.clock, type: "countdown@minute" as SectionType }, { label: "Day Countdown", icon: I.clock, type: "countdown@day" as SectionType },
   ]},
-  { group: "Progress Bar", items: [{ label: "Progress Bar", icon: I.price, type: "progress-bar" }, { label: "Number Counter", icon: I.price, type: "number-counter" }] },
+  // Number Counter = a Countdown counter-mode preset (D-198) — the legacy number-counter element
+  // keeps rendering on existing pages but is no longer offered as a separate thing.
+  { group: "Progress Bar", items: [{ label: "Progress Bar", icon: I.price, type: "progress-bar" }, { label: "Number Counter", icon: I.price, type: "countdown@counter" as SectionType }] },
   { group: "Layout", items: [{ label: "Divider", icon: I.divider, type: "divider" }, { label: "Spacer", icon: I.spacer, type: "spacer" }] },
   { group: "Custom", items: [{ label: "Custom HTML", icon: I.code, type: "html" }, { label: "Code", icon: I.code, type: "html" }, { label: "SVG", icon: I.code, soon: true }] },
 ];

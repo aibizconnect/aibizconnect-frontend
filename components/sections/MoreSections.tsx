@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ThemeTokens } from "@/lib/sections/theme";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
@@ -19,6 +20,17 @@ const primary = (t?: ThemeTokens) => t?.colors.primary ?? "#1e3a8a";
 export function BulletListSection({ content, theme, onEditItems }: { content: BulletListContent; theme?: ThemeTokens; onEditItems?: (items: { text: string }[]) => void }) {
   const style = (content as any).bulletStyle ?? "disc";
   const markerColor = (content as any).color || primary(theme);
+  // Global text control (Ali): font/size/color for the whole list, falling back to theme.
+  const textStyle: CSSProperties = {
+    color: (content as any).textColor || theme?.colors.text,
+    ...((content as any).fontSize ? { fontSize: (content as any).fontSize } : {}),
+    ...((content as any).fontFamily ? { fontFamily: (content as any).fontFamily } : {}),
+  };
+  // Two-column flow (Ali): items run DOWN column 1 then continue in column 2 (1-5 / 6-10).
+  // CSS multi-columns does exactly that; with a start number the numbering continues across.
+  const cols = Number((content as any).columns) >= 2 ? 2 : 1;
+  const colStyle: CSSProperties = cols === 2 ? { columnCount: 2, columnGap: 32 } : {};
+  const startAt = Number((content as any).startAt) >= 0 && (content as any).startAt != null ? Number((content as any).startAt) : 1;
   // Direction: rtl puts the bullet/icon on the RIGHT and right-aligns text (for
   // Arabic/Hebrew etc.); ltr (default) keeps the icon on the left.
   const rtl = (content as any).direction === "rtl";
@@ -28,32 +40,34 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
     onEditItems?.(content.items.map((it, j) => (j === i ? { ...it, text } : it)));
   const itemNode = (it: { text: string }, i: number) =>
     onEditItems
-      ? <InlineText as="span" text={it.text} onChange={(t) => setItem(i, t)} style={{ color: theme?.colors.text }} />
-      : <span style={{ color: theme?.colors.text }}>{it.text}</span>;
+      ? <InlineText as="span" text={it.text} onChange={(t) => setItem(i, t)} style={textStyle} />
+      : <span style={textStyle}>{it.text}</span>;
 
   if (style === "number") {
     return (
-      <ol dir={dir} className={`list-decimal space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`}>
+      <ol dir={dir} start={startAt} className={`list-decimal space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={colStyle}>
         {content.items.map((it, i) => (
-          <li key={i} style={{ color: markerColor }}>{itemNode(it, i)}</li>
+          <li key={i} style={{ color: markerColor, breakInside: "avoid" }}>{itemNode(it, i)}</li>
         ))}
       </ol>
     );
   }
   if (["circle", "square", "none"].includes(style)) {
     return (
-      <ul dir={dir} className={`space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={{ listStyleType: style }}>
+      <ul dir={dir} className={`space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={{ listStyleType: style, ...colStyle }}>
         {content.items.map((it, i) => (
-          <li key={i} style={{ color: markerColor }}>{itemNode(it, i)}</li>
+          <li key={i} style={{ color: markerColor, breakInside: "avoid" }}>{itemNode(it, i)}</li>
         ))}
       </ul>
     );
   }
-  const marker = style === "check" ? "✓" : style === "arrow" ? (rtl ? "←" : "→") : null;
+  // Custom marker (Ali): any character/emoji set in the inspector; ✓ / → keep their presets.
+  const marker = style === "custom" ? ((content as any).bulletIcon || "•")
+    : style === "check" ? "✓" : style === "arrow" ? (rtl ? "←" : "→") : null;
   return (
-    <ul dir={dir} className="space-y-1.5">
+    <ul dir={dir} className="space-y-1.5" style={colStyle}>
       {content.items.map((it, i) => (
-        <li key={i} className={`flex items-start gap-2 ${rtl ? "flex-row-reverse text-right" : ""}`}>
+        <li key={i} className={`flex items-start gap-2 ${rtl ? "flex-row-reverse text-right" : ""}`} style={{ breakInside: "avoid" }}>
           {marker
             ? <span className="mt-0.5 shrink-0 font-semibold" style={{ color: markerColor }}>{marker}</span>
             : <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: markerColor }} />}
@@ -70,11 +84,20 @@ export function NumberCounterSection({ content, theme }: { content: NumberCounte
 
 export function ProgressBarSection({ content, theme }: { content: ProgressBarContent; theme?: ThemeTokens }) {
   const pct = Math.max(0, Math.min(100, content.percent ?? 0));
+  const c: any = content;
+  const h = Number(c.height) > 0 ? Number(c.height) : 10;
+  const showValue = c.showValue !== false;
+  const animate = c.animate !== false;
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs text-slate-600"><span>{content.label}</span><span>{pct}%</span></div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: primary(theme) }} />
+      {(content.label || showValue) && (
+        <div className="mb-1 flex justify-between text-xs text-slate-600"><span>{content.label}</span>{showValue && <span>{pct}%</span>}</div>
+      )}
+      <div className="w-full overflow-hidden rounded-full" style={{ height: h, background: c.trackColor || "#e2e8f0" }}>
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: c.barColor || primary(theme), ...(animate ? { transition: "width 1.2s ease-out" } : {}) }}
+        />
       </div>
     </div>
   );
@@ -192,7 +215,8 @@ export function SliderSection({ content, theme }: { content: SliderContent; them
 }
 
 export function TickerSection({ content }: { content: TickerContent; theme?: ThemeTokens }) {
-  return <Ticker items={content.items ?? []} speed={content.speed ?? 30} bg={content.bg} color={content.color} separator={content.separator} direction={content.direction} />;
+  const c: any = content;
+  return <Ticker items={content.items ?? []} images={c.images ?? []} imageHeight={c.imageHeight} speed={content.speed ?? 30} bg={content.bg} color={content.color} separator={content.separator} direction={content.direction} />;
 }
 
 /** Editor-canvas PREVIEW of a survey (non-submitting). The live site renders the functional SiteSurvey. */
@@ -227,6 +251,7 @@ export function CountdownSection({ content, theme }: { content: CountdownContent
   return <Countdown color={primary(theme)} label={content.label}
     mode={content.mode} from={content.from} to={content.to} duration={content.duration}
     prefix={content.prefix} suffix={content.suffix} minutes={content.minutes} target={content.target}
+    timerScope={(content as any).timerScope} timerId={(content as any).timerId}
     units={content.units} display={content.display}
     title={content.title} footer={content.footer} preText={content.preText} postText={content.postText}
     font={content.font} fgColor={content.fgColor} bgColor={content.bgColor} size={content.size} align={content.align} />;

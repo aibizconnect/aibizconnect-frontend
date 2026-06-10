@@ -217,9 +217,30 @@ export const importedCssSchema = z.object({
 });
 
 // ---- Extended best-in-class elements (functional, no external paid keys) ----
-export const bulletListSchema = z.object({ type: z.literal("bullet-list"), items: z.array(z.object({ text: z.string() })).default([]), bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number"]).optional(), color: z.string().optional(), direction: z.enum(["ltr", "rtl"]).optional() });
+export const bulletListSchema = z.object({
+  type: z.literal("bullet-list"),
+  items: z.array(z.object({ text: z.string() })).default([]),
+  bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number", "custom"]).optional(),
+  bulletIcon: z.string().optional(),                  // custom marker char/emoji (bulletStyle "custom")
+  startAt: z.coerce.number().optional(),              // numbered lists: first number (default 1)
+  columns: z.coerce.number().optional(),              // 1|2 — items FLOW down col 1 then col 2 (1-5 / 6-10)
+  fontSize: z.coerce.number().optional(),             // global text control for the whole list
+  fontFamily: z.string().optional(),
+  color: z.string().optional(),
+  textColor: z.string().optional(),                   // item text (color = marker)
+  direction: z.enum(["ltr", "rtl"]).optional(),
+});
 export const numberCounterSchema = z.object({ type: z.literal("number-counter"), value: z.string(), start: z.coerce.number().optional(), end: z.coerce.number().optional(), duration: z.coerce.number().optional(), label: z.string().optional(), prefix: z.string().optional(), suffix: z.string().optional() });
-export const progressBarSchema = z.object({ type: z.literal("progress-bar"), label: z.string().optional(), percent: z.number().min(0).max(100).default(50) });
+export const progressBarSchema = z.object({
+  type: z.literal("progress-bar"),
+  label: z.string().optional(),
+  percent: z.number().min(0).max(100).default(50),
+  barColor: z.string().optional(),
+  trackColor: z.string().optional(),
+  height: z.coerce.number().optional(),               // px, default 10
+  showValue: z.boolean().optional(),                  // show the % readout (default true)
+  animate: z.boolean().optional(),                    // animate 0 → percent on view (default true)
+});
 export const pricingSchema = z.object({ type: z.literal("pricing"), plans: z.array(z.object({ name: z.string(), price: z.string(), period: z.string().optional(), features: z.array(z.object({ text: z.string() })).default([]), ctaLabel: z.string().optional(), ctaHref: z.string().optional() })).default([]) });
 export const faqSchema = z.object({ type: z.literal("faq"), items: z.array(z.object({ q: z.string(), a: z.string() })).default([]) });
 export const gallerySchema = z.object({
@@ -258,6 +279,11 @@ export const countdownSchema = z.object({
   suffix: z.string().optional(),                        // e.g. "+", "%"
   // timer
   minutes: z.coerce.number().optional(),                // timer duration in minutes
+  // Timer SCOPE (Ali/D-197): "visit" = restart each page load (default); "visitor" = evergreen —
+  // persists per browser so a returning visitor keeps their deadline; "global" = everyone counts
+  // to the same moment (reuses `target`, e.g. a Zoom call start).
+  timerScope: z.enum(["visit", "visitor", "global"]).optional(),
+  timerId: z.string().optional(),                       // stable key for per-visitor persistence
   // date
   target: z.string().optional(),                        // ISO date/time
   units: z.enum(["dhms", "hms", "ms"]).optional(),      // which cells (days/hrs/min/sec)
@@ -322,6 +348,10 @@ export const bookingSchema = z.object({
 export const tickerSchema = z.object({
   type: z.literal("ticker"),
   items: z.array(z.object({ text: z.string() })).default([]),
+  // IMAGE TICKER (Ali): a ticker can scroll images instead of (or alongside) text — the
+  // "Image Ticker" tile seeds images[]; when present they render in the marquee.
+  images: z.array(z.object({ url: z.string() })).default([]).optional(),
+  imageHeight: z.coerce.number().optional(),          // px, default 40
   speed: z.coerce.number().optional(),
   bg: z.string().optional(),
   color: z.string().optional(),
@@ -589,8 +619,9 @@ export function defaultContentFor(type: SectionType): SectionContent {
     const base = String(type).slice(0, at);
     const variant = String(type).slice(at + 1);
     if (base === "countdown") {
-      // Minute Timer: HH:MM:SS ticking down from 15 min on load (not per-visitor).
-      if (variant === "minute") return { type: "countdown", mode: "timer", minutes: 15, units: "hms", display: "inline", title: "Hurry — offer ends soon" } as SectionContent;
+      // Minute Timer: HH:MM:SS ticking down from 15 min. Scope (D-197): visit (default) /
+      // visitor (evergreen, persists per browser via timerId) / global (target datetime).
+      if (variant === "minute") return { type: "countdown", mode: "timer", minutes: 15, timerScope: "visit", timerId: `t${Date.now().toString(36)}`, units: "hms", display: "inline", title: "Hurry — offer ends soon" } as SectionContent;
       // Day Countdown: counts down to a date/time 3 days out.
       if (variant === "day") {
         const t = new Date(Date.now() + 3 * 86400000).toISOString();
@@ -609,6 +640,17 @@ export function defaultContentFor(type: SectionType): SectionContent {
       return { type: "heading", text: variant.toUpperCase() + " heading", level: variant } as any;
     }
     if (base === "text" && variant === "quote") return { type: "text", text: "“A quote worth remembering.”", italic: true, _role: "quote" } as any;
+    // IMAGE TICKER tile (Ali): same ticker element, seeded for images.
+    if (base === "ticker" && variant === "images") return { type: "ticker", items: [], images: [], imageHeight: 40, bg: "#ffffff" } as any;
+    // NUMBERED LIST tile (Ali): bullet-list preset — start number + optional 2-column flow.
+    if (base === "bullet-list" && variant === "numbered") {
+      return { type: "bullet-list", bulletStyle: "number", startAt: 1, columns: 1, items: [{ text: "First" }, { text: "Second" }, { text: "Third" }] } as any;
+    }
+    // NUMBER COUNTER tile (D-198): now a Countdown counter-mode preset (legacy number-counter
+    // content keeps rendering via its own type forever).
+    if (base === "countdown" && variant === "counter") {
+      return { type: "countdown", mode: "counter", from: 0, to: 500, duration: 2, suffix: "+", size: 48 } as any;
+    }
     return defaultContentFor(base as SectionType);
   }
   switch (type) {
