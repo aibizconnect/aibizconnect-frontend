@@ -120,11 +120,16 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (fields.length >= 6) break;
     }
     if (!fields.length) fields.push({ name: "name", label: "Name", type: "text" }, { name: "email", label: "Email", type: "email" });
-    // Real submit button text (e.g. "Send Message") instead of a hardcoded default.
+    // Real submit button text (e.g. "Send Message") + its captured fill/text color.
     const submitEl = el.querySelector('button[type="submit"], input[type="submit"], button');
     const submitLabel = clean(submitEl?.getAttribute("value") || submitEl?.text || "Send").slice(0, 40) || "Send";
-    const heading = clean(el.querySelector("h1,h2,h3,legend")?.text || "Get in touch").slice(0, 80);
-    return { type: "contact-form", heading, fields, submitLabel };
+    const out: Record<string, unknown> = { type: "contact-form", heading: clean(el.querySelector("h1,h2,h3,legend")?.text || "Get in touch").slice(0, 80), fields, submitLabel };
+    if (submitEl) {
+      const { style, typo } = parseDataCs(submitEl.getAttribute("data-cs"));
+      if (style.bg) out.submitColor = style.bg as string;
+      if (typo.color) out.submitTextColor = typo.color as string;
+    }
+    return out;
   };
 
   // Detect a HERO band at the very top and emit it as one `hero` section (heading + subheading +
@@ -185,6 +190,11 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   const ICON_GLYPH: Record<string, string> = {
     star: "★", grade: "★", star_rate: "★", star_half: "★", check: "✓", done: "✓", check_circle: "✓",
     verified: "✓", task_alt: "✓", arrow_forward: "→", arrow_right_alt: "→", chevron_right: "›",
+    bolt: "⚡", speed: "⚡", flash_on: "⚡", location_on: "📍", place: "📍", pin_drop: "📍",
+    call: "📞", phone: "📞", phone_iphone: "📞", mail: "✉", email: "✉", alternate_email: "✉",
+    schedule: "🕐", event: "📅", calendar_today: "📅", handshake: "🤝", groups: "👥", group: "👥",
+    person: "👤", person_heart: "❤", favorite: "❤", home: "🏠", house: "🏠", trending_up: "📈",
+    savings: "💰", payments: "💳", account_balance: "🏦", lock: "🔒", shield: "🛡", support_agent: "🎧",
   };
   const isIconEl = (el: HTMLElement): boolean => {
     const cls = (el.getAttribute("class") || "").toLowerCase();
@@ -193,12 +203,19 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return !!t && t.length <= 24 && /^[a-z0-9_ ]+$/.test(t); // ligature name, not real copy
   };
   const glyphFor = (el: HTMLElement): string => ICON_GLYPH[clean(el.text).toLowerCase()] || "";
-  // Text of an element with any INLINE icon-font ligatures removed (e.g. a heading
-  // "<span class=material-symbols>verified</span> Deep Expertise" → "Deep Expertise").
+  // Text of an element with INLINE icon-font ligatures replaced by their GLYPH (known icons, e.g.
+  // "location_on Ottawa Office" → "📍 Ottawa Office", "verified Deep Expertise" → "✓ Deep Expertise")
+  // or removed (unknown icons), instead of leaving the raw ligature word.
   const cleanText = (el: HTMLElement): string => {
     let t = clean(el.text);
     const icons = el.querySelectorAll('[class*="material-symbols"], [class*="material-icons"]');
-    for (const ic of icons) { const w = clean(ic.text); if (w && w.length <= 24 && /^[a-z0-9_ ]+$/.test(w)) t = t.replace(w, " "); }
+    for (const ic of icons) {
+      const w = clean(ic.text);
+      if (w && w.length <= 24 && /^[a-z0-9_ ]+$/.test(w)) {
+        const g = ICON_GLYPH[w.toLowerCase()];
+        t = t.replace(w, g ? g + " " : " ");
+      }
+    }
     return clean(t);
   };
   // Captured pixel width / corner radius for an <img> from its data-cs (used to keep avatars small).
@@ -448,6 +465,22 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     }
     if (droppableBand(band)) continue;
     const bandStyle = parseDataCs(band.getAttribute("data-cs")).style;
+    // Promote a DOMINANT inner background up to the band: many designs put the section color/image on
+    // a wrapper div inside a transparent <section> (e.g. a navy contact card). Without this the band
+    // imports with no background. Adopt the bg of the descendant (within 3 levels) that wraps the most
+    // content, when the band itself has none.
+    if (!bandStyle.bg && !bandStyle.bgImage) {
+      let best: { bg?: string; bgImage?: string; weight: number } | null = null;
+      const within = elementChildren(band).flatMap((c) => [c, ...elementChildren(c), ...elementChildren(c).flatMap(elementChildren)]);
+      for (const cand of within.slice(0, 60)) {
+        const cs = parseDataCs(cand.getAttribute("data-cs")).style;
+        if (!cs.bg && !cs.bgImage) continue;
+        if (cs.bg && cs.bg === pageBg) continue;
+        const weight = clean(cand.text).length;
+        if (!best || weight > best.weight) best = { bg: cs.bg as string, bgImage: cs.bgImage as string, weight };
+      }
+      if (best && best.weight > 120) { if (best.bg) bandStyle.bg = best.bg; if (best.bgImage) bandStyle.bgImage = best.bgImage; }
+    }
     let children: Record<string, unknown>[][] = [];
 
     const grid = findCardGrid(band);

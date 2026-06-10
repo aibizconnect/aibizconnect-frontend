@@ -80,6 +80,8 @@ export const contactFormSchema = z.object({
     })
   ),
   submitLabel: z.string(),
+  submitColor: z.string().optional(),       // button background (captured from the source CTA)
+  submitTextColor: z.string().optional(),   // button text color
   successMessage: z.string().optional(),
 });
 

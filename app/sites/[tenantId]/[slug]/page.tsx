@@ -351,7 +351,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
               : s.content?.type === "survey"
               ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
               : isForm
-              ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} />
+              ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
               : adapted
                 ? <ComponentRenderer type={adapted.type} props={adapted.props} />
                 : <SectionView content={s.content} theme={theme} cssSink={cssSink} />;
@@ -368,7 +368,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
             : s.content?.type === "survey"
             ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
             : s.content?.type === "contact-form"
-            ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} />
+            ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
             : <SectionView key={s.id} content={s.content} theme={theme} cssSink={cssSink} />
         ))
       )}

@@ -72,7 +72,8 @@ export default function ContactFormSection({
             type="submit"
             className="mt-2 self-start px-5 py-2.5 font-medium text-white"
             style={{
-              backgroundColor: theme.colors.accent,
+              backgroundColor: (content as any).submitColor || theme.colors.accent,
+              color: (content as any).submitTextColor || undefined,
               borderRadius: theme.radii.md,
             }}
           >

@@ -8,7 +8,7 @@ import { useState } from "react";
  */
 type Field = { name: string; label: string; type: string };
 
-export default function SiteContactForm({ tenantId, heading, fields, submitLabel }: { tenantId: string; heading?: string; fields?: Field[]; submitLabel?: string }) {
+export default function SiteContactForm({ tenantId, heading, fields, submitLabel, submitColor, submitTextColor }: { tenantId: string; heading?: string; fields?: Field[]; submitLabel?: string; submitColor?: string; submitTextColor?: string }) {
   const flds: Field[] = fields && fields.length ? fields : [
     { name: "name", label: "Your name", type: "text" },
     { name: "email", label: "Email", type: "email" },
@@ -55,7 +55,9 @@ export default function SiteContactForm({ tenantId, heading, fields, submitLabel
           </label>
         ))}
         {err && <p className="text-sm text-red-600">{err}</p>}
-        <button type="submit" disabled={state === "sending"} className="w-full rounded-lg bg-[var(--abc-color-primary,#2563eb)] px-5 py-2.5 font-medium text-white transition hover:opacity-90 disabled:opacity-50">
+        <button type="submit" disabled={state === "sending"}
+          className="w-full rounded-lg px-5 py-2.5 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          style={{ background: submitColor || "var(--abc-color-primary,#2563eb)", color: submitTextColor || undefined }}>
           {state === "sending" ? "Sending…" : (submitLabel || "Send")}
         </button>
       </form>
