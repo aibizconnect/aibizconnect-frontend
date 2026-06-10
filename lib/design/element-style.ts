@@ -184,9 +184,14 @@ export function backgroundOnlyCss(s?: ElementStyle, opts?: { bgAsLayer?: boolean
 export function styleToCss(s?: ElementStyle, opts?: { bgAsLayer?: boolean }): CSSProperties {
   const st = { ...DEFAULT_ELEMENT_STYLE, ...(s ?? {}) };
   const pick = (side: number | undefined, fb: number | undefined) => (side ?? fb ?? 0);
+  // Large captured paddings (from desktop-width capture) look oversized on phones. Make big values
+  // FLUID with clamp() so they shrink toward a sensible min on narrow screens while keeping the
+  // desktop value on wide screens. Small paddings pass through unchanged.
+  const fluidPad = (n: number): number | string =>
+    n >= 40 ? `clamp(${Math.round(n * 0.35)}px, ${(n / 14).toFixed(2)}vw, ${n}px)` : n;
   const css: CSSProperties = {
-    paddingTop: pick(st.pt, st.paddingY), paddingBottom: pick(st.pb, st.paddingY),
-    paddingLeft: pick(st.pl, st.paddingX), paddingRight: pick(st.pr, st.paddingX),
+    paddingTop: fluidPad(pick(st.pt, st.paddingY)), paddingBottom: fluidPad(pick(st.pb, st.paddingY)),
+    paddingLeft: fluidPad(pick(st.pl, st.paddingX)), paddingRight: fluidPad(pick(st.pr, st.paddingX)),
     marginTop: pick(st.mt, st.marginY), marginBottom: pick(st.mb, st.marginY),
     borderRadius: st.radius,
     textAlign: st.align as CSSProperties["textAlign"],
