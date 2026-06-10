@@ -44,11 +44,14 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   // Reassignable so collectBlocks() can harvest a fresh block list per section band.
   let out: Record<string, unknown>[] = [];
 
-  // Buffer consecutive images so 3+ become a gallery, fewer stay as image blocks.
-  let imgRun: string[] = [];
+  // Buffer consecutive images so 3+ become a gallery, fewer stay as image blocks. Each entry may
+  // carry a captured pixel width + corner radius so small avatars/logos stay small & round instead
+  // of blowing up to full width.
+  type ImgEntry = { url: string; width?: number; rounding?: number };
+  let imgRun: ImgEntry[] = [];
   const flushImgs = () => {
-    if (imgRun.length >= 3) out.push({ type: "gallery", images: imgRun.slice(0, 12).map((url) => ({ url })) });
-    else for (const url of imgRun) out.push({ type: "image", url });
+    if (imgRun.length >= 3) out.push({ type: "gallery", images: imgRun.slice(0, 12).map((e) => ({ url: e.url })) });
+    else for (const e of imgRun) out.push({ type: "image", url: e.url, ...(e.width ? { width: e.width } : {}), ...(e.rounding ? { rounding: e.rounding } : {}) });
     imgRun = [];
   };
   let seenText = new Set<string>();
@@ -155,6 +158,25 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return !!t && t.length <= 24 && /^[a-z0-9_ ]+$/.test(t); // ligature name, not real copy
   };
   const glyphFor = (el: HTMLElement): string => ICON_GLYPH[clean(el.text).toLowerCase()] || "";
+  // Text of an element with any INLINE icon-font ligatures removed (e.g. a heading
+  // "<span class=material-symbols>verified</span> Deep Expertise" → "Deep Expertise").
+  const cleanText = (el: HTMLElement): string => {
+    let t = clean(el.text);
+    const icons = el.querySelectorAll('[class*="material-symbols"], [class*="material-icons"]');
+    for (const ic of icons) { const w = clean(ic.text); if (w && w.length <= 24 && /^[a-z0-9_ ]+$/.test(w)) t = t.replace(w, " "); }
+    return clean(t);
+  };
+  // Captured pixel width / corner radius for an <img> from its data-cs (used to keep avatars small).
+  const imgSizeFrom = (el: HTMLElement): { width?: number; rounding?: number } => {
+    const cs = el.getAttribute("data-cs") || "";
+    const w = /(?:^|\|)width:(\d+)px/.exec(cs);
+    const r = /borderTopLeftRadius:(\d+)px/.exec(cs);
+    const out: { width?: number; rounding?: number } = {};
+    // Only pin width for SMALL images (avatars/logos/icons) so large content images still fill.
+    if (w && +w[1] > 0 && +w[1] <= 260) out.width = +w[1];
+    if (r) out.rounding = Math.min(+r[1], 9999);
+    return out;
+  };
 
   const walk = (node: HTMLElement) => {
     for (const raw of node.childNodes) {
@@ -176,9 +198,9 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         }
       }
 
-      if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = clean(el.text); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
-      if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
-      if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push(abs(src)); continue; }
+      if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = cleanText(el); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
+      if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...imgSizeFrom(el) }); continue; }
+      if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...(s ? imgSizeFrom(s) : {}) }); continue; }
       if (tag === "ul" || tag === "ol") { flushImgs(); const items = el.querySelectorAll("li").map((li) => ({ text: clean(li.text) })).filter((i) => i.text); if (items.length) out.push({ type: "bullet-list", items: items.slice(0, 12), bulletStyle: tag === "ol" ? "number" : "check" }); continue; }
       if (tag === "hr") { flushImgs(); out.push({ type: "divider" }); continue; }
       if (tag === "blockquote") { flushImgs(); pushText(el.text, true, el); continue; }

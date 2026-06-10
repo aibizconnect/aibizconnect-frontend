@@ -234,7 +234,17 @@ export const countdownSchema = z.object({
   mode: z.enum(["date", "evergreen"]).optional(),       // "date" (to target) | "evergreen" (per-visitor duration)
   minutes: z.coerce.number().optional(),                // evergreen duration in minutes
   units: z.enum(["dhms", "hms", "ms"]).optional(),      // which cells to show (days/hrs/min/sec)
+  display: z.enum(["cells", "inline"]).optional(),      // stacked cells vs inline HH:MM:SS
   label: z.string().optional(),
+  title: z.string().optional(),                         // heading above
+  footer: z.string().optional(),                        // small note below
+  preText: z.string().optional(),                       // text before the timer
+  postText: z.string().optional(),                      // text after the timer
+  font: z.string().optional(),                          // font-family
+  fgColor: z.string().optional(),                       // digits color
+  bgColor: z.string().optional(),                       // block background
+  size: z.coerce.number().optional(),                   // digit font-size px
+  align: z.enum(["left", "center", "right"]).optional(),
 });
 export const mapSchema = z.object({ type: z.literal("map"), query: z.string() });
 export const qrSchema = z.object({ type: z.literal("qr"), data: z.string(), size: z.number().optional() });
@@ -544,8 +554,8 @@ export function defaultContentFor(type: SectionType): SectionContent {
     const base = String(type).slice(0, at);
     const variant = String(type).slice(at + 1);
     if (base === "countdown") {
-      if (variant === "minute") return { type: "countdown", mode: "evergreen", minutes: 15, units: "ms", label: "Offer ends in" } as SectionContent;
-      if (variant === "day") return { type: "countdown", mode: "evergreen", minutes: 3 * 24 * 60, units: "dhms", label: "Limited-time offer" } as SectionContent;
+      if (variant === "minute") return { type: "countdown", mode: "evergreen", minutes: 15, units: "hms", display: "inline", title: "Hurry — offer ends soon" } as SectionContent;
+      if (variant === "day") return { type: "countdown", mode: "evergreen", minutes: 3 * 24 * 60, units: "dhms", display: "cells", title: "Limited-time offer" } as SectionContent;
     }
     return defaultContentFor(base as SectionType);
   }

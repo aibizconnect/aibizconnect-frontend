@@ -225,7 +225,9 @@ export function SurveySection({ content, theme }: { content: SurveyContent; them
 
 export function CountdownSection({ content, theme }: { content: CountdownContent; theme?: ThemeTokens }) {
   return <Countdown target={content.target} label={content.label} color={primary(theme)}
-    mode={content.mode} minutes={content.minutes} units={content.units} />;
+    mode={content.mode} minutes={content.minutes} units={content.units} display={content.display}
+    title={content.title} footer={content.footer} preText={content.preText} postText={content.postText}
+    font={content.font} fgColor={content.fgColor} bgColor={content.bgColor} size={content.size} align={content.align} />;
 }
 
 export function MapSection({ content }: { content: MapContent; theme?: ThemeTokens }) {

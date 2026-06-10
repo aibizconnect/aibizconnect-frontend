@@ -70,6 +70,8 @@ async function annotateAndSerialize(page) {
       const cs = getComputedStyle(el);
       const parts = [];
       for (const k of KEEP) { const v = cs[k]; if (!def(k, v)) parts.push(k + ":" + v); }
+      // Image-only: capture rendered width so small avatars/logos stay small on import.
+      if (el.tagName === "IMG") { const w = Math.round(el.getBoundingClientRect().width); if (w > 0) parts.push("width:" + w + "px"); }
       if (parts.length) el.setAttribute("data-cs", parts.join("|"));
     }
   });
