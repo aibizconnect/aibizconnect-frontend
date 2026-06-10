@@ -187,14 +187,10 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   // stacks each icon on its own line. Detect icon elements and map known names to a glyph; unknown
   // icons are dropped (cleaner than printing "bolt"). A row of icons (e.g. a 5-star rating) collapses
   // into ONE inline text so it stays horizontal.
+  // Monochrome symbols only — NO colorful emoji (would clash with the source's styled line-icons).
+  // Used for star-rating rows mainly; other icons are dropped rather than emojified.
   const ICON_GLYPH: Record<string, string> = {
-    star: "★", grade: "★", star_rate: "★", star_half: "★", check: "✓", done: "✓", check_circle: "✓",
-    verified: "✓", task_alt: "✓", arrow_forward: "→", arrow_right_alt: "→", chevron_right: "›",
-    bolt: "⚡", speed: "⚡", flash_on: "⚡", location_on: "📍", place: "📍", pin_drop: "📍",
-    call: "📞", phone: "📞", phone_iphone: "📞", mail: "✉", email: "✉", alternate_email: "✉",
-    schedule: "🕐", event: "📅", calendar_today: "📅", handshake: "🤝", groups: "👥", group: "👥",
-    person: "👤", person_heart: "❤", favorite: "❤", home: "🏠", house: "🏠", trending_up: "📈",
-    savings: "💰", payments: "💳", account_balance: "🏦", lock: "🔒", shield: "🛡", support_agent: "🎧",
+    star: "★", grade: "★", star_rate: "★", star_half: "★",
   };
   const isIconEl = (el: HTMLElement): boolean => {
     const cls = (el.getAttribute("class") || "").toLowerCase();
@@ -203,19 +199,14 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return !!t && t.length <= 24 && /^[a-z0-9_ ]+$/.test(t); // ligature name, not real copy
   };
   const glyphFor = (el: HTMLElement): string => ICON_GLYPH[clean(el.text).toLowerCase()] || "";
-  // Text of an element with INLINE icon-font ligatures replaced by their GLYPH (known icons, e.g.
-  // "location_on Ottawa Office" → "📍 Ottawa Office", "verified Deep Expertise" → "✓ Deep Expertise")
-  // or removed (unknown icons), instead of leaving the raw ligature word.
+  // Text of an element with INLINE icon-font ligatures REMOVED (e.g. a heading
+  // "<span class=material-symbols>location_on</span> Ottawa Office" → "Ottawa Office"). We do NOT
+  // substitute emoji — the source uses styled line-icons, and colorful emoji would clash. Standalone
+  // rating rows still become ★ via the separate icon path.
   const cleanText = (el: HTMLElement): string => {
     let t = clean(el.text);
     const icons = el.querySelectorAll('[class*="material-symbols"], [class*="material-icons"]');
-    for (const ic of icons) {
-      const w = clean(ic.text);
-      if (w && w.length <= 24 && /^[a-z0-9_ ]+$/.test(w)) {
-        const g = ICON_GLYPH[w.toLowerCase()];
-        t = t.replace(w, g ? g + " " : " ");
-      }
-    }
+    for (const ic of icons) { const w = clean(ic.text); if (w && w.length <= 24 && /^[a-z0-9_ ]+$/.test(w)) t = t.replace(w, " "); }
     return clean(t);
   };
   // Captured pixel width / corner radius for an <img> from its data-cs (used to keep avatars small).
