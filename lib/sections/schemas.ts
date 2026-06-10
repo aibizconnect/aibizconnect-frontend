@@ -366,6 +366,7 @@ const menuItemSchema = z.object({
   label: z.string(),
   href: z.string().default("#"),
   children: z.array(z.object({ label: z.string(), href: z.string().default("#") })).optional(),
+  badge: z.string().optional(),           // small pill next to the label ("New", "Sale")
 });
 export const menuSchema = z.object({
   type: z.literal("menu"),
@@ -378,6 +379,11 @@ export const menuSchema = z.object({
   fontWeight: z.string().optional(),
   color: z.string().optional(),
   activeColor: z.string().optional(),
+  // D-202 (Copilot menu spec): hover color for top-level items; visual marker for the item whose
+  // href matches the CURRENT page; when the bar collapses into the mobile hamburger.
+  hoverColor: z.string().optional(),
+  activeItemStyle: z.enum(["none", "underline", "background"]).optional(),
+  mobileBreakpoint: z.enum(["sm", "md", "lg"]).optional(),  // 640 / 768 (default) / 1024 px
   // Submenu (dropdown) formatting — separate from the top-level menu bar.
   submenuBg: z.string().optional(),       // dropdown panel background
   submenuColor: z.string().optional(),    // dropdown item text color

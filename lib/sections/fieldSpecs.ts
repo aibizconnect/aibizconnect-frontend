@@ -354,7 +354,10 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     fontField("fontFamily"),
     { kind: "select", key: "fontWeight", label: "Weight", options: ["", "400", "500", "600", "700"] },
     { kind: "color", key: "color", label: "Text color" },
-    { kind: "color", key: "activeColor", label: "Hover / active color" },
+    { kind: "color", key: "hoverColor", label: "Hover color" },
+    { kind: "color", key: "activeColor", label: "Active page color" },
+    { kind: "select", key: "activeItemStyle", label: "Active page marker", options: ["none", "underline", "background"] },
+    { kind: "select", key: "mobileBreakpoint", label: "Collapse to ☰ below", options: ["sm", "md", "lg"] },
     // Submenu (dropdown) — formatted separately from the menu bar.
     { kind: "color", key: "submenuBg", label: "Submenu background" },
     { kind: "color", key: "submenuColor", label: "Submenu text color" },

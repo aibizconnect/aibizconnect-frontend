@@ -42,9 +42,30 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
   const subHoverBg = (content as any).submenuHoverBg || "#f1f5f9";
   const subRadius = (content as any).submenuRadius ?? 10;
   const accent = content.activeColor || theme?.colors.accent || "#2563eb";
+  const hoverColor = (content as any).hoverColor || accent;
+  const activeStyle = (content as any).activeItemStyle || "none";
   const justify = content.align === "center" ? "center" : content.align === "right" ? "flex-end" : "flex-start";
   const menuRole = roleCss(menuRoleStyle);
   const subRole = roleCss(subRoleStyle);
+
+  // ACTIVE PAGE detection (D-202): an item whose href matches the current path/hash gets the
+  // configured marker. Client-only; never marks in SSR (hydration-safe via mounted).
+  const [currentPath, setCurrentPath] = useState<string>("");
+  useEffect(() => {
+    if (typeof window !== "undefined") setCurrentPath(window.location.pathname + window.location.hash);
+  }, []);
+  const isActive = (href?: string) => {
+    if (!href || href === "#" || !currentPath || activeStyle === "none") return false;
+    if (href.startsWith("#")) return currentPath.endsWith(href);
+    try { return new URL(href, "https://x").pathname === currentPath.split("#")[0]; } catch { return false; }
+  };
+  const activeCss = (on: boolean): React.CSSProperties => !on ? {} :
+    activeStyle === "underline" ? { textDecoration: "underline", textUnderlineOffset: 4, color: accent }
+    : activeStyle === "background" ? { background: `${accent}1f`, borderRadius: 6, padding: "3px 8px", color: accent }
+    : {};
+  const badgePill = (badge?: string) => badge ? (
+    <span style={{ marginLeft: 5, fontSize: "0.62em", fontWeight: 700, letterSpacing: 0.3, padding: "2px 6px", borderRadius: 999, background: accent, color: "#ffffff", textTransform: "uppercase" }}>{badge}</span>
+  ) : null;
 
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState<{ idx: number; left: number; top: number } | null>(null);
@@ -57,11 +78,13 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<Record<number, boolean>>({});
   const navRef = useRef<HTMLDivElement | null>(null);
+  // Mobile breakpoint (D-202): when the bar collapses into the hamburger — sm 640 / md 768 / lg 1024.
+  const bpPx = (content as any).mobileBreakpoint === "sm" ? 640 : (content as any).mobileBreakpoint === "lg" ? 1024 : 768;
   useEffect(() => {
-    const check = () => setWinNarrow(typeof window !== "undefined" && window.innerWidth < 768);
+    const check = () => setWinNarrow(typeof window !== "undefined" && window.innerWidth < bpPx);
     check(); window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
-  }, []);
+  }, [bpPx]);
   const compact = bp === "tablet" || bp === "mobile" || (!bp && winNarrow) || (bp === "desktop" && winNarrow);
 
   const cancelClose = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } };
@@ -154,10 +177,13 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
           >
             <a
               href={item.href || "#"}
-              style={{ color, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", whiteSpace: "nowrap" }}
+              style={{ color, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", whiteSpace: "nowrap", transition: "color .12s", ...activeCss(isActive(item.href)) }}
               onFocus={(e) => hasKids && openAt(i, e.currentTarget.parentElement as HTMLElement)}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = hoverColor; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = isActive(item.href) && activeStyle !== "none" ? accent : color; }}
             >
               {item.label}
+              {badgePill((item as any).badge)}
               {hasKids && (
                 <span style={{ fontSize: "0.7em", opacity: 0.6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
               )}
