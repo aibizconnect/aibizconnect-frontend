@@ -31,6 +31,9 @@ export const ANNOTATE_JS = `(() => {
   };
   let i = 0;
   for (const el of Array.from(document.querySelectorAll("body *"))) {
+    // Stable node id for the LOSSLESS import path (D-179): deterministic document order, so the
+    // same design re-imported yields the same ids and node patches survive re-imports.
+    el.setAttribute("data-uid", "u" + i);
     if (i++ > 5000) break;
     const cs = getComputedStyle(el);
     const parts = [];
@@ -38,6 +41,23 @@ export const ANNOTATE_JS = `(() => {
     if (el.tagName === "IMG") { const w = Math.round(el.getBoundingClientRect().width); if (w > 0) parts.push("width:" + w + "px"); }
     if (parts.length) el.setAttribute("data-cs", parts.join("|"));
   }
+})()`;
+
+/** IIFE expression: FULL compiled-stylesheet snapshot (D-180). Returns one CSS string with every
+ * readable rule — so an imported page never depends on the Tailwind CDN (or any origin CSS) again.
+ * Same-origin/injected sheets only; cross-origin sheets without CORS throw and are skipped. */
+export const SNAPSHOT_JS = `(() => {
+  let out = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules;
+    try { rules = sheet.cssRules; } catch (e) { continue; }
+    if (!rules) continue;
+    for (const r of Array.from(rules)) {
+      out += r.cssText + "\\n";
+      if (out.length > 900000) return out;
+    }
+  }
+  return out;
 })()`;
 
 /** IIFE expression: harvest @font-face / :root / keyframes into one string. Returns the CSS string. */

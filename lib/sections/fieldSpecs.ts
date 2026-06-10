@@ -204,6 +204,10 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
   video: [{ kind: "text", key: "url", label: "Video URL (YouTube/MP4)" }],
   spacer: [{ kind: "select", key: "size", label: "Height", options: ["sm", "md", "lg"] }],
   html: [{ kind: "text", key: "code", label: "Custom HTML", multiline: true }],
+  // Lossless import bands: edited via the Layer Tree (patches), not raw fields. The html field is
+  // exposed read-mostly for power users; CSS carrier gets its sheet.
+  "imported-html": [{ kind: "text", key: "html", label: "Imported HTML (advanced)", multiline: true }],
+  "imported-css": [{ kind: "text", key: "css", label: "Imported CSS (advanced)", multiline: true }],
   row: [
     { kind: "select", key: "columns", label: "Columns", options: ["1", "2", "3", "4", "5", "6", "7", "8"] },
     { kind: "number", key: "gap", label: "Gap", min: 0, max: 120, step: 2, unit: "px" },

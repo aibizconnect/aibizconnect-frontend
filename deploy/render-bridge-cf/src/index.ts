@@ -13,7 +13,7 @@
  * Runs under the aibizconnect.app zone (route render.aibizconnect.app) — see wrangler.toml.
  */
 import puppeteer from "@cloudflare/puppeteer";
-import { ANNOTATE_JS, HARVEST_JS } from "./annotate";
+import { ANNOTATE_JS, HARVEST_JS, SNAPSHOT_JS } from "./annotate";
 
 export interface Env {
   MYBROWSER: Fetcher;
@@ -21,7 +21,7 @@ export interface Env {
 }
 
 const HTML = { "content-type": "text/html; charset=utf-8" } as const;
-const MAX_BYTES = 1_500_000;
+const MAX_BYTES = 3_000_000; // raised for the lossless path: full CSS snapshot rides along
 
 function authed(req: Request, url: URL, env: Env): boolean {
   if (!env.RENDER_TOKEN) return true;
@@ -34,11 +34,15 @@ async function annotateAndSerialize(page: any): Promise<string> {
   await page.evaluate(ANNOTATE_JS);
   let importedCss = "";
   try { importedCss = (await page.evaluate(HARVEST_JS)) as string; } catch { /* optional */ }
+  // Full compiled-CSS snapshot (D-180) for the LOSSLESS import path — the imported page renders
+  // from this forever, with no dependency on the Tailwind CDN or the origin's stylesheets.
+  let snapshotCss = "";
+  try { snapshotCss = (await page.evaluate(SNAPSHOT_JS)) as string; } catch { /* optional */ }
   let html: string = await page.content();
-  if (importedCss) {
-    const block = `\n<style id="__imported_css">\n${importedCss}\n</style>\n`;
-    html = html.includes("</head>") ? html.replace("</head>", block + "</head>") : html + block;
-  }
+  let block = "";
+  if (importedCss) block += `\n<style id="__imported_css">\n${importedCss}\n</style>\n`;
+  if (snapshotCss) block += `\n<style id="__snapshot_css">\n${snapshotCss}\n</style>\n`;
+  if (block) html = html.includes("</head>") ? html.replace("</head>", block + "</head>") : html + block;
   return html.slice(0, MAX_BYTES);
 }
 

@@ -66,6 +66,9 @@ async function annotateAndSerialize(page) {
     };
     let i = 0;
     for (const el of document.querySelectorAll("body *")) {
+      // Stable node id for the LOSSLESS import path (D-179): deterministic document order, so the
+      // same design re-imported yields the same ids and node patches survive re-imports.
+      el.setAttribute("data-uid", "u" + i);
       if (i++ > 5000) break;
       const cs = getComputedStyle(el);
       const parts = [];
@@ -94,11 +97,26 @@ async function annotateAndSerialize(page) {
     });
   } catch { /* optional */ }
 
+  // Full compiled-CSS snapshot (D-180) for the LOSSLESS import path — the imported page renders
+  // from this forever, with no dependency on the Tailwind CDN or the origin's stylesheets.
+  let snapshotCss = "";
+  try {
+    snapshotCss = await page.evaluate(() => {
+      let out = "";
+      for (const sheet of document.styleSheets) {
+        let rules; try { rules = sheet.cssRules; } catch { continue; }
+        if (!rules) continue;
+        for (const r of rules) { out += r.cssText + "\n"; if (out.length > 900000) return out; }
+      }
+      return out;
+    });
+  } catch { /* optional */ }
+
   let html = await page.content();
-  if (importedCss) {
-    const block = `\n<style id="__imported_css">\n${importedCss}\n</style>\n`;
-    html = html.includes("</head>") ? html.replace("</head>", block + "</head>") : html + block;
-  }
+  let block = "";
+  if (importedCss) block += `\n<style id="__imported_css">\n${importedCss}\n</style>\n`;
+  if (snapshotCss) block += `\n<style id="__snapshot_css">\n${snapshotCss}\n</style>\n`;
+  if (block) html = html.includes("</head>") ? html.replace("</head>", block + "</head>") : html + block;
   return html;
 }
 

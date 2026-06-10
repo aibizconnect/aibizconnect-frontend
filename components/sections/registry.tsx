@@ -16,6 +16,7 @@ import {
 import { MenuSection } from "./MenuSection";
 import HeaderResponsive, { type HeaderNavItem } from "./HeaderResponsive";
 import { sectionSchema } from "@/lib/sections/schemas";
+import { applyPatches } from "@/lib/sites/lossless-importer";
 import { DEFAULT_THEME, type ThemeTokens } from "@/lib/sections/theme";
 import { styleToCss, animClasses, resolveStyle, responsiveCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, type Breakpoint, type ElementStyle } from "@/lib/design/element-style";
 
@@ -149,6 +150,22 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
       return <SpacerSection content={c} theme={theme} />;
     case "html":
       return <HtmlSection content={c} theme={theme} />;
+    // LOSSLESS import (D-178): the band's REAL imported HTML, verbatim, with node patches applied
+    // over the immutable original. Fidelity by construction — no translation into native blocks.
+    case "imported-html": {
+      const html = Array.isArray(c.patches) && c.patches.length ? applyPatches(c.html || "", c.patches) : (c.html || "");
+      return <div data-imported-band dangerouslySetInnerHTML={{ __html: html }} />;
+    }
+    // Companion carrier: the page's compiled-CSS snapshot (D-180) + font stylesheet preloads.
+    case "imported-css":
+      return (
+        <>
+          {Array.isArray(c.fontHrefs) && c.fontHrefs.map((h: string, i: number) => (
+            <link key={i} rel="stylesheet" href={h} />
+          ))}
+          <style dangerouslySetInnerHTML={{ __html: c.css || "" }} />
+        </>
+      );
     case "row": {
       const baseCols = Math.max(1, Math.min(12, c.columns || 1));
       // Mobile stacking is ON BY DEFAULT (Copilot-ratified platform baseline). A tenant

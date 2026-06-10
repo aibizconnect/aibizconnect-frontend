@@ -201,6 +201,21 @@ export const spacerSchema = z.object({
 });
 export const htmlSchema = z.object({ type: z.literal("html"), code: z.string() });
 
+// ---- LOSSLESS import (architect D-178..D-183) ----
+// A band of the imported page's REAL HTML, verbatim (fidelity by construction). Node-level edits
+// live in `patches`, keyed by the stable data-uid the render bridge stamped — the original html is
+// immutable. `imported-css` carries the page's compiled-CSS snapshot + font stylesheet hrefs.
+export const importedHtmlSchema = z.object({
+  type: z.literal("imported-html"),
+  html: z.string(),
+  patches: z.array(z.object({ op: z.string(), uid: z.string() }).passthrough()).default([]),
+});
+export const importedCssSchema = z.object({
+  type: z.literal("imported-css"),
+  css: z.string(),
+  fontHrefs: z.array(z.string()).default([]),
+});
+
 // ---- Extended best-in-class elements (functional, no external paid keys) ----
 export const bulletListSchema = z.object({ type: z.literal("bullet-list"), items: z.array(z.object({ text: z.string() })).default([]), bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number"]).optional(), color: z.string().optional(), direction: z.enum(["ltr", "rtl"]).optional() });
 export const numberCounterSchema = z.object({ type: z.literal("number-counter"), value: z.string(), start: z.coerce.number().optional(), end: z.coerce.number().optional(), duration: z.coerce.number().optional(), label: z.string().optional(), prefix: z.string().optional(), suffix: z.string().optional() });
@@ -378,6 +393,8 @@ export const sectionSchema = z.discriminatedUnion("type", [
   videoSchema,
   spacerSchema,
   htmlSchema,
+  importedHtmlSchema,
+  importedCssSchema,
   rowSchema,
   bulletListSchema,
   numberCounterSchema,
@@ -457,6 +474,8 @@ export const sectionSchemas = {
   video: videoSchema,
   spacer: spacerSchema,
   html: htmlSchema,
+  "imported-html": importedHtmlSchema,
+  "imported-css": importedCssSchema,
   row: rowSchema,
   "bullet-list": bulletListSchema,
   "number-counter": numberCounterSchema,
@@ -535,6 +554,8 @@ export const sectionLabels: Record<SectionType, string> = {
   video: "Video",
   spacer: "Spacer",
   html: "Custom HTML",
+  "imported-html": "Imported design",
+  "imported-css": "Imported design CSS",
   row: "Row / Columns",
   "bullet-list": "Bullet List",
   "number-counter": "Number Counter",
@@ -621,6 +642,11 @@ export function defaultContentFor(type: SectionType): SectionContent {
       return { type: "spacer", size: "md" };
     case "html":
       return { type: "html", code: "<!-- Your custom HTML -->" };
+    // Import-produced only (not in the add picker) — defaults exist for type-completeness.
+    case "imported-html":
+      return { type: "imported-html", html: "", patches: [] };
+    case "imported-css":
+      return { type: "imported-css", css: "", fontHrefs: [] };
     case "row":
       return makeRow(1);
     case "bullet-list":
