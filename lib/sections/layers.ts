@@ -277,10 +277,8 @@ function importedBandTree(html: string, si: number): LayerNode[] {
         out.push(node(`${kids.length} Column Row`, "row", "row", uid, cols));
         continue;
       }
-      // 4) A visual BOX (own bg/radius) keeps a node; plain wrappers flatten away.
-      const hasBg = /backgroundColor:|backgroundImage:/.test(cs);
-      const hasRadius = /borderTopLeftRadius:/.test(cs);
-      if (hasBg || hasRadius) { out.push(node("Box", "element", "row", uid, walkContent(child, depth + 1, inMenu))); continue; }
+      // 4) Anything that is NOT one of OUR elements gets NO node (Ali: "if it is not an element
+      //    in the Elements List it should not be named and put in the Tree") — flatten it away.
       out.push(...walkContent(child, depth + 1, inMenu));
     }
     return out;
@@ -311,8 +309,8 @@ function sectionLabel(content: any, index: number, total: number): string {
   if (role === "header" || content?.type === "header" || name === "header") return "Header";
   if (role === "footer" || content?.type === "footer" || name === "footer") return "Footer";
   if (content?.type === "hero" || role === "hero") return "Hero";
-  // Lossless bands carry their REAL name from the design ("Ottawa mortgages made simple.").
-  if (content?.type === "imported-html" && rawName) return rawName.slice(0, 32);
+  // Imported bands follow the same naming law as everything else (Ali): Header / Footer /
+  // Section N — NEVER the content's text ("Comprehensive Mortgage Solutions" is not a name).
   if (content?.type === "imported-css") return "Design CSS";
   return `Section ${index + 1}`;
 }
