@@ -225,18 +225,29 @@ function importedBandTree(html: string, si: number): LayerNode[] {
       const kids = depth < 8 ? walk(child, depth + 1) : [];
       if (!uid) { out.push(...kids); continue; }
       const cls = child.getAttribute("class") || "";
+      const cs = child.getAttribute("data-cs") || "";
       const isIcon = /material-symbols|material-icons/.test(cls);
-      const known = isIcon ? { label: "Icon", type: "icon" } : IMPORTED_KIND[tag];
-      // transparent wrappers (plain divs with a single path through) collapse away so the tree
-      // reads like the design, not like the markup's scaffolding
-      if (!known && kids.length === 1) { out.push(kids[0]); continue; }
-      const meta = known || { label: "Container", type: "row" };
+      let known = isIcon ? { label: "Icon", type: "icon" } : IMPORTED_KIND[tag];
+      // ANONYMOUS WRAPPERS (Ali: "why do we have Container in the Layers Tree???"): a div is
+      // only WORTH a tree entry when it IS something visual — a card/box (own background or
+      // border-radius) or a grid. Everything else is markup scaffolding → FLATTEN it away and
+      // hoist its children, so the tree reads like the design.
+      if (!known) {
+        const hasBg = /backgroundColor:|backgroundImage:/.test(cs);
+        const hasRadius = /borderTopLeftRadius:/.test(cs);
+        const isGrid = /gridTemplateColumns:/.test(cs);
+        if (hasBg || hasRadius) known = { label: "Box", type: "row" };
+        else if (isGrid) known = { label: "Grid", type: "row" };
+        else { out.push(...kids); continue; } // pure scaffolding — children take its place
+      }
+      const meta = known;
       const text = (child.textContent || "").replace(/\s+/g, " ").trim();
-      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22) : text.slice(0, 24);
+      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22)
+        : meta.label === "Box" || meta.label === "Grid" ? "" : text.slice(0, 24);
       out.push({
         id: `${si}.n.${uid}`,
         kind: "element",
-        label: snippet && meta.label !== "Container" ? `${meta.label} · ${snippet}` : meta.label,
+        label: snippet ? `${meta.label} · ${snippet}` : meta.label,
         type: meta.type,
         sectionIndex: si,
         nodeUid: uid,

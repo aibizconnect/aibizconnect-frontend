@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
 import ImportedBandEditor, { nodeFacts } from "@/components/editor/ImportedBandEditor";
+import ImportedBoxInspector from "@/components/editor/ImportedBoxInspector";
 import { projectNode, diffToPatches, mergePatches } from "@/lib/sections/node-projection";
 import { applyPatches } from "@/lib/sites/lossless-importer";
 import SectionEditor from "./SectionEditor";
@@ -1288,7 +1289,13 @@ export default function Canvas({
                     selected={selectedUid === item.uid}
                     externalSelUid={importedSel?.bandUid === item.uid ? importedSel.nodeUid : null}
                     onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
-                    onNodeSelect={(s) => setImportedSel(s ? { bandUid: item.uid, nodeUid: s.uid, facts: s.facts } : null)}
+                    onNodeSelect={(s) => {
+                      // Clicks INSIDE the band iframe don't bubble to the page — select the band
+                      // here too, or the importedSel clear-guard wipes the selection immediately
+                      // and the right panel never shows the element (Ali: "make canvas editable").
+                      if (s) { setSelectedUid(item.uid); setChildSel(null); setColSel(null); setImportedSel({ bandUid: item.uid, nodeUid: s.uid, facts: s.facts }); }
+                      else setImportedSel(null);
+                    }}
                   />
                 ) : item.content.type === "row" && (() => {
                   // HEADER rows (contain a menu) preview as the responsive bar when on a
@@ -1414,6 +1421,14 @@ export default function Canvas({
                   tenantId={tenantId}
                   customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
                   breakpoint={device}
+                />
+              ) : importedSel ? (
+                // Container/Box node — no native projection, but it still exposes ITS OWN
+                // attributes (Ali): background, text color, radius, padding via style patches.
+                <ImportedBoxInspector
+                  key={`box-${importedSel.bandUid}-${importedSel.nodeUid}`}
+                  facts={importedSel.facts as any}
+                  onPatch={(p) => importedStructuralPatch(p)}
                 />
               ) : childContent && childSel ? (
                 <SectionEditor
