@@ -260,10 +260,14 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       // plain (non-button) links → a vertical menu, preserving every link.
       if (tag === "ul" || tag === "div" || tag === "nav") {
         const lis = (el.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
-        const linkEls = lis.map((k) => (tagOf(k) === "a" ? k : k.querySelector("a"))).filter((a): a is HTMLElement => !!a && !looksLikeButton(a) && !!clean(a.text));
-        if (lis.length >= 2 && linkEls.length >= 2 && linkEls.length >= Math.ceil(lis.length * 0.8)) {
+        // A link counts only if it has REAL link text (after stripping inline icons). This excludes
+        // icon-only social links whose text is a bare ligature ("face_nod","share") that would
+        // otherwise pollute a footer menu.
+        const linkEls = lis.map((k) => (tagOf(k) === "a" ? k : k.querySelector("a")))
+          .filter((a): a is HTMLElement => !!a && !looksLikeButton(a) && !!cleanText(a) && !/^[a-z][a-z0-9_]*$/.test(clean(a.text)));
+        if (lis.length >= 2 && linkEls.length >= 2 && linkEls.length >= Math.ceil(lis.length * 0.7)) {
           flushImgs();
-          const items = linkEls.slice(0, 12).map((a) => ({ label: clean(a.text).slice(0, 40), href: abs(a.getAttribute("href") || "#") }));
+          const items = linkEls.slice(0, 12).map((a) => ({ label: cleanText(a).slice(0, 40), href: abs(a.getAttribute("href") || "#") }));
           out.push({ type: "menu", items, orientation: "vertical" });
           continue;
         }
@@ -429,8 +433,9 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     const navItems: { label: string; href: string }[] = [];
     let logo = ""; let cta: Record<string, unknown> | null = null;
     for (const a of el.querySelectorAll("a, button")) {
-      const label = clean(a.text);
+      const label = cleanText(a);                          // strip inline icon ligatures
       if (!label || label.length > 40) continue;
+      if (/^[a-z][a-z0-9_]*$/.test(clean(a.text))) continue; // skip icon-only links ("menu","share")
       if (looksLikeButton(a)) { if (!cta) cta = buildButton(a); continue; }
       if (!logo) { logo = label; continue; }            // first plain link = brand/logo
       if (!navItems.some((n) => n.label === label)) navItems.push({ label, href: abs(a.getAttribute("href") || "#") });
