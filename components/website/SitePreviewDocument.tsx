@@ -103,6 +103,12 @@ export default async function SitePreviewDocument({
   const headerBlocks = previewBlocks.filter((b: any) => !/footer/i.test(b.name));
   const footerBlocks = previewBlocks.filter((b: any) => /footer/i.test(b.name));
 
+  // Responsive sink: lets each row self-emit its scoped @media query so columns STACK to one column
+  // under 768px (without it, preview kept desktop columns side-by-side on mobile). Matches the public
+  // site renderer.
+  let _cssId = 0;
+  const cssSink = { nextId: () => ++_cssId };
+
   return (
     <div style={{ ...brandStyle, ...(pageBgCss ?? {}), ...(pageBgHasImage ? { position: "relative" as const } : {}) }} className="min-h-screen">
       {pageBgLayer && <div aria-hidden style={pageBgLayer} />}
@@ -128,7 +134,7 @@ export default async function SitePreviewDocument({
 
         {/* Global Header (draft) — above the body. */}
         {headerBlocks.map((b) => (
-          <SectionView key={b.id} content={b.content} theme={theme} />
+          <SectionView key={b.id} content={b.content} theme={theme} cssSink={cssSink} />
         ))}
 
         {!embed && hasUnpublished && (
@@ -151,12 +157,12 @@ export default async function SitePreviewDocument({
         <h1 className="sr-only">{previewTitle}</h1>
 
         {sections.map((s, i) => (
-          <SectionView key={i} content={s.content} theme={theme} />
+          <SectionView key={i} content={s.content} theme={theme} cssSink={cssSink} />
         ))}
 
         {/* Global Footer (draft) — below the body. */}
         {footerBlocks.map((b) => (
-          <SectionView key={b.id} content={b.content} theme={theme} />
+          <SectionView key={b.id} content={b.content} theme={theme} cssSink={cssSink} />
         ))}
       </div>
     </div>
