@@ -72,6 +72,29 @@ export function nodeFacts(html: string, uid: string) {
       .map((li) => ({ uid: li.getAttribute("data-uid")!, text: clean(li.textContent) }));
   }
 
+  // MENU recognition (Copilot queue #1): a <nav> — or a list whose items are links — projects as
+  // our Menu composite (items + one submenu level), each piece keeping its node uid for diff-back.
+  let menuItems: { uid: string; label: string; href: string; children: { uid: string; label: string; href: string }[] }[] | undefined;
+  const linkOf = (host: Element): Element | null => host.tagName.toLowerCase() === "a" ? host : host.querySelector(":scope > a") || host.querySelector("a");
+  const isLinkList = (tag === "ul" && items && items.length >= 2 && Array.from(el.children).every((li) => !!li.querySelector("a")));
+  if (tag === "nav" || isLinkList) {
+    const hosts = tag === "nav"
+      ? Array.from(el.querySelectorAll(":scope > a, :scope > div > a, :scope > ul > li, :scope > div > ul > li"))
+      : Array.from(el.children).filter((c) => c.tagName.toLowerCase() === "li");
+    menuItems = [];
+    for (const host of hosts) {
+      const a = linkOf(host);
+      if (!a?.getAttribute("data-uid")) continue;
+      const label = clean(a.childNodes[0]?.textContent || a.textContent);
+      if (!label || /^[a-z][a-z0-9_]*$/.test(label)) continue; // skip icon ligature links
+      const children = Array.from(host.querySelectorAll("ul a"))
+        .filter((c) => c.getAttribute("data-uid"))
+        .map((c) => ({ uid: c.getAttribute("data-uid")!, label: clean(c.textContent), href: c.getAttribute("href") || "#" }));
+      menuItems.push({ uid: a.getAttribute("data-uid")!, label: label.slice(0, 40), href: a.getAttribute("href") || "#", children });
+    }
+    if (menuItems.length < 2) menuItems = undefined;
+  }
+
   let fields: { uid: string; labelUid: string | null; label: string; type: string; placeholder: string }[] | undefined;
   let submit: { uid: string; label: string } | undefined;
   if (tag === "form") {
@@ -107,6 +130,7 @@ export function nodeFacts(html: string, uid: string) {
     items,
     fields,
     submit,
+    menuItems,
   };
 }
 

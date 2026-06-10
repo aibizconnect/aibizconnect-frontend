@@ -24,6 +24,8 @@ export type NodeFacts = {
   /** <form> fields (input + sibling-label uids) + submit button. */
   fields?: { uid: string; labelUid: string | null; label: string; type: string; placeholder: string }[];
   submit?: { uid: string; label: string };
+  /** <nav>/link-list → Menu composite (one submenu level), uids per link. */
+  menuItems?: { uid: string; label: string; href: string; children: { uid: string; label: string; href: string }[] }[];
 };
 
 const H = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
@@ -39,7 +41,15 @@ export function projectNode(f: NodeFacts): Record<string, unknown> | null {
   if (typo.align) base.align = typo.align;
   if (typo.fontFamily) base.fontFamily = typo.fontFamily;
 
-  // COMPOSITES first (D-193): full-size element inspectors for lists, forms, stat counters.
+  // COMPOSITES first (D-193): full-size element inspectors for menus, lists, forms, stat counters.
+  if (f.menuItems?.length) {
+    return {
+      type: "menu",
+      items: f.menuItems.map((m) => ({ label: m.label, href: m.href, ...(m.children.length ? { children: m.children.map((c) => ({ label: c.label, href: c.href })) } : {}) })),
+      orientation: "horizontal",
+      ...(typo.color ? { color: typo.color } : {}),
+    };
+  }
   if ((f.tag === "ul" || f.tag === "ol") && f.items?.length) {
     return { type: "bullet-list", items: f.items.map((i) => ({ text: i.text })), bulletStyle: f.tag === "ol" ? "number" : "disc", ...(typo.color ? { color: typo.color } : {}) };
   }
@@ -99,7 +109,33 @@ const STYLE_CSS: Record<string, (v: unknown) => [string, string] | null> = {
 export function diffToPatches(prev: Record<string, unknown>, next: Record<string, unknown>, uid: string, facts?: NodeFacts): ImportedPatch[] {
   const out: ImportedPatch[] = [];
 
-  // COMPOSITE diff-back (D-193): list items / form labels map to their CHILD node uids.
+  // COMPOSITE diff-back (D-193): menu links / list items / form labels map to their CHILD uids.
+  if (next.type === "menu" && facts?.menuItems) {
+    const prevItems = (prev.items as any[]) || [];
+    const nextItems = (next.items as any[]) || [];
+    for (let i = 0; i < Math.min(facts.menuItems.length, nextItems.length); i++) {
+      const m = facts.menuItems[i];
+      if (nextItems[i]?.label !== prevItems[i]?.label) out.push({ op: "text", uid: m.uid, value: String(nextItems[i].label ?? "") });
+      if (nextItems[i]?.href !== prevItems[i]?.href) out.push({ op: "link", uid: m.uid, href: String(nextItems[i].href ?? "#") });
+      const prevKids = (prevItems[i]?.children as any[]) || [];
+      const nextKids = (nextItems[i]?.children as any[]) || [];
+      for (let k = 0; k < Math.min(m.children.length, nextKids.length); k++) {
+        if (nextKids[k]?.label !== prevKids[k]?.label) out.push({ op: "text", uid: m.children[k].uid, value: String(nextKids[k].label ?? "") });
+        if (nextKids[k]?.href !== prevKids[k]?.href) out.push({ op: "link", uid: m.children[k].uid, href: String(nextKids[k].href ?? "#") });
+      }
+      for (let k = nextKids.length; k < m.children.length; k++) out.push({ op: "remove", uid: m.children[k].uid });
+    }
+    for (let i = nextItems.length; i < facts.menuItems.length; i++) out.push({ op: "remove", uid: facts.menuItems[i].uid });
+    // Items/sub-items ADDED in the inspector: clone the last link node, then set its text + href.
+    const last = facts.menuItems[facts.menuItems.length - 1];
+    for (let i = facts.menuItems.length; i < nextItems.length; i++) {
+      const cloneId = `c${i}${Math.abs(hashCode(String(nextItems[i]?.label || i)))}`;
+      out.push({ op: "duplicate", uid: last.uid, cloneId });
+      out.push({ op: "text", uid: `${last.uid}.${cloneId}`, value: String(nextItems[i]?.label ?? "") });
+      out.push({ op: "link", uid: `${last.uid}.${cloneId}`, href: String(nextItems[i]?.href ?? "#") });
+    }
+    return out;
+  }
   if (next.type === "bullet-list" && facts?.items) {
     const prevItems = (prev.items as { text: string }[]) || [];
     const nextItems = (next.items as { text: string }[]) || [];
