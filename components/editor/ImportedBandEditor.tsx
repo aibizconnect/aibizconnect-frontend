@@ -54,23 +54,26 @@ function buildTree(html: string): TreeNode | null {
 }
 
 /** Find an element + its editable facts inside the PATCHED document (so fields prefill current values). */
-function nodeFacts(html: string, uid: string) {
+export function nodeFacts(html: string, uid: string) {
   const doc = new DOMParser().parseFromString(`<div id="__root">${html}</div>`, "text/html");
   const el = doc.querySelector(`[data-uid="${uid}"]`);
   if (!el) return null;
   const tag = el.tagName.toLowerCase();
   const hasElementChildren = el.children.length > 0;
   return {
+    uid,
     tag,
     text: hasElementChildren ? null : (el.textContent || ""),
     src: tag === "img" ? el.getAttribute("src") || "" : null,
     alt: tag === "img" ? el.getAttribute("alt") || "" : null,
     href: tag === "a" ? el.getAttribute("href") || "" : null,
+    // computed styles the bridge captured — prefills the projected element's inspector (D-188)
+    dataCs: el.getAttribute("data-cs"),
   };
 }
 
 export default function ImportedBandEditor({
-  content, css, fontHrefs = [], selected, onChange,
+  content, css, fontHrefs = [], selected, onChange, onNodeSelect,
 }: {
   content: Content;
   /** The page's imported-css snapshot — injected ONLY into the iframe document. */
@@ -80,6 +83,9 @@ export default function ImportedBandEditor({
   fontHrefs?: string[];
   selected: boolean;
   onChange: (next: Content) => void;
+  /** Reports the selected node's facts UP so the RIGHT panel can edit it as a projected
+   *  native element (D-188) — <img> edits as Image, <h2> as Heading, <a> as Button. */
+  onNodeSelect?: (sel: { uid: string; facts: NonNullable<ReturnType<typeof nodeFacts>> } | null) => void;
 }) {
   const patches = useMemo(() => (Array.isArray(content.patches) ? content.patches : []), [content.patches]);
   const patchedHtml = useMemo(() => applyPatches(content.html || "", patches), [content.html, patches]);
@@ -91,6 +97,13 @@ export default function ImportedBandEditor({
   const setPatchRef = useRef<(p: ImportedPatch) => void>(() => {});
   const tree = useMemo(() => buildTree(patchedHtml), [patchedHtml]);
   const facts = useMemo(() => (sel ? nodeFacts(patchedHtml, sel) : null), [patchedHtml, sel]);
+
+  // Report selection upward so the standard RIGHT inspector edits the node as a projected
+  // native element (D-188). Re-fires when patches change so the inspector prefills fresh values.
+  useEffect(() => {
+    onNodeSelect?.(sel && facts ? { uid: sel, facts } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, facts]);
 
   const srcDoc = useMemo(() =>
     `<!doctype html><html><head><meta charset="utf-8">${fontHrefs.map((h) => `<link rel="stylesheet" href="${h}">`).join("")}<style>${css}</style><style>html,body{margin:0;background:transparent}[data-uid]{cursor:default}</style></head><body>${patchedHtml}</body></html>`,
@@ -196,46 +209,21 @@ export default function ImportedBandEditor({
           <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Layer tree</div>
           <div className="max-h-72 overflow-auto">{tree ? <Tree n={tree} /> : <div className="px-1 text-xs text-slate-400">—</div>}</div>
 
+          {/* Node fields now live in the standard RIGHT inspector (projection, D-188).
+              Structural ops stay here — every node is movable, duplicatable, removable. */}
           {sel && facts && (
             <div className="space-y-1.5 border-t border-slate-100 pt-2">
               <div className="flex items-center gap-1 px-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Selected: {facts.tag}</span>
-                {/* Structural ops — every Layer Tree node is movable, duplicatable, removable */}
                 <span className="ml-auto flex items-center gap-0.5">
                   <button title="Move up" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "up" })}>↑</button>
                   <button title="Move down" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "down" })}>↓</button>
                   <button title="Duplicate" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "duplicate", uid: sel, cloneId: `c${Date.now().toString(36)}${++cloneSeq}` })}>⧉</button>
+                  <button title="Hide" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "hide", uid: sel })}>👁</button>
                   <button title="Remove" className="rounded px-1 py-0.5 text-[12px] text-red-500 hover:bg-red-50" onClick={() => { setPatch({ op: "remove", uid: sel }); setSel(null); }}>🗑</button>
                 </span>
               </div>
-              {facts.text != null && (
-                <textarea
-                  defaultValue={facts.text}
-                  key={`t-${sel}`}
-                  rows={2}
-                  className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
-                  placeholder="Text"
-                  onBlur={(e) => { if (e.target.value !== facts.text) setPatch({ op: "text", uid: sel, value: e.target.value }); }}
-                />
-              )}
-              {facts.src != null && (
-                <input key={`i-${sel}`} defaultValue={facts.src} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs" placeholder="Image URL"
-                  onBlur={(e) => { if (e.target.value && e.target.value !== facts.src) setPatch({ op: "image", uid: sel, src: e.target.value }); }} />
-              )}
-              {facts.href != null && (
-                <input key={`a-${sel}`} defaultValue={facts.href} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs" placeholder="Link URL"
-                  onBlur={(e) => { if (e.target.value && e.target.value !== facts.href) setPatch({ op: "link", uid: sel, href: e.target.value }); }} />
-              )}
-              <div className="flex items-center gap-1.5 px-1">
-                <label className="text-[11px] text-slate-500">Color</label>
-                <input type="color" className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0"
-                  onChange={(e) => setPatch({ op: "style", uid: sel, style: { color: e.target.value } })} />
-                <label className="text-[11px] text-slate-500">Bg</label>
-                <input type="color" className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0"
-                  onChange={(e) => setPatch({ op: "style", uid: sel, style: { "background-color": e.target.value } })} />
-                <button className="ml-auto rounded border border-slate-200 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-                  onClick={() => setPatch({ op: "hide", uid: sel })}>Hide</button>
-              </div>
+              <p className="px-1 text-[10px] text-slate-400">Edit text, image, link &amp; styles in the right panel →</p>
             </div>
           )}
 

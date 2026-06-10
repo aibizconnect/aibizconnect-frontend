@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
-import ImportedBandEditor from "@/components/editor/ImportedBandEditor";
+import ImportedBandEditor, { type nodeFacts } from "@/components/editor/ImportedBandEditor";
+import { projectNode, diffToPatches, mergePatches } from "@/lib/sections/node-projection";
 import SectionEditor from "./SectionEditor";
 import TextFormatPopup from "./TextFormatPopup";
 import RowEditor, { type ChildSel, type ColSel, type ElPath, pathsEqual } from "./RowEditor";
@@ -134,6 +135,9 @@ export default function Canvas({
   // Nested in-column selection / add-targeting (best-in-class nested editing).
   const [childSel, setChildSel] = useState<ChildSel | null>(null);
   const [colSel, setColSel] = useState<ColSel | null>(null);
+  // A node selected INSIDE a lossless imported band (D-188) — edited in the right panel as a
+  // PROJECTED native element (img→Image, h2→Heading, a→Button); edits diff back into patches.
+  const [importedSel, setImportedSel] = useState<{ bandUid: string; nodeUid: string; facts: NonNullable<ReturnType<typeof nodeFacts>> } | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null); // innermost hovered element (single)
   const addTarget = useRef<{ rowUid: string; container: ElPath; col: number; idx: number } | null>(null);
   const [theme, setTheme] = useState<ThemeTokens>(DEFAULT_THEME);
@@ -521,6 +525,35 @@ export default function Canvas({
     );
     commit(next);
   }
+
+  // ---- Imported-node projection (D-188) ------------------------------------
+  // The selected in-band node as a native element; inspector edits diff back into patches.
+  const importedProjected = useMemo(() => (importedSel ? projectNode(importedSel.facts) : null), [importedSel]);
+  function applyImportedNodeUpdate(updated: Record<string, unknown>) {
+    if (!importedSel || !importedProjected) return;
+    const ps = diffToPatches(importedProjected, updated, importedSel.nodeUid);
+    if (!ps.length) return;
+    const nx = items.map((x) => {
+      if (x.uid !== importedSel.bandUid) return x;
+      const c: any = x.content;
+      return { ...x, content: { ...c, patches: mergePatches(Array.isArray(c.patches) ? c.patches : [], ps) } as any };
+    });
+    commit(nx);
+  }
+  function importedStructuralPatch(p: any) {
+    if (!importedSel) return;
+    const nx = items.map((x) => {
+      if (x.uid !== importedSel.bandUid) return x;
+      const c: any = x.content;
+      return { ...x, content: { ...c, patches: mergePatches(Array.isArray(c.patches) ? c.patches : [], [p]) } as any };
+    });
+    commit(nx);
+  }
+  // Selecting a different section (or deselecting) drops the in-band node selection.
+  useEffect(() => {
+    if (importedSel && selectedUid !== importedSel.bandUid) setImportedSel(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUid]);
 
   function addSectionOfType(type: SectionType) {
     if (!selectedPageId) {
@@ -1233,6 +1266,7 @@ export default function Canvas({
                     fontHrefs={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.fontHrefs || []}
                     selected={selectedUid === item.uid}
                     onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
+                    onNodeSelect={(s) => setImportedSel(s ? { bandUid: item.uid, nodeUid: s.uid, facts: s.facts } : null)}
                   />
                 ) : item.content.type === "row" && (() => {
                   // HEADER rows (contain a menu) preview as the responsive bar when on a
@@ -1311,7 +1345,15 @@ export default function Canvas({
                 </button>
               );
               let actions: any = null;
-              if (childSel) {
+              if (importedSel) {
+                actions = (<>
+                  <Btn title="Move up" onClick={() => importedStructuralPatch({ op: "move", uid: importedSel.nodeUid, dir: "up" })}>↑</Btn>
+                  <Btn title="Move down" onClick={() => importedStructuralPatch({ op: "move", uid: importedSel.nodeUid, dir: "down" })}>↓</Btn>
+                  <Btn title="Duplicate" onClick={() => importedStructuralPatch({ op: "duplicate", uid: importedSel.nodeUid, cloneId: `c${Date.now().toString(36)}` })}>⧉</Btn>
+                  <Btn title="Hide" onClick={() => importedStructuralPatch({ op: "hide", uid: importedSel.nodeUid })}>👁</Btn>
+                  <Btn title="Remove" danger onClick={() => { importedStructuralPatch({ op: "remove", uid: importedSel.nodeUid }); setImportedSel(null); }}>🗑</Btn>
+                </>);
+              } else if (childSel) {
                 actions = (<>
                   <Btn title="Move up" onClick={() => moveChild(childSel.rowUid, childSel.path, -1)}>↑</Btn>
                   <Btn title="Move down" onClick={() => moveChild(childSel.rowUid, childSel.path, 1)}>↓</Btn>
@@ -1339,7 +1381,19 @@ export default function Canvas({
               ) : null;
             })()}
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {childContent && childSel ? (
+              {importedSel && importedProjected ? (
+                // PROJECTED imported node (D-188): the standard element inspector — <img> edits
+                // as Image (incl. Media Library picker), <h2> as Heading, <a> as Button. Field
+                // changes are diffed back into patches on the band; the original HTML never mutates.
+                <SectionEditor
+                  key={`imp-${importedSel.bandUid}-${importedSel.nodeUid}`}
+                  section={importedProjected as any}
+                  onUpdate={(updated) => applyImportedNodeUpdate(updated as any)}
+                  tenantId={tenantId}
+                  customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
+                  breakpoint={device}
+                />
+              ) : childContent && childSel ? (
                 <SectionEditor
                   key={`${childSel.rowUid}-${childSel.path.map((s) => `${s.col}.${s.idx}`).join("-")}`}
                   section={childContent}

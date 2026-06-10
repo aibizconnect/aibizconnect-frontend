@@ -175,6 +175,11 @@ function blueprintFor(content: any, si: number): LayerNode[] {
       const imgs = (content.images ?? []).map((_: any, i: number) => B("image", `g${i}`));
       return [row(`${si}.r0`, 1, [col(`${si}.c0`, 1, imgs.length ? imgs : [B("image", "g0")])])];
     }
+    case "imported-html":
+    case "imported-css":
+      // LOSSLESS bands: their inner Layer Tree lives in the canvas (per-band, by data-uid) —
+      // a fake "Row 1" child here only misled (D-191). The band itself is still selectable.
+      return [];
     default:
       // simple element (heading/text/image/button/…): one column, one element
       return [row(`${si}.r0`, 1, [col(`${si}.c0`, 1, [el(t, si, `${si}.e0`, undefined, true)])])];
@@ -184,11 +189,15 @@ function blueprintFor(content: any, si: number): LayerNode[] {
 /** Section-level label (type-only spec): Header / Hero / Footer / Section N. */
 function sectionLabel(content: any, index: number, total: number): string {
   const role = content?._role ?? content?.role;
-  const name = String(content?._name ?? "").trim().toLowerCase();
+  const rawName = String(content?._name ?? "").trim();
+  const name = rawName.toLowerCase();
   // Header / Footer win regardless of position (by role, type, or element name).
   if (role === "header" || content?.type === "header" || name === "header") return "Header";
   if (role === "footer" || content?.type === "footer" || name === "footer") return "Footer";
   if (content?.type === "hero" || role === "hero") return "Hero";
+  // Lossless bands carry their REAL name from the design ("Ottawa mortgages made simple.").
+  if (content?.type === "imported-html" && rawName) return rawName.slice(0, 32);
+  if (content?.type === "imported-css") return "Design CSS";
   return `Section ${index + 1}`;
 }
 

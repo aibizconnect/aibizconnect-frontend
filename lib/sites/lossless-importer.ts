@@ -62,15 +62,22 @@ function absolutify(el: HTMLElement, baseUrl: string): void {
   }
 }
 
-/** First heading text (or tag/id) → a human band name for the editor's section list. */
+/** First heading text (or tag/id) → a human band name for the editor's section list.
+ *  Only the NAV bar (or a heading-less <header>) is named "Header" — Stitch marks its HERO up
+ *  as <header> too, which produced multiple "Header" entries in the Layers panel (D-191). */
 function bandName(el: HTMLElement, index: number): string {
   const tag = (el.rawTagName || "").toLowerCase();
-  if (tag === "nav" || tag === "header") return "Header";
-  if (tag === "footer") return "Footer";
-  const id = el.getAttribute("id");
   const h = el.querySelector("h1,h2,h3,h4");
-  const t = (h?.text || "").replace(/\s+/g, " ").trim().slice(0, 40);
+  const t = (h ? cleanInline(h.text) : "").slice(0, 40);
+  if (tag === "footer") return "Footer";
+  if (tag === "nav") return "Header";
+  if (tag === "header") return t || "Header";
+  const id = el.getAttribute("id");
   return t || (id ? id.charAt(0).toUpperCase() + id.slice(1) : `Section ${index + 1}`);
+}
+/** Collapse whitespace and strip icon-font ligature words ("verified Deep Expertise" → "Deep Expertise"). */
+function cleanInline(s: string): string {
+  return (s || "").replace(/\s+/g, " ").trim().replace(/^[a-z][a-z0-9_]{2,24} (?=[A-Z])/, "");
 }
 
 export type LosslessImport = {
@@ -120,7 +127,7 @@ export function htmlToLosslessSections(html: string, baseUrl = ""): LosslessImpo
   }
 
   const sections: Record<string, unknown>[] = [];
-  if (css) sections.push({ type: "imported-css", css, fontHrefs, _name: "Imported design CSS" });
+  if (css) sections.push({ type: "imported-css", css, fontHrefs, _name: "Design CSS" });
 
   const kids = (container.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
   let i = 0;
