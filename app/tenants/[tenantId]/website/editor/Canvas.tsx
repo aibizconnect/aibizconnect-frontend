@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
-import ImportedBandEditor, { type nodeFacts } from "@/components/editor/ImportedBandEditor";
+import ImportedBandEditor, { nodeFacts } from "@/components/editor/ImportedBandEditor";
 import { projectNode, diffToPatches, mergePatches } from "@/lib/sections/node-projection";
+import { applyPatches } from "@/lib/sites/lossless-importer";
 import SectionEditor from "./SectionEditor";
 import TextFormatPopup from "./TextFormatPopup";
 import RowEditor, { type ChildSel, type ColSel, type ElPath, pathsEqual } from "./RowEditor";
@@ -493,10 +494,21 @@ export default function Canvas({
     if (!it) return;
     setSelectedUid(it.uid);
     setColSel(null);
-    if (selectTarget.path && (it.content as any).type === "row") {
+    // Layers-tree click on an IMPORTED node (Bill's identified element): select it on canvas
+    // and open the projected element inspector.
+    const nodeUid = (selectTarget as any).nodeUid as string | undefined;
+    if (nodeUid && (it.content as any).type === "imported-html") {
+      const c: any = it.content;
+      const patched = Array.isArray(c.patches) && c.patches.length ? applyPatches(c.html || "", c.patches) : (c.html || "");
+      const facts = nodeFacts(patched, nodeUid);
+      setImportedSel(facts ? { bandUid: it.uid, nodeUid, facts } : null);
+      setChildSel(null);
+    } else if (selectTarget.path && (it.content as any).type === "row") {
       setChildSel({ rowUid: it.uid, path: selectTarget.path });
+      setImportedSel(null);
     } else {
       setChildSel(null);
+      setImportedSel(null);
     }
     const el = sectionRefs.current.get(it.uid);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -506,7 +518,10 @@ export default function Canvas({
   // Report current selection up so the Layers tree highlights it (canvas→tree sync).
   useEffect(() => {
     if (!onSelectionChange) return;
-    if (childSel) {
+    if (importedSel) {
+      const idx = items.findIndex((i) => i.uid === importedSel.bandUid);
+      onSelectionChange(idx >= 0 ? ({ index: idx, nodeUid: importedSel.nodeUid } as any) : null);
+    } else if (childSel) {
       const idx = items.findIndex((i) => i.uid === childSel.rowUid);
       onSelectionChange(idx >= 0 ? { index: idx, path: childSel.path } : null);
     } else if (selectedUid) {
@@ -516,7 +531,7 @@ export default function Canvas({
       onSelectionChange(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUid, childSel, items]);
+  }, [selectedUid, childSel, importedSel, items]);
 
   function updateSection(updated: SectionContent) {
     if (!selectedUid) return;
@@ -1265,6 +1280,7 @@ export default function Canvas({
                     css={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.css || ""}
                     fontHrefs={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.fontHrefs || []}
                     selected={selectedUid === item.uid}
+                    externalSelUid={importedSel?.bandUid === item.uid ? importedSel.nodeUid : null}
                     onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
                     onNodeSelect={(s) => setImportedSel(s ? { bandUid: item.uid, nodeUid: s.uid, facts: s.facts } : null)}
                   />

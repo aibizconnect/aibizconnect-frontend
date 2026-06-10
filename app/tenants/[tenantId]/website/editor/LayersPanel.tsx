@@ -23,6 +23,8 @@ function pathsEqual(a?: ElPath | null, b?: ElPath | null): boolean {
 export interface LayerSelection {
   index: number;
   path?: ElPath;
+  /** Lossless imported node (data-uid) — selects it on canvas + opens the projected inspector. */
+  nodeUid?: string;
 }
 
 const ICON: Record<string, string> = {
@@ -43,6 +45,7 @@ function kindColor(kind: string): string {
 function isSelected(node: LayerNode, sel: LayerSelection | null): boolean {
   if (!sel) return false;
   if (node.sectionIndex !== sel.index) return false;
+  if (node.nodeUid || sel.nodeUid) return node.nodeUid === sel.nodeUid; // imported node match
   if (node.childPath && sel.path) return pathsEqual(node.childPath, sel.path);
   return node.kind === "section" && !sel.path;
 }
@@ -64,7 +67,7 @@ function Node({
   return (
     <div>
       <div
-        onClick={() => { onSelect({ index: node.sectionIndex, path: node.childPath }); if (hasChildren) onExpand(node.id); }}
+        onClick={() => { onSelect({ index: node.sectionIndex, path: node.childPath, nodeUid: node.nodeUid }); if (hasChildren) onExpand(node.id); }}
         title={node.label}
         className={`group flex cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-[13px] transition ${
           selected ? "bg-[#3b82f6]/15 ring-1 ring-[#3b82f6]/50" : "hover:bg-slate-100"

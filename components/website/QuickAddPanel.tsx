@@ -58,7 +58,7 @@ const ELEMENT_GROUPS: Group[] = [
   ]},
   { group: "Sections", items: [
     { label: "Hero", icon: I.hero, type: "hero" }, { label: "Features", icon: I.grid, type: "features" },
-    { label: "Testimonials", icon: I.star, type: "testimonials" }, { label: "Reviews", icon: I.star, type: "testimonials" },
+    { label: "Testimonials", icon: I.star, type: "testimonials" },
     { label: "Listings", icon: I.grid, type: "listings" }, { label: "Pricing Table", icon: I.price, type: "pricing" },
     { label: "FAQ", icon: I.faq, type: "faq" }, { label: "Tabs", icon: I.grid, type: "tabs" }, { label: "Call to Action", icon: I.btn, type: "cta" },
   ]},
@@ -76,7 +76,7 @@ const ELEMENT_GROUPS: Group[] = [
   // keeps rendering on existing pages but is no longer offered as a separate thing.
   { group: "Progress Bar", items: [{ label: "Progress Bar", icon: I.price, type: "progress-bar" }, { label: "Number Counter", icon: I.price, type: "countdown@counter" as SectionType }] },
   { group: "Layout", items: [{ label: "Divider", icon: I.divider, type: "divider" }, { label: "Spacer", icon: I.spacer, type: "spacer" }] },
-  { group: "Custom", items: [{ label: "Custom HTML", icon: I.code, type: "html" }, { label: "Code", icon: I.code, type: "html" }, { label: "SVG", icon: I.code, soon: true }] },
+  { group: "Custom", items: [{ label: "Custom HTML", icon: I.code, type: "html" }, { label: "SVG", icon: I.code, soon: true }] },
 ];
 
 const ROWS_GROUP: Group = { group: "Rows", items: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ label: `${n} Column`, icon: I.cols, type: "row" as SectionType, cols: n })) };

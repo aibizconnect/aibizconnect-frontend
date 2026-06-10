@@ -12,6 +12,7 @@
  *    Image, …). Until "decompose-on-generate" (Option B) lands, clicking a
  *    blueprint sub-node selects the parent composite section.
  */
+import { parse, type HTMLElement as ParsedEl } from "node-html-parser";
 import type { SectionContent, SectionType } from "./schemas";
 import { sectionLabels } from "./schemas";
 
@@ -27,6 +28,9 @@ export interface LayerNode {
   childPath?: ElPath;         // real, selectable row child (full path, any depth)
   blueprint?: boolean;        // true = composite part (selects the whole section)
   globalId?: string;          // set on global Header/Footer nodes → edit in Blocks
+  /** LOSSLESS bands: the data-uid of the imported node — selecting it opens the projected
+   *  element inspector (Bill's identify→populate→reserve-location pipeline, Ali). */
+  nodeUid?: string;
   children?: LayerNode[];
 }
 
@@ -176,14 +180,72 @@ function blueprintFor(content: any, si: number): LayerNode[] {
       return [row(`${si}.r0`, 1, [col(`${si}.c0`, 1, imgs.length ? imgs : [B("image", "g0")])])];
     }
     case "imported-html":
+      // LOSSLESS band: IDENTIFY every imported node and rebuild its real element tree, in DOM
+      // order (Bill's pipeline, Ali: "inspect, identify, populate, reserve their location in the
+      // tree of the layers and rebuild it, header to footer, one by one").
+      return importedBandTree((content as any).html || "", si);
     case "imported-css":
-      // LOSSLESS bands: their inner Layer Tree lives in the canvas (per-band, by data-uid) —
-      // a fake "Row 1" child here only misled (D-191). The band itself is still selectable.
       return [];
     default:
       // simple element (heading/text/image/button/…): one column, one element
       return [row(`${si}.r0`, 1, [col(`${si}.c0`, 1, [el(t, si, `${si}.e0`, undefined, true)])])];
   }
+}
+
+/** Identification map for IMPORTED nodes (mirrors the Element Dictionary recognition rules +
+ *  the projection types in node-projection.ts) — tag → our element kind + display name. */
+const IMPORTED_KIND: Record<string, { label: string; type: string }> = {
+  h1: { label: "Heading", type: "heading" }, h2: { label: "Heading", type: "heading" },
+  h3: { label: "Heading", type: "heading" }, h4: { label: "Heading", type: "heading" },
+  h5: { label: "Heading", type: "heading" }, h6: { label: "Heading", type: "heading" },
+  p: { label: "Paragraph", type: "text" }, span: { label: "Text", type: "text" },
+  img: { label: "Image", type: "image" }, a: { label: "Link", type: "button" },
+  button: { label: "Button", type: "button" }, nav: { label: "Menu", type: "menu" },
+  form: { label: "Form", type: "contact-form" }, input: { label: "Field", type: "text" },
+  textarea: { label: "Field", type: "text" }, label: { label: "Label", type: "text" },
+  ul: { label: "List", type: "bullet-list" }, ol: { label: "Numbered List", type: "bullet-list" },
+  li: { label: "Item", type: "text" }, svg: { label: "Icon", type: "icon" },
+  section: { label: "Section", type: "row" }, header: { label: "Header", type: "row" },
+  footer: { label: "Footer", type: "row" }, blockquote: { label: "Quote", type: "text" },
+  video: { label: "Video", type: "video" }, iframe: { label: "Embed", type: "video" },
+};
+
+/** Build the REAL element tree of a lossless imported band — every node identified and placed
+ *  in DOM order; selecting one opens its projected element inspector (via nodeUid). */
+function importedBandTree(html: string, si: number): LayerNode[] {
+  if (!html) return [];
+  let root: ParsedEl;
+  try { root = parse(html, { comment: false }); } catch { return []; }
+  const walk = (el: ParsedEl, depth: number): LayerNode[] => {
+    const out: LayerNode[] = [];
+    for (const child of (el.childNodes || []) as ParsedEl[]) {
+      if ((child as any).nodeType !== 1) continue;
+      const tag = (child.rawTagName || "").toLowerCase();
+      const uid = child.getAttribute?.("data-uid");
+      const kids = depth < 8 ? walk(child, depth + 1) : [];
+      if (!uid) { out.push(...kids); continue; }
+      const cls = child.getAttribute("class") || "";
+      const isIcon = /material-symbols|material-icons/.test(cls);
+      const known = isIcon ? { label: "Icon", type: "icon" } : IMPORTED_KIND[tag];
+      // transparent wrappers (plain divs with a single path through) collapse away so the tree
+      // reads like the design, not like the markup's scaffolding
+      if (!known && kids.length === 1) { out.push(kids[0]); continue; }
+      const meta = known || { label: "Container", type: "row" };
+      const text = (child.textContent || "").replace(/\s+/g, " ").trim();
+      const snippet = tag === "img" ? (child.getAttribute("alt") || "").slice(0, 22) : text.slice(0, 24);
+      out.push({
+        id: `${si}.n.${uid}`,
+        kind: "element",
+        label: snippet && meta.label !== "Container" ? `${meta.label} · ${snippet}` : meta.label,
+        type: meta.type,
+        sectionIndex: si,
+        nodeUid: uid,
+        children: kids.length ? kids : undefined,
+      });
+    }
+    return out;
+  };
+  return walk(root, 0);
 }
 
 /** Section-level label (type-only spec): Header / Hero / Footer / Section N. */

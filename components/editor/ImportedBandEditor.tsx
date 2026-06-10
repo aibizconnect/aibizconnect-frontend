@@ -111,7 +111,7 @@ export function nodeFacts(html: string, uid: string) {
 }
 
 export default function ImportedBandEditor({
-  content, css, fontHrefs = [], selected, onChange, onNodeSelect,
+  content, css, fontHrefs = [], selected, onChange, onNodeSelect, externalSelUid,
 }: {
   content: Content;
   /** The page's imported-css snapshot — injected ONLY into the iframe document. */
@@ -124,6 +124,8 @@ export default function ImportedBandEditor({
   /** Reports the selected node's facts UP so the RIGHT panel can edit it as a projected
    *  native element (D-188) — <img> edits as Image, <h2> as Heading, <a> as Button. */
   onNodeSelect?: (sel: { uid: string; facts: NonNullable<ReturnType<typeof nodeFacts>> } | null) => void;
+  /** Controlled selection from OUTSIDE (the Layers tree) — syncs the in-band highlight. */
+  externalSelUid?: string | null;
 }) {
   const patches = useMemo(() => (Array.isArray(content.patches) ? content.patches : []), [content.patches]);
   const patchedHtml = useMemo(() => applyPatches(content.html || "", patches), [content.html, patches]);
@@ -142,6 +144,12 @@ export default function ImportedBandEditor({
     onNodeSelect?.(sel && facts ? { uid: sel, facts } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, facts]);
+
+  // Layers-tree → canvas: an external selection (tree click) drives the in-band highlight.
+  useEffect(() => {
+    if (externalSelUid !== undefined && externalSelUid !== null && externalSelUid !== sel) setSel(externalSelUid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSelUid]);
 
   const srcDoc = useMemo(() =>
     `<!doctype html><html><head><meta charset="utf-8">${fontHrefs.map((h) => `<link rel="stylesheet" href="${h}">`).join("")}<style>${css}</style><style>html,body{margin:0;background:transparent}[data-uid]{cursor:default}</style></head><body>${patchedHtml}</body></html>`,
