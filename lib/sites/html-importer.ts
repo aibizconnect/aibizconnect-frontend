@@ -73,6 +73,18 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     if (el.getAttribute("role") === "button") return true;
     return CTA_WORDS.test(clean(el.text)) && clean(el.text).length <= 32;
   };
+  // Build a button block, capturing its real fill/border so a gold primary stays gold and a
+  // ghost/outline stays outlined (instead of every CTA defaulting to one solid color).
+  const buildButton = (el: HTMLElement): Record<string, unknown> => {
+    const label = clean(el.text).slice(0, 40);
+    const href = abs(el.getAttribute("href") || "#");
+    const { style, typo } = parseDataCs(el.getAttribute("data-cs"));
+    const b: Record<string, unknown> = { type: "button", label, href };
+    if (style.bg) { b.bgColor = style.bg as string; b.variant = "solid"; } else b.variant = "outline";
+    if (typo.color) b.textColor = typo.color as string;
+    if (typeof style.radius === "number") b.radius = style.radius;
+    return b;
+  };
 
   const formToContactForm = (el: HTMLElement): Record<string, unknown> => {
     const fields: { name: string; label: string; type: string }[] = [];
@@ -198,6 +210,21 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         }
       }
 
+      // Button GROUP: a horizontal container holding 2+ CTA buttons (e.g. "Get Pre-Approved" +
+      // "Book a Call") → a multi-column row so they sit SIDE-BY-SIDE instead of stacking.
+      {
+        const cs = el.getAttribute("data-cs") || "";
+        if ((tag === "div" || tag === "span") && !/flexDirection:column/.test(cs)) {
+          const kids = (el.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
+          const btns = kids.filter((k) => (tagOf(k) === "a" || tagOf(k) === "button") && looksLikeButton(k));
+          if (btns.length >= 2 && btns.length === kids.length) {
+            flushImgs();
+            out.push({ type: "row", columns: Math.min(btns.length, 4), contentWidth: "boxed", gap: 12, _name: "Buttons", children: btns.map((b) => [buildButton(b)]) });
+            continue;
+          }
+        }
+      }
+
       if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = cleanText(el); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...imgSizeFrom(el) }); continue; }
       if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...(s ? imgSizeFrom(s) : {}) }); continue; }
@@ -208,7 +235,7 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (tag === "iframe") { const src = el.getAttribute("src") || ""; if (/youtube|youtu\.be|vimeo|wistia/i.test(src)) { flushImgs(); out.push({ type: "video", url: src }); } continue; }
       if (tag === "form") { flushImgs(); out.push(formToContactForm(el)); continue; }
       if (tag === "button" || tag === "a") {
-        if (looksLikeButton(el)) { flushImgs(); const label = clean(el.text); const href = abs(el.getAttribute("href") || "#"); if (label) out.push(applyCapturedTypo({ type: "button", label: label.slice(0, 40), href }, el.getAttribute("data-cs"))); continue; }
+        if (looksLikeButton(el)) { flushImgs(); if (clean(el.text)) out.push(buildButton(el)); continue; }
         walk(el); continue; // ordinary link → recurse for nested text/images
       }
       if (tag === "p") {
@@ -327,7 +354,10 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   const expandBands = (els: HTMLElement[], depth: number): HTMLElement[] => {
     const out: HTMLElement[] = [];
     for (const el of els) {
-      if (droppableBand(el)) continue;
+      // Keep a top <nav>/<header> in faithful mode so the band loop can rebuild it as a header.
+      const keepAsHeader = faithful && (tagOf(el) === "nav" || tagOf(el) === "header");
+      if (droppableBand(el) && !keepAsHeader) continue;
+      if (keepAsHeader) { out.push(el); continue; }
       const kids = elementChildren(el).filter((k) => !DROP.has(tagOf(k)));
       const grid = findCardGrid(el);
       const isGridItself = !!grid && grid.el === el; // its children are cards → keep as one band (grid logic owns it)
@@ -343,9 +373,38 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     }
     return out;
   };
+  // Build a HEADER row from a <nav>/<header> bar: brand (logo) + a menu of the nav links + any CTA
+  // button, side by side. Lets a designed top bar import as an editable header (the renderer treats a
+  // row containing a `menu` element as a header) instead of being dropped as chrome.
+  const buildHeaderRow = (el: HTMLElement): Record<string, unknown> | null => {
+    const navItems: { label: string; href: string }[] = [];
+    let logo = ""; let cta: Record<string, unknown> | null = null;
+    for (const a of el.querySelectorAll("a, button")) {
+      const label = clean(a.text);
+      if (!label || label.length > 40) continue;
+      if (looksLikeButton(a)) { if (!cta) cta = buildButton(a); continue; }
+      if (!logo) { logo = label; continue; }            // first plain link = brand/logo
+      if (!navItems.some((n) => n.label === label)) navItems.push({ label, href: abs(a.getAttribute("href") || "#") });
+    }
+    if (!navItems.length && !cta) return null;
+    const cols: Record<string, unknown>[][] = [];
+    cols.push([{ type: "heading", text: logo || "Brand", level: "h3" }]);
+    if (navItems.length) cols.push([{ type: "menu", items: navItems.slice(0, 8), orientation: "horizontal" }]);
+    if (cta) cols.push([cta]);
+    const row: Record<string, unknown> = { type: "row", columns: cols.length, contentWidth: "boxed", _name: "Header", children: cols };
+    const st = parseDataCs(el.getAttribute("data-cs")).style;
+    if (Object.keys(st).length) row._style = st;
+    return row;
+  };
+
   const bandEls = expandBands(elementChildren(container), 0);
 
   for (const band of bandEls) {
+    // Faithful: import a top <nav>/<header> bar as an editable HEADER row (logo + menu + CTA).
+    if (faithful && (tagOf(band) === "nav" || (tagOf(band) === "header" && band.querySelectorAll("a").length >= 3))) {
+      const hdr = buildHeaderRow(band);
+      if (hdr) { result.push(hdr); if (result.length >= 60) break; continue; }
+    }
     if (droppableBand(band)) continue;
     const bandStyle = parseDataCs(band.getAttribute("data-cs")).style;
     let children: Record<string, unknown>[][] = [];
