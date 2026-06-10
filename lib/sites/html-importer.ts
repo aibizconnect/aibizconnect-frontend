@@ -71,7 +71,15 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     const cls = (el.getAttribute("class") || "").toLowerCase();
     if (/\b(btn|button|cta)\b/.test(cls)) return true;
     if (el.getAttribute("role") === "button") return true;
-    return CTA_WORDS.test(clean(el.text)) && clean(el.text).length <= 32;
+    if (!CTA_WORDS.test(clean(el.text)) || clean(el.text).length > 32) return false;
+    // CTA wording alone isn't enough on a RENDERED import: a plain nav/footer link named "Contact"
+    // would steal the header CTA slot and vanish from link lists. With computed styles available,
+    // require real button chrome — a fill, or a rounded padded pill. (Raw-HTML imports keep the
+    // text-only heuristic: no data-cs to consult.)
+    const cs = el.getAttribute("data-cs");
+    if (cs == null) return true;
+    const { style } = parseDataCs(cs);
+    return !!style.bg || (typeof style.radius === "number" && style.radius > 0 && (Number(style.pl) || 0) >= 8);
   };
   // Build a button block, capturing its real fill/border so a gold primary stays gold and a
   // ghost/outline stays outlined (instead of every CTA defaulting to one solid color).
@@ -95,6 +103,15 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       // label wrapping the input
       let p: any = inp.parentNode;
       for (let i = 0; i < 3 && p; i++) { if ((p.rawTagName || "").toLowerCase() === "label" && clean(p.text)) return clean(p.text); p = p.parentNode; }
+      // SIBLING label (Stitch: <div><label>Your Name</label><input placeholder="John Doe"></div> —
+      // no for=, not wrapping). Check DIRECT children only of up to 2 ancestors, so a field never
+      // adopts another field's label (other fields' labels live one wrapper deeper).
+      p = inp.parentNode;
+      for (let i = 0; i < 2 && p; i++) {
+        const lab = ((p.childNodes || []) as any[]).find((n) => n.nodeType === 1 && (n.rawTagName || "").toLowerCase() === "label");
+        if (lab && clean(lab.text)) return clean(lab.text);
+        p = p.parentNode;
+      }
       return clean(inp.getAttribute("aria-label") || inp.getAttribute("placeholder") || "");
     };
     const crmName = (itype: string, hint: string): string => {
@@ -505,6 +522,23 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         // Grid is nested inside the band → keep any intro content + the grid as a nested row.
         const intro = collectBlocks(band, grid.el); // band content WITHOUT the grid subtree
         const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
+        // The design's color often sits on a WRAPPER between band and grid (Stitch: white <section>
+        // → navy rounded p-16 card → 2-col grid). The band keeps its own bg and the grid is
+        // transparent, so without this climb the navy card vanished (white headings on white band).
+        // Adopt the nearest such wrapper's bg/bgImage + radius + padding onto the nested row (D-171).
+        if (!gridStyle.bg && !gridStyle.bgImage) {
+          let anc: any = grid.el.parentNode;
+          for (let i = 0; i < 4 && anc && anc !== band; i++) {
+            const ws = parseDataCs(anc.getAttribute?.("data-cs")).style;
+            if ((ws.bg && ws.bg !== pageBg) || ws.bgImage) {
+              for (const k of ["bg", "bgImage", "radius", "pt", "pr", "pb", "pl"]) {
+                if (ws[k] != null && gridStyle[k] == null) gridStyle[k] = ws[k];
+              }
+              break;
+            }
+            anc = anc.parentNode;
+          }
+        }
         const nested: Record<string, unknown> = {
           type: "row", columns: Math.min(cols.length, 12), contentWidth: "boxed", gap: 16,
           _name: "Cards", children: cols, colStyles,
