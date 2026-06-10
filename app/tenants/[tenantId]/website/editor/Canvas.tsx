@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
+import ImportedBandEditor from "@/components/editor/ImportedBandEditor";
 import SectionEditor from "./SectionEditor";
 import TextFormatPopup from "./TextFormatPopup";
 import RowEditor, { type ChildSel, type ColSel, type ElPath, pathsEqual } from "./RowEditor";
@@ -1216,7 +1217,23 @@ export default function Canvas({
                   <button onClick={(e) => { e.stopPropagation(); duplicateSection(index); }} title="Duplicate" className="rounded p-1 text-slate-500 hover:bg-slate-100">⧉</button>
                   <button onClick={(e) => { e.stopPropagation(); deleteSection(index); }} title="Delete" className="rounded p-1 text-red-500 hover:bg-red-50">🗑</button>
                 </div>
-                {item.content.type === "row" && (() => {
+                {item.content.type === "imported-css" ? (
+                  // LOSSLESS import CSS carrier: NEVER inject its <style> into the editor document
+                  // (it would restyle the dashboard) — bands get it inside their iframes instead.
+                  <div className="flex items-center gap-2 rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    <span className="font-medium">Imported design CSS</span>
+                    <span>· powers the imported sections below · {Math.round(((item.content as any).css || "").length / 1024)} KB</span>
+                  </div>
+                ) : item.content.type === "imported-html" ? (
+                  // LOSSLESS imported band (D-178): real HTML in an isolated iframe + Layer Tree
+                  // editing via patches when selected.
+                  <ImportedBandEditor
+                    content={item.content as any}
+                    css={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.css || ""}
+                    selected={selectedUid === item.uid}
+                    onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
+                  />
+                ) : item.content.type === "row" && (() => {
                   // HEADER rows (contain a menu) preview as the responsive bar when on a
                   // non-desktop device, so the logo + ☰ + in-menu CTA layout is visible.
                   const cols: any[] = Array.isArray((item.content as any).children) ? (item.content as any).children : [];
