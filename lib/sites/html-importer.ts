@@ -87,21 +87,44 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   };
 
   const formToContactForm = (el: HTMLElement): Record<string, unknown> => {
+    // Map each input to OUR CRM field name (name/email/phone/message) so submissions create a Contact
+    // (the /api/leads/submit handler keys on exactly these). Use the real <label> text for the label.
+    const labelFor = (inp: HTMLElement): string => {
+      const id = inp.getAttribute("id");
+      if (id) { const lab = el.querySelector(`label[for="${id}"]`); if (lab && clean(lab.text)) return clean(lab.text); }
+      // label wrapping the input
+      let p: any = inp.parentNode;
+      for (let i = 0; i < 3 && p; i++) { if ((p.rawTagName || "").toLowerCase() === "label" && clean(p.text)) return clean(p.text); p = p.parentNode; }
+      return clean(inp.getAttribute("aria-label") || inp.getAttribute("placeholder") || "");
+    };
+    const crmName = (itype: string, hint: string): string => {
+      const h = hint.toLowerCase();
+      if (itype === "email" || /e-?mail/.test(h)) return "email";
+      if (itype === "tel" || /phone|mobile|tel/.test(h)) return "phone";
+      if (itype === "textarea" || /message|comment|help|note|inquir/.test(h)) return "message";
+      if (/name/.test(h)) return "name";
+      return "";
+    };
     const fields: { name: string; label: string; type: string }[] = [];
-    const seen = new Set<string>();
+    const usedCrm = new Set<string>();
     for (const inp of el.querySelectorAll("input, textarea, select")) {
       const itype = (inp.getAttribute("type") || (tagOf(inp) === "textarea" ? "textarea" : "text")).toLowerCase();
       if (["submit", "button", "hidden", "checkbox", "radio", "image", "file"].includes(itype)) continue;
-      const name = inp.getAttribute("name") || inp.getAttribute("id") || `field_${fields.length + 1}`;
-      if (seen.has(name)) continue; seen.add(name);
-      const label = inp.getAttribute("placeholder") || inp.getAttribute("aria-label") || name.replace(/[_-]+/g, " ");
       const ftype = itype === "email" ? "email" : itype === "tel" ? "tel" : tagOf(inp) === "textarea" ? "textarea" : "text";
-      fields.push({ name, label: clean(label).slice(0, 40) || "Field", type: ftype });
+      const rawHint = (inp.getAttribute("name") || "") + " " + (inp.getAttribute("id") || "") + " " + labelFor(inp);
+      let name = crmName(ftype, rawHint);
+      if (!name || usedCrm.has(name)) name = name && !usedCrm.has(name) ? name : (inp.getAttribute("name") || `field_${fields.length + 1}`);
+      usedCrm.add(name);
+      const label = clean(labelFor(inp)).slice(0, 40) || (name.charAt(0).toUpperCase() + name.slice(1));
+      fields.push({ name, label, type: ftype });
       if (fields.length >= 6) break;
     }
     if (!fields.length) fields.push({ name: "name", label: "Name", type: "text" }, { name: "email", label: "Email", type: "email" });
+    // Real submit button text (e.g. "Send Message") instead of a hardcoded default.
+    const submitEl = el.querySelector('button[type="submit"], input[type="submit"], button');
+    const submitLabel = clean(submitEl?.getAttribute("value") || submitEl?.text || "Send").slice(0, 40) || "Send";
     const heading = clean(el.querySelector("h1,h2,h3,legend")?.text || "Get in touch").slice(0, 80);
-    return { type: "contact-form", heading, fields, submitLabel: "Send" };
+    return { type: "contact-form", heading, fields, submitLabel };
   };
 
   // Detect a HERO band at the very top and emit it as one `hero` section (heading + subheading +
@@ -225,6 +248,19 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         }
       }
 
+      // Link LIST (footer "Quick Links"/"Compliance", nav menus): a ul/div whose children are all
+      // plain (non-button) links → a vertical menu, preserving every link.
+      if (tag === "ul" || tag === "div" || tag === "nav") {
+        const lis = (el.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
+        const linkEls = lis.map((k) => (tagOf(k) === "a" ? k : k.querySelector("a"))).filter((a): a is HTMLElement => !!a && !looksLikeButton(a) && !!clean(a.text));
+        if (lis.length >= 2 && linkEls.length >= 2 && linkEls.length >= Math.ceil(lis.length * 0.8)) {
+          flushImgs();
+          const items = linkEls.slice(0, 12).map((a) => ({ label: clean(a.text).slice(0, 40), href: abs(a.getAttribute("href") || "#") }));
+          out.push({ type: "menu", items, orientation: "vertical" });
+          continue;
+        }
+      }
+
       if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = cleanText(el); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...imgSizeFrom(el) }); continue; }
       if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...(s ? imgSizeFrom(s) : {}) }); continue; }
@@ -236,7 +272,12 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (tag === "form") { flushImgs(); out.push(formToContactForm(el)); continue; }
       if (tag === "button" || tag === "a") {
         if (looksLikeButton(el)) { flushImgs(); if (clean(el.text)) out.push(buildButton(el)); continue; }
-        walk(el); continue; // ordinary link → recurse for nested text/images
+        // Ordinary link: if it has an inner image, recurse; otherwise capture its TEXT (a plain text
+        // node child is skipped by walk, which is why footer/menu links were vanishing).
+        if (el.querySelector("img, picture")) { walk(el); continue; }
+        const lt = cleanText(el);
+        if (lt) { flushImgs(); out.push(applyCapturedTypo({ type: "text", text: lt }, el.getAttribute("data-cs"))); }
+        continue;
       }
       if (tag === "p") {
         // A paragraph that is ONLY an image/link is handled by recursion; otherwise its text.
