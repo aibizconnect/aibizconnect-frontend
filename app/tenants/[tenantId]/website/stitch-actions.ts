@@ -11,6 +11,7 @@
 
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { htmlToSections } from "@/lib/sites/html-importer";
+import { htmlToLosslessSections } from "@/lib/sites/lossless-importer";
 import { renderHtmlToDom } from "@/lib/sites/site-clone";
 import { ingestSectionImages } from "@/lib/sites/image-ingestion";
 import { sectionSchema } from "@/lib/sections/schemas";
@@ -41,16 +42,17 @@ export async function importHtmlAsDraftPage(
   websiteId: string,
   html: string,
   title: string,
-  opts?: { baseUrl?: string; isHome?: boolean },
+  opts?: { baseUrl?: string; isHome?: boolean; mode?: "lossless" | "blocks" },
 ): Promise<ImportHtmlResult> {
   await requireTenantAccess(tenantId);
   if (!html || html.length < 40) return { ok: false, message: "Empty/too-small HTML." };
 
   // FIDELITY (architect D-146): pasted markup carries utility/inline CLASSES but no resolved
   // computed styles. Render it in a real browser (render bridge) so those classes resolve to true
-  // padding/spacing/color/typography annotated as data-cs — then decompose. If no bridge is
-  // configured (or it fails), fall back to the raw markup and flag the page low-fidelity so the
-  // user can re-capture instead of silently shipping unstyled primitives.
+  // padding/spacing/color/typography annotated as data-cs — AND, for the lossless path, get the
+  // data-uid stamps + compiled-CSS snapshot (D-179/D-180). If no bridge is configured (or it
+  // fails), fall back to the raw markup and flag the page low-fidelity so the user can re-capture
+  // instead of silently shipping unstyled primitives (D-144 preserved per D-186).
   let working = html;
   let fidelity: "high" | "low" = "low";
   if (html.includes("data-cs")) {
@@ -60,29 +62,66 @@ export async function importHtmlAsDraftPage(
     if (rendered) { working = rendered; fidelity = "high"; }
   }
 
-  let raw: Record<string, unknown>[];
-  try {
-    // Faithful mode: keep the design's real structure/order as editable primitives instead of
-    // collapsing the first section into our composite hero template.
-    raw = htmlToSections(working, opts?.baseUrl || "https://stitch.local", { faithful: true });
-  } catch (e: any) {
-    return { ok: false, message: `Decompose failed: ${e?.message ?? e}` };
-  }
-  // Keep only sections our renderer can validate (each remains fully editable).
-  let sections = raw.filter((s) => sectionSchema.safeParse(s).success);
-  const dropped = raw.length - sections.length;
-  if (!sections.length) return { ok: false, fidelity, message: "No renderable sections produced.", droppedCount: dropped };
+  // DEFAULT = LOSSLESS (architect D-178/D-186): the page's real HTML is the source of truth —
+  // verbatim bands + CSS snapshot + Layer-Tree patch editing. The heuristic translator remains
+  // reachable via mode:"blocks" ("Convert to editable blocks", D-182). Lossless requires the
+  // bridge's uid stamps; without them (low fidelity) we fall back to the translator.
+  const mode = opts?.mode ?? (fidelity === "high" && working.includes("data-uid") ? "lossless" : "blocks");
 
-  // P1 (architect D-148): pull every imported image (img/gallery/hero bg/_style bg/row children)
-  // into the tenant Media Library so the page owns durable, reusable copies instead of hotlinks
-  // that rot. Best-effort: any single failure leaves that URL untouched.
-  let imagesIngested = 0;
-  try {
-    const before = JSON.stringify(sections);
-    const ingested = await ingestSectionImages(tenantId, sections as any, { websiteId });
-    sections = ingested as any;
-    if (JSON.stringify(sections) !== before) imagesIngested = 1; // at least one URL was rewritten
-  } catch { /* keep original URLs */ }
+  let sections: Record<string, unknown>[];
+  let dropped = 0;
+  let seo: { title?: string; description?: string; imageUrl?: string } = {};
+  if (mode === "lossless") {
+    try {
+      const out = htmlToLosslessSections(working, opts?.baseUrl || "https://stitch.local");
+      sections = out.sections;
+      seo = out.seo;
+    } catch (e: any) {
+      return { ok: false, message: `Lossless import failed: ${e?.message ?? e}` };
+    }
+    if (!sections.some((s) => s.type === "imported-html")) return { ok: false, fidelity, message: "No bands produced." };
+    // Media Library ingestion for verbatim bands: collect <img src> urls, ingest via the existing
+    // pipeline, then rewrite the band HTML strings.
+    try {
+      const urls = new Set<string>();
+      for (const s of sections) {
+        const h = (s as any).html as string | undefined;
+        if (h) for (const m of h.matchAll(/src="(https?:\/\/[^"]+)"/g)) urls.add(m[1]);
+      }
+      if (urls.size) {
+        const fake = Array.from(urls).map((url) => ({ type: "image", url }));
+        const ingested = (await ingestSectionImages(tenantId, fake as any, { websiteId })) as any[];
+        const map = new Map<string, string>();
+        Array.from(urls).forEach((u, i) => { const nu = ingested[i]?.url; if (nu && nu !== u) map.set(u, nu); });
+        for (const s of sections) {
+          let h = (s as any).html as string | undefined;
+          if (!h) continue;
+          for (const [from, to] of map) h = h.split(from).join(to);
+          (s as any).html = h;
+        }
+      }
+    } catch { /* keep original URLs */ }
+  } else {
+    let raw: Record<string, unknown>[];
+    try {
+      // Faithful mode: keep the design's real structure/order as editable primitives instead of
+      // collapsing the first section into our composite hero template.
+      raw = htmlToSections(working, opts?.baseUrl || "https://stitch.local", { faithful: true });
+    } catch (e: any) {
+      return { ok: false, message: `Decompose failed: ${e?.message ?? e}` };
+    }
+    // Keep only sections our renderer can validate (each remains fully editable).
+    sections = raw.filter((s) => sectionSchema.safeParse(s).success);
+    dropped = raw.length - sections.length;
+    if (!sections.length) return { ok: false, fidelity, message: "No renderable sections produced.", droppedCount: dropped };
+
+    // P1 (architect D-148): pull every imported image into the tenant Media Library so the page
+    // owns durable, reusable copies instead of hotlinks that rot.
+    try {
+      const ingested = await ingestSectionImages(tenantId, sections as any, { websiteId });
+      sections = ingested as any;
+    } catch { /* keep original URLs */ }
+  }
 
   const slug = slugify(title);
   let page: { id: string };
@@ -91,9 +130,18 @@ export async function importHtmlAsDraftPage(
   } catch {
     page = await createPage(tenantId, { title, slug: `${slug}-${websiteId.slice(0, 8)}`, isHome: !!opts?.isHome, websiteId });
   }
-  await saveDraft(page.id, tenantId, { draft_sections: sections as any });
+  const draft: Record<string, unknown> = { draft_sections: sections as any };
+  // SEO captured from the imported <head> lands in the page's draft SEO fields (D-178.4).
+  if (seo.title || seo.description || seo.imageUrl) {
+    draft.draft_seo = {
+      ...(seo.title ? { seo_title: seo.title } : {}),
+      ...(seo.description ? { seo_description: seo.description } : {}),
+      ...(seo.imageUrl ? { seo_image_url: seo.imageUrl } : {}),
+    };
+  }
+  await saveDraft(page.id, tenantId, draft as any);
 
-  return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity, imagesIngested };
+  return { ok: true, pageId: page.id, slug, sectionCount: sections.length, droppedCount: dropped, fidelity };
 }
 
 /**

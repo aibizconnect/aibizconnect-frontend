@@ -28,15 +28,26 @@ function buildTree(html: string): TreeNode | null {
   const doc = new DOMParser().parseFromString(`<div id="__root">${html}</div>`, "text/html");
   const rootEl = doc.getElementById("__root")?.firstElementChild;
   if (!rootEl) return null;
+  // Friendly node names (architect D-187): semantic kind first, content snippet second —
+  // "Heading · Ottawa mortgages…" beats "h2.font-headline-lg" for non-technical editing.
+  const KIND: Record<string, string> = {
+    h1: "Heading", h2: "Heading", h3: "Heading", h4: "Heading", h5: "Heading", h6: "Heading",
+    p: "Text", span: "Text", img: "Image", a: "Link", button: "Button", nav: "Menu",
+    form: "Form", input: "Field", textarea: "Field", label: "Label", ul: "List", ol: "List", li: "Item",
+    section: "Section", header: "Header", footer: "Footer", svg: "Icon",
+  };
   const walk = (el: Element, depth: number): TreeNode | null => {
     const uid = el.getAttribute("data-uid");
     const kids: TreeNode[] = [];
     for (const c of Array.from(el.children)) { const n = walk(c, depth + 1); if (n) kids.push(n); }
     if (!uid) return kids.length === 1 ? kids[0] : null; // skip unstamped wrappers
     const tag = el.tagName.toLowerCase();
+    const cls = el.getAttribute("class") || "";
+    const isIcon = /material-symbols|material-icons/.test(cls);
     const text = (el.textContent || "").replace(/\s+/g, " ").trim();
-    const cls = (el.getAttribute("class") || "").split(/\s+/).filter((c) => c && !/^(flex|grid|relative|absolute|hidden|md:|lg:|sm:)/.test(c))[0];
-    const label = tag === "img" ? "image" : text ? text.slice(0, 28) : cls ? `${tag}.${cls.slice(0, 18)}` : tag;
+    const kind = isIcon ? "Icon" : KIND[tag] || (kids.length ? "Container" : "Element");
+    const snippet = tag === "img" ? (el.getAttribute("alt") || "").slice(0, 24) : isIcon ? text.slice(0, 16) : text.slice(0, 26);
+    const label = snippet ? `${kind} · ${snippet}` : kind;
     return { uid, tag, label, children: kids, depth };
   };
   return walk(rootEl, 0);
@@ -75,6 +86,9 @@ export default function ImportedBandEditor({
   const [sel, setSel] = useState<string | null>(null);
   const [height, setHeight] = useState(160);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // The iframe's listeners are wired once per srcDoc; route their commits through a ref so they
+  // always reach the CURRENT setPatch (patches change between wires).
+  const setPatchRef = useRef<(p: ImportedPatch) => void>(() => {});
   const tree = useMemo(() => buildTree(patchedHtml), [patchedHtml]);
   const facts = useMemo(() => (sel ? nodeFacts(patchedHtml, sel) : null), [patchedHtml, sel]);
 
@@ -94,9 +108,36 @@ export default function ImportedBandEditor({
       if (!d) return;
       d.addEventListener("click", (e) => {
         const t = (e.target as Element)?.closest?.("[data-uid]");
+        // While a node is being text-edited, let clicks place the caret normally.
+        if ((e.target as HTMLElement)?.isContentEditable) return;
         e.preventDefault(); e.stopPropagation();
         if (t) setSel(t.getAttribute("data-uid"));
       }, true);
+      // IN-CANVAS DIRECT TEXT EDITING (D-184/185): double-click a text leaf → type in place →
+      // blur commits a {op:"text"} patch. No tree hunting for simple copy changes. Works in the
+      // sandboxed iframe because contentEditable is browser UI, not frame scripting.
+      d.addEventListener("dblclick", (e) => {
+        const t = (e.target as Element)?.closest?.("[data-uid]") as HTMLElement | null;
+        if (!t || t.children.length > 0) return; // text leaves only
+        e.preventDefault(); e.stopPropagation();
+        const uid = t.getAttribute("data-uid")!;
+        const original = t.textContent || "";
+        t.setAttribute("contenteditable", "true");
+        t.focus();
+        const commit = () => {
+          t.removeAttribute("contenteditable");
+          const v = t.textContent || "";
+          if (v !== original) setPatchRef.current({ op: "text", uid, value: v });
+        };
+        t.addEventListener("blur", commit, { once: true });
+        t.addEventListener("keydown", (ke: KeyboardEvent) => {
+          if (ke.key === "Escape") { t.textContent = original; t.blur(); }
+          if (ke.key === "Enter" && !ke.shiftKey && t.tagName !== "P") { ke.preventDefault(); t.blur(); }
+        });
+        setSel(uid);
+      }, true);
+      // Affordance: text leaves show a text cursor on hover.
+      try { const s = d.createElement("style"); s.textContent = "[data-uid]:not(:has(*)):hover{cursor:text;outline:1px dashed #93c5fd;outline-offset:-1px}"; d.head.appendChild(s); } catch { /* optional */ }
       measure();
       // late images/fonts shift layout — re-measure a few times
       setTimeout(measure, 300); setTimeout(measure, 1200); setTimeout(measure, 3000);
@@ -131,6 +172,7 @@ export default function ImportedBandEditor({
     }
     onChange({ ...content, patches: next });
   };
+  setPatchRef.current = setPatch;
   const revertPatch = (i: number) => onChange({ ...content, patches: patches.filter((_, idx) => idx !== i) });
 
   const Tree = ({ n }: { n: TreeNode }) => (
@@ -140,7 +182,7 @@ export default function ImportedBandEditor({
         className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] leading-4 ${sel === n.uid ? "bg-blue-100 text-blue-900" : "text-slate-600 hover:bg-slate-100"}`}
         title={`${n.tag} — ${n.label}`}
       >
-        <span className="mr-1 font-mono text-[10px] text-slate-400">{n.tag}</span>{n.label}
+        {n.label}
       </button>
       {n.children.map((c) => <Tree key={c.uid} n={c} />)}
     </div>
