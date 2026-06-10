@@ -24,7 +24,12 @@ export type ImportedPatch =
   | { op: "link"; uid: string; href: string }
   | { op: "style"; uid: string; style: Record<string, string> }
   | { op: "hide"; uid: string }
-  | { op: "attr"; uid: string; name: string; value: string | null };
+  | { op: "attr"; uid: string; name: string; value: string | null }
+  // Structural ops (Copilot extended set): every Layer Tree node is movable, duplicatable and
+  // removable. Patches apply IN ORDER, so repeated moves accumulate (and stay auditable).
+  | { op: "remove"; uid: string }
+  | { op: "move"; uid: string; dir: "up" | "down" }
+  | { op: "duplicate"; uid: string; cloneId: string };
 
 const BAND_TAGS = new Set(["section", "header", "footer", "nav", "main", "article"]);
 const STRIP_TAGS = new Set(["script", "noscript", "object", "embed", "base"]);
@@ -151,6 +156,26 @@ export function applyPatches(html: string, patches: ImportedPatch[] | undefined)
       }
       case "hide": node.setAttribute("style", `${node.getAttribute("style") || ""};display:none`); break;
       case "attr": p.value == null ? node.removeAttribute(p.name) : node.setAttribute(p.name, p.value); break;
+      case "remove": node.remove(); break;
+      case "move": {
+        const parent: any = node.parentNode;
+        if (!parent) break;
+        const sibs = (parent.childNodes || []).filter((n: any) => n.nodeType === 1);
+        const idx = sibs.indexOf(node);
+        const target = p.dir === "up" ? sibs[idx - 1] : sibs[idx + 1];
+        if (!target) break;
+        const html = node.toString();
+        target.insertAdjacentHTML(p.dir === "up" ? "beforebegin" : "afterend", html);
+        node.remove();
+        break;
+      }
+      case "duplicate": {
+        // Clone with FRESH uids (orig uid + .cloneId) so the copy's nodes are addressable and
+        // editable independently of the original.
+        const cloned = node.toString().replace(/data-uid="([^"]+)"/g, (_m, u) => `data-uid="${u}.${p.cloneId}"`);
+        node.insertAdjacentHTML("afterend", cloned);
+        break;
+      }
     }
   }
   return root.toString();

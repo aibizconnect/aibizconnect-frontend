@@ -1230,6 +1230,7 @@ export default function Canvas({
                   <ImportedBandEditor
                     content={item.content as any}
                     css={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.css || ""}
+                    fontHrefs={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.fontHrefs || []}
                     selected={selectedUid === item.uid}
                     onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
                   />

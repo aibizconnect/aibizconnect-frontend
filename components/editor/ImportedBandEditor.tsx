@@ -17,6 +17,7 @@ import { applyPatches, type ImportedPatch } from "@/lib/sites/lossless-importer"
  */
 
 type Content = { type: "imported-html"; html: string; patches?: ImportedPatch[]; _name?: string };
+let cloneSeq = 0; // per-session counter for duplicate cloneIds (deterministic enough + unique)
 
 type TreeNode = { uid: string; tag: string; label: string; children: TreeNode[]; depth: number };
 
@@ -58,11 +59,14 @@ function nodeFacts(html: string, uid: string) {
 }
 
 export default function ImportedBandEditor({
-  content, css, selected, onChange,
+  content, css, fontHrefs = [], selected, onChange,
 }: {
   content: Content;
   /** The page's imported-css snapshot — injected ONLY into the iframe document. */
   css: string;
+  /** Font stylesheet links (Google Fonts / icon fonts) — without them, Material Symbols
+   *  ligatures render as their WORDS ("home","share") instead of glyphs. */
+  fontHrefs?: string[];
   selected: boolean;
   onChange: (next: Content) => void;
 }) {
@@ -75,8 +79,8 @@ export default function ImportedBandEditor({
   const facts = useMemo(() => (sel ? nodeFacts(patchedHtml, sel) : null), [patchedHtml, sel]);
 
   const srcDoc = useMemo(() =>
-    `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style><style>html,body{margin:0;background:transparent}[data-uid]{cursor:default}</style></head><body>${patchedHtml}</body></html>`,
-  [css, patchedHtml]);
+    `<!doctype html><html><head><meta charset="utf-8">${fontHrefs.map((h) => `<link rel="stylesheet" href="${h}">`).join("")}<style>${css}</style><style>html,body{margin:0;background:transparent}[data-uid]{cursor:default}</style></head><body>${patchedHtml}</body></html>`,
+  [css, fontHrefs, patchedHtml]);
 
   // Same-origin srcDoc iframe: measure height + wire click-to-select + selection highlight.
   useEffect(() => {
@@ -110,10 +114,21 @@ export default function ImportedBandEditor({
     if (sel) { const el = d.querySelector(`[data-uid="${sel}"]`) as HTMLElement | null; if (el) { el.setAttribute("data-abc-sel", "1"); el.style.cssText += `;${HIGHLIGHT}`; el.scrollIntoView({ block: "nearest" }); } }
   }, [sel, srcDoc]);
 
-  /** Upsert a patch (one per uid+op) — the original html is never mutated. */
+  /** Record a patch — the original html is never mutated. Content ops (text/image/link/hide)
+   *  UPSERT per uid+op; `style` merges keys; structural ops (move/duplicate/remove) APPEND in
+   *  order, so two "move up" clicks really move two steps and stay individually revertible. */
   const setPatch = (p: ImportedPatch) => {
-    const next = patches.filter((x) => !(x.uid === p.uid && x.op === p.op));
-    next.push(p);
+    let next: ImportedPatch[];
+    if (p.op === "move" || p.op === "duplicate" || p.op === "remove") {
+      next = [...patches, p];
+    } else if (p.op === "style") {
+      const prev = patches.find((x) => x.uid === p.uid && x.op === "style") as Extract<ImportedPatch, { op: "style" }> | undefined;
+      next = patches.filter((x) => !(x.uid === p.uid && x.op === "style"));
+      next.push({ op: "style", uid: p.uid, style: { ...(prev?.style || {}), ...p.style } });
+    } else {
+      next = patches.filter((x) => !(x.uid === p.uid && x.op === p.op));
+      next.push(p);
+    }
     onChange({ ...content, patches: next });
   };
   const revertPatch = (i: number) => onChange({ ...content, patches: patches.filter((_, idx) => idx !== i) });
@@ -141,7 +156,16 @@ export default function ImportedBandEditor({
 
           {sel && facts && (
             <div className="space-y-1.5 border-t border-slate-100 pt-2">
-              <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Selected: {facts.tag}</div>
+              <div className="flex items-center gap-1 px-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Selected: {facts.tag}</span>
+                {/* Structural ops — every Layer Tree node is movable, duplicatable, removable */}
+                <span className="ml-auto flex items-center gap-0.5">
+                  <button title="Move up" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "up" })}>↑</button>
+                  <button title="Move down" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "move", uid: sel, dir: "down" })}>↓</button>
+                  <button title="Duplicate" className="rounded px-1 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100" onClick={() => setPatch({ op: "duplicate", uid: sel, cloneId: `c${Date.now().toString(36)}${++cloneSeq}` })}>⧉</button>
+                  <button title="Remove" className="rounded px-1 py-0.5 text-[12px] text-red-500 hover:bg-red-50" onClick={() => { setPatch({ op: "remove", uid: sel }); setSel(null); }}>🗑</button>
+                </span>
+              </div>
               {facts.text != null && (
                 <textarea
                   defaultValue={facts.text}
