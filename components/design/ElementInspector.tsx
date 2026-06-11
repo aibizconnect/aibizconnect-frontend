@@ -36,9 +36,12 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 );
 
 // A tiny number box used in the box-model widget.
+// ALI RULE (2026-06-11): spacing/padding never exceed 20 anywhere — the inputs clamp to 0..20.
+const SPACING_MAX = 20;
 function MiniNum({ value, onChange, title }: { value?: number; onChange: (n: number) => void; title?: string }) {
   return (
-    <input type="number" title={title} value={value ?? 0} onChange={(e) => onChange(+e.target.value)}
+    <input type="number" title={title} value={value ?? 0} min={0} max={SPACING_MAX}
+      onChange={(e) => onChange(Math.max(0, Math.min(SPACING_MAX, +e.target.value)))}
       className="w-12 rounded border border-gray-200 bg-white px-1 py-0.5 text-center text-[11px] outline-none focus:border-[#1e3a8a]" />
   );
 }
