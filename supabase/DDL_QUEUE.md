@@ -19,6 +19,29 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 
 ## Pending
 
+### ⏳ PENDING — Calendar GHL-parity columns (0043_calendar_parity.sql)
+Generated 2026-06-11 (Blueprint v3.2, D-225). Additive + idempotent — safe to run any time.
+Until applied: the new Calendar view still renders existing appointments, but "+ New
+appointment" / "Block time" and status changes will report "calendar upgrade pending".
+
+```sql
+alter table public.tenant_appointments
+  add column if not exists end_at timestamptz,
+  add column if not exists title text,
+  add column if not exists notes text,
+  add column if not exists kind text not null default 'appointment',
+  add column if not exists source text not null default 'booking',
+  add column if not exists updated_at timestamptz not null default now();
+create unique index if not exists tenant_appts_external_event_unique
+  on public.tenant_appointments (tenant_id, external_event_id)
+  where external_event_id is not null;
+create index if not exists tenant_appts_range
+  on public.tenant_appointments (tenant_id, calendar_id, start_at, end_at);
+NOTIFY pgrst, 'reload schema';
+```
+
+_Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres

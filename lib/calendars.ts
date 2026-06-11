@@ -17,6 +17,39 @@ export interface Calendar {
 }
 export interface Appointment { id: string; name: string; email: string; startAt: string; status: string; }
 
+/** Full calendar entry (GHL-parity, D-225): appointments AND blocked time, with real end
+ *  times. Pre-migration rows surface with endAt=null (renderers default to the calendar's
+ *  duration) and kind="appointment". */
+export interface CalendarEntry {
+  id: string; calendarId: string;
+  kind: "appointment" | "blocked";
+  source: string;                       // booking | manual | sync
+  title: string | null;
+  name: string; email: string; phone: string | null;
+  startAt: string; endAt: string | null;
+  status: string;                       // booked | confirmed | cancelled | completed | no_show
+  notes: string | null;
+  createdAt: string | null;
+}
+
+function rowToEntry(r: any): CalendarEntry {
+  return {
+    id: r.id, calendarId: r.calendar_id,
+    kind: r.kind === "blocked" ? "blocked" : "appointment",
+    source: r.source ?? "booking",
+    title: r.title ?? null,
+    name: r.name ?? "", email: r.email ?? "", phone: r.phone ?? null,
+    startAt: r.start_at, endAt: r.end_at ?? null,
+    status: r.status ?? "booked",
+    notes: r.notes ?? null,
+    createdAt: r.created_at ?? null,
+  };
+}
+
+/** Friendly error when the 0043 migration hasn't been applied yet. */
+const MIGRATION_HINT = "Calendar upgrade pending — apply supabase/migrations/0043_calendar_parity.sql first.";
+const isMissingColumn = (msg?: string) => !!msg && /column .* does not exist|could not find/i.test(msg);
+
 const slugify = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "call";
 
 function rowToCal(r: any): Calendar {
@@ -74,6 +107,83 @@ export async function listAppointments(tenantId: string, calendarId: string): Pr
   return (data ?? []).map((r: any) => ({ id: r.id, name: r.name ?? "", email: r.email ?? "", startAt: r.start_at, status: r.status }));
 }
 
+// ── GHL-parity API (D-225) ──────────────────────────────────────────────────
+
+/** Every entry (appointments + blocked time) in [fromISO, toISO), optionally per calendar. */
+export async function listEntriesRange(
+  tenantId: string,
+  opts: { fromISO: string; toISO: string; calendarIds?: string[] },
+): Promise<CalendarEntry[]> {
+  let q = service().from("tenant_appointments").select("*")
+    .eq("tenant_id", tenantId)
+    .gte("start_at", opts.fromISO).lt("start_at", opts.toISO)
+    .order("start_at");
+  if (opts.calendarIds?.length) q = q.in("calendar_id", opts.calendarIds);
+  const { data } = await q;
+  return (data ?? []).map(rowToEntry);
+}
+
+export interface ManualAppointmentInput {
+  calendarId: string; title?: string; name?: string; email?: string; phone?: string;
+  startAt: string; endAt?: string; notes?: string;
+}
+/** Staff-created appointment ("+ New" on the calendar). Internal record only — no sends. */
+export async function createManualAppointment(tenantId: string, input: ManualAppointmentInput): Promise<{ ok: boolean; error?: string }> {
+  const sb = service();
+  const { data: cal } = await sb.from("tenant_calendars").select("duration_min").eq("tenant_id", tenantId).eq("id", input.calendarId).maybeSingle();
+  const durMin = (cal as any)?.duration_min ?? 30;
+  const endAt = input.endAt || new Date(new Date(input.startAt).getTime() + durMin * 60_000).toISOString();
+  const { error } = await sb.from("tenant_appointments").insert({
+    tenant_id: tenantId, calendar_id: input.calendarId,
+    title: (input.title || "").trim() || "Appointment",
+    name: input.name || null, email: input.email || null, phone: input.phone || null,
+    start_at: input.startAt, end_at: endAt, notes: input.notes || null,
+    kind: "appointment", source: "manual", status: "booked",
+  });
+  if (error) return { ok: false, error: isMissingColumn(error.message) ? MIGRATION_HINT : error.message };
+  if (input.email) {
+    try { await createContact(tenantId, { name: input.name || input.email, email: input.email, phone: input.phone, source: "manual appointment" }); } catch { /* best-effort */ }
+  }
+  return { ok: true };
+}
+
+/** Block a window on a calendar — no bookings allowed inside it (gray hatched on the grid). */
+export async function createBlockedTime(
+  tenantId: string,
+  input: { calendarId: string; startAt: string; endAt: string; title?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  if (new Date(input.endAt) <= new Date(input.startAt)) return { ok: false, error: "End must be after start." };
+  const { error } = await service().from("tenant_appointments").insert({
+    tenant_id: tenantId, calendar_id: input.calendarId,
+    title: (input.title || "").trim() || "Blocked",
+    start_at: input.startAt, end_at: input.endAt,
+    kind: "blocked", source: "manual", status: "booked",
+  });
+  if (error) return { ok: false, error: isMissingColumn(error.message) ? MIGRATION_HINT : error.message };
+  return { ok: true };
+}
+
+export interface EntryPatch {
+  status?: string; startAt?: string; endAt?: string; title?: string; notes?: string; calendarId?: string;
+}
+export async function updateEntry(tenantId: string, id: string, patch: EntryPatch): Promise<{ ok: boolean; error?: string }> {
+  const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.status != null) upd.status = patch.status;
+  if (patch.startAt != null) upd.start_at = patch.startAt;
+  if (patch.endAt != null) upd.end_at = patch.endAt;
+  if (patch.title != null) upd.title = patch.title;
+  if (patch.notes != null) upd.notes = patch.notes;
+  if (patch.calendarId != null) upd.calendar_id = patch.calendarId;
+  const { error } = await service().from("tenant_appointments").update(upd).eq("tenant_id", tenantId).eq("id", id);
+  if (error) return { ok: false, error: isMissingColumn(error.message) ? MIGRATION_HINT : error.message };
+  return { ok: true };
+}
+
+export async function deleteEntry(tenantId: string, id: string): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await service().from("tenant_appointments").delete().eq("tenant_id", tenantId).eq("id", id);
+  return { ok: !error, error: error?.message };
+}
+
 /** Generate bookable slots for the next `days` days, excluding internally-booked times AND the agent's
  *  Google Calendar busy times (when connected), with the calendar's buffer applied. */
 export async function availableSlots(tenantId: string, cal: Calendar, days = 14): Promise<{ date: string; slots: string[] }[]> {
@@ -81,8 +191,18 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
   const now = new Date();
   const windowEnd = new Date(now); windowEnd.setDate(now.getDate() + days);
 
-  const { data: booked } = await sb.from("tenant_appointments").select("start_at").eq("tenant_id", tenantId).eq("calendar_id", cal.id).eq("status", "booked");
-  const taken = new Set((booked ?? []).map((b: any) => new Date(b.start_at).toISOString()));
+  const bufferMs = (cal.bufferMin ?? 0) * 60_000;
+  const durMs = cal.durationMin * 60_000;
+
+  // Internal busy windows: live appointments AND blocked time (D-225/CAL-V8), as real
+  // intervals — end_at when present, else start + duration (legacy rows).
+  const { data: booked } = await sb.from("tenant_appointments").select("*")
+    .eq("tenant_id", tenantId).eq("calendar_id", cal.id)
+    .in("status", ["booked", "confirmed"]);
+  const internal = (booked ?? []).map((r: any) => {
+    const start = new Date(r.start_at).getTime();
+    return { start, end: r.end_at ? new Date(r.end_at).getTime() : start + durMs };
+  });
 
   // External free/busy across every connected provider (Google + Outlook + iCal). No-op if none.
   let busy: { start: number; end: number }[] = [];
@@ -90,10 +210,9 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
     const { getAllBusy } = await import("./server/calendar-busy");
     busy = await getAllBusy(tenantId, cal.id, now.toISOString(), windowEnd.toISOString());
   } catch { /* connectors unavailable → internal-only */ }
+  busy = busy.concat(internal);
 
-  const bufferMs = (cal.bufferMin ?? 0) * 60_000;
-  const durMs = cal.durationMin * 60_000;
-  const clashesGoogle = (startMs: number) => {
+  const clashes = (startMs: number) => {
     const s = startMs - bufferMs, e = startMs + durMs + bufferMs;
     return busy.some((b) => s < b.end && e > b.start);
   };
@@ -107,8 +226,7 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
       for (let m = 0; m < 60; m += cal.durationMin) {
         const slot = new Date(day); slot.setHours(h, m, 0, 0);
         if (slot <= now) continue;
-        if (taken.has(slot.toISOString())) continue;
-        if (clashesGoogle(slot.getTime())) continue;
+        if (clashes(slot.getTime())) continue;
         slots.push(slot.toISOString());
       }
     }
@@ -120,15 +238,27 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
 /** Public booking: create an appointment + a CRM contact (lead) + (if connected) a Google event. */
 export async function bookAppointment(tenantId: string, calendarId: string, b: { name: string; email: string; phone?: string; startAt: string }): Promise<{ ok: boolean; error?: string }> {
   const sb = service();
-  // guard against double-booking the same slot
-  const { data: clash } = await sb.from("tenant_appointments").select("id").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("start_at", b.startAt).eq("status", "booked").maybeSingle();
-  if (clash) return { ok: false, error: "That time was just taken — pick another." };
-
-  // Re-check the agent's Google calendar at booking time (avoid a race with their real calendar).
   const { data: cal } = await sb.from("tenant_calendars").select("duration_min, name").eq("tenant_id", tenantId).eq("id", calendarId).maybeSingle();
   const durMin = (cal as any)?.duration_min ?? 30;
   const startMs = new Date(b.startAt).getTime();
   const endIso = new Date(startMs + durMin * 60_000).toISOString();
+
+  // Guard against double-booking: interval overlap vs every live entry — appointments AND
+  // blocked time (D-225/CAL-V8) — not just exact start equality.
+  const { data: dayRows } = await sb.from("tenant_appointments").select("*")
+    .eq("tenant_id", tenantId).eq("calendar_id", calendarId)
+    .in("status", ["booked", "confirmed"])
+    .gte("start_at", new Date(startMs - 24 * 3600_000).toISOString())
+    .lt("start_at", endIso);
+  const endMs = startMs + durMin * 60_000;
+  const overlaps = (dayRows ?? []).some((r: any) => {
+    const s = new Date(r.start_at).getTime();
+    const e = r.end_at ? new Date(r.end_at).getTime() : s + durMin * 60_000;
+    return startMs < e && endMs > s;
+  });
+  if (overlaps) return { ok: false, error: "That time was just taken — pick another." };
+
+  // Re-check the agent's Google calendar at booking time (avoid a race with their real calendar).
   try {
     const { getAllBusy } = await import("./server/calendar-busy");
     const busy = await getAllBusy(tenantId, calendarId, b.startAt, endIso);
@@ -137,7 +267,11 @@ export async function bookAppointment(tenantId: string, calendarId: string, b: {
     }
   } catch { /* connectors unavailable → internal-only guard */ }
 
-  const { error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt });
+  let { error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt, end_at: endIso, kind: "appointment", source: "booking" });
+  if (error && isMissingColumn(error.message)) {
+    // 0043 not applied yet → legacy shape still books fine.
+    ({ error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt }));
+  }
   if (error) return { ok: false, error: error.message };
   await createContact(tenantId, { name: b.name, email: b.email, phone: b.phone, source: "calendar booking" });
 

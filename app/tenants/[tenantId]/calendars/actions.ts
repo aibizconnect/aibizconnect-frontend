@@ -1,6 +1,11 @@
 "use server";
 
-import { listCalendars, createCalendar, updateCalendar, deleteCalendar, listAppointments, type Calendar, type Appointment, type CalendarInput, type CalendarPatch } from "@/lib/calendars";
+import {
+  listCalendars, createCalendar, updateCalendar, deleteCalendar, listAppointments,
+  listEntriesRange, createManualAppointment, createBlockedTime, updateEntry, deleteEntry,
+  type Calendar, type Appointment, type CalendarInput, type CalendarPatch,
+  type CalendarEntry, type ManualAppointmentInput, type EntryPatch,
+} from "@/lib/calendars";
 
 export async function listCalendarsAction(tenantId: string): Promise<Calendar[]> { return listCalendars(tenantId); }
 
@@ -21,6 +26,51 @@ export async function deleteCalendarAction(tenantId: string, id: string): Promis
 
 export async function listAppointmentsAction(tenantId: string, calendarId: string): Promise<Appointment[]> {
   return listAppointments(tenantId, calendarId);
+}
+
+// ── GHL-parity (D-225, Blueprint v3.2): calendar grid + manual entries ───────
+async function requireTenant(tenantId: string): Promise<void> {
+  const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
+  await requireTenantAccess(tenantId);
+}
+async function audit(tenantId: string, action: string, meta: Record<string, unknown>): Promise<void> {
+  try {
+    const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
+    await logPlatformEvent({ action, meta: { tenantId, ...meta } });
+  } catch { /* audit is best-effort — never blocks the operation */ }
+}
+
+export async function listEntriesRangeAction(tenantId: string, fromISO: string, toISO: string, calendarIds?: string[]): Promise<CalendarEntry[]> {
+  await requireTenant(tenantId);
+  return listEntriesRange(tenantId, { fromISO, toISO, calendarIds });
+}
+
+export async function createManualAppointmentAction(tenantId: string, input: ManualAppointmentInput): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  const r = await createManualAppointment(tenantId, input);
+  if (r.ok) await audit(tenantId, "calendar.appointment.create", { calendarId: input.calendarId, startAt: input.startAt, source: "manual" });
+  return r;
+}
+
+export async function createBlockedTimeAction(tenantId: string, input: { calendarId: string; startAt: string; endAt: string; title?: string }): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  const r = await createBlockedTime(tenantId, input);
+  if (r.ok) await audit(tenantId, "calendar.blocked.create", { calendarId: input.calendarId, startAt: input.startAt, endAt: input.endAt });
+  return r;
+}
+
+export async function updateEntryAction(tenantId: string, id: string, patch: EntryPatch): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  const r = await updateEntry(tenantId, id, patch);
+  if (r.ok) await audit(tenantId, "calendar.entry.update", { id, patch });
+  return r;
+}
+
+export async function deleteEntryAction(tenantId: string, id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  const r = await deleteEntry(tenantId, id);
+  if (r.ok) await audit(tenantId, "calendar.entry.delete", { id });
+  return r;
 }
 
 // ── Google Calendar connect (per calendar) ──────────────────────────────────
