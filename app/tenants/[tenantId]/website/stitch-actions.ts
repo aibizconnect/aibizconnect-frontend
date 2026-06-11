@@ -67,11 +67,13 @@ export async function importHtmlAsDraftPage(
     if (rendered) { working = rendered; fidelity = "high"; }
   }
 
-  // DEFAULT = LOSSLESS (architect D-178/D-186): the page's real HTML is the source of truth —
-  // verbatim bands + CSS snapshot + Layer-Tree patch editing. The heuristic translator remains
-  // reachable via mode:"blocks" ("Convert to editable blocks", D-182). Lossless requires the
-  // bridge's uid stamps; without them (low fidelity) we fall back to the translator.
-  const mode = opts?.mode ?? (fidelity === "high" && working.includes("data-uid") ? "lossless" : "blocks");
+  // DEFAULT = THE TRANSLATOR (ALI'S SUPREME RULE, D-216): Bill translates what it sees in the
+  // HTML into OUR native elements — Sections → our Row elements (real editable cells) → our
+  // elements with captured styles. NOTHING in the Tree or Canvas that is not one of ours.
+  // The lossless capture (data-cs/uid stamping, CSS snapshot) remains the INTERNAL fidelity
+  // step feeding the translator; the imported-html band path stays available via
+  // mode:"lossless" as an internal fidelity reference only (D-217).
+  const mode = opts?.mode ?? "blocks";
 
   let sections: Record<string, unknown>[];
   let dropped = 0;
