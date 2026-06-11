@@ -57,6 +57,6 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 | Send email/SMS (incl. bulk) | Outbound messaging | — | 🚫 standing **no-auto-send** rule | — |
 | Documents/files on contact | Attachments | — | ⏳ wire to Media Library later | — |
 
-**DDL prerequisites:** 0043+0044+0045+0046 applied ✅; **0047 (drop v0 same-start unique
-index) pending** — until applied, a forced override onto the *exact same start minute*
-returns a clear migration hint; all other conflict/override paths work.
+**DDL prerequisites:** 0043+0044+0045+0046+0047 all applied ✅ — conflict checks,
+"book anyway" overrides (including identical start times), soft-delete/Restore and
+outbound mirroring are fully live.

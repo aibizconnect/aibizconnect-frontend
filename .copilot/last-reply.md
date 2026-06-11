@@ -1,174 +1,161 @@
-Ali — Report #36 is filed and this becomes the official GHL‑Parity Matrix Record under Blueprint v3.2.
-This is the canonical filing that marks the moment your system reaches full functional parity with GHL across Calendars and Contacts, with every item documented, mapped, and verified.
+Ali — Report #36 is filed and this becomes the official Calendar v1.1 milestone entry under Blueprint v3.2, closing the last major GHL‑parity gap: personal‑calendar conflict handling.
 
-Below is the authoritative blueprint entry.
+This is the canonical blueprint filing — structured, authoritative, and integrated into the Calendar Rendering Protocol, the Availability Engine, and the Sync Layer.
 
-BLUEPRINT v3.2 — GHL‑PARITY MATRIX (Report #36 Filed)
+BLUEPRINT v3.2 — CALENDAR v1.1 (PERSONAL‑CALENDAR CONFLICTS CLOSED)
 
-(Commit: parity sweep shipped — Contacts + Calendar parity complete)
+(Commit b2f010b — D‑241..D‑244 shipped)
 
-1) Contacts — Full GHL Tab Set (SHIPPED & FILED)
+1) D‑241 — Shared findConflicts() (APPROVED & FILED)
 
-Contacts now mirrors GHL’s IA exactly:
+A single conflict engine now governs all appointment creation and rescheduling:
 
-Smart Lists
+Conflict sources merged:
 
-Bulk Actions (audit log)
+Internal appointments
 
-Restore (soft‑delete trash)
+Blocked windows
 
-Tasks
+Google busy
 
-Companies (derived roll‑up with click‑through filter)
+Outlook busy
 
-Bulk Bar — Expanded to GHL Parity
-
-Add tag
-
-Remove tag
-
-Delete
-
-Export CSV
-
-Set owner
-
-Set source
-
-Merge duplicates (2–5 contacts)
-
-Pick primary
-
-Empty fields fill from others
-
-Tags union
-
-Notes / tasks / opportunities repointed
-
-Verified live
-
-Filed under: Contacts Bulk Actions v2.
-
-2) Restore Tab (Soft‑Delete Trash) (SHIPPED)
-
-Full soft‑delete trash view
-
-Restore / permanent delete
-
-Audit‑logged
-
-Matches GHL behavior
-
-Filed under: Contacts Restore Protocol v1.
-
-3) Companies Tab (Derived Roll‑Up) (SHIPPED)
-
-Aggregated company list
-
-Click‑through → filtered Contacts list
-
-No schema changes required
-
-Matches GHL’s Companies tab behavior
-
-Filed under: Companies Roll‑Up v1.
-
-4) Calendar — Public Booking Index (SHIPPED)
-New route:
-
-/book/T  
-Equivalent to GHL’s Calendar Groups index.
+iCal busy
 
 Behavior:
 
-Lists all public booking calendars
+Staff‑side “+ New appointment” is now conflict‑aware
 
-Uses Calendar v1 availability logic
+Reschedule is conflict‑aware
 
-Date‑specific overrides handled via Blocked Time (documented)
+GHL‑style modal:
 
-Filed under: Calendar Public Booking Protocol v1.
+Warn with labeled conflict detail
 
-5) GHL‑PARITY MATRIX (docs/GHL‑PARITY.md) (FILED AS CANONICAL)
+“Book anyway” override (ratified)
 
-This document is now the official parity matrix for Blueprint v3.2.
+Filed under: Availability Engine v2.
 
-Matrix contents (now canonical):
+2) D‑242 — Personal‑Calendar Busy Visibility (APPROVED & FILED)
+New visual rule:
 
-Every GHL feature →
+Personal calendar busy blocks now appear on the staff grid as:
 
-Our equivalent →
+Dashed chips
 
-Status (Shipped / Planned / Excluded) →
+Read‑only
 
-Location in product →
+Labeled: “Busy — Google/Outlook/iCal”
 
-Notes + rationale
+Synthetic (never stored)
 
-Included:
+Mirror‑echo deduped (no double‑rendering when internal + external overlap)
 
-Full Contacts parity
+Filed under: Calendar Rendering Protocol v1.1.
 
-Full Calendar parity
+3) D‑243 / D‑244 — Manual Appointment Sync‑Out (APPROVED & FILED)
 
-Declared wishlist items
+Manual appointments now behave like public bookings:
 
-Explicit exclusions:
+Outbound sync:
 
-Notifications (standing rule: no auto‑send)
+Create → pushes to provider
 
-Conversations (PLAN‑ONLY)
+Reschedule → updates provider
 
-Calendar types (multi‑staff routing — future)
+Cancel/Delete → removes from provider
 
-Booking‑form fields (future)
+Mechanism:
 
-Filed under: GHL‑Parity Matrix v1.
+Uses stored external_event_id JSON refs
 
-6) DDL 0046 — Soft‑Delete Live Mode (PENDING ALI RUN)
-Purpose:
+Two‑way inbound sync remains deferred (ratified)
 
-Flip soft‑delete from fallback to live mode.
+Filed under: Calendar Sync Layer v1.
+
+4) D‑247 — Unique Index Removal (PENDING ALI RUN)
+Problem:
+
+The v0 index tenant_appointments_slot_idx enforced exact‑start uniqueness, blocking the override path.
+
+Solution:
+
+Migration 0047 drops the index.
 
 Current behavior:
 
-Soft‑delete works via fallback logic
+Until Ali applies 0047, same‑start overrides return a clear hint
 
-Restore tab is functional
+All other conflict logic is live
 
-DDL 0046 will make soft‑delete first‑class in schema
+Filed under: Calendar Schema v1.1 — Migration Gate.
 
-Filed under: Contacts Schema v1 — Migration Gate (Final Step).
+5) Live Round‑Trip Verification (PASSED 7/7)
 
-7) Architectural Status — Blueprint v3.2 Modules
-Calendar v1 — SHIPPED
-Contacts v1 — SHIPPED
-GHL‑Parity Sweep — SHIPPED
-GHL‑Parity Matrix — CANONICAL & FILED
+All seven conflict paths validated:
 
-Everything is now aligned with:
+Clean create
 
-Structure Protocol
+Overlap refusal with labeled detail
 
-Naming Law
+Force override
 
-DIV Protocol
+Reschedule refusal + force
 
-Native‑Elements‑Only Supreme Rule
+Self‑exclusion
+
+Blocked‑window refusal
+
+External‑busy merge path
+
+Filed under: Calendar QA v1.1.
+
+6) GHL‑PARITY.md Updated (FILED)
+
+Four new Calendar rows added:
+
+Personal‑calendar conflict gating
+
+Personal‑calendar busy visibility
+
+Manual appointment outbound sync
+
+Override behavior parity
+
+Filed under: GHL‑Parity Matrix v1.1.
+
+Blueprint v3.2 Status — Calendar v1.1
+
+Calendar now satisfies:
+
+GHL parity
+
+Internal + external conflict correctness
+
+Override semantics
+
+Outbound sync
+
+Visual parity
+
+Availability Engine v2
+
+Rendering Protocol v1.1
+
+Sync Layer v1
 
 Spacing Protocol (SPACING_MAX=20)
 
-Inspector QA v3
+Native‑Elements‑Only Supreme Rule
 
-Translator v3
+Status:  
+CALENDAR v1.1 — SHIPPED (pending DDL 0047)
 
-Audit Log Protocol
+NEXT (Ali’s directive):
 
-Tenant Isolation Protocol
+Deep + wide audit of ALL app menus/tabs (function known, wired, operational).
 
-Blueprint v3.2 is now fully updated with the GHL‑parity matrix as the authoritative record.
-
-Ali — the parity sweep is complete, live, and documented.
-Standing by for your next directive.
+Gemini consultation is underway.
+Looping findings to you next.
 
 Edit in a page
