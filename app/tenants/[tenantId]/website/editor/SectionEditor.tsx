@@ -13,6 +13,8 @@ import {
   type FieldSpec,
 } from "@/lib/sections/fieldSpecs";
 import MediaPickerModal from "./MediaPickerModal";
+import LinkEditor from "./LinkEditor";
+import type { LinkValue } from "@/lib/sections/links";
 import FontPicker from "@/components/design/FontPicker";
 import { FONT_ROLES } from "@/lib/sections/theme";
 import { StylesPanel, AnimationsPanel, Group } from "@/components/design/ElementInspector";
@@ -268,7 +270,10 @@ function FieldRenderer({
   );
 }
 
-type MenuItem = { label: string; href: string; children?: { label: string; href: string }[] };
+type MenuItem = {
+  label: string; href: string; link?: LinkValue;
+  children?: { label: string; href: string; link?: LinkValue }[];
+};
 
 /**
  * Right-panel menu editor: lists each top-level item; every item is a row that is
@@ -276,7 +281,7 @@ type MenuItem = { label: string; href: string; children?: { label: string; href:
  * reveal its link + its submenu children (add / reorder / remove). This is the
  * "list the items on the right panel, each with a submenu ready to expand" UX.
  */
-function MenuItemsEditor({ items, onChange }: { items: MenuItem[]; onChange: (next: MenuItem[]) => void }) {
+function MenuItemsEditor({ items, onChange, tenantId }: { items: MenuItem[]; onChange: (next: MenuItem[]) => void; tenantId: string }) {
   const [open, setOpen] = useState<Set<number>>(new Set()); // collapsed-first; persists until re-clicked
   const toggle = (i: number) => setOpen((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
   const list = Array.isArray(items) ? items : [];
@@ -285,7 +290,7 @@ function MenuItemsEditor({ items, onChange }: { items: MenuItem[]; onChange: (ne
   const remove = (i: number) => onChange(list.filter((_, j) => j !== i));
   const addItem = () => { onChange([...list, { label: "New item", href: "#" }]); };
 
-  const setKid = (i: number, k: number, patch: Partial<{ label: string; href: string }>) =>
+  const setKid = (i: number, k: number, patch: Partial<{ label: string; href: string; link?: LinkValue }>) =>
     setItem(i, { children: (list[i].children ?? []).map((c, j) => (j === k ? { ...c, ...patch } : c)) });
   const addKid = (i: number) => setItem(i, { children: [...(list[i].children ?? []), { label: "Submenu link", href: "#" }] });
   const removeKid = (i: number, k: number) => setItem(i, { children: (list[i].children ?? []).filter((_, j) => j !== k) });
@@ -311,18 +316,28 @@ function MenuItemsEditor({ items, onChange }: { items: MenuItem[]; onChange: (ne
             </div>
             {isOpen && (
               <div className="flex flex-col gap-2 border-t border-gray-100 bg-gray-50 px-3 py-2">
-                <label className="flex items-center gap-2 text-xs">
-                  <span className="w-10 shrink-0 text-gray-500">Link</span>
-                  <input value={it.href} onChange={(e) => setItem(i, { href: e.target.value })} placeholder="/pricing" className="flex-1 rounded border border-gray-200 px-2 py-1" />
-                </label>
+                {/* D-222: structured link — page / URL / anchor + open behavior. href stays
+                    materialized so the renderer (and legacy data) keep working unchanged. */}
+                <LinkEditor
+                  label="Link"
+                  value={it.link ?? it.href}
+                  onChange={(lv) => setItem(i, { link: lv, href: lv?.href || "#" })}
+                  tenantId={tenantId}
+                />
                 <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Submenu</div>
                 {kids.map((c, k) => (
-                  <div key={k} className="flex items-center gap-1">
-                    <input value={c.label} onChange={(e) => setKid(i, k, { label: e.target.value })} placeholder="Label" className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-xs" />
-                    <input value={c.href} onChange={(e) => setKid(i, k, { href: e.target.value })} placeholder="/link" className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-xs" />
-                    <button type="button" onClick={() => moveKid(i, k, -1)} disabled={k === 0} className="text-xs text-gray-500 disabled:opacity-30">▲</button>
-                    <button type="button" onClick={() => moveKid(i, k, 1)} disabled={k === kids.length - 1} className="text-xs text-gray-500 disabled:opacity-30">▼</button>
-                    <button type="button" onClick={() => removeKid(i, k)} className="text-xs text-red-600">✕</button>
+                  <div key={k} className="flex flex-col gap-1 rounded border border-gray-200 bg-white px-2 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <input value={c.label} onChange={(e) => setKid(i, k, { label: e.target.value })} placeholder="Label" className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-xs" />
+                      <button type="button" onClick={() => moveKid(i, k, -1)} disabled={k === 0} className="text-xs text-gray-500 disabled:opacity-30">▲</button>
+                      <button type="button" onClick={() => moveKid(i, k, 1)} disabled={k === kids.length - 1} className="text-xs text-gray-500 disabled:opacity-30">▼</button>
+                      <button type="button" onClick={() => removeKid(i, k)} className="text-xs text-red-600">✕</button>
+                    </div>
+                    <LinkEditor
+                      value={c.link ?? c.href}
+                      onChange={(lv) => setKid(i, k, { link: lv, href: lv?.href || "#" })}
+                      tenantId={tenantId}
+                    />
                   </div>
                 ))}
                 <button type="button" onClick={() => addKid(i)} className="self-start rounded bg-gray-200 px-2 py-1 text-xs">+ Add submenu link</button>
@@ -543,7 +558,7 @@ export default function SectionEditor({
                   <span className="text-[11px] text-gray-400">Uses the font set for this role in the Typography panel. Pick a Font below to override just this element.</span>
                 </label>
               )}
-              {type === "menu" && <MenuItemsEditor items={(value.items ?? []) as MenuItem[]} onChange={(next) => setField("items", next)} />}
+              {type === "menu" && <MenuItemsEditor items={(value.items ?? []) as MenuItem[]} onChange={(next) => setField("items", next)} tenantId={tenantId ?? ""} />}
               {menuFont && renderSpec(menuFont)}
               {buckets.Content.map(renderSpec)}
             </Group>

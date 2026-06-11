@@ -491,8 +491,13 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       const isColumnStack = /flexDirection:column/.test(el.getAttribute("data-cs") || "");
       const splittable = depth < MAX_BAND_DEPTH && (tagOf(el) === "div" || tagOf(el) === "main")
         && kids.length >= 2 && !isGridItself && !hasOwnBg && (bandLikeKids >= 2 || (isColumnStack && kids.length >= 2));
-      if (splittable) out.push(...expandBands(kids, depth + 1));
-      else out.push(el);
+      if (splittable) {
+        // D-222: an anchor id on the wrapper we're splitting must survive — give it to the first
+        // kid band so #id links still land at the top of the same content.
+        const id = (el.getAttribute("id") || "").trim();
+        if (id && kids[0] && !kids[0].getAttribute("id")) kids[0].setAttribute("id", id);
+        out.push(...expandBands(kids, depth + 1));
+      } else out.push(el);
     }
     return out;
   };
@@ -509,7 +514,15 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (/^[a-z][a-z0-9_]*$/.test(clean(a.text))) continue; // skip icon-only links ("menu","share")
       if (looksLikeButton(a)) { if (!cta) cta = buildButton(a); continue; }
       if (!logo) { logo = label; logoEl = a; continue; }  // first plain link = brand/logo
-      if (!navItems.some((n) => n.label === label)) { if (!navLinkEl) navLinkEl = a; navItems.push({ label, href: abs(a.getAttribute("href") || "#") }); }
+      if (!navItems.some((n) => n.label === label)) {
+        if (!navLinkEl) navLinkEl = a;
+        // D-222: anchors stay anchors ("#about" must NOT absolutize to the source domain) and
+        // every item carries its structured link alongside the materialized href.
+        const raw = (a.getAttribute("href") || "").trim();
+        const href = raw.startsWith("#") ? raw : abs(raw || "#");
+        const lv = linkFromHref(href);
+        navItems.push({ label, href: lv?.href || "#", ...(lv ? { link: lv } : {}) } as { label: string; href: string });
+      }
     }
     if (!navItems.length && !cta) return null;
     const cols: Record<string, unknown>[][] = [];
@@ -587,6 +600,9 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (hdr) { result.push(hdr); if (result.length >= 60) break; continue; }
     }
     if (droppableBand(band)) continue;
+    // D-222: carry the source section's anchor id (<section id="about">) so menu/footer anchor
+    // links (#about) keep scrolling — SectionView emits it as the wrapper's id.
+    const bandAnchor = /^[A-Za-z][\w-]*$/.test((band.getAttribute("id") || "").trim()) ? (band.getAttribute("id") || "").trim() : "";
     const bandStyle = parseDataCs(band.getAttribute("data-cs")).style;
     // Promote a DOMINANT inner background up to the band: many designs put the section color/image on
     // a wrapper div inside a transparent <section> (e.g. a navy contact card). Without this the band
@@ -617,10 +633,12 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       // The band IS one grid row → emit it directly (no 1-col wrapper); band style fills gaps.
       const merged = { ...bandStyle, ...loneRowStyle };
       if (Object.keys(merged).length) loneRow._style = merged;
+      if (bandAnchor) loneRow._anchor = bandAnchor;
       result.push(loneRow);
     } else {
       const row: Record<string, unknown> = { type: "row", columns: 1, contentWidth: "boxed", _name: bandName(bandBlocks), children: [bandBlocks] };
       if (Object.keys(bandStyle).length) row._style = bandStyle;
+      if (bandAnchor) row._anchor = bandAnchor;
       result.push(row);
     }
     if (result.length >= 60) break;

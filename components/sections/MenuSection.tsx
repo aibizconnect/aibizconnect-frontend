@@ -9,6 +9,11 @@ import type { MenuContent } from "@/lib/sections/schemas";
 // editor popups/modals (which use ~2.1e9). 2000 is comfortably above section content.
 const MENU_DROPDOWN_Z = 2000;
 
+// D-222: open behavior comes from the item's structured link (LinkEditor writes link.target;
+// href stays the materialized destination). New-window links get the safety rel.
+const targetProps = (it: { link?: { target?: string } }) =>
+  it.link?.target === "_blank" ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
+
 /** RoleStyle → inline CSS (font family/size/weight/italic/spacing/transform). */
 function roleCss(r: RoleStyle): React.CSSProperties {
   const css: React.CSSProperties = {};
@@ -128,13 +133,13 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
                       <span style={{ fontSize: "0.7em", opacity: 0.6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
                     </button>
                   ) : (
-                    <a href={item.href || "#"} onClick={() => setMobileOpen(false)}
+                    <a href={item.href || "#"} {...targetProps(item)} onClick={() => setMobileOpen(false)}
                       style={{ display: "block", padding: "9px 10px", borderRadius: 6, textDecoration: "none", color: subColor, fontWeight: 600 }}>
                       {item.label}
                     </a>
                   )}
                   {hasKids && isOpen && kids.map((sub, j) => (
-                    <a key={j} href={sub.href || "#"} onClick={() => setMobileOpen(false)}
+                    <a key={j} href={sub.href || "#"} {...targetProps(sub)} onClick={() => setMobileOpen(false)}
                       style={{ display: "block", padding: "7px 10px 7px 22px", borderRadius: 6, textDecoration: "none", color: subColor, opacity: 0.85, fontSize: "0.95em" }}>
                       {sub.label}
                     </a>
@@ -177,6 +182,7 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
           >
             <a
               href={item.href || "#"}
+              {...targetProps(item)}
               style={{ color, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", whiteSpace: "nowrap", transition: "color .12s", ...activeCss(isActive(item.href)) }}
               onFocus={(e) => hasKids && openAt(i, e.currentTarget.parentElement as HTMLElement)}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = hoverColor; }}
@@ -204,6 +210,7 @@ export function MenuSection({ content, theme, bp }: { content: MenuContent; them
                   <a
                     key={j}
                     href={sub.href || "#"}
+                    {...targetProps(sub)}
                     style={{ color: subColor, padding: "7px 10px", borderRadius: 6, textDecoration: "none", whiteSpace: "nowrap" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = subHoverBg; (e.currentTarget as HTMLElement).style.color = accent; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = subColor; }}

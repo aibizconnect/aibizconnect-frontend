@@ -23,16 +23,19 @@ import { styleToCss, animClasses, resolveStyle, responsiveCss, bgLayerCss, bgFad
 /** Wrap rendered content in a box that has a separate background-image layer (so a
  *  blur/parallax/fade on the background never affects the content itself). Falls back
  *  to a plain styled div when the style has no background image. */
-function BgBox({ style, className, inlineStyle, children }: {
+function BgBox({ style, className, inlineStyle, children, id }: {
   style: ElementStyle | undefined; className?: string; inlineStyle: React.CSSProperties; children: React.ReactNode;
+  /** D-222: section anchor (from `_anchor`) — emitted as the wrapper's id so #anchor links scroll. */
+  id?: string;
 }) {
+  const anchorProps = id ? { id, "data-abc-anchor": "" } : {};
   if (!hasBgLayer(style)) {
-    return <div style={inlineStyle} className={className}>{children}</div>;
+    return <div {...anchorProps} style={inlineStyle} className={className}>{children}</div>;
   }
   const layer = bgLayerCss(style);
   const overlay = bgFadeOverlayCss(style);
   return (
-    <div style={{ ...inlineStyle, position: (inlineStyle.position as any) ?? "relative" }} className={className}>
+    <div {...anchorProps} style={{ ...inlineStyle, position: (inlineStyle.position as any) ?? "relative" }} className={className}>
       {layer && <div aria-hidden style={layer} />}
       {overlay && <div aria-hidden style={overlay} />}
       <div style={{ position: "relative", zIndex: 1, borderRadius: "inherit" }}>{children}</div>
@@ -92,6 +95,10 @@ export function SectionView({
   const style = (content as any)?._style;
   const anim = (content as any)?._anim;
   const responsive = (content as any)?._responsive;
+  // D-222: the section's anchor id (carried from the source's <section id="…"> at import, or
+  // set in the inspector) — menu/list/button links of kind "anchor" scroll to it.
+  const anchor = typeof (content as any)?._anchor === "string" && /^[A-Za-z][\w-]*$/.test((content as any)._anchor)
+    ? ((content as any)._anchor as string) : undefined;
 
   // PUBLIC mode: render the desktop base inline + a scoped <style> with media queries.
   if (cssSink && responsive) {
@@ -100,19 +107,21 @@ export function SectionView({
     return (
       <>
         {css && <style dangerouslySetInnerHTML={{ __html: css }} />}
-        <BgBox style={style} className={`${cls} ${animClasses(anim)}`.trim()} inlineStyle={styleToCss(style, { bgAsLayer: hasBgLayer(style) })}>{inner}</BgBox>
+        <BgBox id={anchor} style={style} className={`${cls} ${animClasses(anim)}`.trim()} inlineStyle={styleToCss(style, { bgAsLayer: hasBgLayer(style) })}>{inner}</BgBox>
       </>
     );
   }
 
-  if (!style && !anim && !responsive) return inner;
+  if (!style && !anim && !responsive) {
+    return anchor ? <div id={anchor} data-abc-anchor="">{inner}</div> : inner;
+  }
 
   // EDITOR/PREVIEW mode: render the resolved style for the active breakpoint; a
   // per-breakpoint `hidden` removes the element at that breakpoint.
   const resolved = resolveStyle(style, responsive, bp) as ElementStyle;
   if (bp !== "desktop" && (resolved as any).hidden) return null;
   return (
-    <BgBox style={resolved} className={animClasses(anim)} inlineStyle={styleToCss(resolved, { bgAsLayer: hasBgLayer(resolved) })}>
+    <BgBox id={anchor} style={resolved} className={animClasses(anim)} inlineStyle={styleToCss(resolved, { bgAsLayer: hasBgLayer(resolved) })}>
       {inner}
     </BgBox>
   );

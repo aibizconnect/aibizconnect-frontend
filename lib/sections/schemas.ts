@@ -368,7 +368,10 @@ export const tickerSchema = z.object({
 const menuItemSchema = z.object({
   label: z.string(),
   href: z.string().default("#"),
-  children: z.array(z.object({ label: z.string(), href: z.string().default("#") })).optional(),
+  // D-222: the structured link (page/url/anchor + target) behind this item. The LinkEditor
+  // manages it and MATERIALIZES href from it, so renderers keep reading href unchanged.
+  link: linkValueSchema.optional(),
+  children: z.array(z.object({ label: z.string(), href: z.string().default("#"), link: linkValueSchema.optional() })).optional(),
   badge: z.string().optional(),           // small pill next to the label ("New", "Sale")
 });
 export const menuSchema = z.object({
