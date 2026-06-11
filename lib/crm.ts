@@ -47,43 +47,55 @@ export async function createContact(tenantId: string, c: { name?: string; email?
   return { ok: !error, error: error?.message };
 }
 export async function deleteContact(tenantId: string, id: string): Promise<void> {
-  await service().from("tenant_contacts").delete().eq("tenant_id", tenantId).eq("id", id);
+  // Soft-delete (D-234) → Restore tab; hard fallback pre-0046.
+  const { error } = await service().from("tenant_contacts").update({ deleted_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id);
+  if (error) await service().from("tenant_contacts").delete().eq("tenant_id", tenantId).eq("id", id);
 }
 
 // ── GHL-parity contacts API (D-229) ─────────────────────────────────────────
 
 export interface ContactFilters {
-  q?: string;                 // searches name / email / phone / company
-  tags?: string[];            // overlap match
+  q?: string;                 // searches name / email / phone
+  tags?: string[];            // any-of match
   source?: string;
+  company?: string;           // Companies tab → filtered list (D-236)
   createdFrom?: string;       // ISO date
   createdTo?: string;
   sort?: "name" | "created_at" | "score";
   dir?: "asc" | "desc";
   page?: number;              // 0-based
   pageSize?: number;          // default 50
+  deleted?: boolean;          // Restore tab: list soft-deleted instead (D-234)
 }
 
 /** Server-side searched/filtered/sorted/paginated contact page (CON-V3). */
 export async function listContactsPage(tenantId: string, f: ContactFilters = {}): Promise<{ rows: ContactFull[]; total: number }> {
   const pageSize = Math.min(f.pageSize ?? 50, 1000);
   const page = Math.max(0, f.page ?? 0);
-  let q = service().from("tenant_contacts").select("*", { count: "exact" }).eq("tenant_id", tenantId);
-  const term = (f.q ?? "").trim().replace(/[%,()]/g, "");
-  if (term) q = q.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
-  // Live `tags` is JSONB (created from the older queued SQL), so array `overlaps` doesn't
-  // exist — use jsonb containment, OR'd per tag for GHL's any-of semantics.
-  if (f.tags?.length) {
-    const safe = f.tags.map((t) => t.replace(/[",]/g, "").trim()).filter(Boolean);
-    if (safe.length === 1) q = q.contains("tags", JSON.stringify(safe));
-    else if (safe.length) q = q.or(safe.map((t) => `tags.cs.${JSON.stringify([t])}`).join(","));
+  const build = (withDeletedFilter: boolean) => {
+    let q = service().from("tenant_contacts").select("*", { count: "exact" }).eq("tenant_id", tenantId);
+    if (withDeletedFilter) q = f.deleted ? q.not("deleted_at", "is", null) : q.is("deleted_at", null);
+    const term = (f.q ?? "").trim().replace(/[%,()]/g, "");
+    if (term) q = q.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+    // Live `tags` is JSONB (created from the older queued SQL), so array `overlaps` doesn't
+    // exist — use jsonb containment, OR'd per tag for GHL's any-of semantics.
+    if (f.tags?.length) {
+      const safe = f.tags.map((t) => t.replace(/[",]/g, "").trim()).filter(Boolean);
+      if (safe.length === 1) q = q.contains("tags", JSON.stringify(safe));
+      else if (safe.length) q = q.or(safe.map((t) => `tags.cs.${JSON.stringify([t])}`).join(","));
+    }
+    if (f.source) q = q.eq("source", f.source);
+    if (f.company) q = q.eq("company", f.company);
+    if (f.createdFrom) q = q.gte("created_at", f.createdFrom);
+    if (f.createdTo) q = q.lt("created_at", f.createdTo);
+    q = q.order(f.sort ?? "created_at", { ascending: f.dir ? f.dir === "asc" : f.sort === "name" });
+    return q.range(page * pageSize, page * pageSize + pageSize - 1);
+  };
+  let { data, count, error } = await build(true);
+  if (error && missingColOrTable(error.message)) {
+    if (f.deleted) return { rows: [], total: 0 };       // no soft-delete column yet → trash is empty
+    ({ data, count, error } = await build(false));      // pre-0046: no deleted_at filter
   }
-  if (f.source) q = q.eq("source", f.source);
-  if (f.createdFrom) q = q.gte("created_at", f.createdFrom);
-  if (f.createdTo) q = q.lt("created_at", f.createdTo);
-  q = q.order(f.sort ?? "created_at", { ascending: f.dir ? f.dir === "asc" : (f.sort === "name") });
-  q = q.range(page * pageSize, page * pageSize + pageSize - 1);
-  const { data, count, error } = await q;
   if (error) return { rows: [], total: 0 };
   return { rows: (data ?? []).map(rowToContact), total: count ?? 0 };
 }
@@ -142,10 +154,98 @@ export async function bulkTagContacts(tenantId: string, ids: string[], tag: stri
   return { ok: true, changed };
 }
 
+/** Soft-delete (D-234): contacts land in the Restore tab; falls back to hard delete pre-0046. */
 export async function bulkDeleteContacts(tenantId: string, ids: string[]): Promise<{ ok: boolean; error?: string; deleted: number }> {
   if (!ids.length) return { ok: true, deleted: 0 };
+  const soft = await service().from("tenant_contacts").update({ deleted_at: new Date().toISOString() }, { count: "exact" }).eq("tenant_id", tenantId).in("id", ids);
+  if (!soft.error) return { ok: true, deleted: soft.count ?? ids.length };
+  if (!missingColOrTable(soft.error.message)) return { ok: false, error: soft.error.message, deleted: 0 };
+  const hard = await service().from("tenant_contacts").delete({ count: "exact" }).eq("tenant_id", tenantId).in("id", ids);
+  return { ok: !hard.error, error: hard.error?.message, deleted: hard.count ?? 0 };
+}
+
+/** Restore tab: bring soft-deleted contacts back. */
+export async function restoreContacts(tenantId: string, ids: string[]): Promise<{ ok: boolean; error?: string; restored: number }> {
+  if (!ids.length) return { ok: true, restored: 0 };
+  const { error, count } = await service().from("tenant_contacts").update({ deleted_at: null }, { count: "exact" }).eq("tenant_id", tenantId).in("id", ids);
+  return { ok: !error, error: error?.message, restored: count ?? 0 };
+}
+
+/** Restore tab: permanently delete (GHL "delete forever"). */
+export async function purgeContacts(tenantId: string, ids: string[]): Promise<{ ok: boolean; error?: string; purged: number }> {
+  if (!ids.length) return { ok: true, purged: 0 };
   const { error, count } = await service().from("tenant_contacts").delete({ count: "exact" }).eq("tenant_id", tenantId).in("id", ids);
-  return { ok: !error, error: error?.message, deleted: count ?? 0 };
+  return { ok: !error, error: error?.message, purged: count ?? 0 };
+}
+
+/** Bulk update one field across selected contacts (D-233): owner or source. */
+export async function bulkUpdateContactField(tenantId: string, ids: string[], field: "owner_email" | "source", value: string): Promise<{ ok: boolean; error?: string; changed: number }> {
+  if (!ids.length) return { ok: true, changed: 0 };
+  const { error, count } = await service().from("tenant_contacts").update({ [field]: value || null }, { count: "exact" }).eq("tenant_id", tenantId).in("id", ids);
+  if (error) return { ok: false, error: missingColOrTable(error.message) ? CRM_MIGRATION_HINT : error.message, changed: 0 };
+  return { ok: true, changed: count ?? 0 };
+}
+
+/** Merge duplicates (D-232): primary absorbs the others — empty fields fill from the
+ *  secondaries (first non-empty wins), tags union, score keeps the max; notes, tasks and
+ *  opportunities repoint to the primary; the secondaries are removed permanently. */
+export async function mergeContacts(tenantId: string, primaryId: string, otherIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  const sb = service();
+  const ids = [primaryId, ...otherIds];
+  const { data, error } = await sb.from("tenant_contacts").select("*").eq("tenant_id", tenantId).in("id", ids);
+  if (error) return { ok: false, error: error.message };
+  const primary = (data ?? []).find((r: any) => r.id === primaryId);
+  const others = (data ?? []).filter((r: any) => r.id !== primaryId);
+  if (!primary || !others.length) return { ok: false, error: "Select a primary and at least one duplicate." };
+
+  const firstNonEmpty = (key: string) => others.map((o: any) => o[key]).find((v: any) => v != null && String(v).trim() !== "");
+  const upd: Record<string, unknown> = {};
+  for (const k of ["name", "email", "phone", "company", "source", "owner_email"]) {
+    if ((primary[k] == null || String(primary[k]).trim() === "") && firstNonEmpty(k) != null) upd[k] = firstNonEmpty(k);
+  }
+  const tagUnion = Array.from(new Set([...(primary.tags ?? []), ...others.flatMap((o: any) => o.tags ?? [])]));
+  if (tagUnion.length !== (primary.tags ?? []).length) upd.tags = tagUnion;
+  const maxScore = Math.max(primary.score ?? 0, ...others.map((o: any) => o.score ?? 0));
+  if (maxScore > (primary.score ?? 0)) upd.score = maxScore;
+  const mergedCustom = Object.assign({}, ...others.map((o: any) => o.custom ?? {}), primary.custom ?? {});
+  if (Object.keys(mergedCustom).length) upd.custom = mergedCustom;
+
+  if (Object.keys(upd).length) {
+    let { error: e1 } = await sb.from("tenant_contacts").update(upd).eq("tenant_id", tenantId).eq("id", primaryId);
+    if (e1 && missingColOrTable(e1.message)) {
+      // pre-0045: retry with core columns only
+      for (const k of ["company", "owner_email", "custom"]) delete upd[k];
+      ({ error: e1 } = await sb.from("tenant_contacts").update(upd).eq("tenant_id", tenantId).eq("id", primaryId));
+    }
+    if (e1) return { ok: false, error: e1.message };
+  }
+  // Repoint children, best-effort (tables may predate 0045).
+  try { await sb.from("tenant_contact_notes").update({ contact_id: primaryId }).eq("tenant_id", tenantId).in("contact_id", otherIds); } catch { /* */ }
+  try { await sb.from("tenant_contact_tasks").update({ contact_id: primaryId }).eq("tenant_id", tenantId).in("contact_id", otherIds); } catch { /* */ }
+  try { await sb.from("tenant_opportunities").update({ contact_id: primaryId }).eq("tenant_id", tenantId).in("contact_id", otherIds); } catch { /* */ }
+  const { error: e2 } = await sb.from("tenant_contacts").delete().eq("tenant_id", tenantId).in("id", otherIds);
+  return { ok: !e2, error: e2?.message };
+}
+
+/** Companies tab (D-236): roll-up derived from contacts.company — no separate table. */
+export async function listCompanies(tenantId: string): Promise<{ name: string; count: number }[]> {
+  const { data, error } = await service().from("tenant_contacts").select("company").eq("tenant_id", tenantId).not("company", "is", null).limit(5000);
+  if (error) return [];
+  const counts = new Map<string, number>();
+  for (const r of data ?? []) {
+    const name = String((r as any).company ?? "").trim();
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
+/** Bulk Actions tab (D-235): the audit trail of crm.* operations for this tenant. */
+export async function listCrmAuditLog(tenantId: string, limit = 50): Promise<{ action: string; meta: Record<string, unknown>; at: string }[]> {
+  const { data, error } = await service().from("platform_audit_log").select("action,meta,created_at")
+    .like("action", "crm.%").eq("meta->>tenantId", tenantId)
+    .order("created_at", { ascending: false }).limit(limit);
+  if (error) return [];
+  return (data ?? []).map((r: any) => ({ action: r.action, meta: r.meta ?? {}, at: r.created_at }));
 }
 
 /** CSV import (CON-V5): inserts rows, dedupes by email (existing emails are skipped). */

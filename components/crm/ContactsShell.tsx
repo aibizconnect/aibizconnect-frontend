@@ -3,14 +3,23 @@
 import { useState } from "react";
 import ContactsList from "./ContactsList";
 import TasksRollup from "./TasksRollup";
+import RestoreTab from "./RestoreTab";
+import BulkActionsLog from "./BulkActionsLog";
+import CompaniesTab from "./CompaniesTab";
 
-/** Contacts area shell (GHL-parity): Smart Lists (the list) | Tasks | Companies (stub). */
+/**
+ * Contacts area shell (GHL-parity, D-230 + sweep D-232..D-236) — the full GHL tab set:
+ * Smart Lists (the list) | Bulk Actions (audit log) | Restore (soft-deleted) | Tasks | Companies.
+ */
 export default function ContactsShell({ tenantId }: { tenantId: string }) {
-  const [tab, setTab] = useState<"contacts" | "tasks" | "companies">("contacts");
-  const tabBtn = (t: typeof tab, label: string, soon = false) => (
-    <button key={t} onClick={() => !soon && setTab(t)} title={soon ? "Coming soon" : undefined}
+  const [tab, setTab] = useState<"contacts" | "bulk" | "restore" | "tasks" | "companies">("contacts");
+  // Companies → click-through opens the list pre-filtered to that company.
+  const [companyFilter, setCompanyFilter] = useState<string | null>(null);
+
+  const tabBtn = (t: typeof tab, label: string) => (
+    <button key={t} onClick={() => { setTab(t); if (t !== "contacts") setCompanyFilter(null); }}
       className={`-mb-px border-b-2 pb-2 text-sm font-medium transition ${
-        tab === t ? "border-[#1e3a8a] text-[#1e3a8a]" : soon ? "border-transparent text-slate-300" : "border-transparent text-slate-500 hover:text-slate-800"
+        tab === t ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-800"
       }`}>{label}</button>
   );
   return (
@@ -21,11 +30,16 @@ export default function ContactsShell({ tenantId }: { tenantId: string }) {
       </div>
       <div className="mb-4 flex gap-6 border-b border-slate-200">
         {tabBtn("contacts", "Smart Lists")}
+        {tabBtn("bulk", "Bulk Actions")}
+        {tabBtn("restore", "Restore")}
         {tabBtn("tasks", "Tasks")}
-        {tabBtn("companies", "Companies", true)}
+        {tabBtn("companies", "Companies")}
       </div>
-      {tab === "contacts" && <ContactsList tenantId={tenantId} />}
+      {tab === "contacts" && <ContactsList tenantId={tenantId} companyFilter={companyFilter} onClearCompany={() => setCompanyFilter(null)} />}
+      {tab === "bulk" && <BulkActionsLog tenantId={tenantId} />}
+      {tab === "restore" && <RestoreTab tenantId={tenantId} />}
       {tab === "tasks" && <TasksRollup tenantId={tenantId} />}
+      {tab === "companies" && <CompaniesTab tenantId={tenantId} onOpen={(name) => { setCompanyFilter(name); setTab("contacts"); }} />}
     </div>
   );
 }

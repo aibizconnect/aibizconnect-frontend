@@ -6,6 +6,7 @@ import type { ContactFull, ContactFilters, SmartList } from "@/lib/crm";
 import {
   listContactsPageAction, createContactAction, bulkTagAction, bulkDeleteAction,
   importContactsAction, listTagsAction, listSmartListsAction, createSmartListAction, deleteSmartListAction,
+  mergeContactsAction, bulkUpdateFieldAction,
 } from "@/app/tenants/[tenantId]/contacts/crm-actions";
 import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
@@ -61,7 +62,7 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-export default function ContactsList({ tenantId }: { tenantId: string }) {
+export default function ContactsList({ tenantId, companyFilter = null, onClearCompany }: { tenantId: string; companyFilter?: string | null; onClearCompany?: () => void }) {
   const [rows, setRows] = useState<ContactFull[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -84,8 +85,8 @@ export default function ContactsList({ tenantId }: { tenantId: string }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filters: ContactFilters = useMemo(
-    () => ({ q: q || undefined, tags: tags.length ? tags : undefined, source: source || undefined, createdFrom: createdFrom ? new Date(createdFrom).toISOString() : undefined, createdTo: createdTo ? new Date(new Date(createdTo).getTime() + 86400_000).toISOString() : undefined, sort, dir, page, pageSize: PAGE_SIZE }),
-    [q, tags, source, createdFrom, createdTo, sort, dir, page],
+    () => ({ q: q || undefined, tags: tags.length ? tags : undefined, source: source || undefined, company: companyFilter || undefined, createdFrom: createdFrom ? new Date(createdFrom).toISOString() : undefined, createdTo: createdTo ? new Date(new Date(createdTo).getTime() + 86400_000).toISOString() : undefined, sort, dir, page, pageSize: PAGE_SIZE }),
+    [q, tags, source, companyFilter, createdFrom, createdTo, sort, dir, page],
   );
 
   const reload = (f: ContactFilters = filters) => {
@@ -98,7 +99,7 @@ export default function ContactsList({ tenantId }: { tenantId: string }) {
     });
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => reload(), [tags.join(","), source, createdFrom, createdTo, sort, dir, page]);
+  useEffect(() => reload(), [tags.join(","), source, companyFilter, createdFrom, createdTo, sort, dir, page]);
   useEffect(() => { // debounced search
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => { setPage(0); reload({ ...filters, q: q || undefined, page: 0 }); }, 300);
@@ -145,11 +146,20 @@ export default function ContactsList({ tenantId }: { tenantId: string }) {
     reload();
   };
   const bulkDel = async () => {
-    if (!(await confirmDialog(`Delete ${sel.size} contact${sel.size === 1 ? "" : "s"}? This cannot be undone.`, { danger: true, confirmText: "Delete" }))) return;
+    if (!(await confirmDialog(`Delete ${sel.size} contact${sel.size === 1 ? "" : "s"}? They move to the Restore tab.`, { danger: true, confirmText: "Delete" }))) return;
     const r = await bulkDeleteAction(tenantId, Array.from(sel));
     if (!r.ok) notifyError(r.error || "Delete failed.");
     reload();
   };
+  // D-233: bulk update one field (owner / source) across the selection.
+  const bulkField = async (field: "owner_email" | "source") => {
+    const value = window.prompt(field === "owner_email" ? "Set owner email for the selected contacts (empty clears):" : "Set source for the selected contacts (empty clears):");
+    if (value === null) return;
+    const r = await bulkUpdateFieldAction(tenantId, Array.from(sel), field, value.trim());
+    if (!r.ok) notifyError(r.error || "Update failed.");
+    reload();
+  };
+  const [mergeOpen, setMergeOpen] = useState(false);
   const exportCsv = async (selectedOnly: boolean) => {
     if (selectedOnly) { downloadCsv(rows.filter((r) => sel.has(r.id)), "contacts.csv"); return; }
     const all = await listContactsPageAction(tenantId, { ...filters, page: 0, pageSize: 1000 });
@@ -214,15 +224,28 @@ export default function ContactsList({ tenantId }: { tenantId: string }) {
         </div>
       </div>
 
-      {/* ── Bulk bar ── */}
+      {/* ── Bulk bar (D-232/D-233: merge + field update; no send actions per CON-V16) ── */}
       {sel.size > 0 && (
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-[#1e3a8a]/20 bg-[#1e3a8a]/5 px-3 py-2 text-sm">
           <span className="font-medium text-[#1e3a8a]">{sel.size} selected</span>
           <button onClick={() => bulkTag("add")} className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs hover:bg-slate-50">＋ Add tag</button>
           <button onClick={() => bulkTag("remove")} className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs hover:bg-slate-50">− Remove tag</button>
+          <button onClick={() => bulkField("owner_email")} className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs hover:bg-slate-50">Set owner</button>
+          <button onClick={() => bulkField("source")} className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs hover:bg-slate-50">Set source</button>
+          {sel.size >= 2 && sel.size <= 5 && (
+            <button onClick={() => setMergeOpen(true)} className="rounded border border-amber-300 bg-white px-2.5 py-1 text-xs text-amber-700 hover:bg-amber-50">⇄ Merge</button>
+          )}
           <button onClick={() => exportCsv(true)} className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs hover:bg-slate-50">⬇ Export selected</button>
           <button onClick={bulkDel} className="rounded border border-red-200 bg-white px-2.5 py-1 text-xs text-red-600 hover:bg-red-50">Delete</button>
           <button onClick={() => setSel(new Set())} className="ml-auto text-xs text-slate-400 hover:underline">Clear</button>
+        </div>
+      )}
+
+      {/* ── Active company filter chip (from the Companies tab) ── */}
+      {companyFilter && (
+        <div className="mb-2 flex items-center gap-2 text-sm">
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">Company: <b>{companyFilter}</b></span>
+          <button onClick={onClearCompany} className="text-xs text-slate-400 hover:underline">Clear</button>
         </div>
       )}
 
@@ -283,6 +306,45 @@ export default function ContactsList({ tenantId }: { tenantId: string }) {
 
       {addOpen && <AddContactModal tenantId={tenantId} allTags={allTags.map((t) => t.name)} onClose={() => setAddOpen(false)} onCreated={() => { setAddOpen(false); reload(); }} />}
       {importOpen && <ImportModal tenantId={tenantId} onClose={() => setImportOpen(false)} onImported={() => { setImportOpen(false); reload(); }} />}
+      {mergeOpen && <MergeModal tenantId={tenantId} candidates={rows.filter((r) => sel.has(r.id))} onClose={() => setMergeOpen(false)} onMerged={() => { setMergeOpen(false); reload(); }} />}
+    </div>
+  );
+}
+
+// ── Merge duplicates modal (D-232): pick the primary; the rest fold into it ──
+function MergeModal({ tenantId, candidates, onClose, onMerged }: { tenantId: string; candidates: ContactFull[]; onClose: () => void; onMerged: () => void }) {
+  const [primaryId, setPrimaryId] = useState(candidates[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const merge = async () => {
+    setBusy(true);
+    const r = await mergeContactsAction(tenantId, primaryId, candidates.filter((c) => c.id !== primaryId).map((c) => c.id));
+    setBusy(false);
+    if (!r.ok) notifyError(r.error || "Merge failed."); else onMerged();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900">Merge {candidates.length} contacts</h3>
+          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100">✕</button>
+        </div>
+        <p className="mb-3 text-xs text-slate-500">Pick the contact to KEEP. Its empty fields fill from the others, tags combine, and notes/tasks/opportunities move over. The others are removed.</p>
+        <div className="space-y-1.5">
+          {candidates.map((c) => (
+            <label key={c.id} className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 ${primaryId === c.id ? "border-[#1e3a8a] bg-[#1e3a8a]/5" : "border-slate-200 hover:bg-slate-50"}`}>
+              <input type="radio" name="primary" checked={primaryId === c.id} onChange={() => setPrimaryId(c.id)} />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-slate-800">{c.name || c.email || "—"}</span>
+                <span className="block truncate text-xs text-slate-500">{[c.email, c.phone, c.source].filter(Boolean).join(" · ")}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={merge} disabled={busy || !primaryId} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Merging…" : "Merge"}</button>
+        </div>
+      </div>
     </div>
   );
 }

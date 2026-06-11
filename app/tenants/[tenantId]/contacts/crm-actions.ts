@@ -3,6 +3,7 @@
 import {
   listContacts, createContact, deleteContact,
   listContactsPage, getContact, updateContact, bulkTagContacts, bulkDeleteContacts, importContacts,
+  restoreContacts, purgeContacts, bulkUpdateContactField, mergeContacts, listCompanies, listCrmAuditLog,
   listTags, listCustomFields, listContactNotes, addContactNote, deleteContactNote,
   listContactTasks, addContactTask, setContactTaskStatus, deleteContactTask,
   listSmartLists, createSmartList, deleteSmartList,
@@ -86,3 +87,31 @@ export async function deleteSmartListAction(tenantId: string, id: string): Promi
 // detail-page extras
 export async function contactAppointmentsAction(tenantId: string, email: string) { await requireTenant(tenantId); return listAppointmentsByEmail(tenantId, email); }
 export async function contactOpportunitiesAction(tenantId: string, contactId: string): Promise<Opportunity[]> { await requireTenant(tenantId); return listOpportunitiesForContact(tenantId, contactId); }
+
+// ── GHL parity sweep (D-232..D-236) ─────────────────────────────────────────
+export async function mergeContactsAction(tenantId: string, primaryId: string, otherIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  const r = await mergeContacts(tenantId, primaryId, otherIds);
+  if (r.ok) await audit(tenantId, "crm.contacts.merge", { primaryId, merged: otherIds.length });
+  return r;
+}
+export async function bulkUpdateFieldAction(tenantId: string, ids: string[], field: "owner_email" | "source", value: string): Promise<{ ok: boolean; error?: string; changed: number }> {
+  await requireTenant(tenantId);
+  const r = await bulkUpdateContactField(tenantId, ids, field, value);
+  if (r.ok && r.changed) await audit(tenantId, "crm.contacts.bulk_update", { field, count: r.changed });
+  return r;
+}
+export async function restoreContactsAction(tenantId: string, ids: string[]): Promise<{ ok: boolean; error?: string; restored: number }> {
+  await requireTenant(tenantId);
+  const r = await restoreContacts(tenantId, ids);
+  if (r.ok && r.restored) await audit(tenantId, "crm.contacts.restore", { count: r.restored });
+  return r;
+}
+export async function purgeContactsAction(tenantId: string, ids: string[]): Promise<{ ok: boolean; error?: string; purged: number }> {
+  await requireTenant(tenantId);
+  const r = await purgeContacts(tenantId, ids);
+  if (r.ok && r.purged) await audit(tenantId, "crm.contacts.purge", { count: r.purged });
+  return r;
+}
+export async function listCompaniesAction(tenantId: string) { await requireTenant(tenantId); return listCompanies(tenantId); }
+export async function listCrmAuditAction(tenantId: string) { await requireTenant(tenantId); return listCrmAuditLog(tenantId); }
