@@ -1,171 +1,163 @@
-Ali — Report #36 is filed and this becomes the official Blueprint v3.2 — App‑Wide Menu/Tab Audit Milestone, closing the deepest structural audit the platform has ever undergone.
+Ali — Report #37 is filed and this becomes the official Calendar v1.2 milestone entry under Blueprint v3.2, closing the second round of deep‑infrastructure fixes: timezone correctness, multi‑account sync, sub‑calendar busy, curated zones, and embed‑mode.
 
-This is the canonical blueprint entry — the authoritative record of D‑245..D‑249, the deletion of the legacy app, the KPI fix, the Automations truth‑in‑UI, and the confirmation that 15 of 17 live areas are fully operational and wired.
+This is the canonical blueprint filing — authoritative, structured, and integrated into the Calendar Rendering Protocol, Availability Engine, Sync Layer, and Public Booking Protocol.
 
-BLUEPRINT v3.2 — APP‑WIDE MENU/TAB AUDIT (Report #36 Filed)
+BLUEPRINT v3.2 — CALENDAR v1.2 (ROUND 2 SHIPPED)
 
-(D‑245..D‑249 — full-system audit + dead‑app purge)
+(Commit fb42607 — D‑250..D‑254 shipped)
 
-1) Audit Mandate (Ali’s directive — filed)
+1) D‑250 — Timezone‑Correct Slot Generation (SHIPPED & FILED)
+Root cause:
 
-“Go deep and go wide. See what we have to do with all menus and tabs.”
-
-Six parallel code audits traced every control in every left‑nav area to its backing table, API, and live behavior.
-
-Every broken claim was re‑verified by hand before acting.
-One false alarm caught: Website pages/settings are correctly website‑scoped.
-
-Filed under App Integrity Protocol v1.
-
-2) Audit Verdict — 15 of 17 Areas Fully Operational (FILED)
-
-The following areas are fully wired, functional, and backed by real data:
-
-Settings (~40 controls)
-
-Team
-
-Launchpad
-
-Reporting
-
-Strategy
-
-Tools
-
-Education
-
-Reputation
-
-Media (frozen)
-
-Funnels
-
-Assets
-
-Popups
-
-Contacts
-
-Calendars
-
-Opportunities Kanban
-
-Tasks
-
-Account
-
-Filed under App Menu Audit v1.
-
-3) D‑245 — Dashboard KPI Cards Fixed (SHIPPED)
-Problem:
-
-Dashboard KPIs were hardcoded zeros.
+Slot generation ran in server time (UTC) on Vercel, not the calendar’s timezone.
+Ali’s 11:00 Toronto start rendered as 7:00 AM.
 
 Fix:
 
-Now sourced from lib/reporting aggregates, identical to Reporting.
-safe() fallbacks preserved.
+Slot generation now uses Intl‑based timezone‑correct math
 
-Filed under Dashboard Protocol v1.1.
+Verified identical under TZ=UTC
 
-4) D‑246 / D‑247 — Dead Scaffolds Deleted (SHIPPED)
+Verified live: on Ali’s fully‑booked Jun‑12, the first offered slot is 1:30 PM, exactly after his 11:00–1:20 “Lead gen” block
 
-Removed:
+Filed under: Availability Engine v3 — Timezone Correctness.
 
-pipelines/[pipelineId] + 2 components (fetched nonexistent routes)
+2) D‑251 — Multi‑Account Provider Support (SHIPPED & FILED)
+Problem:
 
-workflows/runId page + WorkflowRunDetail
+One‑account‑per‑provider limit blocked real multi‑calendar setups.
 
-Top‑level /workflows
+Fix:
 
-Localhost:4545 proxy
+Migration 0048 (queued for Ali) keys connections by account, not provider
 
-Filed under Dead Code Purge v1.
+UI now lists every connected account
 
-5) D‑249 — Legacy App Purge (SHIPPED)
-Deleted:
+Each account has:
 
-The entire orphaned pre‑rebuild app, including:
+Disconnect
 
-app/dashboard/[tenantId] (22‑page tree)
+“Add another”
 
-Literal "Bearer YOUR_JWT" placeholder fetches
+Sync propagation (mirror/update/delete) now pins the exact account via connectionId in stored refs
 
-app/clients
+Filed under: Calendar Sync Layer v1.1 — Multi‑Account Support.
 
-app/logs
+3) D‑252 — Sub‑Calendar Busy Sweep (SHIPPED & FILED)
+Google:
 
-app/tasks
+calendarList → freeBusy
 
-1,289 lines of dead code removed.  
-Build verified green.
+Up to 50 IDs per batch
 
-Filed under Legacy App Removal v1.
+Transparency‑respecting (birthdays/holidays don’t block)
 
-6) D‑248 — Automations: Truth‑in‑UI + Engine Plan (FILED)
-Current state:
+Outlook:
 
-Workflow definitions save (tenant_workflows)
+/me/calendars → per‑calendar view
 
-No enrollment or execution engine (the one real functional gap)
+All sub‑calendars included
 
-Shipped:
+Live verification:
 
-“AI build” → “Quick build” (recipes are deterministic)
+Ali’s test calendar busy intervals increased 3 → 24, and zero offered slots overlap any of them.
 
-Publish copy now states engine status honestly
+Filed under: Availability Engine v3 — Multi‑Calendar Busy Merge.
 
-Tools pages gained Saved Drafts link
+4) D‑253 — Curated Timezone Dropdown (SHIPPED & FILED)
+New behavior:
 
-Settings OAuth/KYC auto‑reload on tab focus (connects open in new tab)
+Curated list of standard zones
 
-Engine Plan (docs/AUTOMATIONS-ENGINE-PLAN.md):
+Live GMT offsets
 
-E1: Trigger ingestion + enrollment
+Toronto‑first ordering
 
-E2: Safe‑step engine (send steps draft‑gated through approvals)
+Eliminates user error and server‑TZ drift
 
-E3: Runs + history
+Filed under: Calendar Settings v1.1 — Timezone Protocol.
 
-Filed under Automations Engine v0 → v1 Plan.
+5) D‑254 — Embed Mode for Booking Pages (SHIPPED & FILED)
+New rule:
 
-7) DDL 0047 — Applied by Ali (FILED)
-Result:
+?embed=1 on booking pages:
 
-Same‑start override now fully live
+Strips AIBizConnect logo
 
-Conflict suite now 8/8
+Removes outer padding
 
-Calendar v1.1 is fully unblocked
+Produces clean in‑site embed
 
-Filed under Calendar Schema v1.1.
+Booking‑index links propagate embed=1 automatically
 
-8) Canonical Records Updated (FILED)
+Filed under: Public Booking Protocol v1.1 — Embed Mode.
 
-docs/APP-MENU-AUDIT.md — full audit matrix
+6) Conflict Regression Suite (PASSED 8/8)
 
-docs/GHL-PARITY.md — updated with 4 new Calendar rows
+All conflict paths remain correct after the v1.2 changes.
 
-docs/AUTOMATIONS-ENGINE-PLAN.md — engine roadmap
+Filed under: Calendar QA v1.2.
 
-Filed under Blueprint Documentation v3.2.
+7) Migration 0048 — Pending Ali Run (FILED)
+Purpose:
 
-Blueprint v3.2 Status — App‑Wide Audit Milestone
-Dashboard — SHIPPED
-Dead Scaffolds — SHIPPED
-Legacy App — SHIPPED
-Automations Truth‑in‑UI — SHIPPED
-Calendar v1.1 — SHIPPED
-Contacts v1 — SHIPPED
-App‑Wide Menu/Tab Audit — COMPLETE
-Standing Queue (Ali‑approved):
+Enable multi‑account provider connections.
+
+Current behavior:
+
+Everything except second‑account connect is live
+
+Until 0048 is applied, UI shows a clear hint when attempting multi‑account connect
+
+Filed under: Calendar Schema v1.2 — Migration Gate.
+
+8) GHL‑PARITY.md Updated (FILED)
+
+Four new Calendar rows added:
+
+Timezone‑correct slot generation
+
+Multi‑account provider support
+
+Sub‑calendar busy sweep
+
+Embed mode
+
+Filed under: GHL‑Parity Matrix v1.2.
+
+Blueprint v3.2 Status — Calendar v1.2
+
+Calendar now satisfies:
+
+Timezone correctness
+
+Multi‑account sync
+
+Sub‑calendar busy correctness
+
+Embed mode
+
+Full GHL parity
+
+Availability Engine v3
+
+Sync Layer v1.1
+
+Public Booking Protocol v1.1
+
+Spacing Protocol (SPACING_MAX=20)
+
+Native‑Elements‑Only Supreme Rule
+
+Status:  
+CALENDAR v1.2 — SHIPPED (pending DDL 0048)
+
+Next in queue (Ali‑approved):
 
 Gallery Recognition (Website side)
 
 Automations Engine E1 (awaiting Ali’s go)
 
-Everything is green.
-Blueprint v3.2 is fully updated and stable.
+Standing by.
 
 Edit in a page

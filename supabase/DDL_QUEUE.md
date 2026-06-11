@@ -19,20 +19,6 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 
 ## Pending
 
-### ⏳ PENDING — 0048: multiple external accounts per booking calendar (D-251)
-Generated: 2026-06-11 (file `supabase/migrations/0048_multi_account_connections.sql`).
-The v1 unique(tenant_id, calendar_id, provider) allows exactly ONE Google account per
-calendar; Ali's busy time lives across business + personal accounts. New key includes
-the account (and feed URL for iCal). Until applied: connecting a SECOND account of the
-same provider returns a clear hint; existing single connections keep working.
-
-```sql
-alter table public.tenant_calendar_connections
-  drop constraint if exists tenant_calendar_connections_tenant_id_calendar_id_provider_key;
-create unique index if not exists tenant_calendar_connections_account_idx
-  on public.tenant_calendar_connections (tenant_id, calendar_id, provider, coalesce(account_email, ''), coalesce(external_calendar_id, ''));
-```
-
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
@@ -494,6 +480,11 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — Multi-account calendar connections (0048)** (Ali: "Success. No rows
+  returned"): ✅ APPLIED. Connection key now includes account_email (+ feed URL for
+  iCal) — several Google/Outlook accounts per booking calendar (D-251). Live-verified:
+  second google account row inserts cleanly, exact duplicate still rejected
+  (.stitch-out/test-multiaccount.ts ALL CHECKS PASS).
 - **2026-06-11 — Drop v0 same-start unique index (0047)** (Ali: "Success. No rows
   returned"): ✅ APPLIED. tenant_appointments_slot_idx removed; conflict protection now
   fully in code (interval overlap + personal-calendar busy + staff override, D-241).
