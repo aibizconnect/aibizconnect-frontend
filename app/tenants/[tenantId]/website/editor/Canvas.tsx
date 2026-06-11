@@ -1143,7 +1143,9 @@ export default function Canvas({
       <div
         onDragOver={(e) => { if (e.dataTransfer.types.includes("text/abc-move") || e.dataTransfer.types.includes("text/abc-element") || e.dataTransfer.types.includes("text/abc-template")) { e.preventDefault(); setDrop({ scope: "top", index }); } }}
         onDrop={handleSectionDrop}
-        className="group/dz relative h-3"
+        // WYSIWYG: the 12px hover/drop band stays interactive but consumes ZERO layout height
+        // (negative margins cancel it), so sections sit flush exactly as they publish.
+        className="group/dz relative z-10 -my-1.5 h-3"
       >
         {active ? (
           <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded bg-black" />
@@ -1277,8 +1279,10 @@ export default function Canvas({
                 onDragOver={(e) => handleSectionDragOver(e, index)}
                 onDrop={handleSectionDrop}
                 onClick={() => { setSelectedUid(item.uid); setChildSel(null); setColSel(null); }}
-                className={`group/sec relative rounded-lg border p-4 transition cursor-pointer hover:border-[#1e3a8a]/40 ${
-                  selectedUid === item.uid ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]/30" : "border-slate-200"
+                className={`group/sec relative rounded-lg border transition cursor-pointer hover:border-[#1e3a8a]/40 ${
+                  // WYSIWYG (Ali 2026-06-11): no p-4 chrome padding and an INVISIBLE base border —
+                  // sections sit exactly as they publish; hover/selection still draw the ring.
+                  selectedUid === item.uid ? "border-[#1e3a8a] ring-1 ring-[#1e3a8a]/30" : "border-transparent"
                 } ${flashUid === item.uid ? "ring-2 ring-amber-400" : ""}`}
               >
                 {/* per-section toolbar (move / save asset / duplicate / delete) */}

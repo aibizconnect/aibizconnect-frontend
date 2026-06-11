@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { SectionView } from "@/components/sections/registry";
 import { sectionLabels, type SectionType, type SectionContent } from "@/lib/sections/schemas";
-import { styleToCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
+import { styleToCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, resolveStyle, type ElementStyle } from "@/lib/design/element-style";
 import type { ThemeTokens } from "@/lib/sections/theme";
 
 /**
@@ -89,8 +89,13 @@ export default function RowEditor(props: RowEditorProps) {
   if (!nested) {
     if (content.valign) rowInnerStyle.alignItems = valignMap[content.valign];
     if (content.minHeight) rowOuterStyle.minHeight = content.minHeight;
-    if (content.contentWidth === "boxed") { rowOuterStyle.maxWidth = 1200; rowOuterStyle.marginLeft = "auto"; rowOuterStyle.marginRight = "auto"; }
   }
+  // WYSIWYG width tiers (Ali 2026-06-11): cap the INNER content — same TIER map as the
+  // renderer registry — while the band's background stays full-bleed on the outer box.
+  // (Was: hardcoded 1200px on the OUTER box, which also clipped the band background.)
+  const TIER_MAXW: Record<string, string> = { boxed: "var(--abc-maxw, 1200px)", wide: "var(--abc-maxw, 1200px)", medium: "960px", small: "720px" };
+  const tierW = TIER_MAXW[(content as any).contentWidth as string];
+  if (tierW) { rowInnerStyle.maxWidth = tierW; rowInnerStyle.marginLeft = "auto"; rowInnerStyle.marginRight = "auto"; }
   // Mobile stacking (Copilot-ratified default ON). Mirror the live behavior on the
   // editor canvas when previewing the mobile device, so what you see is what ships.
   const mStack = (content as any).keepRowOnMobile === true
@@ -109,12 +114,16 @@ export default function RowEditor(props: RowEditorProps) {
     (rowInnerStyle as any).display = "grid";
     (rowInnerStyle as any).gridTemplateColumns = `repeat(${tabletCols}, minmax(0, 1fr))`;
   }
-  // The row's own background (from the "Row / Columns" Styles tab → content._style):
-  // solid/gradient color inline + an absolutely-positioned image LAYER (so blur/parallax
-  // don't affect the columns), with the fade overlay above it.
+  // The row's own _style — FULL box (WYSIWYG, Ali 2026-06-11): background + the real
+  // padding/margins/radius/border/shadow, resolved for the active breakpoint, exactly like
+  // the preview/public BgBox path. (Was: backgroundOnlyCss, which silently dropped the
+  // captured pt/pb — e.g. Stitch's 120px section gaps — so the canvas looked tighter than
+  // the published page.) The image still renders as a LAYER so blur/parallax never touch
+  // the columns.
   const rowEl: ElementStyle | undefined = (content as any)._style;
   const rowLayered = hasBgLayer(rowEl);
-  Object.assign(rowOuterStyle, backgroundOnlyCss(rowEl, { bgAsLayer: rowLayered }));
+  const rowResolved = resolveStyle(rowEl, (content as any)._responsive, bp);
+  if (rowEl) Object.assign(rowOuterStyle, styleToCss(rowResolved, { bgAsLayer: rowLayered }));
   const rowLayer = bgLayerCss(rowEl);
   const rowOverlay = bgFadeOverlayCss(rowEl);
 
