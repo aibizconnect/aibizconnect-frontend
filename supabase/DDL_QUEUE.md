@@ -480,6 +480,13 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — Calendar converge (0044) + Contacts parity (0045)** (Ali: "success",
+  consolidated block): ✅ APPLIED. tenant_calendars converged to 0041 (buffer/timezone/
+  assignee/updated_at), appointment status check widened to the v1 set, connections table
+  ensured; tenant_contacts gained custom/company/owner_email/dnd/updated_at; notes, tasks
+  and smart-lists tables created. BOTH round-trips pass live end-to-end (calendar: manual
+  appt + blocked time + confirmed status + slot exclusion; contacts: extended fields,
+  notes/tasks/smart lists, import dedupe).
 - **2026-06-11 — Calendar GHL-parity columns (0043_calendar_parity.sql)** (Ali: "Success.
   No rows returned"): ✅ APPLIED. tenant_appointments gained external_event_id (live DB
   predated 0041's column), end_at, title, notes, kind, source, updated_at + the external-event
