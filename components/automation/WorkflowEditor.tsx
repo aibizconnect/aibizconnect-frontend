@@ -33,7 +33,7 @@ export default function WorkflowEditor({ tenantId, initial }: { tenantId: string
 
       <input value={wf.name} onChange={(e) => setWf({ ...wf, name: e.target.value })} onBlur={() => save(wf)}
         className="mb-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-lg font-semibold text-slate-900" />
-      <p className="mb-6 text-xs text-slate-400">Publishing marks this workflow active. It never sends or charges on its own — send/SMS steps require connected channels + your approval.</p>
+      <p className="mb-6 text-xs text-slate-400">Publishing approves this workflow&apos;s definition — the automation engine that enrolls contacts and runs steps is coming next, and send/SMS steps will always require connected channels + your approval before anything goes out.</p>
 
       {/* trigger */}
       <div className="rounded-xl border border-[#1e3a8a]/30 bg-[#1e3a8a]/5 p-4">

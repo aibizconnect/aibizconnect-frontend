@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { getLaunchpadState, type LaunchpadState } from "../launchpad/actions";
+import { buildReport } from "@/lib/reporting";
 
 /**
- * polished tenant dashboard overview (Ali's direction). KPI cards + a live Launchpad
- * "Resume setup" card + quick links to the built tools. Data points show as zero/“—” until
- * wired to live sources (honest placeholders), matching the the market-leading platform home feel.
+ * polished tenant dashboard overview (Ali's direction). KPI cards live from the same
+ * safe() aggregates that power Reporting (D-245) + a live Launchpad "Resume setup" card +
+ * quick links to the built tools, matching the the market-leading platform home feel.
  */
 
-const KPIS = [
+const ZERO_KPIS = [
   { label: "Contacts", value: "0", sub: "total leads & customers" },
   { label: "Opportunities", value: "0", sub: "in your pipeline" },
   { label: "Pipeline value", value: "$0", sub: "open opportunities" },
   { label: "Appointments", value: "0", sub: "upcoming" },
 ];
+
+async function loadKpis(tenantId: string): Promise<typeof ZERO_KPIS> {
+  try {
+    const r = await buildReport(tenantId);
+    return [
+      { label: "Contacts", value: r.contacts.toLocaleString(), sub: "total leads & customers" },
+      { label: "Opportunities", value: r.opportunities.count.toLocaleString(), sub: "in your pipeline" },
+      { label: "Pipeline value", value: `$${r.opportunities.value.toLocaleString()}`, sub: "open opportunities" },
+      { label: "Appointments", value: r.appointmentsUpcoming.toLocaleString(), sub: "upcoming" },
+    ];
+  } catch { return ZERO_KPIS; }
+}
 
 /** Live onboarding state for the dashboard card — null if not yet available (e.g. migration pending). */
 async function loadLaunchpad(tenantId: string): Promise<LaunchpadState | null> {
@@ -22,7 +35,7 @@ async function loadLaunchpad(tenantId: string): Promise<LaunchpadState | null> {
 export default async function DashboardPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const base = `/tenants/${tenantId}`;
-  const launchpad = await loadLaunchpad(tenantId);
+  const [launchpad, KPIS] = await Promise.all([loadLaunchpad(tenantId), loadKpis(tenantId)]);
 
   const tools = [
     { label: "AI Agents", desc: "Your AI team across web, email & social", href: `${base}/agents` },

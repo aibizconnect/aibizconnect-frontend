@@ -28,10 +28,10 @@ export default function WorkflowsList({ tenantId, initial }: { tenantId: string;
         </div>
       </div>
 
-      {/* AI build */}
+      {/* Quick build — proven starter recipes, not LLM output (truth-in-labeling, D-231 round) */}
       <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-        <div className="text-sm font-medium text-indigo-900">✨ Build with AI</div>
-        <p className="mb-3 text-xs text-indigo-700/70">Generate a complete, on-brand workflow in one click.</p>
+        <div className="text-sm font-medium text-indigo-900">⚡ Quick build</div>
+        <p className="mb-3 text-xs text-indigo-700/70">Start from a proven workflow recipe in one click, then tailor the steps.</p>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => gen("nurture")} disabled={pending} className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-sm hover:border-indigo-400 disabled:opacity-50">Lead nurture</button>
           <button onClick={() => gen("scoring")} disabled={pending} className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-sm hover:border-indigo-400 disabled:opacity-50">Lead scoring (ABC)</button>
@@ -40,7 +40,7 @@ export default function WorkflowsList({ tenantId, initial }: { tenantId: string;
       </div>
 
       {wfs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-400">No workflows yet. Create one or let AI draft a starter.</div>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-400">No workflows yet. Create one or start from a Quick build recipe.</div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">

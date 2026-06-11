@@ -50,6 +50,16 @@ function Initial({ name, accent }: { name?: string | null; accent: string }) {
   return <span className="grid h-8 w-8 flex-none place-items-center rounded-full text-[12px] font-bold text-white" style={{ background: accent }}>{(name?.[0] ?? "?").toUpperCase()}</span>;
 }
 
+/** OAuth/KYC complete in a NEW tab — re-load this section when the user comes back, so
+ *  connection status reflects reality without a manual refresh (audit round, B5). */
+function useReloadOnFocus(load: () => Promise<unknown>) {
+  useEffect(() => {
+    const on = () => { load().catch(() => {}); };
+    window.addEventListener("focus", on);
+    return () => window.removeEventListener("focus", on);
+  }, [load]);
+}
+
 export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
   const [tab, setTab] = useState<Tab>("business");
   const [social, setSocial] = useState<SocialProviderStatus[] | null>(null);
@@ -62,6 +72,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   }, [tenantId]);
 
   useEffect(() => { load().catch((e) => setError(e?.message ?? "Could not load settings.")); }, [load]);
+  useReloadOnFocus(load);
 
   // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).
   const params = useSearchParams();
@@ -327,6 +338,7 @@ function ShopifyCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean
     setStores(r.stores); setReady(r.ready);
   }, [tenantId]);
   useEffect(() => { load().catch(() => {}); }, [load]);
+  useReloadOnFocus(load);
 
   const connect = async () => {
     setBusy("connect"); setMsg(null);
@@ -580,6 +592,7 @@ function VerificationCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
 
   const load = useCallback(async () => { setV(await getKycView(tenantId)); }, [tenantId]);
   useEffect(() => { load().catch(() => {}); }, [load]);
+  useReloadOnFocus(load);
 
   const start = async () => {
     setBusy(true); setMsg(null);

@@ -18,7 +18,10 @@ export default async function ToolRunnerPage({ params }: { params: Promise<{ ten
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-5">
-        <Link href={`/tenants/${tenantId}/tools`} className="text-sm text-[#1e3a8a] hover:underline">← All tools</Link>
+        <div className="flex items-center justify-between">
+          <Link href={`/tenants/${tenantId}/tools`} className="text-sm text-[#1e3a8a] hover:underline">← All tools</Link>
+          <Link href={`/tenants/${tenantId}/tools/library`} className="text-sm text-[#1e3a8a] hover:underline">Saved drafts →</Link>
+        </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{tool.name}</h1>
         <p className="text-sm text-slate-500">{tool.blurb}</p>
       </div>
