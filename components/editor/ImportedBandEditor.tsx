@@ -166,6 +166,8 @@ export default function ImportedBandEditor({
   // The iframe's listeners are wired once per srcDoc; route their commits through a ref so they
   // always reach the CURRENT setPatch (patches change between wires).
   const setPatchRef = useRef<(p: ImportedPatch) => void>(() => {});
+  // Bridge into the iframe-scope helpers (toolbar positioning) for the selection effect.
+  const overlayRef = useRef<{ toolbar?: (uid: string | null) => void }>({});
   const tree = useMemo(() => buildTree(patchedHtml), [patchedHtml]);
   const facts = useMemo(() => (sel ? nodeFacts(patchedHtml, sel) : null), [patchedHtml, sel]);
 
@@ -193,10 +195,87 @@ export default function ImportedBandEditor({
     let alive = true;
     const doc = () => f.contentDocument;
     const measure = () => { const d = doc(); if (alive && d?.body) setHeight(Math.max(80, d.body.scrollHeight)); };
+    // HOVER + OUTER TOOLBAR (Ali's canvas UX, D-214). All elements live INSIDE the iframe doc
+    // (same-origin, parent-created): hover shows the node outline + thin top/bottom insertion
+    // indicators; clicking pins ⧉ ↑ ↓ 👁 🗑 (⌫ for column slots) to the node's outer edge.
+    const ensureOverlays = (d: Document) => {
+      if (d.getElementById("abc-ovl-style")) return;
+      const st = d.createElement("style");
+      st.id = "abc-ovl-style";
+      st.textContent = `
+        .abc-ind{position:absolute;left:0;height:3px;background:#3b82f6;border-radius:2px;opacity:.85;pointer-events:none;z-index:9998;display:none}
+        #abc-hover-ring{position:absolute;border:1.5px dashed #60a5fa;border-radius:4px;pointer-events:none;z-index:9997;display:none}
+        #abc-toolbar{position:absolute;z-index:9999;display:none;gap:2px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:3px}
+        #abc-toolbar button{border:0;background:transparent;border-radius:6px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer;color:#475569}
+        #abc-toolbar button:hover{background:#f1f5f9}
+        #abc-toolbar button.danger{color:#dc2626}
+      `;
+      d.head.appendChild(st);
+      for (const id of ["abc-ind-top", "abc-ind-bottom"]) { const m = d.createElement("div"); m.id = id; m.className = "abc-ind"; d.body.appendChild(m); }
+      const ring = d.createElement("div"); ring.id = "abc-hover-ring"; d.body.appendChild(ring);
+      const tb = d.createElement("div"); tb.id = "abc-toolbar"; d.body.appendChild(tb);
+    };
+    const rectOf = (d: Document, el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      const sx = d.defaultView?.scrollX || 0, sy = d.defaultView?.scrollY || 0;
+      return { left: r.left + sx, top: r.top + sy, width: r.width, height: r.height, bottom: r.bottom + sy };
+    };
+    const showHover = (d: Document, el: HTMLElement | null) => {
+      const ring = d.getElementById("abc-hover-ring"); const ti = d.getElementById("abc-ind-top"); const bi = d.getElementById("abc-ind-bottom");
+      if (!ring || !ti || !bi) return;
+      if (!el) { ring.style.display = ti.style.display = bi.style.display = "none"; return; }
+      const r = rectOf(d, el);
+      Object.assign(ring.style, { display: "block", left: `${r.left - 2}px`, top: `${r.top - 2}px`, width: `${r.width + 4}px`, height: `${r.height + 4}px` });
+      // top/bottom AVAILABILITY indicators — future elements can land before/after this node
+      Object.assign(ti.style, { display: "block", left: `${r.left}px`, top: `${r.top - 4}px`, width: `${r.width}px` });
+      Object.assign(bi.style, { display: "block", left: `${r.left}px`, top: `${r.bottom + 1}px`, width: `${r.width}px` });
+    };
+    const showToolbar = (d: Document, el: HTMLElement | null) => {
+      const tb = d.getElementById("abc-toolbar");
+      if (!tb) return;
+      if (!el) { tb.style.display = "none"; return; }
+      const uid = el.getAttribute("data-uid")!;
+      const pcs = el.parentElement?.getAttribute("data-cs") || "";
+      const ownsColumn = /gridTemplateColumns:/.test(pcs) || (/display:flex/.test(pcs) && !/flexDirection:column/.test(pcs));
+      tb.innerHTML = "";
+      const mk = (txt: string, title: string, danger: boolean, fn: () => void) => {
+        const b = d.createElement("button"); b.textContent = txt; b.title = title; if (danger) b.className = "danger";
+        b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); fn(); });
+        tb.appendChild(b);
+      };
+      mk("↑", "Move up", false, () => setPatchRef.current({ op: "move", uid, dir: "up" }));
+      mk("↓", "Move down", false, () => setPatchRef.current({ op: "move", uid, dir: "down" }));
+      mk("⧉", "Duplicate", false, () => setPatchRef.current({ op: "duplicate", uid, cloneId: `c${Date.now().toString(36)}${++cloneSeq}` }));
+      mk("👁", "Hide", false, () => setPatchRef.current({ op: "hide", uid }));
+      if (ownsColumn) {
+        mk("🗑", "Delete element (the column stays)", true, () => setPatchRef.current({ op: "empty", uid }));
+        mk("⌫", "Delete the whole column", true, () => setPatchRef.current({ op: "remove", uid }));
+      } else {
+        mk("🗑", "Delete", true, () => setPatchRef.current({ op: "remove", uid }));
+      }
+      const r = rectOf(d, el);
+      // pinned to the OUTER top-right edge; flips inside when the node touches the viewport top
+      const top = r.top >= 34 ? r.top - 32 : r.bottom + 6;
+      Object.assign(tb.style, { display: "flex", left: `${Math.max(4, r.left + r.width - 190)}px`, top: `${top}px` });
+    };
     const wire = () => {
       const d = doc();
       if (!d) return;
+      ensureOverlays(d);
+      overlayRef.current.toolbar = (uid) => showToolbar(d, uid ? (d.querySelector(`[data-uid="${uid}"]`) as HTMLElement | null) : null);
+      let raf = 0;
+      d.addEventListener("mousemove", (e) => {
+        if (raf) return;
+        raf = d.defaultView!.requestAnimationFrame(() => {
+          raf = 0;
+          const t = (e.target as Element)?.closest?.("[data-uid]") as HTMLElement | null;
+          if ((e.target as Element)?.closest?.("#abc-toolbar")) return; // keep toolbar usable
+          showHover(d, t);
+        });
+      }, true);
+      d.addEventListener("mouseleave", () => showHover(d, null), true);
       d.addEventListener("click", (e) => {
+        if ((e.target as Element)?.closest?.("#abc-toolbar")) return; // toolbar buttons handle themselves
         const t = (e.target as Element)?.closest?.("[data-uid]");
         // While a node is being text-edited, let clicks place the caret normally.
         if ((e.target as HTMLElement)?.isContentEditable) return;
@@ -237,13 +316,14 @@ export default function ImportedBandEditor({
     return () => { alive = false; f.removeEventListener("load", wire); };
   }, [srcDoc]);
 
-  // Selection highlight inside the iframe.
+  // Selection highlight + outer toolbar inside the iframe.
   useEffect(() => {
     const d = iframeRef.current?.contentDocument;
     if (!d) return;
     for (const el of Array.from(d.querySelectorAll("[data-abc-sel]"))) { el.removeAttribute("data-abc-sel"); (el as HTMLElement).style.outline = ""; }
     if (sel) { const el = d.querySelector(`[data-uid="${sel}"]`) as HTMLElement | null; if (el) { el.setAttribute("data-abc-sel", "1"); el.style.cssText += `;${HIGHLIGHT}`; el.scrollIntoView({ block: "nearest" }); } }
-  }, [sel, srcDoc]);
+    overlayRef.current.toolbar?.(sel);
+  }, [sel, srcDoc, patches]);
 
   /** Record a patch — the original html is never mutated. Content ops (text/image/link/hide)
    *  UPSERT per uid+op; `style` merges keys; structural ops (move/duplicate/remove) APPEND in
