@@ -274,8 +274,12 @@ function renderInner(c: any, theme: ThemeTokens, onEditText?: (text: string) => 
       // small = 720px. Boxed is the legacy name for wide.
       const TIER_MAXW: Record<string, string> = { boxed: "var(--abc-maxw, 1200px)", wide: "var(--abc-maxw, 1200px)", medium: "960px", small: "720px" };
       const maxW = TIER_MAXW[c.contentWidth as string];
+      // width:100% is REQUIRED (same bug class as styleToCss width presets): without it a
+      // NESTED boxed row — a flex item inside its parent column — collapses to content width
+      // because auto margins disable flex stretching (editor renders nested rows via RowEditor,
+      // so the squeeze only showed in Preview/public).
       const boxed = maxW
-        ? <div style={{ maxWidth: maxW, marginLeft: "auto", marginRight: "auto" }}>{grid}</div>
+        ? <div style={{ width: "100%", maxWidth: maxW, marginLeft: "auto", marginRight: "auto" }}>{grid}</div>
         : grid;
 
       // HEADER special-case (Ali's ruling): a row that contains a menu is a header. On
