@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionView } from "@/components/sections/registry";
+import AnimateOnView from "@/components/sections/AnimateOnView";
 import { ComponentRenderer } from "@/components/design/ComponentRenderer";
 import { adaptSection } from "@/lib/design/section-adapter";
 import { styleToCss, animClasses, bgLayerCss, bgFadeOverlayCss, hasBgLayer, backgroundOnlyCss, type ElementStyle } from "@/lib/design/element-style";
@@ -318,6 +319,9 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
           }
         `}
       </style>
+
+      {/* Entrance animations start when the element scrolls into view (Ali 2026-06-11). */}
+      <AnimateOnView />
 
       {/* Global Header (single source of truth) — rendered above the body. Skipped on exact snapshots. */}
       {!isExactSnapshot && headerBlocks.map((b) => (

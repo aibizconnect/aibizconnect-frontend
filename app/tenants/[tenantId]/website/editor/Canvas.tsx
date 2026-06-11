@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
+import AnimateOnView, { replayAnimations } from "@/components/sections/AnimateOnView";
 import ImportedBandEditor, { nodeFacts } from "@/components/editor/ImportedBandEditor";
 import ImportedBoxInspector from "@/components/editor/ImportedBoxInspector";
 import { insertTemplate, freshInsertUid } from "@/lib/sites/insert-templates";
@@ -241,6 +242,11 @@ export default function Canvas({
     if (generateSignal) openGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generateSignal]);
+  // Animations replay when the element is FOCUSED ON (Ali 2026-06-11): selecting a section
+  // restarts its entrance animations so you can preview them without scrolling away and back.
+  useEffect(() => {
+    if (selectedUid) replayAnimations(sectionRefs.current.get(selectedUid) ?? null);
+  }, [selectedUid]);
   function openRewrite(index: number) {
     setAiMode("rewrite");
     setAiIndex(index);
@@ -1221,6 +1227,8 @@ export default function Canvas({
 
   return (
     <div className="p-4">
+      {/* Entrance animations start on scroll-into-view here too (WYSIWYG). */}
+      <AnimateOnView />
       <SaveAssetModal
         open={saveAssetIdx != null || importedAsset != null}
         defaultName={importedAsset ? "Imported element" : saveAssetIdx != null ? (sectionLabels[(items[saveAssetIdx]?.content as any)?.type as SectionType] ?? "Saved element") : ""}

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { SectionView } from "@/components/sections/registry";
 import { sectionLabels, type SectionType, type SectionContent } from "@/lib/sections/schemas";
-import { styleToCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, resolveStyle, type ElementStyle } from "@/lib/design/element-style";
+import { styleToCss, bgLayerCss, bgFadeOverlayCss, hasBgLayer, resolveStyle, animClasses, type ElementStyle } from "@/lib/design/element-style";
 import type { ThemeTokens } from "@/lib/sections/theme";
 
 /**
@@ -198,7 +198,9 @@ export default function RowEditor(props: RowEditorProps) {
   );
 
   return (
-    <div ref={rowRef} className="relative w-full" style={{ ...rowOuterStyle, position: "relative" }} onMouseLeave={!nested ? () => onHover(null) : undefined}>
+    // WYSIWYG: the row's entrance/hover animation classes render on the canvas too (they were
+    // dropped here, so animated rows showed nothing until Preview).
+    <div ref={rowRef} className={`relative w-full ${animClasses((content as any)._anim)}`.trim()} style={{ ...rowOuterStyle, position: "relative" }} onMouseLeave={!nested ? () => onHover(null) : undefined}>
       {rowLayer && <div aria-hidden style={rowLayer} />}
       {rowOverlay && <div aria-hidden style={rowOverlay} />}
       <div className="relative z-[1] flex w-full" style={rowInnerStyle}>

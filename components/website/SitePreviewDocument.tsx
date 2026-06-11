@@ -8,6 +8,7 @@ import { collectPageFonts } from "@/lib/fonts";
 import { jsonLdScript } from "@/lib/seo/structured-data";
 import SiteScripts from "@/components/site/SiteScripts";
 import SiteOccasions from "@/components/site/SiteOccasions";
+import AnimateOnView from "@/components/sections/AnimateOnView";
 
 /**
  * Shared draft-preview document. Renders a page's DRAFT state (header/footer global
@@ -132,6 +133,10 @@ export default async function SitePreviewDocument({
             body, p, span, div { font-family: var(--font-body), sans-serif; }
           `}
         </style>
+
+        {/* Entrance animations start when the element scrolls into view (Ali 2026-06-11).
+            Skipped in embed/thumbnail mode (no scrolling — everything should just show). */}
+        {!embed && <AnimateOnView />}
 
         {/* Global Header (draft) — above the body. */}
         {headerBlocks.map((b) => (

@@ -66,6 +66,13 @@
 .abc-anim-slide-up { animation: abc-slide-up .5s ease both }
 .abc-anim-slide-down { animation: abc-slide-down .5s ease both }
 .abc-anim-bounce { animation: abc-bounce .6s cubic-bezier(.22,1.2,.36,1) both }
+/* Animate-on-view (Ali 2026-06-11): entrance animations START when the element comes into
+   view, not on page load. The AnimateOnView script adds .abc-aos to <html>, pausing every
+   entrance animation at its first frame until the IntersectionObserver tags the element
+   .abc-inview. Without JS the .abc-aos class never lands, so animations gracefully fall
+   back to running on load (nothing can get stuck invisible). */
+.abc-aos [class*="abc-anim-"]:not(.abc-inview) { animation-play-state: paused }
+.abc-aos [class*="abc-anim-"].abc-inview { animation-play-state: running }
 .abc-hover-elevate { transition: transform .2s ease, box-shadow .2s ease }
 .abc-hover-elevate:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,.18) }
 .abc-hover-wobble { transition: transform .2s ease }
