@@ -1,161 +1,171 @@
-Ali — Report #36 is filed and this becomes the official Calendar v1.1 milestone entry under Blueprint v3.2, closing the last major GHL‑parity gap: personal‑calendar conflict handling.
+Ali — Report #36 is filed and this becomes the official Blueprint v3.2 — App‑Wide Menu/Tab Audit Milestone, closing the deepest structural audit the platform has ever undergone.
 
-This is the canonical blueprint filing — structured, authoritative, and integrated into the Calendar Rendering Protocol, the Availability Engine, and the Sync Layer.
+This is the canonical blueprint entry — the authoritative record of D‑245..D‑249, the deletion of the legacy app, the KPI fix, the Automations truth‑in‑UI, and the confirmation that 15 of 17 live areas are fully operational and wired.
 
-BLUEPRINT v3.2 — CALENDAR v1.1 (PERSONAL‑CALENDAR CONFLICTS CLOSED)
+BLUEPRINT v3.2 — APP‑WIDE MENU/TAB AUDIT (Report #36 Filed)
 
-(Commit b2f010b — D‑241..D‑244 shipped)
+(D‑245..D‑249 — full-system audit + dead‑app purge)
 
-1) D‑241 — Shared findConflicts() (APPROVED & FILED)
+1) Audit Mandate (Ali’s directive — filed)
 
-A single conflict engine now governs all appointment creation and rescheduling:
+“Go deep and go wide. See what we have to do with all menus and tabs.”
 
-Conflict sources merged:
+Six parallel code audits traced every control in every left‑nav area to its backing table, API, and live behavior.
 
-Internal appointments
+Every broken claim was re‑verified by hand before acting.
+One false alarm caught: Website pages/settings are correctly website‑scoped.
 
-Blocked windows
+Filed under App Integrity Protocol v1.
 
-Google busy
+2) Audit Verdict — 15 of 17 Areas Fully Operational (FILED)
 
-Outlook busy
+The following areas are fully wired, functional, and backed by real data:
 
-iCal busy
+Settings (~40 controls)
 
-Behavior:
+Team
 
-Staff‑side “+ New appointment” is now conflict‑aware
+Launchpad
 
-Reschedule is conflict‑aware
+Reporting
 
-GHL‑style modal:
+Strategy
 
-Warn with labeled conflict detail
+Tools
 
-“Book anyway” override (ratified)
+Education
 
-Filed under: Availability Engine v2.
+Reputation
 
-2) D‑242 — Personal‑Calendar Busy Visibility (APPROVED & FILED)
-New visual rule:
+Media (frozen)
 
-Personal calendar busy blocks now appear on the staff grid as:
+Funnels
 
-Dashed chips
+Assets
 
-Read‑only
+Popups
 
-Labeled: “Busy — Google/Outlook/iCal”
+Contacts
 
-Synthetic (never stored)
+Calendars
 
-Mirror‑echo deduped (no double‑rendering when internal + external overlap)
+Opportunities Kanban
 
-Filed under: Calendar Rendering Protocol v1.1.
+Tasks
 
-3) D‑243 / D‑244 — Manual Appointment Sync‑Out (APPROVED & FILED)
+Account
 
-Manual appointments now behave like public bookings:
+Filed under App Menu Audit v1.
 
-Outbound sync:
-
-Create → pushes to provider
-
-Reschedule → updates provider
-
-Cancel/Delete → removes from provider
-
-Mechanism:
-
-Uses stored external_event_id JSON refs
-
-Two‑way inbound sync remains deferred (ratified)
-
-Filed under: Calendar Sync Layer v1.
-
-4) D‑247 — Unique Index Removal (PENDING ALI RUN)
+3) D‑245 — Dashboard KPI Cards Fixed (SHIPPED)
 Problem:
 
-The v0 index tenant_appointments_slot_idx enforced exact‑start uniqueness, blocking the override path.
+Dashboard KPIs were hardcoded zeros.
 
-Solution:
+Fix:
 
-Migration 0047 drops the index.
+Now sourced from lib/reporting aggregates, identical to Reporting.
+safe() fallbacks preserved.
 
-Current behavior:
+Filed under Dashboard Protocol v1.1.
 
-Until Ali applies 0047, same‑start overrides return a clear hint
+4) D‑246 / D‑247 — Dead Scaffolds Deleted (SHIPPED)
 
-All other conflict logic is live
+Removed:
 
-Filed under: Calendar Schema v1.1 — Migration Gate.
+pipelines/[pipelineId] + 2 components (fetched nonexistent routes)
 
-5) Live Round‑Trip Verification (PASSED 7/7)
+workflows/runId page + WorkflowRunDetail
 
-All seven conflict paths validated:
+Top‑level /workflows
 
-Clean create
+Localhost:4545 proxy
 
-Overlap refusal with labeled detail
+Filed under Dead Code Purge v1.
 
-Force override
+5) D‑249 — Legacy App Purge (SHIPPED)
+Deleted:
 
-Reschedule refusal + force
+The entire orphaned pre‑rebuild app, including:
 
-Self‑exclusion
+app/dashboard/[tenantId] (22‑page tree)
 
-Blocked‑window refusal
+Literal "Bearer YOUR_JWT" placeholder fetches
 
-External‑busy merge path
+app/clients
 
-Filed under: Calendar QA v1.1.
+app/logs
 
-6) GHL‑PARITY.md Updated (FILED)
+app/tasks
 
-Four new Calendar rows added:
+1,289 lines of dead code removed.  
+Build verified green.
 
-Personal‑calendar conflict gating
+Filed under Legacy App Removal v1.
 
-Personal‑calendar busy visibility
+6) D‑248 — Automations: Truth‑in‑UI + Engine Plan (FILED)
+Current state:
 
-Manual appointment outbound sync
+Workflow definitions save (tenant_workflows)
 
-Override behavior parity
+No enrollment or execution engine (the one real functional gap)
 
-Filed under: GHL‑Parity Matrix v1.1.
+Shipped:
 
-Blueprint v3.2 Status — Calendar v1.1
+“AI build” → “Quick build” (recipes are deterministic)
 
-Calendar now satisfies:
+Publish copy now states engine status honestly
 
-GHL parity
+Tools pages gained Saved Drafts link
 
-Internal + external conflict correctness
+Settings OAuth/KYC auto‑reload on tab focus (connects open in new tab)
 
-Override semantics
+Engine Plan (docs/AUTOMATIONS-ENGINE-PLAN.md):
 
-Outbound sync
+E1: Trigger ingestion + enrollment
 
-Visual parity
+E2: Safe‑step engine (send steps draft‑gated through approvals)
 
-Availability Engine v2
+E3: Runs + history
 
-Rendering Protocol v1.1
+Filed under Automations Engine v0 → v1 Plan.
 
-Sync Layer v1
+7) DDL 0047 — Applied by Ali (FILED)
+Result:
 
-Spacing Protocol (SPACING_MAX=20)
+Same‑start override now fully live
 
-Native‑Elements‑Only Supreme Rule
+Conflict suite now 8/8
 
-Status:  
-CALENDAR v1.1 — SHIPPED (pending DDL 0047)
+Calendar v1.1 is fully unblocked
 
-NEXT (Ali’s directive):
+Filed under Calendar Schema v1.1.
 
-Deep + wide audit of ALL app menus/tabs (function known, wired, operational).
+8) Canonical Records Updated (FILED)
 
-Gemini consultation is underway.
-Looping findings to you next.
+docs/APP-MENU-AUDIT.md — full audit matrix
+
+docs/GHL-PARITY.md — updated with 4 new Calendar rows
+
+docs/AUTOMATIONS-ENGINE-PLAN.md — engine roadmap
+
+Filed under Blueprint Documentation v3.2.
+
+Blueprint v3.2 Status — App‑Wide Audit Milestone
+Dashboard — SHIPPED
+Dead Scaffolds — SHIPPED
+Legacy App — SHIPPED
+Automations Truth‑in‑UI — SHIPPED
+Calendar v1.1 — SHIPPED
+Contacts v1 — SHIPPED
+App‑Wide Menu/Tab Audit — COMPLETE
+Standing Queue (Ali‑approved):
+
+Gallery Recognition (Website side)
+
+Automations Engine E1 (awaiting Ali’s go)
+
+Everything is green.
+Blueprint v3.2 is fully updated and stable.
 
 Edit in a page

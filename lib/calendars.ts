@@ -344,12 +344,42 @@ export async function deleteEntry(tenantId: string, id: string): Promise<{ ok: b
   return { ok: !error, error: error?.message };
 }
 
-/** Generate bookable slots for the next `days` days, excluding internally-booked times AND the agent's
- *  Google Calendar busy times (when connected), with the calendar's buffer applied. */
+// ── Timezone-correct wall-clock math (D-250) ────────────────────────────────
+// The calendar's working hours mean hours in ITS timezone, not the server's (Vercel = UTC,
+// which shifted an 11:00 Toronto start to a 7:00 AM slot). No deps: Intl offset math.
+function tzOffsetMs(tz: string, utcMs: number): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+      .formatToParts(new Date(utcMs)).map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
+  return asUtc - utcMs;
+}
+/** The UTC instant of wall-clock (y, mo, d, h, mi) in tz — DST-boundary refined. */
+function zonedToUtc(y: number, mo: number, d: number, h: number, mi: number, tz: string): Date {
+  const guess = Date.UTC(y, mo, d, h, mi);
+  let utc = guess - tzOffsetMs(tz, guess);
+  const off2 = tzOffsetMs(tz, utc);
+  if (guess - off2 !== utc) utc = guess - off2;
+  return new Date(utc);
+}
+/** Today's calendar date (y, mo, d) as seen in tz. */
+function zonedToday(tz: string, now: Date): { y: number; mo: number; d: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(now).map((x) => [x.type, x.value]),
+  ) as Record<string, string>;
+  return { y: +p.year, mo: +p.month - 1, d: +p.day };
+}
+
+/** Generate bookable slots for the next `days` days IN THE CALENDAR'S TIMEZONE (D-250),
+ *  excluding internally-booked times AND every connected account's busy times, with the
+ *  calendar's buffer applied. */
 export async function availableSlots(tenantId: string, cal: Calendar, days = 14): Promise<{ date: string; slots: string[] }[]> {
   const sb = service();
   const now = new Date();
   const windowEnd = new Date(now); windowEnd.setDate(now.getDate() + days);
+  const tz = cal.timezone || "America/Toronto";
 
   const bufferMs = (cal.bufferMin ?? 0) * 60_000;
   const durMs = cal.durationMin * 60_000;
@@ -364,7 +394,7 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
     return { start, end: r.end_at ? new Date(r.end_at).getTime() : start + durMs };
   });
 
-  // External free/busy across every connected provider (Google + Outlook + iCal). No-op if none.
+  // External free/busy across every connected account (Google + Outlook + iCal). No-op if none.
   let busy: { start: number; end: number }[] = [];
   try {
     const { getAllBusy } = await import("./server/calendar-busy");
@@ -377,20 +407,22 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
     return busy.some((b) => s < b.end && e > b.start);
   };
 
+  const today = zonedToday(tz, now);
   const out: { date: string; slots: string[] }[] = [];
   for (let d = 0; d < days; d++) {
-    const day = new Date(now); day.setDate(now.getDate() + d); day.setHours(0, 0, 0, 0);
-    if (!cal.weekdays.includes(day.getDay())) continue;
+    // Date.UTC normalizes day overflow (e.g. Jun 35 → Jul 5); weekday of a pure date is tz-free.
+    const dayUtc = new Date(Date.UTC(today.y, today.mo, today.d + d));
+    if (!cal.weekdays.includes(dayUtc.getUTCDay())) continue;
     const slots: string[] = [];
     for (let h = cal.startHour; h < cal.endHour; h++) {
       for (let m = 0; m < 60; m += cal.durationMin) {
-        const slot = new Date(day); slot.setHours(h, m, 0, 0);
+        const slot = zonedToUtc(dayUtc.getUTCFullYear(), dayUtc.getUTCMonth(), dayUtc.getUTCDate(), h, m, tz);
         if (slot <= now) continue;
         if (clashes(slot.getTime())) continue;
         slots.push(slot.toISOString());
       }
     }
-    if (slots.length) out.push({ date: day.toISOString().slice(0, 10), slots });
+    if (slots.length) out.push({ date: dayUtc.toISOString().slice(0, 10), slots });
   }
   return out;
 }

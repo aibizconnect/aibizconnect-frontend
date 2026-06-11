@@ -7,6 +7,45 @@ import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** Curated standard timezones (D-253) — friendly names, GMT offsets shown live. */
+const TIMEZONES: { tz: string; label: string }[] = [
+  { tz: "America/St_Johns", label: "Newfoundland — St. John's" },
+  { tz: "America/Halifax", label: "Atlantic Time — Halifax" },
+  { tz: "America/Toronto", label: "Eastern Time — Toronto, New York" },
+  { tz: "America/Winnipeg", label: "Central Time — Winnipeg, Chicago" },
+  { tz: "America/Edmonton", label: "Mountain Time — Edmonton, Denver" },
+  { tz: "America/Phoenix", label: "Arizona — Phoenix (no DST)" },
+  { tz: "America/Vancouver", label: "Pacific Time — Vancouver, Los Angeles" },
+  { tz: "America/Anchorage", label: "Alaska — Anchorage" },
+  { tz: "Pacific/Honolulu", label: "Hawaii — Honolulu" },
+  { tz: "America/Mexico_City", label: "Mexico City" },
+  { tz: "America/Sao_Paulo", label: "São Paulo" },
+  { tz: "UTC", label: "UTC" },
+  { tz: "Europe/London", label: "London, Dublin" },
+  { tz: "Europe/Paris", label: "Paris, Berlin, Rome, Madrid" },
+  { tz: "Europe/Athens", label: "Athens, Helsinki, Kyiv" },
+  { tz: "Europe/Istanbul", label: "Istanbul" },
+  { tz: "Asia/Dubai", label: "Dubai, Abu Dhabi" },
+  { tz: "Asia/Tehran", label: "Tehran" },
+  { tz: "Asia/Karachi", label: "Karachi, Islamabad" },
+  { tz: "Asia/Kolkata", label: "India — Mumbai, Delhi" },
+  { tz: "Asia/Dhaka", label: "Dhaka" },
+  { tz: "Asia/Bangkok", label: "Bangkok, Jakarta" },
+  { tz: "Asia/Shanghai", label: "China — Beijing, Shanghai" },
+  { tz: "Asia/Singapore", label: "Singapore, Kuala Lumpur" },
+  { tz: "Asia/Hong_Kong", label: "Hong Kong" },
+  { tz: "Asia/Tokyo", label: "Tokyo, Seoul" },
+  { tz: "Australia/Perth", label: "Perth" },
+  { tz: "Australia/Sydney", label: "Sydney, Melbourne" },
+  { tz: "Pacific/Auckland", label: "Auckland" },
+];
+function gmtOffset(tz: string): string {
+  try {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((x) => x.type === "timeZoneName");
+    return p?.value?.replace("GMT", "GMT+0").replace("GMT+0-", "GMT-").replace("GMT+0+", "GMT+") ?? "";
+  } catch { return ""; }
+}
+
 export default function CalendarsManager({ tenantId, initial }: { tenantId: string; initial: Calendar[] }) {
   const [cals, setCals] = useState<Calendar[]>(initial);
   const [name, setName] = useState("");
@@ -84,15 +123,21 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
 }
 
 function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: Calendar; onSave: (patch: { name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number; timezone?: string; assignedToEmail?: string; assignedToName?: string }) => void; pending: boolean }) {
-  const [conns, setConns] = useState<{ googleReady: boolean; microsoftReady: boolean; connections: { provider: string; accountEmail: string | null; status: string }[] } | null>(null);
+  const [conns, setConns] = useState<{ googleReady: boolean; microsoftReady: boolean; connections: { id: string; provider: string; accountEmail: string | null; status: string }[] } | null>(null);
   const [busyP, setBusyP] = useState<string | null>(null);
   const [ical, setIcal] = useState("");
   const reloadConns = () => getCalendarConnections(tenantId, cal.id).then(setConns).catch(() => setConns({ googleReady: false, microsoftReady: false, connections: [] }));
   useEffect(() => { reloadConns(); /* eslint-disable-next-line */ }, [tenantId, cal.id]);
+  // OAuth finishes in a NEW tab — refresh the list when the user comes back.
+  useEffect(() => {
+    const on = () => reloadConns();
+    window.addEventListener("focus", on);
+    return () => window.removeEventListener("focus", on);
+    // eslint-disable-next-line
+  }, [tenantId, cal.id]);
   const connectOAuth = async (provider: "google" | "microsoft") => { setBusyP(provider); const r = await getCalendarConnectUrl(tenantId, cal.id, provider); setBusyP(null); if (r.ok && r.url) window.open(r.url, "_blank", "noopener,noreferrer"); else notifyError(r.error || "Could not start connection."); };
   const connectIcal = async () => { setBusyP("ical"); const r = await connectIcalAction(tenantId, cal.id, ical); setBusyP(null); if (r.ok) { setIcal(""); reloadConns(); } else notifyError(r.error || "Could not add iCal feed."); };
-  const disc = async (provider: string) => { setBusyP(provider); await disconnectProviderAction(tenantId, cal.id, provider); setBusyP(null); reloadConns(); };
-  const conn = (p: string) => conns?.connections.find((c) => c.provider === p);
+  const disc = async (provider: string, connectionId: string) => { setBusyP(connectionId); await disconnectProviderAction(tenantId, cal.id, provider, connectionId); setBusyP(null); reloadConns(); };
 
   const [name, setName] = useState(cal.name);
   const [agent, setAgent] = useState(cal.assignedToEmail ?? "");
@@ -112,7 +157,12 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
         <label className="flex flex-col gap-1 text-xs text-slate-600">Calendar name<input className={inp} value={name} onChange={(e) => setName(e.target.value)} /></label>
         <label className="flex flex-col gap-1 text-xs text-slate-600">Agent email<input className={inp} value={agent} onChange={(e) => setAgent(e.target.value)} placeholder="agent@company.com" /></label>
         <label className="flex flex-col gap-1 text-xs text-slate-600">Agent name<input className={inp} value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">Timezone (IANA)<input className={inp} value={tz} onChange={(e) => setTz(e.target.value)} placeholder="America/Toronto" /></label>
+        <label className="flex flex-col gap-1 text-xs text-slate-600">Timezone
+          <select className={inp} value={tz || "America/Toronto"} onChange={(e) => setTz(e.target.value)}>
+            {tz && !TIMEZONES.some((z) => z.tz === tz) && <option value={tz}>{tz} (current)</option>}
+            {TIMEZONES.map((z) => <option key={z.tz} value={z.tz}>({gmtOffset(z.tz)}) {z.label}</option>)}
+          </select>
+        </label>
       </div>
 
       <div>
@@ -132,36 +182,36 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
         <label className="flex flex-col gap-1 text-xs text-slate-600">Buffer<select className={inp} value={buffer} onChange={(e) => setBuffer(+e.target.value)}>{[0, 5, 10, 15, 30].map((d) => <option key={d} value={d}>{d} min</option>)}</select></label>
       </div>
 
-      {/* Connect external calendars (free/busy → no conflicts). Booked times are mirrored back. */}
+      {/* Connect external calendars (free/busy → no conflicts). Several accounts per
+          calendar (D-251): business + personal Google, an Outlook, iCal feeds — busy times
+          from ALL of them (and all their sub-calendars, D-252) block bookings. */}
       <div className="space-y-2 border-t border-slate-100 pt-3">
-        <div className="text-xs font-medium text-slate-600">Connect this agent&apos;s calendars (their busy times block bookings)</div>
+        <div className="text-xs font-medium text-slate-600">Connected calendars (busy times on any of them block bookings)</div>
         {!conns ? <div className="text-xs text-slate-400">Checking…</div> : (
           <div className="space-y-1.5 text-xs">
-            {/* Google */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-600">📅 Google {conn("google") && <span className="text-emerald-700">· connected{conn("google")?.accountEmail ? ` (${conn("google")?.accountEmail})` : ""}</span>}</span>
-              {conn("google") ? <button onClick={() => disc("google")} disabled={busyP === "google"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button>
-                : conns.googleReady ? <button onClick={() => connectOAuth("google")} disabled={busyP === "google"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Connect</button>
-                : <span className="text-slate-400">not configured</span>}
-            </div>
-            {/* Outlook */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-600">📨 Outlook {conn("microsoft") && <span className="text-emerald-700">· connected{conn("microsoft")?.accountEmail ? ` (${conn("microsoft")?.accountEmail})` : ""}</span>}</span>
-              {conn("microsoft") ? <button onClick={() => disc("microsoft")} disabled={busyP === "microsoft"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button>
-                : conns.microsoftReady ? <button onClick={() => connectOAuth("microsoft")} disabled={busyP === "microsoft"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Connect</button>
-                : <span className="text-slate-400">not configured</span>}
-            </div>
-            {/* iCal */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-600">🔗 iCal feed {conn("ical") && <span className="text-emerald-700">· connected</span>}</span>
-              {conn("ical") ? <button onClick={() => disc("ical")} disabled={busyP === "ical"} className="text-red-500 hover:underline disabled:opacity-40">Disconnect</button> : null}
-            </div>
-            {!conn("ical") && (
-              <div className="flex items-center gap-2">
-                <input value={ical} onChange={(e) => setIcal(e.target.value)} placeholder="https://…/calendar.ics (read-only feed)" className="flex-1 rounded border border-slate-300 px-2 py-1" />
-                <button onClick={connectIcal} disabled={!ical.trim() || busyP === "ical"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">Add</button>
+            {conns.connections.length === 0 && <div className="text-slate-400">Nothing connected yet — bookings only avoid each other.</div>}
+            {conns.connections.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-white px-2 py-1.5">
+                <span className="min-w-0 truncate text-slate-700">
+                  {c.provider === "google" ? "📅 Google" : c.provider === "microsoft" ? "📨 Outlook" : "🔗 iCal"}
+                  <span className="ml-1.5 text-slate-500">{c.accountEmail ?? ""}</span>
+                  {c.status !== "connected" && <span className="ml-1.5 text-amber-600">({c.status})</span>}
+                </span>
+                <button onClick={() => disc(c.provider, c.id)} disabled={busyP === c.id} className="shrink-0 text-red-500 hover:underline disabled:opacity-40">Disconnect</button>
               </div>
-            )}
+            ))}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {conns.googleReady
+                ? <button onClick={() => connectOAuth("google")} disabled={busyP === "google"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">＋ Google account</button>
+                : <span className="text-slate-400">Google not configured</span>}
+              {conns.microsoftReady
+                ? <button onClick={() => connectOAuth("microsoft")} disabled={busyP === "microsoft"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">＋ Outlook account</button>
+                : <span className="text-slate-400">Outlook not configured</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <input value={ical} onChange={(e) => setIcal(e.target.value)} placeholder="https://…/calendar.ics (read-only feed)" className="flex-1 rounded border border-slate-300 px-2 py-1" />
+              <button onClick={connectIcal} disabled={!ical.trim() || busyP === "ical"} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">＋ Add feed</button>
+            </div>
           </div>
         )}
       </div>

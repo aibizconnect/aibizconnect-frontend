@@ -51,6 +51,9 @@ export default function BookingWidget({ tenantId, calendarId, calendarName, dura
             <button key={s} onClick={() => setSlot(s)} className={`rounded-lg border px-2 py-2 text-sm transition ${slot === s ? "border-[#22d3ee] bg-[#2563eb] text-white" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>{fmtTime(s)}</button>
           ))}
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Times shown in your local time{typeof Intl !== "undefined" ? ` (${Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " ")})` : ""}.
+        </p>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">

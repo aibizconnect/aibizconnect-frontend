@@ -85,12 +85,26 @@ export async function completeGoogleConnectCore(tenantId: string, calendarId: st
       const uj: any = await u.json().catch(() => ({})); email = uj?.email || "";
     } catch { /* email best-effort */ }
 
+    // Manual upsert keyed by ACCOUNT (D-251): the same calendar can hold several Google
+    // accounts — reconnecting an account refreshes its row instead of replacing the others.
     const supabase = createSupabaseServiceClient();
-    const { error } = await supabase.from("tenant_calendar_connections").upsert(
-      { tenant_id: tenantId, calendar_id: calendarId, provider: "google", account_email: email || null, external_calendar_id: "primary", encrypted_tokens: encryptSecret(JSON.stringify(tokens)), status: "connected", updated_at: new Date().toISOString() },
-      { onConflict: "tenant_id,calendar_id,provider" }
-    );
-    if (error) return { ok: false, message: error.message };
+    const row = {
+      tenant_id: tenantId, calendar_id: calendarId, provider: "google", account_email: email || null,
+      external_calendar_id: "primary", encrypted_tokens: encryptSecret(JSON.stringify(tokens)),
+      status: "connected", updated_at: new Date().toISOString(),
+    };
+    let exq = supabase.from("tenant_calendar_connections").select("id")
+      .eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google");
+    exq = email ? exq.eq("account_email", email) : exq.is("account_email", null);
+    const { data: existing } = await exq.maybeSingle();
+    const { error } = existing
+      ? await supabase.from("tenant_calendar_connections").update(row).eq("id", (existing as any).id)
+      : await supabase.from("tenant_calendar_connections").insert(row);
+    if (error) {
+      return { ok: false, message: /duplicate key|unique/i.test(error.message)
+        ? "A second account needs a DB upgrade — apply supabase/migrations/0048_multi_account_connections.sql first."
+        : error.message };
+    }
     return { ok: true, email };
   } catch (e: any) { return { ok: false, message: e?.message ?? "Google connection failed." }; }
 }
@@ -98,27 +112,34 @@ export async function completeGoogleConnectCore(tenantId: string, calendarId: st
 export interface CalConnection { accountEmail: string | null; externalCalendarId: string; status: string }
 export async function getCalendarConnection(tenantId: string, calendarId: string): Promise<CalConnection | null> {
   const supabase = createSupabaseServiceClient();
-  const { data } = await supabase.from("tenant_calendar_connections").select("account_email, external_calendar_id, status").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google").maybeSingle();
+  const { data } = await supabase.from("tenant_calendar_connections").select("account_email, external_calendar_id, status").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google").limit(1).maybeSingle();
   return data ? { accountEmail: (data as any).account_email, externalCalendarId: (data as any).external_calendar_id || "primary", status: (data as any).status } : null;
 }
 
-export async function disconnectGoogle(tenantId: string, calendarId: string): Promise<void> {
+export async function disconnectGoogle(tenantId: string, calendarId: string, accountEmail?: string): Promise<void> {
   const supabase = createSupabaseServiceClient();
-  await supabase.from("tenant_calendar_connections").delete().eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google");
+  let q = supabase.from("tenant_calendar_connections").delete().eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google");
+  if (accountEmail) q = q.eq("account_email", accountEmail);
+  await q;
 }
 
-/** Get a valid access token (refresh if expired). Returns null if no/invalid connection. */
-async function validAccessToken(tenantId: string, calendarId: string): Promise<{ token: string; externalCalendarId: string } | null> {
+/** Get a valid access token for ONE connection row (refresh if expired) — multi-account
+ *  per calendar (D-251), so lookups go by row, never maybeSingle on the provider. */
+async function validAccessToken(tenantId: string, calendarId: string, connectionId?: string): Promise<{ token: string; externalCalendarId: string; connectionId: string } | null> {
   const supabase = createSupabaseServiceClient();
-  const { data } = await supabase.from("tenant_calendar_connections").select("encrypted_tokens, external_calendar_id").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google").maybeSingle();
+  let q = supabase.from("tenant_calendar_connections").select("id, encrypted_tokens, external_calendar_id").eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google");
+  if (connectionId) q = q.eq("id", connectionId);
+  const { data: rows } = await q.limit(1);
+  const data = rows?.[0];
   if (!data?.encrypted_tokens) return null;
+  const rowId = (data as any).id as string;
   let tokens: GoogleTokens;
   try { tokens = JSON.parse(decryptSecret(data.encrypted_tokens as string)); } catch { return null; }
   const externalCalendarId = (data as any).external_calendar_id || "primary";
-  if (tokens.expiry_date && tokens.expiry_date > Date.now() + 60_000) return { token: tokens.access_token, externalCalendarId };
+  if (tokens.expiry_date && tokens.expiry_date > Date.now() + 60_000) return { token: tokens.access_token, externalCalendarId, connectionId: rowId };
   // Refresh.
   const creds = await googleCalCreds();
-  if (!creds || !tokens.refresh_token) return tokens.access_token ? { token: tokens.access_token, externalCalendarId } : null;
+  if (!creds || !tokens.refresh_token) return tokens.access_token ? { token: tokens.access_token, externalCalendarId, connectionId: rowId } : null;
   try {
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -127,32 +148,50 @@ async function validAccessToken(tenantId: string, calendarId: string): Promise<{
     const tok: any = await res.json().catch(() => ({}));
     if (res.ok && tok?.access_token) {
       const next: GoogleTokens = { access_token: tok.access_token, refresh_token: tokens.refresh_token, expiry_date: Date.now() + (tok.expires_in ?? 3600) * 1000, scope: tokens.scope };
-      await supabase.from("tenant_calendar_connections").update({ encrypted_tokens: encryptSecret(JSON.stringify(next)), updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("calendar_id", calendarId).eq("provider", "google");
-      return { token: tok.access_token, externalCalendarId };
+      await supabase.from("tenant_calendar_connections").update({ encrypted_tokens: encryptSecret(JSON.stringify(next)), updated_at: new Date().toISOString() }).eq("id", rowId);
+      return { token: tok.access_token, externalCalendarId, connectionId: rowId };
     }
   } catch { /* fall through */ }
   return null;
 }
 
 export interface BusyInterval { start: number; end: number } // epoch ms
-/** Free/busy of the connected Google calendar in [timeMin, timeMax]. Empty array if not connected. */
-export async function getGoogleBusy(tenantId: string, calendarId: string, timeMinIso: string, timeMaxIso: string): Promise<BusyInterval[]> {
-  const auth = await validAccessToken(tenantId, calendarId);
+/** Free/busy of ONE connected Google account across ALL its calendars (D-252) — the agent's
+ *  busy lives on sub-calendars too (work, family, teams), not just primary. freeBusy honors
+ *  event transparency, so holiday/birthday calendars don't block. Empty array if not connected. */
+export async function getGoogleBusy(tenantId: string, calendarId: string, timeMinIso: string, timeMaxIso: string, connectionId?: string): Promise<BusyInterval[]> {
+  const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return [];
   try {
+    // Every calendar the account can see busy-status on (cap 50 = freeBusy item limit).
+    let ids: string[] = [auth.externalCalendarId];
+    try {
+      const lr = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=freeBusyReader&fields=items(id)&maxResults=50", {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      });
+      const lj: any = await lr.json().catch(() => ({}));
+      const listed = (lj?.items ?? []).map((i: any) => i.id).filter(Boolean);
+      if (listed.length) ids = listed.slice(0, 50);
+    } catch { /* primary-only fallback */ }
+
     const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
       method: "POST", headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ timeMin: timeMinIso, timeMax: timeMaxIso, items: [{ id: auth.externalCalendarId }] }),
+      body: JSON.stringify({ timeMin: timeMinIso, timeMax: timeMaxIso, items: ids.map((id) => ({ id })) }),
     });
     const j: any = await res.json().catch(() => ({}));
-    const busy = j?.calendars?.[auth.externalCalendarId]?.busy ?? [];
-    return busy.map((b: any) => ({ start: new Date(b.start).getTime(), end: new Date(b.end).getTime() }));
+    const out: BusyInterval[] = [];
+    for (const id of ids) {
+      for (const b of j?.calendars?.[id]?.busy ?? []) {
+        out.push({ start: new Date(b.start).getTime(), end: new Date(b.end).getTime() });
+      }
+    }
+    return out;
   } catch { return []; }
 }
 
 /** Create the booked appointment as an event on the agent's Google calendar (best-effort). */
-export async function createGoogleEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }): Promise<string | null> {
-  const auth = await validAccessToken(tenantId, calendarId);
+export async function createGoogleEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }, connectionId?: string): Promise<string | null> {
+  const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return null;
   try {
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events`, {
@@ -169,8 +208,8 @@ export async function createGoogleEvent(tenantId: string, calendarId: string, ev
 }
 
 /** Outbound propagation of a reschedule/rename onto the mirrored Google event (D-243). */
-export async function updateGoogleEvent(tenantId: string, calendarId: string, eventId: string, ev: { summary?: string; startIso?: string; endIso?: string }): Promise<boolean> {
-  const auth = await validAccessToken(tenantId, calendarId);
+export async function updateGoogleEvent(tenantId: string, calendarId: string, eventId: string, ev: { summary?: string; startIso?: string; endIso?: string }, connectionId?: string): Promise<boolean> {
+  const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return false;
   try {
     const body: Record<string, unknown> = {};
@@ -185,8 +224,8 @@ export async function updateGoogleEvent(tenantId: string, calendarId: string, ev
   } catch { return false; }
 }
 
-export async function deleteGoogleEvent(tenantId: string, calendarId: string, eventId: string): Promise<boolean> {
-  const auth = await validAccessToken(tenantId, calendarId);
+export async function deleteGoogleEvent(tenantId: string, calendarId: string, eventId: string, connectionId?: string): Promise<boolean> {
+  const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return false;
   try {
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}`, {

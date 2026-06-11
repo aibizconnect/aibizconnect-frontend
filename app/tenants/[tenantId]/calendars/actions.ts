@@ -97,7 +97,7 @@ export async function connectIcalAction(tenantId: string, calendarId: string, ur
 
 export interface CalendarConnectionsStatus {
   googleReady: boolean; microsoftReady: boolean;
-  connections: { provider: string; accountEmail: string | null; status: string }[];
+  connections: { id: string; provider: string; accountEmail: string | null; status: string }[];
 }
 export async function getCalendarConnections(tenantId: string, calendarId: string): Promise<CalendarConnectionsStatus> {
   const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
@@ -109,11 +109,11 @@ export async function getCalendarConnections(tenantId: string, calendarId: strin
   return { googleReady, microsoftReady, connections };
 }
 
-export async function disconnectProviderAction(tenantId: string, calendarId: string, provider: string): Promise<{ ok: boolean; error?: string }> {
+export async function disconnectProviderAction(tenantId: string, calendarId: string, provider: string, connectionId?: string): Promise<{ ok: boolean; error?: string }> {
   const { requireTenantAccess } = await import("@/lib/auth/tenant-access");
   await requireTenantAccess(tenantId);
   try { await requireAdmin(); } catch (e: any) { return { ok: false, error: e?.message }; }
   const { disconnectProvider } = await import("@/lib/server/calendar-busy");
-  await disconnectProvider(tenantId, calendarId, provider);
+  await disconnectProvider(tenantId, calendarId, provider, connectionId);
   return { ok: true };
 }
