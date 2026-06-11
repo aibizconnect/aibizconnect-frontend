@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ThemeTokens } from "@/lib/sections/theme";
+import { resolveLink, type LinkValue } from "@/lib/sections/links";
 import type {
   BulletListContent, NumberCounterContent, ProgressBarContent, PricingContent,
   FaqContent, GalleryContent, LogosContent, SocialContent, SliderContent,
@@ -38,10 +39,15 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
   // In-place editing: each item's text is editable; commit writes the items array.
   const setItem = (i: number, text: string) =>
     onEditItems?.(content.items.map((it, j) => (j === i ? { ...it, text } : it)));
-  const itemNode = (it: { text: string }, i: number) =>
-    onEditItems
-      ? <InlineText as="span" text={it.text} onChange={(t) => setItem(i, t)} style={textStyle} />
+  // D-219: list items may carry links (footer link groups are Lists, not Menus). View mode
+  // renders the real <a>; the editing path stays unwrapped so clicks edit instead of navigating.
+  const itemNode = (it: { text: string; link?: LinkValue }, i: number) => {
+    if (onEditItems) return <InlineText as="span" text={it.text} onChange={(t) => setItem(i, t)} style={textStyle} />;
+    const { href, target } = resolveLink(it.link);
+    return href
+      ? <a href={href} target={target || "_self"} rel={target === "_blank" ? "noopener noreferrer" : undefined} className="hover:underline" style={textStyle}>{it.text}</a>
       : <span style={textStyle}>{it.text}</span>;
+  };
 
   if (style === "number") {
     return (

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { linkValueSchema } from "./links";
 
 /**
  * Zod schemas for every website-builder section type.
@@ -219,7 +220,9 @@ export const importedCssSchema = z.object({
 // ---- Extended best-in-class elements (functional, no external paid keys) ----
 export const bulletListSchema = z.object({
   type: z.literal("bullet-list"),
-  items: z.array(z.object({ text: z.string() })).default([]),
+  // D-219 (Ali): footer/body link groups are LISTS (the Navigation Menu lives in the Header
+  // only) — so a list item may carry a link. Renderers emit link.href/target via resolveLink.
+  items: z.array(z.object({ text: z.string(), link: linkValueSchema.optional() })).default([]),
   bulletStyle: z.enum(["disc", "circle", "square", "none", "check", "arrow", "number", "custom"]).optional(),
   bulletIcon: z.string().optional(),                  // custom marker char/emoji (bulletStyle "custom")
   startAt: z.coerce.number().optional(),              // numbered lists: first number (default 1)

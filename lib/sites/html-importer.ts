@@ -1,5 +1,6 @@
 import { parse, type HTMLElement } from "node-html-parser";
 import { applyCapturedStyle, applyCapturedTypo, parseDataCs, gridColumnCount } from "./style-capture";
+import { linkFromHref } from "@/lib/sections/links";
 
 /**
  * Server-only faithful HTML → editable-blocks importer. Walks the page BODY in DOCUMENT ORDER and
@@ -277,19 +278,29 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         }
       }
 
-      // Link LIST (footer "Quick Links"/"Compliance", nav menus): a ul/div whose children are all
-      // plain (non-button) links → a vertical menu, preserving every link.
+      // Link LIST (footer "Quick Links"/"Compliance", mid-page link groups): a ul/div whose
+      // children are all plain (non-button) links → a LIST of linked items, NOT a menu — D-219
+      // (Ali): "our menu is in the Header" — the only Navigation Menu is the header bar, built by
+      // buildHeaderRow; link groups everywhere else are Lists. Each item keeps its link, and the
+      // list carries the captured link color/size so footer links keep the design's color (D-221).
       if (tag === "ul" || tag === "div" || tag === "nav") {
         const lis = (el.childNodes || []).filter((n: any) => n.nodeType === 1) as HTMLElement[];
         // A link counts only if it has REAL link text (after stripping inline icons). This excludes
         // icon-only social links whose text is a bare ligature ("face_nod","share") that would
-        // otherwise pollute a footer menu.
+        // otherwise pollute a footer list.
         const linkEls = lis.map((k) => (tagOf(k) === "a" ? k : k.querySelector("a")))
           .filter((a): a is HTMLElement => !!a && !looksLikeButton(a) && !!cleanText(a) && !/^[a-z][a-z0-9_]*$/.test(clean(a.text)));
         if (lis.length >= 2 && linkEls.length >= 2 && linkEls.length >= Math.ceil(lis.length * 0.7)) {
           flushImgs();
-          const items = linkEls.slice(0, 12).map((a) => ({ label: cleanText(a).slice(0, 40), href: abs(a.getAttribute("href") || "#") }));
-          out.push({ type: "menu", items, orientation: "vertical" });
+          const items = linkEls.slice(0, 12).map((a) => {
+            const raw = a.getAttribute("href") || "";
+            return { text: cleanText(a).slice(0, 40), link: linkFromHref(raw.startsWith("#") ? raw : abs(raw)) };
+          });
+          const list: Record<string, unknown> = { type: "bullet-list", items, bulletStyle: "none" };
+          const typo = parseDataCs(linkEls[0].getAttribute("data-cs")).typo;
+          if (typo.color) { list.textColor = typo.color; list.color = typo.color; }
+          if (typo.fontSize) list.fontSize = typo.fontSize;
+          out.push(list);
           continue;
         }
       }
@@ -297,7 +308,29 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (/^h[1-6]$/.test(tag)) { flushImgs(); const text = cleanText(el); if (text) out.push(applyCapturedTypo({ type: "heading", text, level: tag }, el.getAttribute("data-cs"))); continue; }
       if (tag === "img") { const src = el.getAttribute("src") || el.getAttribute("data-src") || el.getAttribute("data-lazy-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...imgSizeFrom(el) }); continue; }
       if (tag === "picture") { const s = el.querySelector("img"); const src = s?.getAttribute("src") || s?.getAttribute("data-src"); if (src && isContentImage(src)) imgRun.push({ url: abs(src), ...(s ? imgSizeFrom(s) : {}) }); continue; }
-      if (tag === "ul" || tag === "ol") { flushImgs(); const items = el.querySelectorAll("li").map((li) => ({ text: clean(li.text) })).filter((i) => i.text); if (items.length) out.push({ type: "bullet-list", items: items.slice(0, 12), bulletStyle: tag === "ol" ? "number" : "check" }); continue; }
+      if (tag === "ul" || tag === "ol") {
+        flushImgs();
+        const lis = el.querySelectorAll("li");
+        const items = lis.map((li) => {
+          const it: Record<string, unknown> = { text: clean(li.text) };
+          const a = li.querySelector("a");
+          if (a && !looksLikeButton(a)) { // item link survives translation (D-219)
+            const raw = a.getAttribute("href") || "";
+            const lv = linkFromHref(raw.startsWith("#") ? raw : abs(raw));
+            if (lv) it.link = lv;
+          }
+          return it;
+        }).filter((i) => i.text);
+        if (items.length) {
+          const b: Record<string, unknown> = { type: "bullet-list", items: items.slice(0, 12), bulletStyle: tag === "ol" ? "number" : "check" };
+          // D-221: every text-bearing element carries its captured color — lists were the leak.
+          const typo = parseDataCs((lis[0] || el).getAttribute("data-cs")).typo;
+          if (typo.color) { b.textColor = typo.color; b.color = typo.color; }
+          if (typo.fontSize) b.fontSize = typo.fontSize;
+          out.push(b);
+        }
+        continue;
+      }
       if (tag === "hr") { flushImgs(); out.push({ type: "divider" }); continue; }
       if (tag === "blockquote") { flushImgs(); pushText(el.text, true, el); continue; }
       if (tag === "video") { flushImgs(); const src = el.getAttribute("src") || el.querySelector("source")?.getAttribute("src"); if (src) out.push({ type: "video", url: abs(src) }); continue; }
@@ -468,19 +501,26 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
   // row containing a `menu` element as a header) instead of being dropped as chrome.
   const buildHeaderRow = (el: HTMLElement): Record<string, unknown> | null => {
     const navItems: { label: string; href: string }[] = [];
-    let logo = ""; let cta: Record<string, unknown> | null = null;
+    let logo = ""; let logoEl: HTMLElement | null = null; let navLinkEl: HTMLElement | null = null;
+    let cta: Record<string, unknown> | null = null;
     for (const a of el.querySelectorAll("a, button")) {
       const label = cleanText(a);                          // strip inline icon ligatures
       if (!label || label.length > 40) continue;
       if (/^[a-z][a-z0-9_]*$/.test(clean(a.text))) continue; // skip icon-only links ("menu","share")
       if (looksLikeButton(a)) { if (!cta) cta = buildButton(a); continue; }
-      if (!logo) { logo = label; continue; }            // first plain link = brand/logo
-      if (!navItems.some((n) => n.label === label)) navItems.push({ label, href: abs(a.getAttribute("href") || "#") });
+      if (!logo) { logo = label; logoEl = a; continue; }  // first plain link = brand/logo
+      if (!navItems.some((n) => n.label === label)) { if (!navLinkEl) navLinkEl = a; navItems.push({ label, href: abs(a.getAttribute("href") || "#") }); }
     }
     if (!navItems.length && !cta) return null;
     const cols: Record<string, unknown>[][] = [];
-    cols.push([{ type: "heading", text: logo || "Brand", level: "h3" }]);
-    if (navItems.length) cols.push([{ type: "menu", items: navItems.slice(0, 8), orientation: "horizontal" }]);
+    // D-221: the brand heading + menu carry their captured colors (they were synthetic before).
+    cols.push([applyCapturedTypo({ type: "heading", text: logo || "Brand", level: "h3" }, logoEl?.getAttribute("data-cs"))]);
+    if (navItems.length) {
+      const menu: Record<string, unknown> = { type: "menu", items: navItems.slice(0, 8), orientation: "horizontal" };
+      const navColor = navLinkEl ? parseDataCs(navLinkEl.getAttribute("data-cs")).typo.color : undefined;
+      if (navColor) menu.color = navColor;
+      cols.push([menu]);
+    }
     if (cta) cols.push([cta]);
     const row: Record<string, unknown> = { type: "row", columns: cols.length, contentWidth: "boxed", _name: "Header", children: cols };
     const st = parseDataCs(el.getAttribute("data-cs")).style;
