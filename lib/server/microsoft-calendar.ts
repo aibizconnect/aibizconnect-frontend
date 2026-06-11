@@ -142,18 +142,21 @@ export async function getMsBusy(tenantId: string, calendarId: string, minIso: st
   } catch { return []; }
 }
 
-export async function createMsEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }, connectionId?: string): Promise<string | null> {
+export async function createMsEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string; attendeeEmails?: string[]; location?: string }, connectionId?: string): Promise<string | null> {
   const token = await validMsToken(tenantId, calendarId, connectionId);
   if (!token) return null;
   try {
+    // Graph emails invites to attendees natively on create (D-256).
+    const attendees = [...new Set([...(ev.attendeeEmails ?? []), ...(ev.attendeeEmail ? [ev.attendeeEmail] : [])])];
     const res = await fetch("https://graph.microsoft.com/v1.0/me/events", {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         subject: ev.summary,
         body: { contentType: "Text", content: ev.description || "" },
+        ...(ev.location ? { location: { displayName: ev.location } } : {}),
         start: { dateTime: ev.startIso.replace(/Z$/, ""), timeZone: "UTC" },
         end: { dateTime: ev.endIso.replace(/Z$/, ""), timeZone: "UTC" },
-        ...(ev.attendeeEmail ? { attendees: [{ emailAddress: { address: ev.attendeeEmail }, type: "required" }] } : {}),
+        ...(attendees.length ? { attendees: attendees.map((a) => ({ emailAddress: { address: a }, type: "required" })) } : {}),
       }),
     });
     const j: any = await res.json().catch(() => ({}));

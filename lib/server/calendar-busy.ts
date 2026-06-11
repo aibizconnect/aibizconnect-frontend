@@ -37,7 +37,7 @@ export interface ExternalRef { provider: string; eventId: string; connectionId?:
 
 /** Mirror a booking onto every connected write-capable account (Google, Outlook — D-251 v1:
  *  all accounts). Returns refs (with connection ids) for later update/delete propagation. */
-export async function createExternalEvents(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }): Promise<ExternalRef[]> {
+export async function createExternalEvents(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string; attendeeEmails?: string[]; location?: string }): Promise<ExternalRef[]> {
   const sb = createSupabaseServiceClient();
   const { data } = await sb.from("tenant_calendar_connections").select("id, provider").eq("tenant_id", tenantId).eq("calendar_id", calendarId);
   const refs: ExternalRef[] = [];

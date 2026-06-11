@@ -26,8 +26,10 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 | Calendar **Groups** | One link listing several calendars | Booking index page listing all calendars | 🟡 equivalent | /book/T |
 | Date-specific hours / holidays | Override availability on a date | Covered by **Blocked time** (block the day/window) | 🟡 covered | Calendar view |
 | Calendar types (round-robin/class/collective/service) | Multi-staff routing & group events | Single-host calendars only | ⏳ needs multi-staff routing model | — |
-| Custom booking-form fields | Extra questions at booking | Fixed name/email/phone | ⏳ form-builder integration later | — |
-| Notifications (confirm/reminder emails, SMS) | Auto-send messaging | — | 🚫 standing **no-auto-send** rule | — |
+| Meeting locations (Zoom/Teams/Meet/phone/in-person) | Visitor picks how to meet | Venues per calendar (Settings) → "How would you like to meet?" chips on booking; stored + in invites (D-255) | ✅ | Settings → Edit / booking page |
+| Guests / additional invitees | Invite others to the booking | "Invite others" emails field → native Google/Outlook calendar invites (sendUpdates=all) + confirmation email (D-256) | ✅ | booking page |
+| Notifications: confirmation + reminders | Booking confirmation, day-before + morning-of email, SMS 1h before | Transactional engine (D-257): per-calendar toggles, idempotent markers, 15-min Cloudflare cron; sends ONLY via the tenant's verified email identity / connected Twilio | ✅ owner-directed transactional (marketing sends still 🚫) | Settings → Edit → reminders |
+| Custom booking-form fields | Extra questions at booking | Fixed name/email/phone/guests + venue | ⏳ form-builder integration later | — |
 
 ## Contacts
 

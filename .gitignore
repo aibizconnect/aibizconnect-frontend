@@ -44,3 +44,6 @@ next-env.d.ts
 _*.html
 _*.log
 _*.mjs
+
+.vercel
+.stitch-out/cron-secret.txt

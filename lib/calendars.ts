@@ -10,10 +10,26 @@ function service(): SupabaseClient {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
 }
 
+/** A meeting option the calendar offers (D-255): detail = link / phone / address. */
+export interface Venue { kind: "zoom" | "teams" | "meet" | "phone" | "in_person" | "custom"; label: string; detail: string }
+export const VENUE_KINDS: { kind: Venue["kind"]; label: string; detailHint: string }[] = [
+  { kind: "zoom", label: "Zoom", detailHint: "Zoom meeting link" },
+  { kind: "teams", label: "Microsoft Teams", detailHint: "Teams meeting link" },
+  { kind: "meet", label: "Google Meet", detailHint: "Meet link" },
+  { kind: "phone", label: "Phone call", detailHint: "Number we call from (or 'We call you')" },
+  { kind: "in_person", label: "In person", detailHint: "Address" },
+  { kind: "custom", label: "Custom", detailHint: "Details" },
+];
+
+/** Per-calendar reminder toggles (D-257) — engine only sends on verified channels. */
+export interface ReminderPrefs { enabled: boolean; dayBefore: boolean; morningOf: boolean; hourBeforeSms: boolean }
+const DEFAULT_REMINDERS: ReminderPrefs = { enabled: true, dayBefore: true, morningOf: true, hourBeforeSms: true };
+
 export interface Calendar {
   id: string; name: string; slug: string; durationMin: number; bufferMin: number;
   weekdays: number[]; startHour: number; endHour: number; timezone: string | null;
   assignedToEmail: string | null; assignedToName: string | null;
+  venues: Venue[]; reminders: ReminderPrefs;
 }
 export interface Appointment { id: string; name: string; email: string; startAt: string; status: string; }
 
@@ -31,6 +47,8 @@ export interface CalendarEntry {
   status: string;                       // booked | confirmed | cancelled | completed | no_show
   notes: string | null;
   createdAt: string | null;
+  venue: { kind: string; label: string; detail: string } | null;   // D-255
+  invitees: string[];                                              // D-256
 }
 
 function rowToEntry(r: any): CalendarEntry {
@@ -44,6 +62,8 @@ function rowToEntry(r: any): CalendarEntry {
     status: r.status ?? "booked",
     notes: r.notes ?? null,
     createdAt: r.created_at ?? null,
+    venue: r.venue && typeof r.venue === "object" ? r.venue : null,
+    invitees: Array.isArray(r.invitees) ? r.invitees : [],
   };
 }
 
@@ -61,6 +81,8 @@ function rowToCal(r: any): Calendar {
     id: r.id, name: r.name, slug: r.slug, durationMin: r.duration_min, bufferMin: r.buffer_min ?? 0,
     weekdays: r.weekdays ?? [1, 2, 3, 4, 5], startHour: r.start_hour, endHour: r.end_hour, timezone: r.timezone ?? null,
     assignedToEmail: r.assigned_to_email ?? null, assignedToName: r.assigned_to_name ?? null,
+    venues: Array.isArray(r.venues) ? r.venues.filter((v: any) => v?.kind && v?.label) : [],
+    reminders: { ...DEFAULT_REMINDERS, ...(r.reminders && typeof r.reminders === "object" ? r.reminders : {}) },
   };
 }
 
@@ -85,6 +107,7 @@ export async function createCalendar(tenantId: string, input: CalendarInput): Pr
 export interface CalendarPatch {
   name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number;
   timezone?: string; assignedToEmail?: string; assignedToName?: string;
+  venues?: Venue[]; reminders?: ReminderPrefs;
 }
 export async function updateCalendar(tenantId: string, id: string, patch: CalendarPatch): Promise<{ ok: boolean; error?: string }> {
   const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -97,7 +120,15 @@ export async function updateCalendar(tenantId: string, id: string, patch: Calend
   if (patch.timezone != null) upd.timezone = patch.timezone;
   if (patch.assignedToEmail != null) upd.assigned_to_email = patch.assignedToEmail;
   if (patch.assignedToName != null) upd.assigned_to_name = patch.assignedToName;
-  const { error } = await service().from("tenant_calendars").update(upd).eq("tenant_id", tenantId).eq("id", id);
+  if (patch.venues != null) upd.venues = patch.venues;
+  if (patch.reminders != null) upd.reminders = patch.reminders;
+  let { error } = await service().from("tenant_calendars").update(upd).eq("tenant_id", tenantId).eq("id", id);
+  if (error && isMissingColumn(error.message) && (patch.venues != null || patch.reminders != null)) {
+    // 0049 not applied yet — save everything else, surface the venue/reminder gap clearly.
+    delete upd.venues; delete upd.reminders;
+    ({ error } = await service().from("tenant_calendars").update(upd).eq("tenant_id", tenantId).eq("id", id));
+    if (!error) return { ok: false, error: "Saved, except venues/reminders — apply supabase/migrations/0049_venues_invitees_reminders.sql first." };
+  }
   return { ok: !error, error: error?.message };
 }
 export async function deleteCalendar(tenantId: string, id: string): Promise<void> {
@@ -156,6 +187,7 @@ export async function listEntriesRange(
           calendarId: calId, kind: "external_busy", source: "sync",
           title: `Busy — ${label}`, name: "", email: "", phone: null,
           startAt, endAt, status: "busy", notes: null, createdAt: null,
+          venue: null, invitees: [],
         });
       }
     }
@@ -254,7 +286,7 @@ export async function createManualAppointment(tenantId: string, input: ManualApp
 }
 
 /** Mirror an internal appointment onto connected providers and persist the refs (best-effort). */
-async function mirrorOut(tenantId: string, calendarId: string, entryId: string | undefined, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }): Promise<void> {
+async function mirrorOut(tenantId: string, calendarId: string, entryId: string | undefined, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string; attendeeEmails?: string[]; location?: string }): Promise<void> {
   try {
     const { createExternalEvents } = await import("./server/calendar-busy");
     const refs = await createExternalEvents(tenantId, calendarId, ev);
@@ -427,11 +459,20 @@ export async function availableSlots(tenantId: string, cal: Calendar, days = 14)
   return out;
 }
 
-/** Public booking: create an appointment + a CRM contact (lead) + (if connected) a Google event. */
-export async function bookAppointment(tenantId: string, calendarId: string, b: { name: string; email: string; phone?: string; startAt: string }): Promise<{ ok: boolean; error?: string }> {
+/** Public booking: create an appointment + a CRM contact (lead) + (if connected) provider
+ *  events with NATIVE invites to the booker and their guests (D-256), plus a confirmation
+ *  email when the tenant's email identity is verified. */
+export async function bookAppointment(tenantId: string, calendarId: string, b: { name: string; email: string; phone?: string; startAt: string; venueIdx?: number; invitees?: string[] }): Promise<{ ok: boolean; error?: string }> {
   const sb = service();
-  const { data: cal } = await sb.from("tenant_calendars").select("duration_min, name").eq("tenant_id", tenantId).eq("id", calendarId).maybeSingle();
+  const { data: cal } = await sb.from("tenant_calendars").select("*").eq("tenant_id", tenantId).eq("id", calendarId).maybeSingle();
   const durMin = (cal as any)?.duration_min ?? 30;
+  // Resolve the chosen venue server-side from the calendar's own list (no client-forged details).
+  const venues: Venue[] = Array.isArray((cal as any)?.venues) ? (cal as any).venues : [];
+  const venue = b.venueIdx != null && venues[b.venueIdx] ? venues[b.venueIdx] : null;
+  const invitees = (b.invitees ?? [])
+    .map((e) => (e || "").trim().toLowerCase())
+    .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e !== (b.email || "").toLowerCase())
+    .slice(0, 5);
   const startMs = new Date(b.startAt).getTime();
   const endIso = new Date(startMs + durMin * 60_000).toISOString();
 
@@ -460,22 +501,44 @@ export async function bookAppointment(tenantId: string, calendarId: string, b: {
   } catch { /* connectors unavailable → internal-only guard */ }
 
   let inserted: any = null;
-  let { data: ins, error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt, end_at: endIso, kind: "appointment", source: "booking" }).select("id").single();
+  const fullRow: Record<string, unknown> = { tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt, end_at: endIso, kind: "appointment", source: "booking", venue, invitees };
+  let { data: ins, error } = await sb.from("tenant_appointments").insert(fullRow).select("id").single();
   inserted = ins;
   if (error && isMissingColumn(error.message)) {
-    // 0043 not applied yet → legacy shape still books fine.
-    ({ data: inserted, error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt }).select("id").single());
+    // 0049/0043 not applied yet → progressively legacy shapes still book fine.
+    delete fullRow.venue; delete fullRow.invitees;
+    ({ data: inserted, error } = await sb.from("tenant_appointments").insert(fullRow).select("id").single());
+    if (error && isMissingColumn(error.message)) {
+      ({ data: inserted, error } = await sb.from("tenant_appointments").insert({ tenant_id: tenantId, calendar_id: calendarId, name: b.name, email: b.email, phone: b.phone, start_at: b.startAt }).select("id").single());
+    }
   }
   if (error) return { ok: false, error: error.message };
   await createContact(tenantId, { name: b.name, email: b.email, phone: b.phone, source: "calendar booking" });
 
+  const venueLine = venue ? `${venue.label}${venue.detail ? `: ${venue.detail}` : ""}` : "";
   // Mirror onto every connected provider that supports writes (Google, Outlook) — best-effort,
-  // storing the refs so reschedule/cancel propagates (D-243/D-244).
+  // storing the refs so reschedule/cancel propagates (D-243/D-244). Attendees = booker + guests;
+  // the providers email the calendar invites natively (D-256).
   await mirrorOut(tenantId, calendarId, inserted?.id, {
     summary: `${(cal as any)?.name || "Appointment"} — ${b.name}`,
-    description: `Booked via AIBizConnect.\nName: ${b.name}\nEmail: ${b.email}${b.phone ? `\nPhone: ${b.phone}` : ""}`,
-    startIso: b.startAt, endIso, attendeeEmail: b.email,
+    description: `Booked via AIBizConnect.\nName: ${b.name}\nEmail: ${b.email}${b.phone ? `\nPhone: ${b.phone}` : ""}${venueLine ? `\nWhere: ${venueLine}` : ""}`,
+    startIso: b.startAt, endIso, attendeeEmail: b.email, attendeeEmails: [b.email, ...invitees],
+    location: venueLine || undefined,
   });
+
+  // Confirmation email to the booker + guests — only when the tenant's email identity is
+  // VERIFIED (transactional, D-256; channel config IS the gate).
+  try {
+    const { sendAppointmentEmail } = await import("./server/appointment-reminders");
+    await sendAppointmentEmail(tenantId, {
+      kind: "confirmation",
+      to: [b.email, ...invitees],
+      calendarName: (cal as any)?.name || "Appointment",
+      timezone: (cal as any)?.timezone || "America/Toronto",
+      startIso: b.startAt, endIso,
+      bookerName: b.name, venueLine,
+    });
+  } catch { /* email channel not configured → provider invite (if connected) covers it */ }
 
   return { ok: true };
 }

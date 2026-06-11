@@ -3,8 +3,9 @@ import { z } from "zod";
 import { bookAppointment } from "@/lib/calendars";
 
 /**
- * POST /api/book — public appointment booking. A visitor books a slot → appointment +
- * CRM contact created. No send/charge (confirmation emails are a later gated step).
+ * POST /api/book — public appointment booking. A visitor books a slot (optionally picking a
+ * venue + adding guests, D-255/D-256) → appointment + CRM contact created; provider calendar
+ * invites + a confirmation email go out when the tenant's channels are configured.
  */
 const bodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -13,6 +14,8 @@ const bodySchema = z.object({
   email: z.string().email(),
   phone: z.string().max(40).optional(),
   startAt: z.string().datetime(),
+  venueIdx: z.number().int().min(0).max(20).optional(),
+  invitees: z.array(z.string().email()).max(5).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -22,6 +25,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ ok: false, error: "Please enter your name, a valid email, and pick a time." }, { status: 400 });
   }
-  const r = await bookAppointment(body.tenantId, body.calendarId, { name: body.name, email: body.email, phone: body.phone, startAt: body.startAt });
+  const r = await bookAppointment(body.tenantId, body.calendarId, {
+    name: body.name, email: body.email, phone: body.phone, startAt: body.startAt,
+    venueIdx: body.venueIdx, invitees: body.invitees,
+  });
   return NextResponse.json(r, { status: r.ok ? 200 : 409 });
 }

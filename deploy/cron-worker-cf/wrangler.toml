@@ -1,0 +1,19 @@
+# Cloudflare Worker — AIBizConnect scheduler (D-257, Blueprint v3.2).
+# Fires every 15 minutes and calls the app's protected cron routes (appointment reminders +
+# onboarding follow-ups). Vercel Hobby crons are daily-only, so the cadence lives here, under
+# the aibizconnect.app account per Ali's standing rule. Pure scheduled trigger — no public route.
+#
+# Deploy:
+#   cd deploy/cron-worker-cf
+#   npx wrangler secret put CRON_SECRET     # same value as Vercel env CRON_SECRET
+#   npx wrangler deploy
+
+name = "aibizconnect-cron"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+APP_BASE = "https://app.aibizconnect.app"

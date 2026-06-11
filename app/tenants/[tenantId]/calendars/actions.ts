@@ -73,6 +73,16 @@ export async function deleteEntryAction(tenantId: string, id: string): Promise<{
   return r;
 }
 
+/** Admin "Run now" for the reminder engine (D-257) — tests the cron path on demand. */
+export async function runRemindersNowAction(tenantId: string): Promise<{ ok: boolean; error?: string; scanned?: number; emails?: number; sms?: number; skipped?: string[] }> {
+  await requireTenant(tenantId);
+  try { await requireAdmin(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { runDueAppointmentReminders } = await import("@/lib/server/appointment-reminders");
+  const r = await runDueAppointmentReminders(tenantId);
+  await audit(tenantId, "calendar.reminders.run", { ...r });
+  return { ok: true, ...r };
+}
+
 // ── Google Calendar connect (per calendar) ──────────────────────────────────
 async function requireAdmin(): Promise<void> {
   const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");

@@ -4,8 +4,10 @@ import { encryptSecret } from "./encryption";
 
 /**
  * Server-only transactional email via Resend. Gated on a VERIFIED tenant email identity + a stored
- * Resend key. Called ONLY by the follow-up worker (FW-V13) — never auto-invoked elsewhere. Every
- * marketing/reminder email carries a one-click unsubscribe link (compliance, RULING 49).
+ * Resend key. Callers: the follow-up worker (FW-V13) and the appointment engine (D-256/D-257 —
+ * confirmations + reminders, owner-directed transactional sends). Marketing sends remain forbidden.
+ * Setup-reminder emails carry a one-click unsubscribe link (compliance, RULING 49); appointment
+ * emails carry a transactional footer instead.
  */
 
 export interface EmailIdentity { sender_email: string; sender_name: string }
@@ -29,14 +31,16 @@ function unsubscribeUrl(tenantId: string): string {
   return `${base}/api/followups/unsubscribe?token=${unsubscribeToken(tenantId)}`;
 }
 
-/** Send one email via Resend on the tenant's behalf. Appends the unsubscribe footer. */
-export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
+/** Send one email via Resend on the tenant's behalf. Appends the footer for its kind. */
+export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string; footer?: "setup" | "appointment" }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const ready = await emailReady(tenantId);
   if (!ready.ok || !ready.identity) return { ok: false, error: ready.reason };
   const sec = await getIntegrationSecret(tenantId, "resend").catch(() => null);
   if (!sec?.api_key) return { ok: false, error: "no Resend key" };
 
-  const footer = `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this because you enabled setup reminders. <a href="${unsubscribeUrl(tenantId)}">Unsubscribe</a>.</p>`;
+  const footer = (msg.footer ?? "setup") === "appointment"
+    ? `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this about your appointment with ${ready.identity.sender_name}.</p>`
+    : `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this because you enabled setup reminders. <a href="${unsubscribeUrl(tenantId)}">Unsubscribe</a>.</p>`;
   const from = `${ready.identity.sender_name} <${ready.identity.sender_email}>`;
   try {
     const res = await fetch("https://api.resend.com/emails", {

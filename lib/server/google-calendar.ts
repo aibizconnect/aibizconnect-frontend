@@ -190,16 +190,20 @@ export async function getGoogleBusy(tenantId: string, calendarId: string, timeMi
 }
 
 /** Create the booked appointment as an event on the agent's Google calendar (best-effort). */
-export async function createGoogleEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string }, connectionId?: string): Promise<string | null> {
+export async function createGoogleEvent(tenantId: string, calendarId: string, ev: { summary: string; description?: string; startIso: string; endIso: string; attendeeEmail?: string; attendeeEmails?: string[]; location?: string }, connectionId?: string): Promise<string | null> {
   const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return null;
   try {
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events`, {
+    // sendUpdates=all → Google emails the calendar INVITE to every attendee (D-256;
+    // the old default of "none" meant attendees never heard about the event).
+    const attendees = [...new Set([...(ev.attendeeEmails ?? []), ...(ev.attendeeEmail ? [ev.attendeeEmail] : [])])];
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events?sendUpdates=all`, {
       method: "POST", headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         summary: ev.summary, description: ev.description,
+        ...(ev.location ? { location: ev.location } : {}),
         start: { dateTime: ev.startIso }, end: { dateTime: ev.endIso },
-        ...(ev.attendeeEmail ? { attendees: [{ email: ev.attendeeEmail }] } : {}),
+        ...(attendees.length ? { attendees: attendees.map((email) => ({ email })) } : {}),
       }),
     });
     const j: any = await res.json().catch(() => ({}));
@@ -216,7 +220,7 @@ export async function updateGoogleEvent(tenantId: string, calendarId: string, ev
     if (ev.summary != null) body.summary = ev.summary;
     if (ev.startIso) body.start = { dateTime: ev.startIso };
     if (ev.endIso) body.end = { dateTime: ev.endIso };
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}`, {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
       method: "PATCH", headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -228,7 +232,7 @@ export async function deleteGoogleEvent(tenantId: string, calendarId: string, ev
   const auth = await validAccessToken(tenantId, calendarId, connectionId);
   if (!auth) return false;
   try {
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}`, {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
       method: "DELETE", headers: { Authorization: `Bearer ${auth.token}` },
     });
     return res.ok || res.status === 404 || res.status === 410; // already gone = success

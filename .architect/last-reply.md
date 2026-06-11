@@ -1,104 +1,101 @@
-Here are the rulings for the Calendar Round 2 issues, addressing Ali's feedback and ensuring GHL-parity.
+Here are the rulings for Calendar Round 3, addressing Ali's directives for venues, invitees, and transactional reminders.
 
 ---
-### 1. Timezone Bug
+### 1. Venues
 
-**RULING 234: Fix Timezone Bug in Slot Generation.**
+**RULING 239: Implement Venues for Calendar Appointments.**
 
-*   **Decision:** The proposed fix for the timezone bug in slot generation is **APPROVED**.
+*   **Decision:** The proposal for `tenant_calendars.venues` and its integration into the booking flow is **APPROVED**.
 *   **Action:**
-    1.  **Slot Generation Logic:** Modify `availableSlots` (and any internal slot generation logic) to:
-        *   Generate slots in the calendar's IANA timezone.
-        *   Use `Intl.DateTimeFormat` or a robust timezone library (e.g., `date-fns-tz`, `luxon`) for accurate offset math, especially around DST boundaries.
-        *   Iterate days and weekdays in the context of that specific timezone.
-    2.  **Timezone Fallback:** Implement the fallback chain: `calendar.timezone` (from `tenant_calendars`) ?? `tenant_settings.default_timezone` ?? `UTC`.
-    3.  **Files to Change:** `lib/calendars.ts`, `lib/server/calendar-busy.ts`, `lib/server/calendar-connections.ts` (if connection logic touches slot generation).
-
----
-### 2. Single Account Limit
-
-**RULING 235: Support Multiple External Calendar Accounts per Calendar.**
-
-*   **Decision:** The proposed fix to support multiple external calendar accounts per calendar is **APPROVED**.
-*   **Action:**
-    1.  **DDL (Migration 0047):**
+    1.  **DDL (Migration 0048):**
         ```sql
-        -- Migration 0047_calendar_multi_account.sql
-
-        -- Drop the existing unique constraint if it exists
-        ALTER TABLE public.tenant_calendar_connections
-          DROP CONSTRAINT IF EXISTS tenant_calendar_connections_tenant_id_calendar_id_provider_key;
-
-        -- Add a new unique index that allows multiple accounts per calendar, identified by account_email
-        CREATE UNIQUE INDEX IF NOT EXISTS tenant_calendar_connections_multi_account_idx
-          ON public.tenant_calendar_connections (tenant_id, calendar_id, provider, coalesce(account_email, ''));
-
-        -- Ensure account_email is NOT NULL for new connections, or handle NULLs explicitly in logic
-        -- ALTER TABLE public.tenant_calendar_connections ALTER COLUMN account_email SET NOT NULL;
-        -- (This might require a data backfill if existing rows have NULLs)
+        -- Migration 0048_calendar_venues.sql
+        ALTER TABLE public.tenant_calendars
+          ADD COLUMN IF NOT EXISTS venues jsonb NOT NULL DEFAULT '[]'::jsonb;
+        ALTER TABLE public.tenant_appointments
+          ADD COLUMN IF NOT EXISTS venue jsonb; -- Stores the chosen venue {kind, label, detail}
         ```
-    2.  **Provider Functions Refactor:** Refactor provider-specific functions (e.g., `getGoogleBusy`, `createExternalEvents`) to accept and operate on the full `tenant_calendar_connection` row (or an array of rows), rather than assuming a single lookup.
-    3.  **Settings UI:** Update the Calendar Settings UI to:
-        *   List each connected external account (e.g., "Google: ali@example.com") with a per-account disconnect button.
-        *   Provide a "Connect another account" button/flow.
-    4.  **Mirror-Out (createExternalEvents):** `createExternalEvents` will now mirror to **all connected write-capable accounts** for the given calendar.
-    5.  **Files to Change:** `lib/server/calendar-connections.ts`, `lib/calendars.ts` (for `createExternalEvents` calls), Calendar Settings UI components.
+    2.  **`tenant_calendars.venues` Schema:** `jsonb [{kind: "zoom"|"teams"|"meet"|"phone"|"in_person"|"custom", label: string, detail: string}]`.
+    3.  **Settings UI:** Implement UI in Calendar Settings to manage the list of available venues for a calendar.
+    4.  **Booking Page:** Display "How would you like to meet?" chips or a dropdown when venues are configured.
+    5.  **`tenant_appointments.venue`:** Store the chosen venue in this new column.
+    6.  **External Event Mirroring:** When mirroring to Google/Outlook, map `tenant_appointments.venue` to the event's `location` and/or `description` fields.
+    7.  **Confirmation Email:** Include venue details in the immediate confirmation email.
+    8.  **Graceful Pre-DDL:** Handle `tenant_appointments.venue` as `null` if column not present.
 
 ---
-### 3. Primary-Only Busy
+### 2. Invitees & Native Invites
 
-**RULING 236: Fetch Busy Times Across All Sub-Calendars.**
+**RULING 240: Implement Invitee Collection and Native Event Invites.**
 
-*   **Decision:** The proposed fix to fetch busy times across all sub-calendars is **APPROVED**.
+*   **Decision:** The proposal for collecting invitee emails and sending native invites via Google/Outlook is **APPROVED**.
 *   **Action:**
-    1.  **`getGoogleBusy` Enhancement:** Modify `getGoogleBusy` to:
-        *   Fetch the `calendarList` (cap at 50 to avoid excessive API calls).
-        *   Filter `calendarList` items to exclude those marked as `transparent` (e.g., holidays, birthdays) to avoid blocking.
-        *   Query `freeBusy` across all *non-transparent* calendars returned by `calendarList`.
-    2.  **Microsoft `getOutlookBusy` Enhancement:** Implement similar logic:
-        *   List `/me/calendars`.
-        *   For each calendar, fetch `calendarView` for busy times.
-    3.  **Per-Connection Sub-Calendar Picker:** This remains a **later enhancement**.
-    4.  **Files to Change:** `lib/server/calendar-connections.ts` (Google/Microsoft specific logic).
+    1.  **DDL (Migration 0048):**
+        ```sql
+        -- Migration 0048_calendar_invitees.sql (part of 0048)
+        ALTER TABLE public.tenant_appointments
+          ADD COLUMN IF NOT EXISTS invitees jsonb NOT NULL DEFAULT '[]'::jsonb; -- Array of {email: string, name?: string}
+        ```
+    2.  **Booking Form:** Add an "Add guests" (comma-separated emails) field to the booking form.
+    3.  **`tenant_appointments.invitees`:** Store collected invitee emails in this new column.
+    4.  **Google Event Mirroring:**
+        *   When calling `createExternalEvents` for Google, ensure `?sendUpdates=all` is included in the API call.
+        *   Map the booker's email and all `tenant_appointments.invitees` to the Google event's `attendees` array.
+        *   When deleting an event, ensure `?sendUpdates=all` is also used for cancellation propagation.
+    5.  **Outlook Event Mirroring:** Implement similar logic for Outlook to send invites natively to booker and invitees.
+    6.  **Immediate Confirmation Email:** Send an immediate confirmation email to the booker and all `invitees` via `lib/server/email-send.ts` (gated by `emailReady()`).
 
 ---
-### 4. UX: Timezone Field
+### 3. Reminders Engine
 
-**RULING 237: Replace Free-Text Timezone with Curated Dropdown.**
+**RULING 241: Implement Transactional Reminders Engine with Cloudflare Worker Scheduler.**
 
-*   **Decision:** The proposal to replace the free-text IANA timezone input with a curated dropdown is **APPROVED**.
+*   **Decision:** The proposal for the transactional reminders engine, including the reconciliation of "no-auto-send" and the Cloudflare Worker scheduler, is **APPROVED**.
 *   **Action:**
-    1.  **UI Component:** Implement a new UI component for timezone selection.
-    2.  **Curated List:** Provide a curated list of ~35 standard IANA timezones.
-    3.  **Friendly Labels:** Display friendly labels (e.g., "Eastern Time - Toronto (GMT-04:00)") with live GMT offsets.
-    4.  **Prioritization:** Prioritize "America/Toronto" at the top of the list for Ali's market.
-    5.  **Preserve Nonstandard:** If `tenant_calendars.timezone` contains a nonstandard value, it should be preserved and displayed as an additional option (e.g., "Custom: <nonstandard value>") at the bottom of the dropdown.
-    6.  **Files to Change:** Calendar Settings UI components.
+    1.  **DDL (Migration 0049):**
+        ```sql
+        -- Migration 0049_calendar_reminders.sql
+        ALTER TABLE public.tenant_calendars
+          ADD COLUMN IF NOT EXISTS reminders jsonb NOT NULL DEFAULT '{
+            "enabled": false,
+            "dayBefore": {"enabled": false, "template": "appointment_reminder_day_before"},
+            "morningOf": {"enabled": false, "template": "appointment_reminder_morning_of"},
+            "hourBeforeSms": {"enabled": false, "template": "appointment_reminder_hour_before_sms"}
+          }'::jsonb;
+        ALTER TABLE public.tenant_appointments
+          ADD COLUMN IF NOT EXISTS reminders_sent jsonb NOT NULL DEFAULT '{}'::jsonb; -- Stores {dayBefore: true, morningOf: true, hourBeforeSms: true} markers
+
+        -- Partial index for efficient lookup of active appointments for reminders
+        CREATE INDEX IF NOT EXISTS tenant_appts_active_start_idx ON public.tenant_appointments (tenant_id, calendar_id, start_at)
+          WHERE status IN ('booked', 'confirmed') AND deleted_at IS NULL;
+        ```
+    2.  **`lib/server/appointment-reminders.ts` (`runDue()`):**
+        *   **Logic:**
+            *   Load active appointments (`status IN ('booked', 'confirmed')`, not deleted) within a look-ahead window (e.g., next 26 hours).
+            *   For each appointment, check its `calendar.reminders` settings and `appointment.reminders_sent` markers.
+            *   **Day-Before:** If `calendar.reminders.dayBefore.enabled` and `start_at` is 22-26 hours out (calendar timezone), and `dayBefore` not sent: send email to booker+invitees, mark `dayBefore: true` in `reminders_sent`.
+            *   **Morning-Of:** If `calendar.reminders.morningOf.enabled` and `start_at` is on the same calendar timezone day, after 7 AM calendar timezone, and >90 minutes out, and `morningOf` not sent: send email to booker+invitees, mark `morningOf: true` in `reminders_sent`.
+            *   **Hour-Before SMS:** If `calendar.reminders.hourBeforeSms.enabled` and `start_at` is 30-75 minutes out (calendar timezone), and `hourBeforeSms` not sent: send SMS to booker's phone (if `tenant_appointments.phone` exists), mark `hourBeforeSms: true` in `reminders_sent`.
+        *   **Gates:** Each send is gated by `calendar.reminders.enabled`, `emailReady()` (for email), `twilioReady()` (for SMS), and the specific reminder's `enabled` flag.
+        *   **Idempotency:** `reminders_sent` markers ensure idempotent sending.
+        *   **Audit:** `platform_audit_log` for `appointment.reminder_sent` (email/sms, type, status).
+    3.  **No-Auto-Send Reconciliation:**
+        *   These are **transactional appointment communications**, explicitly ordered by Ali. They are distinct from marketing sends.
+        *   **Gates:** Sending is strictly gated by per-calendar `reminders.enabled` toggle AND the tenant having a `VERIFIED` email identity (`emailReady()`) / connected Twilio (`twilioReady()`).
+        *   **Marketing Sends:** Marketing sends remain forbidden without explicit, separate tenant opt-in.
+    4.  **Scheduler (Cloudflare Worker):**
+        *   **Location:** `deploy/cron-worker-cf/` (new Cloudflare Worker project).
+        *   **`wrangler.toml`:** Configure a `scheduled` trigger (`cron = "*/15 * * * *"`) and `RENDER_BRIDGE_TOKEN` (if co-located) + `CRON_SECRET` as worker secrets.
+        *   **Worker Logic:** The worker will make a `GET` request to `https://<your-vercel-app>/api/cron/appointment-reminders` with `Authorization: Bearer <CRON_SECRET>`.
+        *   **Vercel Endpoint:** `app/api/cron/appointment-reminders/route.ts` will be a protected route (checks `CRON_SECRET`) that calls `lib/server/appointment-reminders.ts runDue()`.
+        *   **Existing Follow-ups:** This same Cloudflare Worker can also call `GET /api/cron/followups` for `tenant_onboarding_followups`.
+    5.  **Admin 'Run now' Button:** Implement an `isPlatformAdmin()`-gated server action in Calendar Settings to trigger `lib/server/appointment-reminders.ts runDue(tenantId)` for testing.
 
 ---
-### 5. Embed: Public Booking Page Header
-
-**RULING 238: Implement `?embed=1` Parameter for Public Booking Page.**
-
-*   **Decision:** The proposal to implement a `?embed=1` search parameter to hide the AIBizConnect wordmark header and tighten padding is **APPROVED**.
-*   **Action:**
-    1.  **Public Booking Page (`app/book/[tenantId]/[calendarId]/page.tsx`):**
-        *   Check for `?embed=1` in the URLSearchParams.
-        *   Conditionally hide the AIBizConnect wordmark header.
-        *   Apply tighter padding to the page layout.
-    2.  **Booking Index Page (`app/book/[tenantId]/page.tsx`):** Apply the same logic.
-    3.  **Future Site Calendar Element:** Ensure that when a calendar element is embedded on a tenant's site, it automatically appends `?embed=1` to the booking page URL.
-    4.  **Files to Change:** Public booking page components.
-
----
-**Missing Items (Flagged by Architect):**
-
-*   **`external_event_id` Round-Trip:** RULING 244 already included storing `external_event_id` for mirrored manual appointments in the previous pass. This is sufficient for basic update/delete propagation. Full two-way sync is deferred.
+**Documentation Filing:** The `docs/GHL-PARITY.md` matrix will be updated to reflect these new features.
 
 ---
 DECISION-LOG
-[D-234] rule_fix_timezone_bug_slot_generation — Ruled fix for timezone bug in slot generation (status: ruled)
-[D-235] rule_support_multiple_external_calendar_accounts — Ruled support for multiple external calendar accounts per calendar (status: ruled)
-[D-236] rule_fetch_busy_times_all_sub_calendars — Ruled fetching busy times across all sub-calendars (status: ruled)
-[D-237] rule_replace_free_text_timezone_dropdown — Ruled replacing free-text timezone with a curated dropdown (status: ruled)
-[D-238] rule_implement_embed_parameter_booking_page — Ruled implementation of `?embed=1` parameter for public booking page (status: ruled)
+[D-239] rule_implement_venues_calendar_appointments — Ruled implementation of venues for calendar appointments (status: ruled)
+[D-240] rule_implement_invitee_collection_native_invites — Ruled implementation of invitee collection and native event invites (status: ruled)
+[D-241] rule_implement_transactional_reminders_engine — Ruled implementation of transactional reminders engine with Cloudflare Worker scheduler (status: ruled)

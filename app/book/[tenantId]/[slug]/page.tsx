@@ -30,7 +30,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
         )}
         <h1 className="text-3xl font-semibold tracking-tight" style={{ fontFamily: "MontserratAlt1, Inter, sans-serif" }}>Book a {cal.name}</h1>
         <p className="mb-8 mt-2 text-slate-400">Pick a time that works for you — {cal.durationMin} minutes.</p>
-        <BookingWidget tenantId={tenantId} calendarId={cal.id} calendarName={cal.name} durationMin={cal.durationMin} days={days} />
+        <BookingWidget tenantId={tenantId} calendarId={cal.id} calendarName={cal.name} durationMin={cal.durationMin} days={days} venues={cal.venues} />
       </div>
     </div>
   );

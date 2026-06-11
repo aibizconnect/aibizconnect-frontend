@@ -1,131 +1,110 @@
-Ali — Report #37 is filed and this becomes the official Calendar v1.2 milestone entry under Blueprint v3.2, closing the second round of deep‑infrastructure fixes: timezone correctness, multi‑account sync, sub‑calendar busy, curated zones, and embed‑mode.
+Ali — Report #37 is filed and this becomes the official Blueprint v3.2 — Calendar v1.2 (FULLY LIVE) entry.
+This is the moment the entire Round‑2 stack — timezone correctness, multi‑account sync, sub‑calendar busy, curated zones, embed mode — moves from “pending DDL” to fully operational in production.
 
-This is the canonical blueprint filing — authoritative, structured, and integrated into the Calendar Rendering Protocol, Availability Engine, Sync Layer, and Public Booking Protocol.
+Below is the canonical blueprint filing.
 
-BLUEPRINT v3.2 — CALENDAR v1.2 (ROUND 2 SHIPPED)
+BLUEPRINT v3.2 — CALENDAR v1.2 (FULLY LIVE)
 
-(Commit fb42607 — D‑250..D‑254 shipped)
+(Migration 0048 applied — multi‑account support unlocked)
 
-1) D‑250 — Timezone‑Correct Slot Generation (SHIPPED & FILED)
-Root cause:
+1) Migration 0048 — APPLIED (FILED)
 
-Slot generation ran in server time (UTC) on Vercel, not the calendar’s timezone.
-Ali’s 11:00 Toronto start rendered as 7:00 AM.
+Ali applied 0048 and verified live:
 
-Fix:
+A second Google account inserts cleanly on the same calendar
 
-Slot generation now uses Intl‑based timezone‑correct math
+Exact duplicates still rejected (correct)
 
-Verified identical under TZ=UTC
+test-multiaccount.ts ALL CHECKS PASS
 
-Verified live: on Ali’s fully‑booked Jun‑12, the first offered slot is 1:30 PM, exactly after his 11:00–1:20 “Lead gen” block
+Ledger updated
 
-Filed under: Availability Engine v3 — Timezone Correctness.
+Commit: 71fa620
 
-2) D‑251 — Multi‑Account Provider Support (SHIPPED & FILED)
-Problem:
+Filed under Calendar Schema v1.2 — Multi‑Account Support (Live).
 
-One‑account‑per‑provider limit blocked real multi‑calendar setups.
+2) Calendar v1.2 — All Round‑2 Features Now Fully Live
+(D‑250) Timezone‑Correct Slot Generation
 
-Fix:
+Slots now built with Intl‑correct TZ math
 
-Migration 0048 (queued for Ali) keys connections by account, not provider
+Verified under TZ=UTC
 
-UI now lists every connected account
+Verified live: Ali’s Jun‑12 busy day now correctly starts at 1:30 PM, not 7:00 AM
 
-Each account has:
+Filed under Timezone Correctness.
 
-Disconnect
+(D‑251) Multi‑Account Provider Connections
 
-“Add another”
+One‑account‑per‑provider limit removed
 
-Sync propagation (mirror/update/delete) now pins the exact account via connectionId in stored refs
+UI lists every connected account
 
-Filed under: Calendar Sync Layer v1.1 — Multi‑Account Support.
+Per‑account disconnect + “Add another”
 
-3) D‑252 — Sub‑Calendar Busy Sweep (SHIPPED & FILED)
-Google:
+Sync propagation pinned to connectionId
 
-calendarList → freeBusy
+Filed under Multi‑Account Sync Layer.
 
-Up to 50 IDs per batch
+(D‑252) All‑Sub‑Calendar Busy Sweep
 
-Transparency‑respecting (birthdays/holidays don’t block)
+Google: calendarList → freeBusy (≤50 IDs, transparency‑respecting)
 
-Outlook:
+Outlook: /me/calendars per‑calendar view
 
-/me/calendars → per‑calendar view
+Ali’s test calendar: busy intervals 3 → 24
 
-All sub‑calendars included
+Zero slot overlaps remain
 
-Live verification:
+Filed under Multi‑Calendar Busy Merge.
 
-Ali’s test calendar busy intervals increased 3 → 24, and zero offered slots overlap any of them.
+(D‑253) Curated Timezone Dropdown
 
-Filed under: Availability Engine v3 — Multi‑Calendar Busy Merge.
-
-4) D‑253 — Curated Timezone Dropdown (SHIPPED & FILED)
-New behavior:
-
-Curated list of standard zones
+Standard zones
 
 Live GMT offsets
 
-Toronto‑first ordering
+Toronto‑first
 
-Eliminates user error and server‑TZ drift
+Eliminates server‑TZ drift
 
-Filed under: Calendar Settings v1.1 — Timezone Protocol.
+Filed under Timezone Settings Protocol.
 
-5) D‑254 — Embed Mode for Booking Pages (SHIPPED & FILED)
-New rule:
+(D‑254) Embed Mode
 
-?embed=1 on booking pages:
+?embed=1:
 
-Strips AIBizConnect logo
+Removes AIBizConnect logo
 
 Removes outer padding
 
-Produces clean in‑site embed
+Booking‑index links propagate embed=1
 
-Booking‑index links propagate embed=1 automatically
+Filed under Public Booking Embed Mode.
 
-Filed under: Public Booking Protocol v1.1 — Embed Mode.
+3) Conflict Regression Suite — 8/8 PASS (FILED)
 
-6) Conflict Regression Suite (PASSED 8/8)
+All conflict paths remain correct after 0048:
 
-All conflict paths remain correct after the v1.2 changes.
+Clean create
 
-Filed under: Calendar QA v1.2.
+Overlap refusal
 
-7) Migration 0048 — Pending Ali Run (FILED)
-Purpose:
+Force override
 
-Enable multi‑account provider connections.
+Reschedule refusal + force
 
-Current behavior:
+Self‑exclusion
 
-Everything except second‑account connect is live
+Blocked‑window refusal
 
-Until 0048 is applied, UI shows a clear hint when attempting multi‑account connect
+External‑busy merge
 
-Filed under: Calendar Schema v1.2 — Migration Gate.
+Same‑start override (now fully live)
 
-8) GHL‑PARITY.md Updated (FILED)
+Filed under Calendar QA v1.2.
 
-Four new Calendar rows added:
-
-Timezone‑correct slot generation
-
-Multi‑account provider support
-
-Sub‑calendar busy sweep
-
-Embed mode
-
-Filed under: GHL‑Parity Matrix v1.2.
-
-Blueprint v3.2 Status — Calendar v1.2
+4) Blueprint Status — Calendar v1.2 is NOW FULLY LIVE
 
 Calendar now satisfies:
 
@@ -137,7 +116,7 @@ Sub‑calendar busy correctness
 
 Embed mode
 
-Full GHL parity
+Override semantics
 
 Availability Engine v3
 
@@ -150,14 +129,24 @@ Spacing Protocol (SPACING_MAX=20)
 Native‑Elements‑Only Supreme Rule
 
 Status:  
-CALENDAR v1.2 — SHIPPED (pending DDL 0048)
+CALENDAR v1.2 — SHIPPED & LIVE
 
-Next in queue (Ali‑approved):
+Next Step (Ali’s directive):
 
-Gallery Recognition (Website side)
+Connect his personal Google account via the calendar Edit panel so its busy times join the conflict sweep.
 
-Automations Engine E1 (awaiting Ali’s go)
+Once connected, the conflict engine will merge:
 
-Standing by.
+Internal appointments
+
+Blocked windows
+
+Business calendar
+
+Ali’s personal Google calendar
+
+All sub‑calendars across all accounts
+
+Standing by for the next milestone — Gallery Recognition or Automations Engine E1, whichever you call next.
 
 Edit in a page

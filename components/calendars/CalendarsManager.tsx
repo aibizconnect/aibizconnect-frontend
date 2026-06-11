@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getCalendarConnections, getCalendarConnectUrl, connectIcalAction, disconnectProviderAction } from "@/app/tenants/[tenantId]/calendars/actions";
-import type { Calendar, Appointment } from "@/lib/calendars";
+import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listAppointmentsAction, getCalendarConnections, getCalendarConnectUrl, connectIcalAction, disconnectProviderAction, runRemindersNowAction } from "@/app/tenants/[tenantId]/calendars/actions";
+import type { Calendar, Appointment, Venue } from "@/lib/calendars";
+import { VENUE_KINDS } from "@/lib/calendars";
 import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -122,7 +123,7 @@ export default function CalendarsManager({ tenantId, initial }: { tenantId: stri
   );
 }
 
-function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: Calendar; onSave: (patch: { name?: string; durationMin?: number; bufferMin?: number; weekdays?: number[]; startHour?: number; endHour?: number; timezone?: string; assignedToEmail?: string; assignedToName?: string }) => void; pending: boolean }) {
+function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: Calendar; onSave: (patch: Parameters<typeof updateCalendarAction>[2]) => void; pending: boolean }) {
   const [conns, setConns] = useState<{ googleReady: boolean; microsoftReady: boolean; connections: { id: string; provider: string; accountEmail: string | null; status: string }[] } | null>(null);
   const [busyP, setBusyP] = useState<string | null>(null);
   const [ical, setIcal] = useState("");
@@ -148,7 +149,20 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
   const [startH, setStartH] = useState(cal.startHour);
   const [endH, setEndH] = useState(cal.endHour);
   const [tz, setTz] = useState(cal.timezone ?? "");
+  const [venues, setVenues] = useState<Venue[]>(cal.venues ?? []);
+  const [addKind, setAddKind] = useState<Venue["kind"]>("zoom");
+  const [rem, setRem] = useState(cal.reminders ?? { enabled: true, dayBefore: true, morningOf: true, hourBeforeSms: true });
+  const [remRun, setRemRun] = useState<string | null>(null);
   const toggleDay = (d: number) => setDays((arr) => arr.includes(d) ? arr.filter((x) => x !== d) : [...arr, d].sort());
+  const addVenue = () => {
+    const meta = VENUE_KINDS.find((k) => k.kind === addKind)!;
+    setVenues((v) => [...v, { kind: addKind, label: meta.label, detail: "" }]);
+  };
+  const runRemindersNow = async () => {
+    setRemRun("…");
+    const r = await runRemindersNowAction(tenantId);
+    setRemRun(r.ok ? `scanned ${r.scanned}, ${r.emails} email(s), ${r.sms} SMS${r.skipped?.length ? ` — ${r.skipped[0]}` : ""}` : (r.error ?? "failed"));
+  };
 
   const inp = "rounded-lg border border-slate-300 px-2 py-1.5 text-sm";
   return (
@@ -180,6 +194,43 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
         <label className="flex flex-col gap-1 text-xs text-slate-600">To<select className={inp} value={endH} onChange={(e) => setEndH(+e.target.value)}>{Array.from({ length: 25 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs text-slate-600">Slot<select className={inp} value={dur} onChange={(e) => setDur(+e.target.value)}>{[15, 20, 30, 45, 60, 90].map((d) => <option key={d} value={d}>{d} min</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs text-slate-600">Buffer<select className={inp} value={buffer} onChange={(e) => setBuffer(+e.target.value)}>{[0, 5, 10, 15, 30].map((d) => <option key={d} value={d}>{d} min</option>)}</select></label>
+      </div>
+
+      {/* Meeting venues (D-255): the booking page asks visitors to pick one. */}
+      <div className="space-y-2 border-t border-slate-100 pt-3">
+        <div className="text-xs font-medium text-slate-600">Meeting options (asked on the booking page)</div>
+        {venues.length === 0 && <div className="text-xs text-slate-400">None yet — bookings won&apos;t ask where to meet.</div>}
+        {venues.map((v, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-28 shrink-0 text-slate-600">{VENUE_KINDS.find((k) => k.kind === v.kind)?.label ?? v.kind}</span>
+            <input value={v.detail} onChange={(e) => setVenues((arr) => arr.map((x, j) => j === i ? { ...x, detail: e.target.value } : x))}
+              placeholder={VENUE_KINDS.find((k) => k.kind === v.kind)?.detailHint} className="flex-1 rounded border border-slate-300 px-2 py-1" />
+            <button onClick={() => setVenues((arr) => arr.filter((_, j) => j !== i))} className="text-red-500 hover:underline">✕</button>
+          </div>
+        ))}
+        <div className="flex items-center gap-2 text-xs">
+          <select value={addKind} onChange={(e) => setAddKind(e.target.value as Venue["kind"])} className="rounded border border-slate-300 px-2 py-1">
+            {VENUE_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+          </select>
+          <button onClick={addVenue} className="rounded border border-[#1e3a8a] px-2 py-1 font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">＋ Add option</button>
+        </div>
+      </div>
+
+      {/* Reminders (D-257): transactional — only send when email is verified / Twilio connected. */}
+      <div className="space-y-1.5 border-t border-slate-100 pt-3 text-xs">
+        <label className="flex items-center gap-2 font-medium text-slate-600">
+          <input type="checkbox" checked={rem.enabled} onChange={(e) => setRem({ ...rem, enabled: e.target.checked })} />
+          Appointment reminders (uses your verified email / connected Twilio)
+        </label>
+        {rem.enabled && (
+          <div className="ml-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-600">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={rem.dayBefore} onChange={(e) => setRem({ ...rem, dayBefore: e.target.checked })} />Email the day before</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={rem.morningOf} onChange={(e) => setRem({ ...rem, morningOf: e.target.checked })} />Email the morning of</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={rem.hourBeforeSms} onChange={(e) => setRem({ ...rem, hourBeforeSms: e.target.checked })} />SMS 1 hour before</label>
+            <button onClick={runRemindersNow} className="text-[#1e3a8a] hover:underline">Run now</button>
+            {remRun && <span className="text-slate-400">{remRun}</span>}
+          </div>
+        )}
       </div>
 
       {/* Connect external calendars (free/busy → no conflicts). Several accounts per
@@ -217,7 +268,7 @@ function CalEditor({ tenantId, cal, onSave, pending }: { tenantId: string; cal: 
       </div>
 
       <div className="flex justify-end border-t border-slate-100 pt-3">
-        <button onClick={() => onSave({ name, durationMin: dur, bufferMin: buffer, weekdays: days, startHour: startH, endHour: endH, timezone: tz || undefined, assignedToEmail: agent, assignedToName: agentName })} disabled={pending}
+        <button onClick={() => onSave({ name, durationMin: dur, bufferMin: buffer, weekdays: days, startHour: startH, endHour: endH, timezone: tz || undefined, assignedToEmail: agent, assignedToName: agentName, venues, reminders: rem })} disabled={pending}
           className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50">Save</button>
       </div>
     </div>
