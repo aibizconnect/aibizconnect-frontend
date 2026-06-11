@@ -143,7 +143,7 @@ export function nodeFacts(html: string, uid: string) {
 }
 
 export default function ImportedBandEditor({
-  content, css, fontHrefs = [], selected, onChange, onNodeSelect, externalSelUid,
+  content, css, fontHrefs = [], selected, onChange, onNodeSelect, externalSelUid, onSaveAsset, onRequestAddInto,
 }: {
   content: Content;
   /** The page's imported-css snapshot — injected ONLY into the iframe document. */
@@ -158,6 +158,10 @@ export default function ImportedBandEditor({
   onNodeSelect?: (sel: { uid: string; facts: NonNullable<ReturnType<typeof nodeFacts>> } | null) => void;
   /** Controlled selection from OUTSIDE (the Layers tree) — syncs the in-band highlight. */
   externalSelUid?: string | null;
+  /** ☆ on the toolbar: save the node's REAL HTML as a reusable asset. */
+  onSaveAsset?: (outerHtml: string) => void;
+  /** "+ Add element" inside an EMPTY cell: open the Add panel targeted INTO this uid. */
+  onRequestAddInto?: (uid: string) => void;
 }) {
   const patches = useMemo(() => (Array.isArray(content.patches) ? content.patches : []), [content.patches]);
   const patchedHtml = useMemo(() => applyPatches(content.html || "", patches), [content.html, patches]);
@@ -169,6 +173,8 @@ export default function ImportedBandEditor({
   const setPatchRef = useRef<(p: ImportedPatch) => void>(() => {});
   // Bridge into the iframe-scope helpers (toolbar positioning) for the selection effect.
   const overlayRef = useRef<{ toolbar?: (uid: string | null) => void }>({});
+  const addIntoRef = useRef<(uid: string) => void>(() => {});
+  addIntoRef.current = (uid) => onRequestAddInto?.(uid);
   const tree = useMemo(() => buildTree(patchedHtml), [patchedHtml]);
   const facts = useMemo(() => (sel ? nodeFacts(patchedHtml, sel) : null), [patchedHtml, sel]);
 
@@ -210,6 +216,11 @@ export default function ImportedBandEditor({
         #abc-toolbar button{border:0;background:transparent;border-radius:6px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer;color:#475569}
         #abc-toolbar button:hover{background:#f1f5f9}
         #abc-toolbar button.danger{color:#dc2626}
+        /* EMPTY CELLS (Ali): a blank slot is VISIBLE and invites content — dashed box + CTA. */
+        [data-empty-col]{outline:1.5px dashed #94a3b8;outline-offset:-1px;min-height:56px;min-width:56px;position:relative;cursor:pointer;border-radius:6px}
+        [data-empty-col]::after{content:"+ Add element";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748b;font:500 12px system-ui,sans-serif;pointer-events:none}
+        /* Selected ROW shows its cells: every direct child of the selected layout container. */
+        [data-abc-sel-row] > [data-uid]{outline:1px dashed #cbd5e1;outline-offset:2px;border-radius:4px}
       `;
       d.head.appendChild(st);
       for (const id of ["abc-ind-top", "abc-ind-bottom"]) { const m = d.createElement("div"); m.id = id; m.className = "abc-ind"; d.body.appendChild(m); }
@@ -246,8 +257,8 @@ export default function ImportedBandEditor({
       };
       mk("↑", "Move up", false, () => setPatchRef.current({ op: "move", uid, dir: "up" }));
       mk("↓", "Move down", false, () => setPatchRef.current({ op: "move", uid, dir: "down" }));
+      mk("☆", "Save as asset", false, () => onSaveAsset?.(el.outerHTML));
       mk("⧉", "Duplicate", false, () => setPatchRef.current({ op: "duplicate", uid, cloneId: `c${Date.now().toString(36)}${++cloneSeq}` }));
-      mk("👁", "Hide", false, () => setPatchRef.current({ op: "hide", uid }));
       if (ownsColumn) {
         mk("🗑", "Delete element (the column stays)", true, () => setPatchRef.current({ op: "empty", uid }));
         mk("⌫", "Delete the whole column", true, () => setPatchRef.current({ op: "remove", uid }));
@@ -306,6 +317,13 @@ export default function ImportedBandEditor({
       }, true);
       d.addEventListener("click", (e) => {
         if ((e.target as Element)?.closest?.("#abc-toolbar")) return; // toolbar buttons handle themselves
+        // "+ Add element" in an EMPTY cell → open the Add panel targeted into this slot.
+        const emptyCell = (e.target as Element)?.closest?.("[data-empty-col]") as HTMLElement | null;
+        if (emptyCell?.getAttribute("data-uid")) {
+          e.preventDefault(); e.stopPropagation();
+          addIntoRef.current(emptyCell.getAttribute("data-uid")!);
+          return;
+        }
         const t = (e.target as Element)?.closest?.("[data-uid]");
         // While a node is being text-edited, let clicks place the caret normally.
         if ((e.target as HTMLElement)?.isContentEditable) return;
@@ -351,7 +369,17 @@ export default function ImportedBandEditor({
     const d = iframeRef.current?.contentDocument;
     if (!d) return;
     for (const el of Array.from(d.querySelectorAll("[data-abc-sel]"))) { el.removeAttribute("data-abc-sel"); (el as HTMLElement).style.outline = ""; }
-    if (sel) { const el = d.querySelector(`[data-uid="${sel}"]`) as HTMLElement | null; if (el) { el.setAttribute("data-abc-sel", "1"); el.style.cssText += `;${HIGHLIGHT}`; el.scrollIntoView({ block: "nearest" }); } }
+    for (const el of Array.from(d.querySelectorAll("[data-abc-sel-row]"))) el.removeAttribute("data-abc-sel-row");
+    if (sel) {
+      const el = d.querySelector(`[data-uid="${sel}"]`) as HTMLElement | null;
+      if (el) {
+        el.setAttribute("data-abc-sel", "1"); el.style.cssText += `;${HIGHLIGHT}`; el.scrollIntoView({ block: "nearest" });
+        // Selecting a ROW (layout container) reveals its CELLS on canvas (Ali: "I don't see
+        // the 4 Column Row in the canvas") — each direct child gets a dashed cell outline.
+        const cs = el.getAttribute("data-cs") || "";
+        if (/gridTemplateColumns:/.test(cs) || (/display:flex/.test(cs) && !/flexDirection:column/.test(cs))) el.setAttribute("data-abc-sel-row", "1");
+      }
+    }
     overlayRef.current.toolbar?.(sel);
   }, [sel, srcDoc, patches]);
 

@@ -33,9 +33,9 @@ export type ImportedPatch =
   // Ali's column semantics: deleting an element that IS a column slot EMPTIES the slot instead
   // of removing it — the column stays (styleable, refillable); removing the column is separate.
   | { op: "empty"; uid: string }
-  // Drag-drop insertion (D-215): a palette element lands before/after a node as plain HTML with
-  // a fresh uid (from OUR templates) — instantly identified and editable via projection.
-  | { op: "insert"; uid: string; position: "before" | "after"; html: string };
+  // Drag-drop insertion (D-215): a palette element lands before/after/inside a node as plain
+  // HTML with a fresh uid (from OUR templates) — instantly identified and editable via projection.
+  | { op: "insert"; uid: string; position: "before" | "after" | "inside"; html: string };
 
 const BAND_TAGS = new Set(["section", "header", "footer", "nav", "main", "article"]);
 const STRIP_TAGS = new Set(["script", "noscript", "object", "embed", "base"]);
@@ -194,7 +194,7 @@ export function applyPatches(html: string, patches: ImportedPatch[] | undefined)
       case "hide": node.setAttribute("style", `${node.getAttribute("style") || ""};display:none`); break;
       case "attr": p.value == null ? node.removeAttribute(p.name) : node.setAttribute(p.name, p.value); break;
       case "remove": node.remove(); break;
-      case "insert": node.insertAdjacentHTML(p.position === "before" ? "beforebegin" : "afterend", p.html); break;
+      case "insert": node.insertAdjacentHTML(p.position === "before" ? "beforebegin" : p.position === "inside" ? "beforeend" : "afterend", p.html); break;
       case "empty": {
         // Replace the element with an EMPTY column slot that keeps the SAME uid — it stays in
         // the layout (flex/grid keeps its track), stays selectable, and stays styleable.

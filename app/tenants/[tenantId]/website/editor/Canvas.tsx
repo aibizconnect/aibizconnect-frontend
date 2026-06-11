@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { SectionView } from "@/components/sections/registry";
 import ImportedBandEditor, { nodeFacts } from "@/components/editor/ImportedBandEditor";
 import ImportedBoxInspector from "@/components/editor/ImportedBoxInspector";
+import { insertTemplate, freshInsertUid } from "@/lib/sites/insert-templates";
 import { projectNode, diffToPatches, mergePatches } from "@/lib/sections/node-projection";
 import { applyPatches } from "@/lib/sites/lossless-importer";
 import SectionEditor from "./SectionEditor";
@@ -134,6 +135,10 @@ export default function Canvas({
   // Saved-asset tracking: signature(content) → existing saved-asset name (for "already saved").
   const [savedSigs, setSavedSigs] = useState<Map<string, string>>(new Map());
   const [saveAssetIdx, setSaveAssetIdx] = useState<number | null>(null);
+  // ☆ Save on an IMPORTED node: saves the node's real HTML as a reusable asset (html element).
+  const [importedAsset, setImportedAsset] = useState<{ code: string } | null>(null);
+  // "+ Add element" inside an imported EMPTY cell: remembers where the picked element lands.
+  const importedAddTarget = useRef<{ bandUid: string; uid: string } | null>(null);
   const assetSig = (content: unknown) => { try { return JSON.stringify(content); } catch { return ""; } };
   // Nested in-column selection / add-targeting (best-in-class nested editing).
   const [childSel, setChildSel] = useState<ChildSel | null>(null);
@@ -171,6 +176,23 @@ export default function Canvas({
   // specific cell; otherwise it's appended as a top-level section.
   useEffect(() => {
     if (!addSignal || !addType) return;
+    // "+ Add element" inside an imported EMPTY cell → the picked element inserts INTO that cell
+    // as real HTML (insert-template), instantly editable like the design's own elements.
+    const impTgt = importedAddTarget.current;
+    if (impTgt) {
+      importedAddTarget.current = null;
+      const uid = freshInsertUid();
+      const html = insertTemplate(String(addType), uid);
+      if (html) {
+        const nx = items.map((x) => {
+          if (x.uid !== impTgt.bandUid) return x;
+          const c: any = x.content;
+          return { ...x, content: { ...c, patches: mergePatches(Array.isArray(c.patches) ? c.patches : [], [{ op: "insert", uid: impTgt.uid, position: "inside", html } as any]) } as any };
+        });
+        commit(nx);
+      }
+      return;
+    }
     const tgt = addTarget.current;
     if (tgt) {
       const c = addType === "row" ? makeRow(addCols || 1) : defaultContentFor(addType);
@@ -1019,6 +1041,14 @@ export default function Canvas({
   // Persist the chosen section. mode="template" → reusable copy; mode="global" → convert
   // this section into a website-level Global Section that syncs across the site.
   async function doSaveAsset(name: string, description: string, mode: "template" | "global") {
+    // Imported node → saved as a reusable Custom-HTML asset (keeps its exact markup).
+    if (importedAsset) {
+      const raw = { type: "html", code: importedAsset.code, _name: name } as any;
+      await addTemplate(tenantId, name, description || null, [raw]);
+      setSavedSigs((prev) => new Map(prev).set(assetSig(raw), name));
+      try { window.dispatchEvent(new CustomEvent("abc:asset-saved")); } catch { /* SSR-safe */ }
+      return;
+    }
     if (saveAssetIdx == null) return;
     const idx = saveAssetIdx;
     const raw = items[idx].content as any;
@@ -1182,12 +1212,12 @@ export default function Canvas({
   return (
     <div className="p-4">
       <SaveAssetModal
-        open={saveAssetIdx != null}
-        defaultName={saveAssetIdx != null ? (sectionLabels[(items[saveAssetIdx]?.content as any)?.type as SectionType] ?? "Saved element") : ""}
-        alreadySavedAs={saveAssetIdx != null ? (savedSigs.get(assetSig(items[saveAssetIdx]?.content)) ?? null) : null}
-        isAlreadyGlobal={saveAssetIdx != null && !!(items[saveAssetIdx]?.content as any)?._global}
+        open={saveAssetIdx != null || importedAsset != null}
+        defaultName={importedAsset ? "Imported element" : saveAssetIdx != null ? (sectionLabels[(items[saveAssetIdx]?.content as any)?.type as SectionType] ?? "Saved element") : ""}
+        alreadySavedAs={importedAsset ? null : saveAssetIdx != null ? (savedSigs.get(assetSig(items[saveAssetIdx]?.content)) ?? null) : null}
+        isAlreadyGlobal={!importedAsset && saveAssetIdx != null && !!(items[saveAssetIdx]?.content as any)?._global}
         onSave={doSaveAsset}
-        onClose={() => setSaveAssetIdx(null)}
+        onClose={() => { setSaveAssetIdx(null); setImportedAsset(null); }}
       />
       <div className="sticky top-0 z-30 mb-4 flex items-center justify-between border-b border-slate-200/70 bg-white/90 py-2 backdrop-blur supports-[backdrop-filter]:bg-white/70">
         <h2 className="text-xl font-semibold">
@@ -1288,6 +1318,8 @@ export default function Canvas({
                     fontHrefs={(items.find((x) => (x.content as any)?.type === "imported-css")?.content as any)?.fontHrefs || []}
                     selected={selectedUid === item.uid}
                     externalSelUid={importedSel?.bandUid === item.uid ? importedSel.nodeUid : null}
+                    onSaveAsset={(code) => setImportedAsset({ code })}
+                    onRequestAddInto={(uid) => { importedAddTarget.current = { bandUid: item.uid, uid }; onRequestAdd?.(); }}
                     onChange={(next) => { const nx = items.map((x) => (x.uid === item.uid ? { ...x, content: next as any } : x)); commit(nx); }}
                     onNodeSelect={(s) => {
                       // Clicks INSIDE the band iframe don't bubble to the page — select the band
