@@ -118,6 +118,12 @@ export function nodeFacts(html: string, uid: string) {
     if (sub?.getAttribute("data-uid")) submit = { uid: sub.getAttribute("data-uid")!, label: clean(sub.textContent) || "Send" };
   }
 
+  // COLUMN SEMANTICS (Ali): is this node a direct child of a flex-row/grid — i.e. does it OWN a
+  // column slot? Deleting such an element EMPTIES the slot (column stays); the column itself is
+  // deleted separately (4 Column Row → 3 Column Row).
+  const pcs = el.parentElement?.getAttribute("data-cs") || "";
+  const isColumnChild = /gridTemplateColumns:/.test(pcs) || (/display:flex/.test(pcs) && !/flexDirection:column/.test(pcs));
+
   return {
     uid,
     tag,
@@ -131,6 +137,7 @@ export function nodeFacts(html: string, uid: string) {
     fields,
     submit,
     menuItems,
+    isColumnChild,
   };
 }
 
@@ -243,7 +250,7 @@ export default function ImportedBandEditor({
    *  order, so two "move up" clicks really move two steps and stay individually revertible. */
   const setPatch = (p: ImportedPatch) => {
     let next: ImportedPatch[];
-    if (p.op === "move" || p.op === "duplicate" || p.op === "remove") {
+    if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty") {
       next = [...patches, p];
     } else if (p.op === "style") {
       const prev = patches.find((x) => x.uid === p.uid && x.op === "style") as Extract<ImportedPatch, { op: "style" }> | undefined;

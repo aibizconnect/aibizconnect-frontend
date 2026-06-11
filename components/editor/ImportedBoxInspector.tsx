@@ -50,6 +50,10 @@ export default function ImportedBoxInspector({ facts, onPatch }: {
         <input type="number" min={0} max={1600} placeholder="auto" className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
           onChange={(e) => { const v = Number(e.target.value); if (v > 0) setStyle("max-width", `${v}px`); }} />
       </Row>
+      <Row label="Min height (px)">
+        <input type="number" min={0} max={1200} placeholder="auto" className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
+          onChange={(e) => { const v = Number(e.target.value); if (v > 0) setStyle("min-height", `${v}px`); }} />
+      </Row>
       <p className="pt-1 text-[11px] text-slate-400">
         Move / duplicate / hide / remove this box from the Actions bar above. Every change is a
         revertible edit in the band&apos;s Edits list.

@@ -1375,12 +1375,23 @@ export default function Canvas({
               );
               let actions: any = null;
               if (importedSel) {
+                // COLUMN SEMANTICS (Ali): deleting an element that OWNS a column slot empties the
+                // slot — the column survives (styleable, refillable); deleting the COLUMN itself
+                // is the separate ⌫ action (4 Column Row → 3 Column Row).
+                const ownsColumn = !!(importedSel.facts as any)?.isColumnChild;
                 actions = (<>
                   <Btn title="Move up" onClick={() => importedStructuralPatch({ op: "move", uid: importedSel.nodeUid, dir: "up" })}>↑</Btn>
                   <Btn title="Move down" onClick={() => importedStructuralPatch({ op: "move", uid: importedSel.nodeUid, dir: "down" })}>↓</Btn>
                   <Btn title="Duplicate" onClick={() => importedStructuralPatch({ op: "duplicate", uid: importedSel.nodeUid, cloneId: `c${Date.now().toString(36)}` })}>⧉</Btn>
                   <Btn title="Hide" onClick={() => importedStructuralPatch({ op: "hide", uid: importedSel.nodeUid })}>👁</Btn>
-                  <Btn title="Remove" danger onClick={() => { importedStructuralPatch({ op: "remove", uid: importedSel.nodeUid }); setImportedSel(null); }}>🗑</Btn>
+                  {ownsColumn ? (<>
+                    <Btn title="Delete element (the column stays — style it or refill it)" danger
+                      onClick={() => importedStructuralPatch({ op: "empty", uid: importedSel.nodeUid })}>🗑</Btn>
+                    <Btn title="Delete the whole column (4 Column Row → 3 Column Row)" danger
+                      onClick={() => { importedStructuralPatch({ op: "remove", uid: importedSel.nodeUid }); setImportedSel(null); }}>⌫</Btn>
+                  </>) : (
+                    <Btn title="Remove" danger onClick={() => { importedStructuralPatch({ op: "remove", uid: importedSel.nodeUid }); setImportedSel(null); }}>🗑</Btn>
+                  )}
                 </>);
               } else if (childSel) {
                 actions = (<>

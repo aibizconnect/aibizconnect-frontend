@@ -29,7 +29,10 @@ export type ImportedPatch =
   // removable. Patches apply IN ORDER, so repeated moves accumulate (and stay auditable).
   | { op: "remove"; uid: string }
   | { op: "move"; uid: string; dir: "up" | "down" }
-  | { op: "duplicate"; uid: string; cloneId: string };
+  | { op: "duplicate"; uid: string; cloneId: string }
+  // Ali's column semantics: deleting an element that IS a column slot EMPTIES the slot instead
+  // of removing it — the column stays (styleable, refillable); removing the column is separate.
+  | { op: "empty"; uid: string };
 
 const BAND_TAGS = new Set(["section", "header", "footer", "nav", "main", "article"]);
 const STRIP_TAGS = new Set(["script", "noscript", "object", "embed", "base"]);
@@ -188,6 +191,13 @@ export function applyPatches(html: string, patches: ImportedPatch[] | undefined)
       case "hide": node.setAttribute("style", `${node.getAttribute("style") || ""};display:none`); break;
       case "attr": p.value == null ? node.removeAttribute(p.name) : node.setAttribute(p.name, p.value); break;
       case "remove": node.remove(); break;
+      case "empty": {
+        // Replace the element with an EMPTY column slot that keeps the SAME uid — it stays in
+        // the layout (flex/grid keeps its track), stays selectable, and stays styleable.
+        node.insertAdjacentHTML("beforebegin", `<div data-uid="${p.uid}" data-empty-col="1" style="min-height:24px;min-width:24px"></div>`);
+        node.remove();
+        break;
+      }
       case "move": {
         const parent: any = node.parentNode;
         if (!parent) break;

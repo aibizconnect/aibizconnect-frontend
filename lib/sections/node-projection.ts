@@ -26,6 +26,8 @@ export type NodeFacts = {
   submit?: { uid: string; label: string };
   /** <nav>/link-list → Menu composite (one submenu level), uids per link. */
   menuItems?: { uid: string; label: string; href: string; children: { uid: string; label: string; href: string }[] }[];
+  /** Direct child of a flex-row/grid → owns a COLUMN slot (delete empties; column removal is separate). */
+  isColumnChild?: boolean;
 };
 
 const H = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
@@ -216,7 +218,7 @@ export function mergePatches(existing: ImportedPatch[], add: ImportedPatch[]): I
       const prev = next.find((x) => x.uid === p.uid && x.op === "style") as Extract<ImportedPatch, { op: "style" }> | undefined;
       next = next.filter((x) => !(x.uid === p.uid && x.op === "style"));
       next.push({ op: "style", uid: p.uid, style: { ...(prev?.style || {}), ...p.style } });
-    } else if (p.op === "move" || p.op === "duplicate" || p.op === "remove") {
+    } else if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty") {
       next.push(p);
     } else {
       next = next.filter((x) => !(x.uid === p.uid && x.op === p.op));
