@@ -3,6 +3,7 @@
 -- titles/notes for staff-created items, and provenance (booking page vs manual vs sync).
 
 alter table public.tenant_appointments
+  add column if not exists external_event_id text,                   -- live DB predates 0041's column — converge here
   add column if not exists end_at timestamptz,                       -- null → start_at + calendar.duration_min
   add column if not exists title text,                               -- manual/blocked entries
   add column if not exists notes text,
