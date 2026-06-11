@@ -1464,6 +1464,7 @@ export default function Canvas({
                   tenantId={tenantId}
                   customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
                   breakpoint={device}
+                  theme={theme}
                 />
               ) : importedSel ? (
                 // Container/Box node — no native projection, but it still exposes ITS OWN
@@ -1481,6 +1482,7 @@ export default function Canvas({
                   tenantId={tenantId}
                   customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
                   breakpoint={device}
+                  theme={theme}
                 />
               ) : colSel ? (
                 <ColumnInspector
@@ -1499,6 +1501,7 @@ export default function Canvas({
                   tenantId={tenantId}
                   customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
                   breakpoint={device}
+                  theme={theme}
                 />
               ) : null}
             </div>
@@ -1527,6 +1530,7 @@ export default function Canvas({
             customFonts={(Array.isArray(theme.customFonts) ? theme.customFonts : []).map((f) => f.name)}
             tenantId={tenantId}
             selKey={selKey}
+            theme={theme}
           />
         );
       })()}

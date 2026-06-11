@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import FontPicker from "@/components/design/FontPicker";
 import LinkEditor from "./LinkEditor";
 import type { LinkValue } from "@/lib/sections/links";
+import { roleForElement, roleStyleFor, type ThemeTokens } from "@/lib/sections/theme";
 
 /**
  * Floating text-format popup (D-220, Ali's spec). Anchors to the selected text-bearing element
@@ -47,13 +48,15 @@ function capsFor(type: string): Caps {
 }
 
 export default function TextFormatPopup({
-  content, onPatch, customFonts, tenantId, selKey,
+  content, onPatch, customFonts, tenantId, selKey, theme,
 }: {
   content: any;
   onPatch: (partial: Record<string, unknown>) => void;
   customFonts: string[];
   tenantId: string;
   selKey: string;
+  /** D-223: resolved theme tokens so every control pre-populates with what actually renders. */
+  theme?: ThemeTokens;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
@@ -88,8 +91,16 @@ export default function TextFormatPopup({
 
   const bold = String(content.fontWeight ?? "") === "700" || content.fontWeight === "bold";
   const hasLink = !!content.href || !!content.link?.href;
-  const color = content[caps.colorKey] as string | undefined;
-  const bg = caps.bgKey ? (content[caps.bgKey] as string | undefined) : undefined;
+  // D-223 (Ali): controls PRE-POPULATE with the value the element actually renders — the
+  // theme/role cascade — never a blank/black default.
+  const role = roleStyleFor(theme, content._role || roleForElement(String(content.type), content.level));
+  const resolvedColor = String(content.type) === "button"
+    ? (role.color || "#ffffff")
+    : (role.color || theme?.colors.text);
+  const resolvedBg = String(content.type) === "button" ? (role.backgroundColor || theme?.colors.primary) : role.backgroundColor;
+  const resolvedSize = typeof role.fontSize === "number" ? role.fontSize : undefined;
+  const color = (content[caps.colorKey] as string | undefined) || resolvedColor;
+  const bg = caps.bgKey ? ((content[caps.bgKey] as string | undefined) || resolvedBg) : undefined;
 
   // Selection-aware inline formatting: when the user selected TEXT inside the element being
   // edited, wrap just that selection (execCommand emits <b>/<i>/<u>; InlineText sanitizes on
@@ -132,7 +143,7 @@ export default function TextFormatPopup({
         {caps.font && <div className="w-36"><FontPicker value={content.fontFamily} onChange={(v) => onPatch({ fontFamily: v })} customFonts={customFonts} /></div>}
         {/* Size */}
         {caps.size && (
-          <input type="number" min={8} max={200} value={content.fontSize ?? ""} placeholder="Size"
+          <input type="number" min={8} max={200} value={content.fontSize ?? ""} placeholder={resolvedSize ? String(resolvedSize) : "Size"}
             onChange={(e) => onPatch({ fontSize: e.target.value ? Number(e.target.value) : undefined })}
             className="h-7 w-16 rounded-md border border-slate-200 px-2 text-xs" title="Font size (px)" />
         )}

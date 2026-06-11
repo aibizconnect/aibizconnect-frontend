@@ -16,7 +16,7 @@ import MediaPickerModal from "./MediaPickerModal";
 import LinkEditor from "./LinkEditor";
 import type { LinkValue } from "@/lib/sections/links";
 import FontPicker from "@/components/design/FontPicker";
-import { FONT_ROLES } from "@/lib/sections/theme";
+import { FONT_ROLES, roleForElement, roleStyleFor, type ThemeTokens } from "@/lib/sections/theme";
 import { StylesPanel, AnimationsPanel, Group } from "@/components/design/ElementInspector";
 import { resolveStyle, type ElementStyle, type ElementAnimation, type Breakpoint } from "@/lib/design/element-style";
 
@@ -26,6 +26,8 @@ interface SectionEditorProps {
   tenantId?: string;
   customFonts?: string[]; // uploaded font names (so the font picker lists them)
   breakpoint?: Breakpoint; // active editing breakpoint (desktop writes base; tablet/mobile write overrides)
+  /** D-223: resolved theme tokens — fields pre-populate with the value the element ACTUALLY renders. */
+  theme?: ThemeTokens;
 }
 
 const IMAGE_KEY_RE = /image|img|icon|logo|avatar/i;
@@ -37,12 +39,16 @@ function FieldRenderer({
   onChange,
   onPickImage,
   customFonts = [],
+  resolved,
 }: {
   spec: FieldSpec;
   value: any;
   onChange: (next: any) => void;
   onPickImage?: (apply: (url: string) => void) => void;
   customFonts?: string[];
+  /** D-223 (Ali): the value the element ACTUALLY renders when no explicit value is set
+   *  (theme/role cascade) — shown pre-populated with a muted "theme" hint, never a blank. */
+  resolved?: string | number;
 }) {
   if (spec.kind === "text") {
     const v = value ?? "";
@@ -130,14 +136,19 @@ function FieldRenderer({
   }
 
   if (spec.kind === "color") {
-    const hex = typeof value === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : "#000000";
+    // D-223: no explicit value → swatch shows the RESOLVED theme colour (what actually renders)
+    // with a muted "theme" pill; picking a colour writes an explicit override; ✕ re-inherits.
+    const explicit = typeof value === "string" && value ? value : "";
+    const shown = explicit || (typeof resolved === "string" ? resolved : "");
+    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(shown) ? shown : "#000000";
     return (
       <label className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">{spec.label}</span>
         <div className="flex items-center gap-1.5">
-          <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} className="h-7 w-9 shrink-0 rounded border border-gray-300" />
-          <input type="text" value={value ?? ""} placeholder="#000000 / inherit" onChange={(e) => onChange(e.target.value)} className="w-28 rounded border border-gray-300 px-2 py-1 text-xs" />
-          {value && <button type="button" onClick={() => onChange("")} title="Clear" className="text-xs text-gray-400 hover:text-gray-700">✕</button>}
+          {!explicit && shown && <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-400" title="Inherited from the theme — pick a colour to override">theme</span>}
+          <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} className={`h-7 w-9 shrink-0 rounded border border-gray-300 ${explicit ? "" : "opacity-70"}`} />
+          <input type="text" value={explicit} placeholder={typeof resolved === "string" && resolved ? resolved : "#000000 / inherit"} onChange={(e) => onChange(e.target.value)} className="w-28 rounded border border-gray-300 px-2 py-1 text-xs" />
+          {explicit && <button type="button" onClick={() => onChange("")} title="Clear (inherit from theme)" className="text-xs text-gray-400 hover:text-gray-700">✕</button>}
         </div>
       </label>
     );
@@ -155,16 +166,21 @@ function FieldRenderer({
   if (spec.kind === "number") {
     const hasRange = spec.min != null && spec.max != null;
     const set = (v: string) => onChange(v === "" ? undefined : Number(v));
+    // D-223: empty → show the resolved value the element actually renders (slider sits on it,
+    // number shows it as placeholder) instead of a blank control.
+    const resolvedNum = typeof resolved === "number" ? resolved : undefined;
     return (
       <label className="flex items-center justify-between gap-2">
         <span className="shrink-0 text-sm font-medium">{spec.label}</span>
         <div className="flex flex-1 items-center justify-end gap-2">
+          {value == null && resolvedNum != null && <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-400" title="Inherited from the theme — set a value to override">theme</span>}
           {hasRange && (
             <input type="range" min={spec.min} max={spec.max} step={spec.step ?? 1}
-              value={value ?? spec.min} onChange={(e) => set(e.target.value)}
+              value={value ?? resolvedNum ?? spec.min} onChange={(e) => set(e.target.value)}
               className="h-1 flex-1 accent-[#1e3a8a]" />
           )}
           <input type="number" value={value ?? ""} min={spec.min} max={spec.max} step={spec.step ?? 1}
+            placeholder={resolvedNum != null ? String(resolvedNum) : undefined}
             onChange={(e) => set(e.target.value)}
             className="w-16 rounded border border-gray-300 px-2 py-1 text-right text-sm" />
           {spec.unit && <span className="w-5 text-xs text-gray-400">{spec.unit}</span>}
@@ -357,6 +373,7 @@ export default function SectionEditor({
   tenantId,
   customFonts = [],
   breakpoint = "desktop",
+  theme,
 }: SectionEditorProps) {
   const [value, setValue] = useState<any>(section);
   const [errors, setErrors] = useState<string[]>([]);
@@ -406,6 +423,27 @@ export default function SectionEditor({
   };
   const owned = new Set(POPUP_OWNED[type] ?? []);
   const specs = (sectionFieldSpecs[type] ?? []).filter((s: any) => !owned.has(s.key));
+
+  // D-223 (Ali): pre-populate — the value the element ACTUALLY renders when no explicit value
+  // is set, mirroring the renderer's cascade (element value > role > theme default).
+  const role = roleStyleFor(theme, (value as any)?._role || roleForElement(type, (value as any)?.level));
+  const resolvedFor = (key: string): string | number | undefined => {
+    switch (key) {
+      case "color":
+        return type === "divider" ? "#e2e8f0" : (role.color || theme?.colors.text);
+      case "textColor":
+        return type === "button" ? (role.color || "#ffffff") : (role.color || theme?.colors.text);
+      case "bgColor":
+        return type === "button" ? (role.backgroundColor || theme?.colors.primary) : role.backgroundColor;
+      case "barColor": return theme?.colors.primary;
+      case "hoverColor": case "activeColor": return theme?.colors.accent;
+      case "fontSize": return typeof role.fontSize === "number" ? role.fontSize : undefined;
+      case "fontWeight": return role.fontWeight as string | undefined;
+      case "fontFamily":
+        return role.fontFamily || (type === "heading" || type === "subheading" ? theme?.fonts.heading : theme?.fonts.body);
+      default: return undefined;
+    }
+  };
 
   // Preserve presentational/meta keys (_style, _anim, _name, _role) that the Zod
   // schema for element types would otherwise strip on parse.
@@ -546,7 +584,8 @@ export default function SectionEditor({
         }
         const renderSpec = (spec: any) => (
           <FieldRenderer key={spec.key} spec={spec} value={value[spec.key]}
-            onChange={(v) => setField(spec.key, v)} onPickImage={tenantId ? handlePickImage : undefined} customFonts={customFonts} />
+            onChange={(v) => setField(spec.key, v)} onPickImage={tenantId ? handlePickImage : undefined} customFonts={customFonts}
+            resolved={resolvedFor(spec.key)} />
         );
         if (tab === "content") return (
           <>
