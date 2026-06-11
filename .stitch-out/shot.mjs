@@ -1,0 +1,13 @@
+import { chromium } from "playwright-core";
+const b = await chromium.connectOverCDP(process.env.CHROME_CDP || "http://127.0.0.1:9222");
+const ctx = b.contexts()[0];
+const p = await ctx.newPage();
+await p.setViewportSize({ width: 1440, height: 1024 });
+await p.goto("file:///C:/server/aibizconnect-frontend/.stitch-out/lossless-check.html", { waitUntil: "networkidle" });
+await p.waitForTimeout(1200);
+await p.screenshot({ path: "C:/server/aibizconnect-frontend/.stitch-out/lossless-desktop.png", fullPage: true });
+await p.setViewportSize({ width: 390, height: 844 });
+await p.waitForTimeout(600);
+await p.screenshot({ path: "C:/server/aibizconnect-frontend/.stitch-out/lossless-mobile.png", fullPage: true });
+await p.close();
+process.exit(0);

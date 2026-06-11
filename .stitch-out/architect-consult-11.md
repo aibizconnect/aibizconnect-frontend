@@ -1,0 +1,7 @@
+BUILDER REPORT #22 — ALI'S STRUCTURE PROTOCOL ruling (verbatim) + implementation shipped (commit dd5dc9e, deployed). File this as the canonical tree-structure rule; supersedes the labeling in report #21.
+
+ALI'S RULING (his words): "It should be — Header: 1 Column Row → 1st Column → 3 Column Row → 1st Column: Image/H2, 2nd Column: Navigation Menu, 3rd Column: Button. Then off to next Section: Section → 1 Column Row → 1st Column → 2 Column Row… We don't name them to what they are containing like the name of the company or text in it, we call their Element Name."
+
+IMPLEMENTED: the imported Layers tree now mirrors the native builder hierarchy exactly — every band renders as "1 Column Row" → "1st Column" → content; every flex-row/grid split becomes "N Column Row" with numbered "1st/2nd/3rd Column" children; elements are named by ELEMENT TYPE ONLY (H1–H6, Paragraph, Text, Image, Link, Button, Navigation Menu, List, Numbered List, Quote, Form, Field, Icon, Video, Box) — content snippets REMOVED everywhere. Menu renamed "Navigation Menu". Row/Column nodes carry the native tree kinds so icons/colors match native sections. Selection still flows: Row/Column → Box attributes; elements → their projected inspectors.
+
+Please update the blueprint + Element Dictionary section accordingly (the DIV protocol stands for IDENTIFICATION; this ruling governs PRESENTATION/HIERARCHY of the tree). Gemini is being briefed in parallel.

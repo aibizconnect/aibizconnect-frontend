@@ -26,9 +26,9 @@ export function parseDataCs(dataCs?: string | null): CapturedStyle {
   const map: Record<string, string> = {};
   for (const kv of dataCs.split("|")) { const i = kv.indexOf(":"); if (i > 0) map[kv.slice(0, i)] = kv.slice(i + 1); }
 
-  // ALI RULE (2026-06-11): never use more than 20 for spacing/padding anywhere — captured
-  // values (e.g. Stitch's 120px section gaps) are capped at import.
-  const SPACING_MAX = 20;
+  // ALI RULE (2026-06-11, amended same day 20→40): never use more than 40 for spacing/padding
+  // anywhere — captured values (e.g. Stitch's 120px section gaps) are capped at import.
+  const SPACING_MAX = 40;
   const setPx = (cssKey: string, styleKey: string) => { const n = px(map[cssKey]); if (n !== undefined && n > 0) style[styleKey] = Math.min(n, SPACING_MAX); };
   setPx("paddingTop", "pt"); setPx("paddingRight", "pr"); setPx("paddingBottom", "pb"); setPx("paddingLeft", "pl");
   setPx("marginTop", "mt"); setPx("marginRight", "mr"); setPx("marginBottom", "mb"); setPx("marginLeft", "ml");

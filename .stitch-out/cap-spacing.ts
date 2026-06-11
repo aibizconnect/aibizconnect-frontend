@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const PAGE = "6e33e369-490d-46a6-845e-56d47c1be1de";
-const MAX = 20;
+const MAX = 40;
 const KEYS = ["pt", "pb", "pl", "pr", "mt", "mb", "ml", "mr", "paddingY", "paddingX", "marginY"];
 
 let capped = 0;

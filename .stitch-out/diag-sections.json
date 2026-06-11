@@ -1,0 +1,1007 @@
+[
+ {
+  "type": "row",
+  "columns": 3,
+  "contentWidth": "boxed",
+  "_name": "Header",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "Marc Lavoie",
+     "level": "h3",
+     "fontSize": 24,
+     "color": "#001e40"
+    }
+   ],
+   [
+    {
+     "type": "menu",
+     "items": [
+      {
+       "label": "About",
+       "href": "#about",
+       "link": {
+        "kind": "anchor",
+        "anchor": "about",
+        "href": "#about"
+       }
+      },
+      {
+       "label": "Services",
+       "href": "#services",
+       "link": {
+        "kind": "anchor",
+        "anchor": "services",
+        "href": "#services"
+       }
+      },
+      {
+       "label": "Rates",
+       "href": "#rates",
+       "link": {
+        "kind": "anchor",
+        "anchor": "rates",
+        "href": "#rates"
+       }
+      },
+      {
+       "label": "Reviews",
+       "href": "#reviews",
+       "link": {
+        "kind": "anchor",
+        "anchor": "reviews",
+        "href": "#reviews"
+       }
+      },
+      {
+       "label": "Contact",
+       "href": "#contact",
+       "link": {
+        "kind": "anchor",
+        "anchor": "contact",
+        "href": "#contact"
+       }
+      }
+     ],
+     "orientation": "horizontal",
+     "color": "#43474f"
+    }
+   ],
+   [
+    {
+     "type": "button",
+     "label": "Get Pre-Approved",
+     "href": "https://stitch.googleapis.com/#pre-approved",
+     "bgColor": "#feae2c",
+     "variant": "solid",
+     "textColor": "#6b4500",
+     "radius": 12
+    }
+   ]
+  ],
+  "_style": {
+   "bg": "#f8f9ff"
+  }
+ },
+ {
+  "type": "row",
+  "columns": 2,
+  "contentWidth": "boxed",
+  "gap": 16,
+  "_name": "Cards",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "Ottawa's Trusted Mortgage Expert",
+     "level": "h3",
+     "fontSize": 14,
+     "color": "#1f477b"
+    },
+    {
+     "type": "heading",
+     "text": "Ottawa mortgages made simple.",
+     "level": "h1",
+     "fontSize": 48,
+     "color": "#001e40"
+    },
+    {
+     "type": "text",
+     "text": "Navigate the complex world of home financing with confidence. I help Ottawa families secure the best rates and terms tailored to their unique financial goals.",
+     "fontSize": 18,
+     "color": "#43474f"
+    },
+    {
+     "type": "row",
+     "columns": 2,
+     "contentWidth": "boxed",
+     "gap": 12,
+     "_name": "Buttons",
+     "children": [
+      [
+       {
+        "type": "button",
+        "label": "Get Pre-Approved",
+        "href": "https://stitch.googleapis.com/#",
+        "bgColor": "#feae2c",
+        "variant": "solid",
+        "textColor": "#6b4500",
+        "radius": 12
+       }
+      ],
+      [
+       {
+        "type": "button",
+        "label": "Book a Call",
+        "href": "https://stitch.googleapis.com/#",
+        "variant": "outline",
+        "textColor": "#001e40",
+        "radius": 12
+       }
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "type": "image",
+     "url": "https://lh3.googleusercontent.com/aida-public/AB6AXuBFHcUkitsqEzTL4j6GTWl3Q93yLXVq9RCscOB3MRDUvlQKZzbQwxgP-Zx312f2rfPQdwnKAsFvms81K6CskjGtLIrC53exbndmZ5NuinjZVVe1NV3VOPn7_8RnqJ3S1L2kS8MA8PBnHdaeaDRDUGTsrGElUN-jHsaZ0Vj6POQsInjfehwjZVdLq8CH8Fw9y9BpXvVv_wJhqk3QBTco_3FeLx-T9V6580WXjyhuBSe3n9fjppJacBHJmSS-mrPNYOjs66Z-WMsoRWio",
+     "rounding": 16
+    }
+   ]
+  ],
+  "colStyles": [
+   {},
+   {}
+  ],
+  "_style": {
+   "pt": 192,
+   "pb": 120,
+   "pr": 24,
+   "pl": 24,
+   "mr": 80,
+   "ml": 80
+  }
+ },
+ {
+  "type": "row",
+  "columns": 3,
+  "contentWidth": "boxed",
+  "gap": 16,
+  "_name": "Cards",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "500+",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 48,
+     "color": "#feae2c"
+    },
+    {
+     "type": "heading",
+     "text": "Families Helped",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 14,
+     "color": "#799dd6"
+    }
+   ],
+   [
+    {
+     "type": "heading",
+     "text": "30+",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 48,
+     "color": "#feae2c"
+    },
+    {
+     "type": "heading",
+     "text": "Lending Partners",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 14,
+     "color": "#799dd6"
+    }
+   ],
+   [
+    {
+     "type": "heading",
+     "text": "5.0",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 48,
+     "color": "#feae2c"
+    },
+    {
+     "type": "text",
+     "text": "★",
+     "align": "center",
+     "fontSize": 24,
+     "color": "#feae2c"
+    },
+    {
+     "type": "heading",
+     "text": "Google Rating",
+     "level": "h3",
+     "align": "center",
+     "fontSize": 14,
+     "color": "#799dd6"
+    }
+   ]
+  ],
+  "colStyles": [
+   {
+    "pt": 16,
+    "pb": 16,
+    "align": "center"
+   },
+   {
+    "pt": 16,
+    "pb": 16,
+    "align": "center"
+   },
+   {
+    "pt": 16,
+    "pb": 16,
+    "align": "center"
+   }
+  ],
+  "_style": {
+   "pt": 48,
+   "pb": 48,
+   "bg": "#001e40",
+   "align": "center"
+  }
+ },
+ {
+  "type": "row",
+  "columns": 1,
+  "contentWidth": "boxed",
+  "_name": "Comprehensive Mortgage Solutions",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "Comprehensive Mortgage Solutions",
+     "level": "h2",
+     "align": "center",
+     "fontSize": 32,
+     "color": "#001e40"
+    },
+    {
+     "type": "text",
+     "text": "Whether you're stepping into your first home or expanding your investment portfolio, I provide the expertise you need.",
+     "align": "center",
+     "fontSize": 16,
+     "color": "#43474f"
+    },
+    {
+     "type": "row",
+     "columns": 4,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "heading",
+        "text": "First-Time Buyers",
+        "level": "h3",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Step-by-step guidance through the pre-approval and purchasing process for your first home.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Refinancing",
+        "level": "h3",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Unlock equity for renovations or debt consolidation with expert refinancing advice.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Renewals",
+        "level": "h3",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Don't just sign with your current lender. Let's find you a better rate before you renew.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Investment",
+        "level": "h3",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Strategic financing for rental properties to help grow your real estate portfolio.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ]
+     ],
+     "colStyles": [
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      },
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      },
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      },
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      }
+     ]
+    }
+   ]
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#f8f9ff"
+  },
+  "_anchor": "services"
+ },
+ {
+  "type": "row",
+  "columns": 2,
+  "contentWidth": "boxed",
+  "gap": 16,
+  "_name": "Cards",
+  "children": [
+   [
+    {
+     "type": "row",
+     "columns": 2,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "heading",
+        "text": "Deep Expertise",
+        "level": "h4",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Years of navigating the Ottawa real estate market means I know the local nuances that matter.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Fast Response",
+        "level": "h4",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "In a hot market, timing is everything. I pride myself on rapid pre-approvals and clear communication.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ]
+     ],
+     "colStyles": [
+      {},
+      {}
+     ]
+    },
+    {
+     "type": "row",
+     "columns": 2,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "heading",
+        "text": "Tailored Service",
+        "level": "h4",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "You're not just a file number. Every mortgage plan I build is customized to your long-term wealth.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Honest Advice",
+        "level": "h4",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Transparency is my policy. If a deal isn't right for you, I'll be the first to tell you.",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ]
+     ],
+     "colStyles": [
+      {},
+      {}
+     ]
+    }
+   ],
+   [
+    {
+     "type": "heading",
+     "text": "Your Local Ottawa Mortgage Expert",
+     "level": "h2",
+     "fontSize": 32,
+     "color": "#001e40"
+    },
+    {
+     "type": "text",
+     "text": "\"My goal is simple: to make your mortgage process as seamless and stress-free as possible. I live and work in Ottawa, and I care deeply about helping our community thrive through smart homeownership.\"",
+     "fontSize": 18,
+     "color": "#43474f"
+    },
+    {
+     "type": "image",
+     "url": "https://lh3.googleusercontent.com/aida-public/AB6AXuBIcChQvjxHzQl2wFNrx6UJppx88ZsiU4q5c3DWWC6V7N-uFl9eHzeDGLWA1vuH4HWTAY7pgwLqyeaWq6sRSIAFUh_6Qik6pGekpW6RYY8jukhza4rZAXuX6GN0U3KOiCXp63qs4LRiDYYAdn9RdrDJBL5lEVAmBsrgip7rDN-t6j2rASywxgg0w1dPUyOYd6R_NpcUPHU52NH1D9hooFxtjbmMLBEevlvI_rgsHs5Ex4lWJ8FZIt57gbPQQjlXqYMpja1KCSmdUhP7",
+     "width": 64,
+     "rounding": 9999
+    },
+    {
+     "type": "text",
+     "text": "Marc Lavoie",
+     "fontSize": 24,
+     "color": "#001e40"
+    },
+    {
+     "type": "text",
+     "text": "Principal Mortgage Specialist",
+     "fontSize": 14,
+     "color": "#43474f"
+    }
+   ]
+  ],
+  "colStyles": [
+   {},
+   {}
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#eff4ff"
+  },
+  "_anchor": "about"
+ },
+ {
+  "type": "row",
+  "columns": 1,
+  "contentWidth": "boxed",
+  "_name": "How We Get You Moving",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "How We Get You Moving",
+     "level": "h2",
+     "align": "center",
+     "fontSize": 32,
+     "color": "#001e40"
+    },
+    {
+     "type": "text",
+     "text": "A streamlined three-step process designed for the digital age.",
+     "align": "center",
+     "fontSize": 16,
+     "color": "#43474f"
+    },
+    {
+     "type": "row",
+     "columns": 3,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "heading",
+        "text": "Apply Online",
+        "level": "h3",
+        "align": "center",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Complete a secure 10-minute application from your phone or computer.",
+        "align": "center",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Get Approved",
+        "level": "h3",
+        "align": "center",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "I shop 30+ lenders to find your perfect match and secure your commitment.",
+        "align": "center",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Close the Deal",
+        "level": "h3",
+        "align": "center",
+        "fontSize": 24,
+        "color": "#001e40"
+       },
+       {
+        "type": "text",
+        "text": "Finalize your paperwork and celebrate your new home or lower rate.",
+        "align": "center",
+        "fontSize": 16,
+        "color": "#43474f"
+       }
+      ]
+     ],
+     "colStyles": [
+      {
+       "bg": "#ffffff",
+       "align": "center"
+      },
+      {
+       "bg": "#ffffff",
+       "align": "center"
+      },
+      {
+       "bg": "#ffffff",
+       "align": "center"
+      }
+     ]
+    }
+   ]
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#ffffff"
+  }
+ },
+ {
+  "type": "row",
+  "columns": 1,
+  "contentWidth": "boxed",
+  "_name": "Client Success Stories",
+  "children": [
+   [
+    {
+     "type": "heading",
+     "text": "Client Success Stories",
+     "level": "h2",
+     "align": "center",
+     "fontSize": 32,
+     "color": "#001e40"
+    },
+    {
+     "type": "row",
+     "columns": 3,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "text",
+        "text": "★★★★★",
+        "fontSize": 16,
+        "color": "#feae2c"
+       },
+       {
+        "type": "text",
+        "text": "\"Marc made our first home purchase in Kanata seamless. He explained everything clearly and got us a rate much better than our bank.\"",
+        "fontSize": 16,
+        "color": "#0d1c2f"
+       },
+       {
+        "type": "heading",
+        "text": "— Sarah & Dave R.",
+        "level": "h3",
+        "fontSize": 14,
+        "color": "#001e40"
+       }
+      ],
+      [
+       {
+        "type": "text",
+        "text": "★★★★★",
+        "fontSize": 16,
+        "color": "#feae2c"
+       },
+       {
+        "type": "text",
+        "text": "\"Refinancing for renovations felt overwhelming until we spoke to Marc. He found us the equity we needed with minimal hassle.\"",
+        "fontSize": 16,
+        "color": "#0d1c2f"
+       },
+       {
+        "type": "heading",
+        "text": "— James T.",
+        "level": "h3",
+        "fontSize": 14,
+        "color": "#001e40"
+       }
+      ],
+      [
+       {
+        "type": "text",
+        "text": "★★★★★",
+        "fontSize": 16,
+        "color": "#feae2c"
+       },
+       {
+        "type": "text",
+        "text": "\"As an investor, speed is crucial. Marc delivers every single time with competitive rates and professional advice.\"",
+        "fontSize": 16,
+        "color": "#0d1c2f"
+       },
+       {
+        "type": "heading",
+        "text": "— Maria P.",
+        "level": "h3",
+        "fontSize": 14,
+        "color": "#001e40"
+       }
+      ]
+     ],
+     "colStyles": [
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      },
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      },
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      }
+     ]
+    }
+   ]
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#f8f9ff"
+  },
+  "_anchor": "reviews"
+ },
+ {
+  "type": "row",
+  "columns": 1,
+  "contentWidth": "boxed",
+  "_name": "Section",
+  "children": [
+   [
+    {
+     "type": "row",
+     "columns": 2,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "heading",
+        "text": "Let's Talk About Your Mortgage",
+        "level": "h2",
+        "fontSize": 32,
+        "color": "#ffffff"
+       },
+       {
+        "type": "text",
+        "text": "I'm here to answer your questions and help you find the best solution for your situation. No pressure, just expert advice.",
+        "fontSize": 18,
+        "color": "#799dd6"
+       },
+       {
+        "type": "text",
+        "text": "Ottawa Office",
+        "fontSize": 24,
+        "color": "#ffffff"
+       },
+       {
+        "type": "text",
+        "text": "123 Elgin Street, Suite 400 Ottawa, ON K1P 5K6",
+        "fontSize": 16,
+        "color": "#799dd6"
+       },
+       {
+        "type": "text",
+        "text": "Call or Text",
+        "fontSize": 24,
+        "color": "#ffffff"
+       },
+       {
+        "type": "text",
+        "text": "(613) 555-0199",
+        "fontSize": 16,
+        "color": "#799dd6"
+       },
+       {
+        "type": "text",
+        "text": "Email",
+        "fontSize": 24,
+        "color": "#ffffff"
+       },
+       {
+        "type": "text",
+        "text": "marc@mlmortgages.ca",
+        "fontSize": 16,
+        "color": "#799dd6"
+       }
+      ],
+      [
+       {
+        "type": "contact-form",
+        "heading": "Get in touch",
+        "fields": [
+         {
+          "name": "name",
+          "label": "Your Name",
+          "type": "text"
+         },
+         {
+          "name": "email",
+          "label": "Email Address",
+          "type": "email"
+         },
+         {
+          "name": "phone",
+          "label": "Phone Number",
+          "type": "tel"
+         },
+         {
+          "name": "message",
+          "label": "What can I help you with?",
+          "type": "textarea"
+         }
+        ],
+        "submitLabel": "Send Message",
+        "submitColor": "#feae2c",
+        "submitTextColor": "#6b4500"
+       }
+      ]
+     ],
+     "colStyles": [
+      {},
+      {
+       "pt": 32,
+       "pr": 32,
+       "pb": 32,
+       "pl": 32,
+       "radius": 16,
+       "bg": "#ffffff"
+      }
+     ],
+     "_style": {
+      "bg": "#001e40",
+      "radius": 32,
+      "pt": 64,
+      "pr": 64,
+      "pb": 64,
+      "pl": 64
+     }
+    }
+   ]
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#ffffff"
+  },
+  "_anchor": "contact"
+ },
+ {
+  "type": "row",
+  "columns": 1,
+  "contentWidth": "boxed",
+  "_name": "Section",
+  "children": [
+   [
+    {
+     "type": "row",
+     "columns": 3,
+     "contentWidth": "boxed",
+     "gap": 16,
+     "_name": "Cards",
+     "children": [
+      [
+       {
+        "type": "text",
+        "text": "Marc Lavoie",
+        "fontSize": 24,
+        "color": "#ffffff"
+       },
+       {
+        "type": "text",
+        "text": "Serving the Ottawa-Gatineau region with tailored mortgage solutions since 2012.",
+        "fontSize": 16,
+        "color": "#799dd6"
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Quick Links",
+        "level": "h5",
+        "fontSize": 12,
+        "color": "#ffddb4"
+       },
+       {
+        "type": "bullet-list",
+        "items": [
+         {
+          "text": "About Me",
+          "link": {
+           "kind": "anchor",
+           "anchor": "about",
+           "href": "#about"
+          }
+         },
+         {
+          "text": "Mortgage Services",
+          "link": {
+           "kind": "anchor",
+           "anchor": "services",
+           "href": "#services"
+          }
+         },
+         {
+          "text": "Contact",
+          "link": {
+           "kind": "anchor",
+           "anchor": "contact",
+           "href": "#contact"
+          }
+         },
+         {
+          "text": "Mortgage Calculator"
+         }
+        ],
+        "bulletStyle": "none",
+        "textColor": "#799dd6",
+        "color": "#799dd6",
+        "fontSize": 16
+       }
+      ],
+      [
+       {
+        "type": "heading",
+        "text": "Compliance",
+        "level": "h5",
+        "fontSize": 12,
+        "color": "#ffddb4"
+       },
+       {
+        "type": "bullet-list",
+        "items": [
+         {
+          "text": "Privacy Policy"
+         },
+         {
+          "text": "Terms of Service"
+         },
+         {
+          "text": "Accessibility"
+         }
+        ],
+        "bulletStyle": "none",
+        "textColor": "#799dd6",
+        "color": "#799dd6",
+        "fontSize": 16
+       }
+      ]
+     ],
+     "colStyles": [
+      {},
+      {},
+      {}
+     ]
+    },
+    {
+     "type": "text",
+     "text": "© 2024 Marc Lavoie Mortgage Specialist. All rights reserved. FSRA License #12345.",
+     "fontSize": 12,
+     "color": "#799dd6"
+    }
+   ]
+  ],
+  "_style": {
+   "pt": 120,
+   "pb": 120,
+   "bg": "#001e40"
+  }
+ }
+]
