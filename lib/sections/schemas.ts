@@ -111,6 +111,7 @@ export const headingSchema = z.object({
   color: z.string().optional(),                 // hex/rgb
   textTransform: textTransformEnum.optional(),
   italic: z.boolean().optional(),
+  underline: z.boolean().optional(),                    // D-220: popup U (whole element)
   gradientText: z.boolean().optional(),
   gradientFrom: z.string().optional(),
   gradientTo: z.string().optional(),
@@ -119,6 +120,7 @@ export const headingSchema = z.object({
   href: z.string().optional(),                          // optional link wrap
   target: z.enum(["_self", "_blank"]).optional(),
   rel: z.string().optional(),
+  link: linkValueSchema.optional(),                     // D-222: structured link (href stays materialized)
 });
 // Sub-headline: a heading variant (distinct label, default h3 + lighter weight).
 export const subheadingSchema = z.object({
@@ -134,10 +136,12 @@ export const subheadingSchema = z.object({
   color: z.string().optional(),
   textTransform: textTransformEnum.optional(),
   italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
   bgColor: z.string().optional(),
   href: z.string().optional(),
   target: z.enum(["_self", "_blank"]).optional(),
   rel: z.string().optional(),
+  link: linkValueSchema.optional(),
 });
 export const textSchema = z.object({
   type: z.literal("text"),
@@ -150,11 +154,13 @@ export const textSchema = z.object({
   lineHeight: z.coerce.number().optional(),
   textTransform: textTransformEnum.optional(),
   italic: z.boolean().optional(),
+  underline: z.boolean().optional(),            // D-220: popup U (whole element)
   direction: z.enum(["ltr", "rtl"]).optional(),
   bgColor: z.string().optional(),
   href: z.string().optional(),
   target: z.enum(["_self", "_blank"]).optional(),
   rel: z.string().optional(),
+  link: linkValueSchema.optional(),             // D-222: structured link (href stays materialized)
 });
 export const imageSchema = z.object({
   type: z.literal("image"),
@@ -184,9 +190,11 @@ export const buttonSchema = z.object({
   iconPosition: z.enum(["left", "right"]).optional(),
   rel: z.string().optional(),                           // e.g. "nofollow noopener"
   fontFamily: z.string().optional(),
+  fontSize: z.coerce.number().optional(),               // D-220: popup size control (px)
   fontWeight: z.string().optional(),
   italic: z.boolean().optional(),
   hover: z.enum(["none", "lift", "grow", "glow", "fill", "underline", "slide"]).optional(), // per-button hover effect
+  link: linkValueSchema.optional(),                     // D-222: structured link (href stays materialized)
 });
 export const dividerSchema = z.object({
   type: z.literal("divider"),

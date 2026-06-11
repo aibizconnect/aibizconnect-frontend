@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { ThemeTokens } from "@/lib/sections/theme";
 import { resolveLink, type LinkValue } from "@/lib/sections/links";
@@ -39,31 +42,78 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
   // In-place editing: each item's text is editable; commit writes the items array.
   const setItem = (i: number, text: string) =>
     onEditItems?.(content.items.map((it, j) => (j === i ? { ...it, text } : it)));
+  // D-220 (Ali): Lists are edited entirely ON THE CANVAS — Enter splits into a new item,
+  // Backspace on an empty item removes it, and a ghost "+ Add item" row appends. The right
+  // panel no longer lists the items.
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
+  const insertAfter = (i: number, text: string) => {
+    const next = content.items.map((it, j) => (j === i ? { ...it, text } : it));
+    next.splice(i + 1, 0, { text: "" } as (typeof content.items)[number]);
+    setFocusIdx(i + 1);
+    onEditItems?.(next);
+  };
+  const removeAt = (i: number) => {
+    setFocusIdx(Math.max(0, i - 1));
+    onEditItems?.(content.items.filter((_, j) => j !== i));
+  };
+  const addLast = () => {
+    setFocusIdx(content.items.length);
+    onEditItems?.([...content.items, { text: "" } as (typeof content.items)[number]]);
+  };
   // D-219: list items may carry links (footer link groups are Lists, not Menus). View mode
   // renders the real <a>; the editing path stays unwrapped so clicks edit instead of navigating.
   const itemNode = (it: { text: string; link?: LinkValue }, i: number) => {
-    if (onEditItems) return <InlineText as="span" text={it.text} onChange={(t) => setItem(i, t)} style={textStyle} />;
+    if (onEditItems) {
+      return (
+        <InlineText
+          as="span" text={it.text} style={textStyle}
+          onChange={(t) => setItem(i, t)}
+          onEnter={(t) => insertAfter(i, t)}
+          onEmptyBackspace={content.items.length > 1 ? () => removeAt(i) : undefined}
+          autoFocus={focusIdx === i}
+        />
+      );
+    }
     const { href, target } = resolveLink(it.link);
     return href
       ? <a href={href} target={target || "_self"} rel={target === "_blank" ? "noopener noreferrer" : undefined} className="hover:underline" style={textStyle}>{it.text}</a>
       : <span style={textStyle}>{it.text}</span>;
   };
+  // Ghost row shown only while editing (never on the published page).
+  const addRow = onEditItems ? (
+    <li key="__add" style={{ listStyle: "none", breakInside: "avoid" }}>
+      <button type="button" onClick={addLast}
+        className="mt-1 rounded border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400 hover:border-slate-400 hover:text-slate-600">
+        + Add item
+      </button>
+    </li>
+  ) : null;
+  // D-222: the floating popup's Link control targets the FOCUSED item — remember which item
+  // was last focused on the list root, where the popup can read it.
+  const rootProps = onEditItems ? { "data-abc-list": "1" } : {};
+  const markFocus = (e: React.FocusEvent, i: number) => {
+    const root = (e.currentTarget as HTMLElement).closest("[data-abc-list]");
+    if (root) (root as HTMLElement).setAttribute("data-abc-focus-idx", String(i));
+  };
+  const liFocus = (i: number) => (onEditItems ? { onFocusCapture: (e: React.FocusEvent) => markFocus(e, i) } : {});
 
   if (style === "number") {
     return (
-      <ol dir={dir} start={startAt} className={`list-decimal space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={colStyle}>
+      <ol dir={dir} start={startAt} className={`list-decimal space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={colStyle} {...rootProps}>
         {content.items.map((it, i) => (
-          <li key={i} style={{ color: markerColor, breakInside: "avoid" }}>{itemNode(it, i)}</li>
+          <li key={i} style={{ color: markerColor, breakInside: "avoid" }} {...liFocus(i)}>{itemNode(it, i)}</li>
         ))}
+        {addRow}
       </ol>
     );
   }
   if (["circle", "square", "none"].includes(style)) {
     return (
-      <ul dir={dir} className={`space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={{ listStyleType: style, ...colStyle }}>
+      <ul dir={dir} className={`space-y-1.5 ${rtl ? "pr-5 text-right" : "pl-5"}`} style={{ listStyleType: style, ...colStyle }} {...rootProps}>
         {content.items.map((it, i) => (
-          <li key={i} style={{ color: markerColor, breakInside: "avoid" }}>{itemNode(it, i)}</li>
+          <li key={i} style={{ color: markerColor, breakInside: "avoid" }} {...liFocus(i)}>{itemNode(it, i)}</li>
         ))}
+        {addRow}
       </ul>
     );
   }
@@ -71,15 +121,16 @@ export function BulletListSection({ content, theme, onEditItems }: { content: Bu
   const marker = style === "custom" ? ((content as any).bulletIcon || "•")
     : style === "check" ? "✓" : style === "arrow" ? (rtl ? "←" : "→") : null;
   return (
-    <ul dir={dir} className="space-y-1.5" style={colStyle}>
+    <ul dir={dir} className="space-y-1.5" style={colStyle} {...rootProps}>
       {content.items.map((it, i) => (
-        <li key={i} className={`flex items-start gap-2 ${rtl ? "flex-row-reverse text-right" : ""}`} style={{ breakInside: "avoid" }}>
+        <li key={i} className={`flex items-start gap-2 ${rtl ? "flex-row-reverse text-right" : ""}`} style={{ breakInside: "avoid" }} {...liFocus(i)}>
           {marker
             ? <span className="mt-0.5 shrink-0 font-semibold" style={{ color: markerColor }}>{marker}</span>
             : <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: markerColor }} />}
           {itemNode(it, i)}
         </li>
       ))}
+      {addRow}
     </ul>
   );
 }

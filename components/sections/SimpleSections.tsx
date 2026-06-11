@@ -1,6 +1,7 @@
 import type { CSSProperties, ElementType } from "react";
 import { fontStack } from "@/lib/fonts";
 import { roleForElement, roleStyleFor, type RoleStyle, type ThemeTokens } from "@/lib/sections/theme";
+import { hasInlineMarkup, sanitizeInlineHtml } from "@/lib/sections/rich-text";
 import InlineText from "./InlineText";
 import type {
   HeadingContent, SubheadingContent, TextContent, ImageContent, ButtonContent,
@@ -49,6 +50,7 @@ function typographyStyle(c: any, fallbackColor?: string, role: RoleStyle = {}): 
   if (ls != null) st.letterSpacing = ls;
   if (tt && tt !== "none") st.textTransform = tt as CSSProperties["textTransform"];
   if (italic) st.fontStyle = "italic";
+  if (c.underline) st.textDecoration = "underline"; // D-220: popup U (whole element)
   return st;
 }
 
@@ -75,9 +77,12 @@ function HeadingLike({ content, theme, defaultSizeClass, defaultBold, onEditText
   if (content.bgColor) { st.backgroundColor = content.bgColor; st.padding = st.padding ?? "0.15em 0.4em"; st.borderRadius = st.borderRadius ?? 6; }
   const cls = `${sizeClass} ${weightClass} ${alignClass(content.align)}`;
   if (onEditText) {
-    return <InlineText as={Tag} className={cls} style={st} text={content.text} onChange={onEditText} />;
+    return <InlineText as={Tag} rich className={cls} style={st} text={content.text} onChange={onEditText} />;
   }
-  const el = (
+  // D-220: text may carry sanitized inline spans (<b>/<i>/<u>/<a>) from the popup.
+  const el = hasInlineMarkup(content.text) ? (
+    <Tag className={cls} style={st} dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(content.text) }} />
+  ) : (
     <Tag className={cls} style={st}>
       {content.text}
     </Tag>
@@ -105,9 +110,12 @@ export function TextSection({ content, theme, onEditText }: { content: TextConte
   if ((content as any).bgColor) { st.backgroundColor = (content as any).bgColor; st.padding = st.padding ?? "0.2em 0.5em"; st.borderRadius = st.borderRadius ?? 6; }
   const cls = `whitespace-pre-wrap leading-relaxed ${alignClass(content.align)}`;
   if (onEditText) {
-    return <InlineText as="p" multiline className={cls} style={st} text={content.text} onChange={onEditText} />;
+    return <InlineText as="p" multiline rich className={cls} style={st} text={content.text} onChange={onEditText} />;
   }
-  const el = (
+  // D-220: text may carry sanitized inline spans (<b>/<i>/<u>/<a>) from the popup.
+  const el = hasInlineMarkup(content.text) ? (
+    <p className={cls} style={st} dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(content.text) }} />
+  ) : (
     <p className={cls} style={st}>
       {content.text}
     </p>
@@ -146,6 +154,8 @@ export function ButtonSection({ content, theme, onEditText }: { content: ButtonC
   const base: CSSProperties = { borderRadius: radius };
   const fam = content.fontFamily || role.fontFamily;
   if (fam) base.fontFamily = fontStack(fam);
+  const bSize = (content as any).fontSize ?? role.fontSize; // D-220: popup size control
+  if (bSize) base.fontSize = typeof bSize === "number" ? `${bSize}px` : bSize;
   const bWeight = (content as any).fontWeight || role.fontWeight;
   if (bWeight) base.fontWeight = bWeight as CSSProperties["fontWeight"];
   if (((content as any).italic ?? role.italic)) base.fontStyle = "italic";

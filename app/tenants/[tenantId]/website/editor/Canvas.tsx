@@ -1509,7 +1509,10 @@ export default function Canvas({
       {/* Floating text-format popup — anchored to the selected text element, floats off it. */}
       {(() => {
         const sel: any = childContent ?? selectedSection;
-        const TEXT_TYPES = ["heading", "subheading", "text"];
+        // D-220 (Ali): every text-bearing element gets the floating format popup — H1–H6,
+        // Body/Quote, Button, List. Menu/Submenu are EXCLUDED (their own inspector + link
+        // plumbing handle them — Ali's correction).
+        const TEXT_TYPES = ["heading", "subheading", "text", "button", "bullet-list"];
         if (!sel || !TEXT_TYPES.includes(sel.type)) return null;
         const patch = (partial: Record<string, unknown>) => {
           if (childContent && childSel) setColumnChild(childSel.rowUid, childSel.path, { ...childContent, ...partial });

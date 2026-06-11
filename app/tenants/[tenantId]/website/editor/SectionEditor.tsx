@@ -391,12 +391,21 @@ export default function SectionEditor({
   }
 
   const type = value.type as SectionType;
-  // For text elements, the high-frequency controls (font/size/style/colour/align/link) now
-  // live in the floating popup near the text — hide them here so the side panel stays short.
-  // Advanced controls (line-height, spacing, transform, gradient, role/level) remain in the panel.
-  const POPUP_KEYS = new Set(["fontFamily", "fontSize", "fontWeight", "italic", "color", "align", "href", "target", "rel"]);
-  const isTextEl = type === "heading" || type === "subheading" || type === "text";
-  const specs = (sectionFieldSpecs[type] ?? []).filter((s: any) => !(isTextEl && POPUP_KEYS.has(s.key)));
+  // D-220/D-223 (Ali: no duplicates): the floating popup near the text OWNS the high-frequency
+  // text controls — they leave the panel for every type the popup covers. Lists also lose the
+  // long Items editor (items are edited in place on the canvas: Enter adds, Backspace on an
+  // empty item removes, ghost "+ Add item" appends). Advanced controls (line-height, spacing,
+  // transform, gradient, role/level, button variant/radius/icon) remain in the panel.
+  const TEXTY = ["fontFamily", "fontSize", "fontWeight", "italic", "underline", "color", "align", "href", "target", "rel"];
+  const POPUP_OWNED: Partial<Record<string, string[]>> = {
+    heading: TEXTY,
+    subheading: TEXTY,
+    text: TEXTY,
+    button: ["fontFamily", "fontSize", "fontWeight", "italic", "href", "target", "rel", "align", "bgColor", "textColor"],
+    "bullet-list": ["fontFamily", "fontSize", "textColor", "items"],
+  };
+  const owned = new Set(POPUP_OWNED[type] ?? []);
+  const specs = (sectionFieldSpecs[type] ?? []).filter((s: any) => !owned.has(s.key));
 
   // Preserve presentational/meta keys (_style, _anim, _name, _role) that the Zod
   // schema for element types would otherwise strip on parse.

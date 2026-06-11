@@ -1,16 +1,50 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
 import FontPicker from "@/components/design/FontPicker";
+import LinkEditor from "./LinkEditor";
+import type { LinkValue } from "@/lib/sections/links";
 
 /**
- * Floating text-format popup (polished). Appears anchored to the currently-selected text
- * element (the one tagged with data-abc-selected="1"), floating ABOVE it — or flipping BELOW
- * when there isn't room — so it never crowds the element. Holds the high-frequency text
- * controls (Font, Size, Style, Colour, Align, Link) so the sticky side panel stays short.
+ * Floating text-format popup (D-220, Ali's spec). Anchors to the selected text-bearing element
+ * (tagged data-abc-selected="1"), floating ABOVE it — flipping BELOW when there's no room. Holds
+ * the high-frequency text controls: Font, Size, B/I/U, text/background colour, Align, Link
+ * (page/url/anchor + open behavior via the shared LinkEditor).
+ *
+ * Covers H1–H6 (heading/subheading), Body/Quote (text), Button and List — Menu/Submenu are
+ * EXCLUDED (Ali: they're handled by the Menu inspector + link plumbing).
+ *
+ * B/I/U are selection-aware on rich text elements: with a live text selection inside the
+ * element they wrap just the selection (inline <b>/<i>/<u>, sanitized on commit); without one
+ * they toggle the whole element's style fields.
  */
-type PageOpt = { title: string; slug: string };
+
+type Caps = {
+  font: boolean;
+  size: boolean;
+  biu: "rich" | "element" | "none"; // rich = selection-aware; element = whole-element only
+  underline: boolean;
+  colorKey: string;                 // schema key for text colour
+  bgKey?: string;                   // schema key for background colour
+  align: boolean;
+  link: boolean;
+  /** extra keys patched together with colorKey (list marker follows text colour) */
+  colorAlsoKeys?: string[];
+  /** href fallback when the link is removed (button.href is required) */
+  hrefFallback?: string;
+};
+
+function capsFor(type: string): Caps {
+  if (type === "button") {
+    return { font: true, size: true, biu: "element", underline: false, colorKey: "textColor", bgKey: "bgColor", align: true, link: true, hrefFallback: "#" };
+  }
+  if (type === "bullet-list") {
+    // link: true → edits the FOCUSED ITEM's link (lists carry per-item links, D-219).
+    return { font: true, size: true, biu: "none", underline: false, colorKey: "textColor", align: false, link: true, colorAlsoKeys: ["color"] };
+  }
+  // heading / subheading / text (Body, Quote)
+  return { font: true, size: true, biu: "rich", underline: true, colorKey: "color", bgKey: "bgColor", align: true, link: true };
+}
 
 export default function TextFormatPopup({
   content, onPatch, customFonts, tenantId, selKey,
@@ -24,15 +58,7 @@ export default function TextFormatPopup({
   const ref = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
   const [showLink, setShowLink] = useState(false);
-  const [pages, setPages] = useState<PageOpt[]>([]);
-
-  // Load the site's pages once for the URL picker.
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.from("website_pages").select("title, slug, draft_slug").eq("tenant_id", tenantId).then(({ data }) => {
-      if (Array.isArray(data)) setPages(data.map((p: any) => ({ title: p.title, slug: p.draft_slug || p.slug })).filter((p) => p.slug));
-    });
-  }, [tenantId]);
+  const caps = capsFor(String(content.type));
 
   // Position above the selected element; flip below if it would clip the top.
   const reposition = () => {
@@ -61,10 +87,36 @@ export default function TextFormatPopup({
   }, [selKey]);
 
   const bold = String(content.fontWeight ?? "") === "700" || content.fontWeight === "bold";
-  const hasLink = !!content.href;
+  const hasLink = !!content.href || !!content.link?.href;
+  const color = content[caps.colorKey] as string | undefined;
+  const bg = caps.bgKey ? (content[caps.bgKey] as string | undefined) : undefined;
+
+  // Selection-aware inline formatting: when the user selected TEXT inside the element being
+  // edited, wrap just that selection (execCommand emits <b>/<i>/<u>; InlineText sanitizes on
+  // commit). Otherwise fall back to the whole-element toggle.
+  const applyBiu = (cmd: "bold" | "italic" | "underline", fallback: () => void) => {
+    if (caps.biu === "rich") {
+      const sel = window.getSelection();
+      const anchor = document.querySelector('[data-abc-selected="1"]');
+      if (sel && !sel.isCollapsed && anchor && sel.anchorNode && anchor.contains(sel.anchorNode)) {
+        document.execCommand("styleWithCSS", false, "false");
+        document.execCommand(cmd);
+        return;
+      }
+    }
+    fallback();
+  };
+
+  const setColor = (v: string) => {
+    const patch: Record<string, unknown> = { [caps.colorKey]: v };
+    for (const k of caps.colorAlsoKeys ?? []) patch[k] = v;
+    onPatch(patch);
+  };
 
   const btn = (active: boolean) =>
     `grid h-7 w-7 place-items-center rounded-md border text-sm ${active ? "border-[#1e3a8a] bg-[#1e3a8a] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`;
+  // Format buttons must NOT steal focus/selection from the contentEditable → preventDefault.
+  const keepSel = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
   return (
     <div
@@ -77,53 +129,85 @@ export default function TextFormatPopup({
     >
       <div className="flex flex-wrap items-center gap-1.5">
         {/* Font */}
-        <div className="w-36"><FontPicker value={content.fontFamily} onChange={(v) => onPatch({ fontFamily: v })} customFonts={customFonts} /></div>
+        {caps.font && <div className="w-36"><FontPicker value={content.fontFamily} onChange={(v) => onPatch({ fontFamily: v })} customFonts={customFonts} /></div>}
         {/* Size */}
-        <input type="number" min={8} max={200} value={content.fontSize ?? ""} placeholder="Size"
-          onChange={(e) => onPatch({ fontSize: e.target.value ? Number(e.target.value) : undefined })}
-          className="h-7 w-16 rounded-md border border-slate-200 px-2 text-xs" title="Font size (px)" />
-        {/* Style */}
-        <button type="button" className={btn(bold)} title="Bold" onClick={() => onPatch({ fontWeight: bold ? "400" : "700" })}><b>B</b></button>
-        <button type="button" className={btn(!!content.italic)} title="Italic" onClick={() => onPatch({ italic: !content.italic })}><i>I</i></button>
+        {caps.size && (
+          <input type="number" min={8} max={200} value={content.fontSize ?? ""} placeholder="Size"
+            onChange={(e) => onPatch({ fontSize: e.target.value ? Number(e.target.value) : undefined })}
+            className="h-7 w-16 rounded-md border border-slate-200 px-2 text-xs" title="Font size (px)" />
+        )}
+        {/* B / I / U */}
+        {caps.biu !== "none" && (
+          <>
+            <button type="button" className={btn(bold)} title="Bold (selection or whole element)" onMouseDown={keepSel}
+              onClick={() => applyBiu("bold", () => onPatch({ fontWeight: bold ? "400" : "700" }))}><b>B</b></button>
+            <button type="button" className={btn(!!content.italic)} title="Italic" onMouseDown={keepSel}
+              onClick={() => applyBiu("italic", () => onPatch({ italic: !content.italic }))}><i>I</i></button>
+            {caps.underline && (
+              <button type="button" className={btn(!!content.underline)} title="Underline" onMouseDown={keepSel}
+                onClick={() => applyBiu("underline", () => onPatch({ underline: !content.underline }))}><u>U</u></button>
+            )}
+          </>
+        )}
         {/* Text colour */}
         <label className="relative grid h-7 w-7 cursor-pointer place-items-center rounded-md border border-slate-200" title="Text colour">
-          <span className="text-[9px] font-bold leading-none" style={{ color: content.color || "#0f172a" }}>A</span>
-          <input type="color" value={/^#/.test(content.color || "") ? content.color : "#0f172a"} onChange={(e) => onPatch({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+          <span className="text-[9px] font-bold leading-none" style={{ color: color || "#0f172a" }}>A</span>
+          <input type="color" value={/^#/.test(color || "") ? color : "#0f172a"} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
         </label>
         {/* Background colour */}
-        <label className="relative grid h-7 w-7 cursor-pointer place-items-center rounded-md border border-slate-200" title="Background colour">
-          <span className="grid h-4 w-4 place-items-center rounded text-[9px] font-bold" style={{ background: content.bgColor || "#fde68a", color: "#0f172a" }}>A</span>
-          <input type="color" value={/^#/.test(content.bgColor || "") ? content.bgColor : "#fde68a"} onChange={(e) => onPatch({ bgColor: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
-          {content.bgColor && <button type="button" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onPatch({ bgColor: undefined }); }} title="Clear background" className="absolute -right-1.5 -top-1.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-slate-700 text-[8px] text-white">×</button>}
-        </label>
+        {caps.bgKey && (
+          <label className="relative grid h-7 w-7 cursor-pointer place-items-center rounded-md border border-slate-200" title="Background colour">
+            <span className="grid h-4 w-4 place-items-center rounded text-[9px] font-bold" style={{ background: bg || "#fde68a", color: "#0f172a" }}>A</span>
+            <input type="color" value={/^#/.test(bg || "") ? bg : "#fde68a"} onChange={(e) => onPatch({ [caps.bgKey!]: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+            {bg && <button type="button" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onPatch({ [caps.bgKey!]: undefined }); }} title="Clear background" className="absolute -right-1.5 -top-1.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-slate-700 text-[8px] text-white">×</button>}
+          </label>
+        )}
         {/* Align */}
-        <div className="flex overflow-hidden rounded-md border border-slate-200">
-          {(["left", "center", "right"] as const).map((a) => (
-            <button key={a} type="button" title={`Align ${a}`} onClick={() => onPatch({ align: a })}
-              className={`grid h-7 w-7 place-items-center text-xs ${content.align === a ? "bg-[#1e3a8a] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
-              {a === "left" ? "⯇" : a === "center" ? "≡" : "⯈"}
-            </button>
-          ))}
-        </div>
+        {caps.align && (
+          <div className="flex overflow-hidden rounded-md border border-slate-200">
+            {(["left", "center", "right"] as const).map((a) => (
+              <button key={a} type="button" title={`Align ${a}`} onClick={() => onPatch({ align: a })}
+                className={`grid h-7 w-7 place-items-center text-xs ${content.align === a ? "bg-[#1e3a8a] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                {a === "left" ? "⯇" : a === "center" ? "≡" : "⯈"}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Link toggle */}
-        <button type="button" className={btn(showLink || hasLink)} title="Link" onClick={() => setShowLink((s) => !s)}>🔗</button>
+        {caps.link && <button type="button" className={btn(showLink || hasLink)} title="Link" onClick={() => setShowLink((s) => !s)}>🔗</button>}
       </div>
 
-      {showLink && (
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
-          <input value={content.href ?? ""} onChange={(e) => onPatch({ href: e.target.value || undefined })}
-            placeholder="https://… or /page" className="h-7 min-w-[150px] flex-1 rounded-md border border-slate-200 px-2 text-xs" />
-          <select value="" onChange={(e) => { if (e.target.value) onPatch({ href: e.target.value }); }}
-            className="h-7 rounded-md border border-slate-200 px-1 text-xs" title="Pick a page">
-            <option value="">Page…</option>
-            {pages.map((p) => <option key={p.slug} value={`/${p.slug}`}>{p.title || p.slug}</option>)}
-          </select>
-          <select value={content.target ?? "_self"} onChange={(e) => onPatch({ target: e.target.value })}
-            className="h-7 rounded-md border border-slate-200 px-1 text-xs" title="Open in">
-            <option value="_self">Same tab</option>
-            <option value="_blank">New window</option>
-          </select>
-          {hasLink && <button type="button" onClick={() => onPatch({ href: undefined, target: undefined })} className="h-7 rounded-md border border-slate-200 px-2 text-xs text-red-500 hover:bg-red-50">Remove</button>}
+      {caps.link && showLink && (
+        <div className="border-t border-slate-100 pt-2">
+          {/* D-222: the shared LinkEditor — page / URL / anchor + open behavior. href stays
+              materialized so renderers (and legacy data) keep working unchanged. */}
+          {content.type === "bullet-list" ? (() => {
+            // Lists: the link belongs to the item LAST FOCUSED on the canvas (the list root
+            // records data-abc-focus-idx). No focused item yet → ask the user to click one.
+            const root = document.querySelector('[data-abc-selected="1"] [data-abc-list]') as HTMLElement | null;
+            const idxRaw = root?.getAttribute("data-abc-focus-idx");
+            const idx = idxRaw != null ? Number(idxRaw) : NaN;
+            const items: any[] = Array.isArray(content.items) ? content.items : [];
+            if (!Number.isInteger(idx) || idx < 0 || idx >= items.length) {
+              return <span className="text-[11px] text-slate-400">Click into a list item first, then set its link here.</span>;
+            }
+            return (
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">Link for item {idx + 1}: “{String(items[idx]?.text ?? "").slice(0, 40)}”</span>
+                <LinkEditor
+                  value={items[idx]?.link}
+                  onChange={(lv) => onPatch({ items: items.map((it, j) => (j === idx ? { ...it, link: lv } : it)) })}
+                  tenantId={tenantId}
+                />
+              </div>
+            );
+          })() : (
+            <LinkEditor
+              value={(content.link as LinkValue | undefined) ?? content.href}
+              onChange={(lv) => onPatch({ link: lv, href: lv?.href ?? caps.hrefFallback, target: lv?.target })}
+              tenantId={tenantId}
+            />
+          )}
         </div>
       )}
     </div>
