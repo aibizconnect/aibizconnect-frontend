@@ -69,6 +69,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
   const [addCols, setAddCols] = useState<number | undefined>(undefined);
   const [addSectionsSignal, setAddSectionsSignal] = useState(0); // bump → Canvas appends a prebuilt template
   const [addSections, setAddSections] = useState<SectionContent[] | null>(null);
+  const [generateSignal, setGenerateSignal] = useState(0); // bump → Canvas opens the AI Section generator (toolbar icon)
   const [dirty, setDirty] = useState(false);        // current page has unsaved edits
   const [saveSignal, setSaveSignal] = useState(0);  // bump → Canvas flushes immediately
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -265,6 +266,16 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
               </button>
             );
           })}
+          {/* AI Section generator (Ali 2026-06-11): action icon beside Cookie Consent — opens
+              the generate modal on the canvas (replaces the old in-canvas button). */}
+          {selectedPageId && (
+            <button onClick={() => setGenerateSignal((n) => n + 1)} title="AI Generate Section"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#7c3aed] transition hover:border-[#7c3aed] hover:bg-[#7c3aed] hover:text-white">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
+                <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.9 2.3 2.3.9-2.3.9L19 21.4l-.9-2.3-2.3-.9 2.3-.9zM5 16l.7 1.8 1.8.7-1.8.7L5 21l-.7-1.8-1.8-.7 1.8-.7z" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -340,7 +351,7 @@ export default function EditorPage({ tenantId, initialPageId }: EditorPageProps)
             </div>
           )}
           <Canvas tenantId={tenantId} websiteId={websiteId} selectedPageId={selectedPageId} selectedPage={selectedPage} reloadKey={reloadKey} themeKey={themeKey} onValidityChange={setCanPublish}
-            addSignal={addSignal} addType={addType} addCols={addCols} addSectionsSignal={addSectionsSignal} addSections={addSections} onRequestAdd={() => { setMode("add"); setLeftOpen(true); }}
+            addSignal={addSignal} addType={addType} addCols={addCols} addSectionsSignal={addSectionsSignal} addSections={addSections} generateSignal={generateSignal} onRequestAdd={() => { setMode("add"); setLeftOpen(true); }}
             saveSignal={saveSignal} onDirtyChange={(d) => setDirty((p) => (p === d ? p : d))} onSaveStateChange={handleSaveState}
             onStructureChange={setStructure} selectSignal={selectSignal} selectTarget={selectTarget}
             onSelectionChange={setLayerSel} onBlocksChange={setGlobalBlocks}

@@ -74,6 +74,7 @@ interface CanvasProps {
   addCols?: number;                   // column count when addType === "row"
   addSectionsSignal?: number;         // bumped when a prebuilt template is picked
   addSections?: SectionContent[] | null; // the template's section(s) to append
+  generateSignal?: number;            // bumped by the toolbar AI icon → opens the AI Section generator
   onRequestAdd?: () => void;          // ask the shell to open the left Add-Elements panel
   onDirtyChange?: (dirty: boolean) => void; // pending unsaved edits (for the switch guard)
   onSaveStateChange?: (state: "saving" | "saved" | "error") => void; // live save status indicator
@@ -112,6 +113,7 @@ export default function Canvas({
   addCols,
   addSectionsSignal,
   addSections,
+  generateSignal,
   onRequestAdd,
   onDirtyChange,
   onSaveStateChange,
@@ -233,6 +235,12 @@ export default function Canvas({
     setAiPrompt("");
     setAiOpen(true);
   }
+  // Toolbar AI icon (Ali 2026-06-11): the AI Section generator opens from the top toolbar now —
+  // the in-canvas button row was removed.
+  useEffect(() => {
+    if (generateSignal) openGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generateSignal]);
   function openRewrite(index: number) {
     setAiMode("rewrite");
     setAiIndex(index);
@@ -1219,10 +1227,10 @@ export default function Canvas({
         onSave={doSaveAsset}
         onClose={() => { setSaveAssetIdx(null); setImportedAsset(null); }}
       />
-      <div className="sticky top-0 z-30 mb-4 flex items-center justify-between border-b border-slate-200/70 bg-white/90 py-2 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <h2 className="text-xl font-semibold">
-          {selectedPage?.title || "No page selected"}
-        </h2>
+      {/* Ali (2026-06-11): no page title here (it already shows in the top toolbar) and no
+          Add/AI buttons (the + toolbar button and the AI toolbar icon own those) — the sticky
+          bar keeps ONLY the device switcher, pinned right. */}
+      <div className="sticky top-0 z-30 mb-4 flex items-center justify-end border-b border-slate-200/70 bg-white/90 py-2 backdrop-blur supports-[backdrop-filter]:bg-white/70">
         <div className="flex items-center gap-2">
           {/* responsive device preview — stays pinned to the top of the canvas while scrolling */}
           <div className="flex overflow-hidden rounded-lg border border-gray-300 text-xs">
@@ -1247,21 +1255,6 @@ export default function Canvas({
 
       <div className="flex gap-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-4 flex items-center gap-2">
-            <button
-              onClick={() => onRequestAdd?.()}
-              className="rounded-lg bg-[#1e3a8a] px-3 py-2 text-sm font-medium text-white hover:bg-[#1e3a8a]/90"
-            >
-              ＋ Add Elements
-            </button>
-            <button
-              onClick={openGenerate}
-              className="rounded-lg bg-gradient-to-r from-[#7c3aed] to-[#2563eb] px-3 py-2 text-sm font-medium text-white"
-            >
-              ✨ AI Generate
-            </button>
-          </div>
-
           {/* Live page-background preview (inline image/colour/gradient behind sections;
               blur renders on the Preview/public layered path). */}
           <div className="abc-canvas-fonts mx-auto transition-all"
