@@ -167,3 +167,31 @@ export async function createGoogleEvent(tenantId: string, calendarId: string, ev
     return res.ok ? (j?.id ?? null) : null;
   } catch { return null; }
 }
+
+/** Outbound propagation of a reschedule/rename onto the mirrored Google event (D-243). */
+export async function updateGoogleEvent(tenantId: string, calendarId: string, eventId: string, ev: { summary?: string; startIso?: string; endIso?: string }): Promise<boolean> {
+  const auth = await validAccessToken(tenantId, calendarId);
+  if (!auth) return false;
+  try {
+    const body: Record<string, unknown> = {};
+    if (ev.summary != null) body.summary = ev.summary;
+    if (ev.startIso) body.start = { dateTime: ev.startIso };
+    if (ev.endIso) body.end = { dateTime: ev.endIso };
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}`, {
+      method: "PATCH", headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function deleteGoogleEvent(tenantId: string, calendarId: string, eventId: string): Promise<boolean> {
+  const auth = await validAccessToken(tenantId, calendarId);
+  if (!auth) return false;
+  try {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.externalCalendarId)}/events/${encodeURIComponent(eventId)}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${auth.token}` },
+    });
+    return res.ok || res.status === 404 || res.status === 410; // already gone = success
+  } catch { return false; }
+}

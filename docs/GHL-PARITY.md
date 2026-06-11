@@ -18,6 +18,10 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 | Reschedule / cancel | Move or kill a booking | Chip popover → Reschedule (datetime+duration) / status / Delete | ✅ | Calendar view |
 | Calendar settings (CRUD) | Create calendars, duration, hours, buffer | Settings tab (name, slug link, duration, weekdays, hours, buffer, tz, assignee) | ✅ | → Settings |
 | Connections (Google/Outlook/iCal) | Two-way busy sync | Per-calendar connect; busy times block slots; bookings mirror out | ✅ | Settings → calendar → Edit |
+| Conflict check vs personal calendar | Warn before double-booking over synced events | findConflicts on staff create AND reschedule: internal + blocked + provider busy → warn + "Book anyway" override (D-241) | ✅ | + New modal / chip popover |
+| Synced events visible on grid | See personal-calendar busy on the staff calendar | Synthetic read-only "Busy — Google/Outlook/iCal" chips, dashed gray (D-242) | ✅ | Calendar view |
+| Outbound sync of staff bookings | Manual appts land on the synced calendar | Manual creates mirror out; reschedule/cancel/delete propagate via stored external_event_id (D-243/D-244) | ✅ | automatic |
+| Inbound two-way sync (edit in Google → updates here) | Full bidirectional sync | Busy shown + conflicts checked; inbound edits don't rewrite our entries | ⏳ webhook/poll loop later (D-244 deferral) | — |
 | Booking page | Public self-serve booking | /book/T/slug (brand-themed, creates appointment + contact) | ✅ | public |
 | Calendar **Groups** | One link listing several calendars | Booking index page listing all calendars | 🟡 equivalent | /book/T |
 | Date-specific hours / holidays | Override availability on a date | Covered by **Blocked time** (block the day/window) | 🟡 covered | Calendar view |
@@ -53,5 +57,6 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 | Send email/SMS (incl. bulk) | Outbound messaging | — | 🚫 standing **no-auto-send** rule | — |
 | Documents/files on contact | Attachments | — | ⏳ wire to Media Library later | — |
 
-**DDL prerequisites:** 0043+0044+0045 applied ✅; **0046 (soft-delete `deleted_at`) pending** —
-until applied, deletes fall back to permanent and the Restore tab shows empty.
+**DDL prerequisites:** 0043+0044+0045+0046 applied ✅; **0047 (drop v0 same-start unique
+index) pending** — until applied, a forced override onto the *exact same start minute*
+returns a clear migration hint; all other conflict/override paths work.

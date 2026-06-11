@@ -1,32 +1,37 @@
-# Build request: D-149 finer section segmentation for imports
+# Builder → Architect: Contacts GHL-parity build (Ali's go — "check the GHL contacts menu and do the same")
 
-Render bridge is LIVE in prod (render.aibizconnect.app on Cloudflare, data-cs flowing). Now the
-quality gap: a full Stitch page decomposes into only ~2 top-level sections — richly nested + fully
-editable, but COARSE. We wrap top-level children of <main> as bands (htmlToSections in
-lib/sites/html-importer.ts), so a design with 2 big wrapper divs → 2 rows; all the real sections
-(hero, features, CTA, footer-ish) end up nested inside instead of being separate editable bands.
+Current state: tenant_contacts (name/email/phone/tags text[]/score/source/created_at) + tenant_tags + tenant_custom_fields exist live; the list UI is a bare table (client search, add, delete — no detail link, no tags column, no sort/pagination/bulk/import/export); the contact-detail page and tasks page are DEAD scaffolds (fetch JSON from HTML routes, reference nonexistent first_name/company fields, no notes/tasks tables exist).
 
-## What we have
-- `htmlToSections(html, baseUrl, {faithful})` walks <main>, descends single-wrapper divs (up to 3),
-  then wraps each top-level child as a 1-col row carrying _style from data-cs; detects card grids →
-  multi-column rows. data-cs carries: padding*, margin*, color, backgroundColor, backgroundImage,
-  fontSize/Weight, lineHeight, textAlign, display, gap, justify/align, maxWidth, boxShadow,
-  gridTemplateColumns, flexWrap.
+GHL Contacts IA to mirror (v1):
+- Tab strip: Smart Lists (the contacts list w/ saved views) | Tasks | Companies (coming-soon stub).
+- List: search (server-side), filter popover (tags multi-select from tenant_tags, source, created date range), sortable columns (name/created/score), pagination 50/page, columns: ☑ | Name (initials avatar + email/phone) | Tags chips | Score | Source | Created.
+- Smart Lists: "All" + user-saved named filter sets, + New Smart List saves current filters.
+- Bulk bar on selection: Add tag | Remove tag | Delete | Export CSV. Top bar: + Add contact (modal), Import CSV (paste/upload → column mapping → dedupe by email), Export all-filtered.
+- Contact detail (REBUILD): left panel editable fields (name/email/phone/source/score/owner/DND/tags + custom fields from tenant_custom_fields rendered by field_type, values in contacts.custom jsonb); tabs: Notes (add/list), Tasks (add/complete/list), Appointments (match tenant_appointments by contact email — calendar v1 just shipped), Opportunities (existing tenant_opportunities by contact_id).
+- Tasks tab (all-contacts rollup): open/done filter, due dates, complete toggle, add task (optionally linked to a contact).
 
-## The ask (D-149): split into visual bands
-Rule on a concrete, deterministic heuristic (no AI) to break a page into natural sections, using the
-data-cs we already capture:
-1. What signals a band boundary? Proposed: a descendant block whose data-cs shows a BACKGROUND change
-   (backgroundColor/backgroundImage differs from page default) OR large vertical separation
-   (paddingTop/Bottom or marginTop/Bottom >= ~48px) OR a semantic <section>/<header>/<footer>.
-2. When the top-level child is ONE big wrapper, how deep do we descend to find the real band
-   boundaries without over-fragmenting (every styled div becoming a section)? Propose a stop rule
-   (e.g. only split at children that are full-width AND have a bg-change or >=48px gap; min text/
-   media content per band; cap N bands).
-3. Keep each resulting band a row with its own _style; preserve document order; never drop content;
-   keep card-grid → multi-column behavior intact.
-4. Guard against regressions: simple sites that already segment well must not get MORE fragmented.
+Proposed DDL (0045 — goes through Ali's SQL-editor queue):
+```sql
+alter table public.tenant_contacts
+  add column if not exists custom jsonb not null default '{}'::jsonb,
+  add column if not exists owner_email text,
+  add column if not exists dnd boolean not null default false,
+  add column if not exists updated_at timestamptz not null default now();
+create index if not exists tenant_contacts_email_idx on public.tenant_contacts (tenant_id, lower(email));
+create table if not exists public.tenant_contact_notes (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid not null, contact_id uuid not null,
+  body text not null, author_email text, created_at timestamptz not null default now());
+create table if not exists public.tenant_contact_tasks (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid not null, contact_id uuid,
+  title text not null, due_at timestamptz, status text not null default 'open',  -- open | done
+  assignee_email text, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table if not exists public.tenant_smart_lists (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid not null,
+  name text not null, filters jsonb not null default '{}'::jsonb, position int not null default 0,
+  created_at timestamptz not null default now());
+```
+(+ indexes on (tenant_id, contact_id) for notes/tasks; interim-open RLS same as siblings.)
 
-Deliverable: the exact algorithm (inputs = the data-cs we have), the file/functions to change in
-lib/sites/html-importer.ts, edge cases, and a couple of before/after expectations (e.g. a Stitch page
-with hero+features+cta+footer → 4-ish editable bands, each styled). Keep faithful mode behavior.
+API (lib/crm.ts): listContactsPage({q,tags,source,createdFrom,createdTo,sort,dir,page,pageSize})→{rows,total}; getContact; updateContact(patch incl. custom/dnd/owner — degrade gracefully pre-DDL); bulkAddTag/bulkRemoveTag/bulkDelete; importContacts(rows, dedupe-by-email)→{inserted,skipped}; notes/tasks/smartlists CRUD. All tenant-scoped; audit bulk-delete + import.
+
+Constraints: no auto-send anywhere (no SMS/email actions in bulk bar — GHL has them, we exclude by standing rule); CSV import is drafts-of-DATA (inserts) which is fine. Number rulings D-229+; flag anything to cut for v1. Be decisive.

@@ -58,7 +58,7 @@ export default function CalendarView({ tenantId, calendars }: { tenantId: string
     const id = ++reloadRef.current;
     startT(async () => {
       try {
-        const rows = await listEntriesRangeAction(tenantId, range.from.toISOString(), range.to.toISOString());
+        const rows = await listEntriesRangeAction(tenantId, range.from.toISOString(), range.to.toISOString(), undefined, true);
         if (id === reloadRef.current) setEntries(rows);
       } catch (e: any) { notifyError(e?.message || "Could not load appointments."); }
     });
@@ -121,6 +121,22 @@ export default function CalendarView({ tenantId, calendars }: { tenantId: string
     const width = 100 / total;
     const color = calColor(en.calendarId);
     const blocked = en.kind === "blocked";
+    // Personal-calendar busy windows (D-242): read-only, no popover — they live in Google/Outlook.
+    if (en.kind === "external_busy") {
+      return (
+        <div
+          key={en.id}
+          title={en.title ?? "Busy — personal calendar"}
+          className="pointer-events-none absolute overflow-hidden rounded-md border border-dashed border-slate-300 px-1.5 py-0.5 text-left text-[11px] leading-tight text-slate-500"
+          style={{
+            top, height, left: `${lane * width}%`, width: `calc(${width}% - 2px)`,
+            background: "repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 6px, #e2e8f0 6px, #e2e8f0 12px)",
+          }}
+        >
+          <span className="font-semibold">{fmtTime(start)}</span> {en.title ?? "Busy"}
+        </div>
+      );
+    }
     return (
       <button
         key={en.id}
@@ -210,12 +226,19 @@ export default function CalendarView({ tenantId, calendars }: { tenantId: string
                   {d.getDate()}
                 </div>
                 {todays.slice(0, 3).map((en) => (
+                  en.kind === "external_busy" ? (
+                    <div key={en.id} className="pointer-events-none mb-0.5 truncate rounded border border-dashed border-slate-300 px-1 text-[10px] leading-4 text-slate-500"
+                      style={{ background: "repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 5px,#e2e8f0 5px,#e2e8f0 10px)" }}>
+                      {fmtTime(new Date(en.startAt))} {en.title ?? "Busy"}
+                    </div>
+                  ) : (
                   <div key={en.id}
                     onClick={(ev) => { ev.stopPropagation(); setPop({ entry: en, x: ev.clientX, y: ev.clientY }); }}
                     className="mb-0.5 truncate rounded px-1 text-[10px] leading-4 text-white"
                     style={{ background: en.kind === "blocked" ? "repeating-linear-gradient(45deg,#94a3b8,#94a3b8 5px,#cbd5e1 5px,#cbd5e1 10px)" : calColor(en.calendarId) }}>
                     {fmtTime(new Date(en.startAt))} {en.kind === "blocked" ? (en.title ?? "Blocked") : (en.title || en.name || "Appt")}
                   </div>
+                  )
                 ))}
                 {todays.length > 3 && <div className="text-[10px] text-slate-400">+{todays.length - 3} more</div>}
               </div>
@@ -321,7 +344,15 @@ function EntryPopover({ tenantId, pop, calName, onClose, onChanged }: {
   const reschedule = async () => {
     setBusy(true);
     const s = new Date(start);
-    const r = await updateEntryAction(tenantId, entry.id, { startAt: s.toISOString(), endAt: new Date(s.getTime() + mins * 60_000).toISOString() });
+    const patch = { startAt: s.toISOString(), endAt: new Date(s.getTime() + mins * 60_000).toISOString() };
+    let r = await updateEntryAction(tenantId, entry.id, patch);
+    // Conflict (incl. the connected personal calendar) → warn + explicit override (D-241).
+    if (!r.ok && r.conflicts?.length) {
+      setBusy(false);
+      if (!(await confirmDialog(`${r.error} Reschedule anyway?`, { confirmText: "Reschedule anyway" }))) return;
+      setBusy(true);
+      r = await updateEntryAction(tenantId, entry.id, { ...patch, force: true });
+    }
     setBusy(false);
     if (!r.ok) notifyError(r.error || "Could not reschedule."); else onChanged();
   };
@@ -404,9 +435,21 @@ function EntryModal({ tenantId, calendars, kind, start, onClose, onCreated }: {
     setBusy(true);
     const s = new Date(startAt);
     const endIso = new Date(s.getTime() + mins * 60_000).toISOString();
-    const r = kind === "blocked"
-      ? await createBlockedTimeAction(tenantId, { calendarId, startAt: s.toISOString(), endAt: endIso, title: title || undefined })
-      : await createManualAppointmentAction(tenantId, { calendarId, title: title || undefined, name: name || undefined, email: email || undefined, phone: phone || undefined, startAt: s.toISOString(), endAt: endIso, notes: notes || undefined });
+    if (kind === "blocked") {
+      const r = await createBlockedTimeAction(tenantId, { calendarId, startAt: s.toISOString(), endAt: endIso, title: title || undefined });
+      setBusy(false);
+      if (!r.ok) notifyError(r.error || "Could not save."); else onCreated();
+      return;
+    }
+    const input = { calendarId, title: title || undefined, name: name || undefined, email: email || undefined, phone: phone || undefined, startAt: s.toISOString(), endAt: endIso, notes: notes || undefined };
+    let r = await createManualAppointmentAction(tenantId, input);
+    // Conflict (incl. the connected personal calendar) → warn + explicit override (D-241).
+    if (!r.ok && r.conflicts?.length) {
+      setBusy(false);
+      if (!(await confirmDialog(`${r.error} Book anyway?`, { confirmText: "Book anyway" }))) return;
+      setBusy(true);
+      r = await createManualAppointmentAction(tenantId, { ...input, force: true });
+    }
     setBusy(false);
     if (!r.ok) notifyError(r.error || "Could not save."); else onCreated();
   };

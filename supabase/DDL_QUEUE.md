@@ -19,6 +19,20 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 
 ## Pending
 
+### ⏳ PENDING — 0047: drop the v0 exact-start unique index (calendar conflicts D-241)
+Generated: 2026-06-11 (file `supabase/migrations/0047_drop_slot_unique.sql`).
+`tenant_appointments_slot_idx` (unique on tenant_id, calendar_id, start_at where
+status='booked') was the v0 anti-double-booking guard. Conflict protection now lives in
+code and is strictly stronger — interval-overlap across appointments, blocked time AND
+the connected personal calendar (Google/Outlook/iCal), with the staff "book anyway"
+override (GHL behavior, D-241). The index breaks that override (live-verified: forced
+same-start reschedule → duplicate-key). Until applied, same-start overrides return a
+clear hint; everything else works.
+
+```sql
+drop index if exists public.tenant_appointments_slot_idx;
+```
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres

@@ -137,3 +137,31 @@ export async function createMsEvent(tenantId: string, calendarId: string, ev: { 
     return res.ok ? (j?.id ?? null) : null;
   } catch { return null; }
 }
+
+/** Outbound propagation of a reschedule/rename onto the mirrored Outlook event (D-243). */
+export async function updateMsEvent(tenantId: string, calendarId: string, eventId: string, ev: { summary?: string; startIso?: string; endIso?: string }): Promise<boolean> {
+  const token = await validMsToken(tenantId, calendarId);
+  if (!token) return false;
+  try {
+    const body: Record<string, unknown> = {};
+    if (ev.summary != null) body.subject = ev.summary;
+    if (ev.startIso) body.start = { dateTime: ev.startIso.replace(/Z$/, ""), timeZone: "UTC" };
+    if (ev.endIso) body.end = { dateTime: ev.endIso.replace(/Z$/, ""), timeZone: "UTC" };
+    const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(eventId)}`, {
+      method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function deleteMsEvent(tenantId: string, calendarId: string, eventId: string): Promise<boolean> {
+  const token = await validMsToken(tenantId, calendarId);
+  if (!token) return false;
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(eventId)}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok || res.status === 404 || res.status === 410;
+  } catch { return false; }
+}

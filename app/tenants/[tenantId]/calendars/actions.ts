@@ -4,7 +4,7 @@ import {
   listCalendars, createCalendar, updateCalendar, deleteCalendar, listAppointments,
   listEntriesRange, createManualAppointment, createBlockedTime, updateEntry, deleteEntry,
   type Calendar, type Appointment, type CalendarInput, type CalendarPatch,
-  type CalendarEntry, type ManualAppointmentInput, type EntryPatch,
+  type CalendarEntry, type ManualAppointmentInput, type EntryPatch, type ConflictInfo,
 } from "@/lib/calendars";
 
 export async function listCalendarsAction(tenantId: string): Promise<Calendar[]> { return listCalendars(tenantId); }
@@ -40,15 +40,15 @@ async function audit(tenantId: string, action: string, meta: Record<string, unkn
   } catch { /* audit is best-effort — never blocks the operation */ }
 }
 
-export async function listEntriesRangeAction(tenantId: string, fromISO: string, toISO: string, calendarIds?: string[]): Promise<CalendarEntry[]> {
+export async function listEntriesRangeAction(tenantId: string, fromISO: string, toISO: string, calendarIds?: string[], includeExternalBusy?: boolean): Promise<CalendarEntry[]> {
   await requireTenant(tenantId);
-  return listEntriesRange(tenantId, { fromISO, toISO, calendarIds });
+  return listEntriesRange(tenantId, { fromISO, toISO, calendarIds, includeExternalBusy });
 }
 
-export async function createManualAppointmentAction(tenantId: string, input: ManualAppointmentInput): Promise<{ ok: boolean; error?: string }> {
+export async function createManualAppointmentAction(tenantId: string, input: ManualAppointmentInput): Promise<{ ok: boolean; error?: string; conflicts?: ConflictInfo[] }> {
   await requireTenant(tenantId);
   const r = await createManualAppointment(tenantId, input);
-  if (r.ok) await audit(tenantId, "calendar.appointment.create", { calendarId: input.calendarId, startAt: input.startAt, source: "manual" });
+  if (r.ok) await audit(tenantId, "calendar.appointment.create", { calendarId: input.calendarId, startAt: input.startAt, source: "manual", forced: !!input.force });
   return r;
 }
 
@@ -59,7 +59,7 @@ export async function createBlockedTimeAction(tenantId: string, input: { calenda
   return r;
 }
 
-export async function updateEntryAction(tenantId: string, id: string, patch: EntryPatch): Promise<{ ok: boolean; error?: string }> {
+export async function updateEntryAction(tenantId: string, id: string, patch: EntryPatch): Promise<{ ok: boolean; error?: string; conflicts?: ConflictInfo[] }> {
   await requireTenant(tenantId);
   const r = await updateEntry(tenantId, id, patch);
   if (r.ok) await audit(tenantId, "calendar.entry.update", { id, patch });
