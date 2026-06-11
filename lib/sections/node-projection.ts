@@ -218,7 +218,7 @@ export function mergePatches(existing: ImportedPatch[], add: ImportedPatch[]): I
       const prev = next.find((x) => x.uid === p.uid && x.op === "style") as Extract<ImportedPatch, { op: "style" }> | undefined;
       next = next.filter((x) => !(x.uid === p.uid && x.op === "style"));
       next.push({ op: "style", uid: p.uid, style: { ...(prev?.style || {}), ...p.style } });
-    } else if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty") {
+    } else if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty" || p.op === "insert") {
       next.push(p);
     } else {
       next = next.filter((x) => !(x.uid === p.uid && x.op === p.op));

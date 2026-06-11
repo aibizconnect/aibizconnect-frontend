@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applyPatches, type ImportedPatch } from "@/lib/sites/lossless-importer";
+import { insertTemplate, freshInsertUid } from "@/lib/sites/insert-templates";
 
 /**
  * Editor for a LOSSLESS imported band (architect D-178..D-183, Copilot-ratified UX).
@@ -274,6 +275,35 @@ export default function ImportedBandEditor({
         });
       }, true);
       d.addEventListener("mouseleave", () => showHover(d, null), true);
+      // DRAG-DROP IN (Ali's spec / D-215): dragging a palette tile over the band lights the
+      // nearest top/bottom indicator; dropping inserts the element as real HTML with a fresh
+      // uid — instantly identified, in the Tree, and editable like the design's own elements.
+      let dropAt: { uid: string; position: "before" | "after" } | null = null;
+      d.addEventListener("dragover", (e) => {
+        if (!e.dataTransfer?.types.includes("text/abc-element")) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+        const t = (e.target as Element)?.closest?.("[data-uid]") as HTMLElement | null;
+        if (!t) { dropAt = null; return; }
+        const r = t.getBoundingClientRect();
+        const before = e.clientY < r.top + r.height / 2;
+        dropAt = { uid: t.getAttribute("data-uid")!, position: before ? "before" : "after" };
+        showHover(d, t);
+        const active = d.getElementById(before ? "abc-ind-top" : "abc-ind-bottom");
+        const idle = d.getElementById(before ? "abc-ind-bottom" : "abc-ind-top");
+        if (active) { active.style.height = "5px"; active.style.opacity = "1"; active.style.background = "#16a34a"; }
+        if (idle) { idle.style.height = "3px"; idle.style.opacity = ".5"; idle.style.background = "#3b82f6"; }
+      }, true);
+      d.addEventListener("drop", (e) => {
+        const payload = e.dataTransfer?.getData("text/abc-element");
+        if (!payload) return;
+        e.preventDefault(); e.stopPropagation();
+        showHover(d, null);
+        if (!dropAt || payload.startsWith("row:")) return; // rows land as new sections, not inside bands
+        const uid = freshInsertUid();
+        const html = insertTemplate(payload, uid);
+        if (html) { setPatchRef.current({ op: "insert", uid: dropAt.uid, position: dropAt.position, html }); setSel(uid); }
+        dropAt = null;
+      }, true);
       d.addEventListener("click", (e) => {
         if ((e.target as Element)?.closest?.("#abc-toolbar")) return; // toolbar buttons handle themselves
         const t = (e.target as Element)?.closest?.("[data-uid]");
@@ -330,7 +360,7 @@ export default function ImportedBandEditor({
    *  order, so two "move up" clicks really move two steps and stay individually revertible. */
   const setPatch = (p: ImportedPatch) => {
     let next: ImportedPatch[];
-    if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty") {
+    if (p.op === "move" || p.op === "duplicate" || p.op === "remove" || p.op === "empty" || p.op === "insert") {
       next = [...patches, p];
     } else if (p.op === "style") {
       const prev = patches.find((x) => x.uid === p.uid && x.op === "style") as Extract<ImportedPatch, { op: "style" }> | undefined;
