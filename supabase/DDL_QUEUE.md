@@ -480,6 +480,9 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — Contacts soft-delete (0046)** (Ali: "Success. No rows returned"):
+  ✅ APPLIED. deleted_at + index. Verified live: delete → Restore tab → restore →
+  visible again; purge = permanent. GHL parity sweep fully operational.
 - **2026-06-11 — Calendar converge (0044) + Contacts parity (0045)** (Ali: "success",
   consolidated block): ✅ APPLIED. tenant_calendars converged to 0041 (buffer/timezone/
   assignee/updated_at), appointment status check widened to the v1 set, connections table
