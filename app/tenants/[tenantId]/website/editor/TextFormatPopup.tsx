@@ -28,6 +28,10 @@ type Caps = {
   colorKey: string;                 // schema key for text colour
   bgKey?: string;                   // schema key for background colour
   align: boolean;
+  /** schema key the Align control writes (default "align"; button → "labelAlign" — the popup
+   *  is a TEXT popup, so its Align means the text INSIDE the element. The element's position
+   *  in its cell lives in Styles → Size & alignment. Ali 2026-06-11.) */
+  alignKey?: string;
   link: boolean;
   /** extra keys patched together with colorKey (list marker follows text colour) */
   colorAlsoKeys?: string[];
@@ -37,7 +41,7 @@ type Caps = {
 
 function capsFor(type: string): Caps {
   if (type === "button") {
-    return { font: true, size: true, biu: "element", underline: false, colorKey: "textColor", bgKey: "bgColor", align: true, link: true, hrefFallback: "#" };
+    return { font: true, size: true, biu: "element", underline: false, colorKey: "textColor", bgKey: "bgColor", align: true, alignKey: "labelAlign", link: true, hrefFallback: "#" };
   }
   if (type === "bullet-list") {
     // link: true → edits the FOCUSED ITEM's link (lists carry per-item links, D-219).
@@ -177,8 +181,8 @@ export default function TextFormatPopup({
         {caps.align && (
           <div className="flex overflow-hidden rounded-md border border-slate-200">
             {(["left", "center", "right"] as const).map((a) => (
-              <button key={a} type="button" title={`Align ${a}`} onClick={() => onPatch({ align: a })}
-                className={`grid h-7 w-7 place-items-center text-xs ${content.align === a ? "bg-[#1e3a8a] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+              <button key={a} type="button" title={`Align text ${a}`} onClick={() => onPatch({ [caps.alignKey ?? "align"]: a })}
+                className={`grid h-7 w-7 place-items-center text-xs ${content[caps.alignKey ?? "align"] === a ? "bg-[#1e3a8a] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
                 {a === "left" ? "⯇" : a === "center" ? "≡" : "⯈"}
               </button>
             ))}

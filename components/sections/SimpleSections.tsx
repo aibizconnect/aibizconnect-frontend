@@ -75,7 +75,9 @@ function HeadingLike({ content, theme, defaultSizeClass, defaultBold, onEditText
     (st as any).WebkitTextFillColor = "transparent";
   }
   if (content.bgColor) { st.backgroundColor = content.bgColor; st.padding = st.padding ?? "0.15em 0.4em"; st.borderRadius = st.borderRadius ?? 6; }
-  const cls = `${sizeClass} ${weightClass} ${alignClass(content.align)}`;
+  // Only force an alignment class when the element SET one — otherwise inherit the universal
+  // Styles → Size & alignment value from the wrapper (hardcoded text-left swallowed it).
+  const cls = `${sizeClass} ${weightClass} ${content.align ? alignClass(content.align) : ""}`;
   if (onEditText) {
     return <InlineText as={Tag} rich className={cls} style={st} text={content.text} onChange={onEditText} />;
   }
@@ -108,7 +110,7 @@ export function TextSection({ content, theme, onEditText }: { content: TextConte
   const st = typographyStyle(content, theme?.colors.text, role);
   if ((content as any).direction === "rtl") st.direction = "rtl";
   if ((content as any).bgColor) { st.backgroundColor = (content as any).bgColor; st.padding = st.padding ?? "0.2em 0.5em"; st.borderRadius = st.borderRadius ?? 6; }
-  const cls = `whitespace-pre-wrap leading-relaxed ${alignClass(content.align)}`;
+  const cls = `whitespace-pre-wrap leading-relaxed ${content.align ? alignClass(content.align) : ""}`;
   if (onEditText) {
     return <InlineText as="p" multiline rich className={cls} style={st} text={content.text} onChange={onEditText} />;
   }
@@ -177,10 +179,17 @@ export function ButtonSection({ content, theme, onEditText }: { content: ButtonC
   // effects (glow/fill) read --abc-btn-color, which we set to the button's own color.
   const hover = (content as any).hover as string | undefined;
   if (hover && hover !== "none") { cls += ` abc-btnfx-${hover}`; (base as any)["--abc-btn-color"] = primary; }
+  // Alignment disconnect fix (Ali 2026-06-11): the WRAPPER aligns the button in its cell — its
+  // own `align` if set, otherwise it INHERITS the universal Styles → Size & alignment value
+  // (no more hardcoded text-left swallowing it). `labelAlign` aligns the text INSIDE the
+  // button (the floating popup's Align) — visible on full-width/wide buttons.
+  const la = (content as any).labelAlign as string | undefined;
+  const justify = la === "left" ? "justify-start" : la === "right" ? "justify-end" : "justify-center";
+  if (la) base.textAlign = la as CSSProperties["textAlign"];
   return (
-    <div className={alignClass(content.align)}>
+    <div className={content.align ? alignClass(content.align) : undefined}>
       <a href={onEditText ? undefined : content.href} target={content.target || "_self"} rel={rel} data-variant={variant}
-        className={`${full ? "flex w-full justify-center" : "inline-flex"} items-center gap-2 ${sizeClass} ${cls}`} style={base}>
+        className={`${full ? `flex w-full ${justify}` : "inline-flex"} items-center gap-2 ${sizeClass} ${cls}`} style={base}>
         {icon && left && icon}
         {onEditText ? <InlineText as="span" text={content.label} onChange={onEditText} /> : content.label}
         {icon && !left && icon}

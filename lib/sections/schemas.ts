@@ -178,7 +178,8 @@ export const buttonSchema = z.object({
   type: z.literal("button"),
   label: z.string(),
   href: z.string(),
-  align: alignEnum.optional(),
+  align: alignEnum.optional(),       // button's position IN ITS CELL (Styles → Size & alignment)
+  labelAlign: alignEnum.optional(),  // text alignment INSIDE the button (the popup's Align — Ali 2026-06-11)
   target: z.enum(["_self", "_blank"]).optional(),
   variant: z.enum(["solid", "outline", "ghost"]).optional(),
   size: z.enum(["sm", "md", "lg"]).optional(),
