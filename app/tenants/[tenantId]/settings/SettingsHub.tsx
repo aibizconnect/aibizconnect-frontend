@@ -12,7 +12,6 @@ import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type Sho
 import { getPaymentsSettings, saveStripe, savePaypal, testPayments, disconnectPayment, type PaymentsView } from "./payments-actions";
 import { getKycView, startKycVerification, type KycView } from "./kyc-actions";
 import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from "./business-actions";
-import { getTracking, saveTracking, type TrackingSettings } from "./tracking-actions";
 import { listTags, createTag, updateTag, deleteTag, type TagView } from "./tags-actions";
 import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
 import { FIELD_TYPES, TRIGGER_TYPES, TRIGGER_LABELS } from "./option-constants";
@@ -32,7 +31,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "business" | "integrations" | "verification" | "tracking" | "tags" | "fields" | "values" | "scoring" | "audit" | "preferences";
+type Tab = "business" | "integrations" | "verification" | "tags" | "fields" | "values" | "scoring" | "audit" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -91,7 +90,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   const params = useSearchParams();
   useEffect(() => {
     const t = params.get("tab") as Tab | null;
-    if (t && ["business", "integrations", "verification", "tracking", "tags", "fields", "values", "scoring", "audit", "preferences"].includes(t)) setTab(t);
+    if (t && ["business", "integrations", "verification", "tags", "fields", "values", "scoring", "audit", "preferences"].includes(t)) setTab(t);
     if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
@@ -132,7 +131,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
       <div className="mb-6 flex flex-wrap gap-1 border-b border-slate-200">
-        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["tracking", "External Tracking"], ["tags", "Tags"], ["fields", "Custom Fields"], ["values", "Custom Values"], ["scoring", "Lead Scoring"], ["audit", "Audit Log"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+        {([["business", "Business Profile"], ["integrations", "Integrations"], ["verification", "Verification"], ["tags", "Tags"], ["fields", "Custom Fields"], ["values", "Custom Values"], ["scoring", "Lead Scoring"], ["audit", "Audit Log"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -225,7 +224,6 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
 
       {tab === "verification" && <VerificationCard tenantId={tenantId} isAdmin={isAdmin} />}
 
-      {tab === "tracking" && <ExternalTrackingSection tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "tags" && <TagsSection tenantId={tenantId} isAdmin={isAdmin} />}
 
@@ -653,50 +651,6 @@ function VerificationCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
           <p className="mt-4 text-xs text-slate-400">No action needed right now{v.updatedAt ? ` · last updated ${new Date(v.updatedAt).toLocaleString()}` : ""}.</p>
         )}
       </div>
-    </div>
-  );
-}
-
-function ExternalTrackingSection({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
-  const [t, setT] = useState<TrackingSettings | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  useEffect(() => { getTracking(tenantId).then(setT).catch(() => setT(null)); }, [tenantId]);
-  const set = (k: keyof TrackingSettings, v: string) => setT((c) => (c ? { ...c, [k]: v } : c));
-  const save = async () => { if (!t) return; setBusy(true); setMsg(null); const r = await saveTracking(tenantId, t); setBusy(false); setMsg({ ok: r.ok, text: r.ok ? "Saved ✓" : (r.message ?? "Could not save.") }); };
-
-  if (!t) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
-  return (
-    <div className="max-w-2xl space-y-5">
-      <p className="text-sm text-slate-500">Analytics &amp; marketing tags applied across <b>all</b> your published sites. A per-website override (set in the website editor&apos;s Site Settings) always takes priority.</p>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Google Analytics 4 — Measurement ID</span>
-          <input className={inp} disabled={!isAdmin} value={t.ga4Id} onChange={(e) => set("ga4Id", e.target.value)} placeholder="G-XXXXXXXXXX" />
-          <Tip>From <Ext href="https://analytics.google.com">Google Analytics</Ext> → Admin → Data Streams.</Tip>
-        </label>
-        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Google Tag Manager — Container ID</span>
-          <input className={inp} disabled={!isAdmin} value={t.gtmId} onChange={(e) => set("gtmId", e.target.value)} placeholder="GTM-XXXXXX" />
-        </label>
-        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Meta (Facebook) Pixel ID</span>
-          <input className={inp} disabled={!isAdmin} value={t.metaPixelId} onChange={(e) => set("metaPixelId", e.target.value)} placeholder="1234567890" />
-        </label>
-      </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-800">Custom scripts</h2>
-          <Tip>Advanced: raw HTML/JS injected into every page. Only paste code you trust.</Tip>
-        </div>
-        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Head scripts <span className="font-normal text-slate-400">(before &lt;/head&gt;)</span></span>
-          <textarea className={`${inp} font-mono text-xs`} rows={4} disabled={!isAdmin} value={t.headScripts} onChange={(e) => set("headScripts", e.target.value)} placeholder="<!-- e.g. verification meta, chat widget -->" />
-        </label>
-        <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Footer scripts <span className="font-normal text-slate-400">(before &lt;/body&gt;)</span></span>
-          <textarea className={`${inp} font-mono text-xs`} rows={4} disabled={!isAdmin} value={t.footerScripts} onChange={(e) => set("footerScripts", e.target.value)} placeholder="<!-- e.g. conversion pixels -->" />
-        </label>
-      </div>
-      {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
-      {isAdmin ? <button type="button" disabled={busy} onClick={save} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-40">{busy ? "Saving…" : "Save tracking"}</button>
-        : <p className="text-xs text-slate-400">Admin required to edit tracking.</p>}
     </div>
   );
 }

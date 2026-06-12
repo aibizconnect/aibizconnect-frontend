@@ -194,16 +194,14 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
         cookieConsent?: { enabled?: boolean; message?: string; acceptLabel?: string; declineLabel?: string; policyUrl?: string; position?: "bottom" | "bottom-left" | "bottom-right" };
         occasions?: import("@/lib/occasions").OccasionsConfig } | null;
   const cookie = siteSettings?.cookieConsent;
-  // Tenant-level External Tracking defaults (Settings → External Tracking) apply across ALL sites;
-  // a per-website value (theme.site) always wins. Set-once-for-everything, the leading builder location-level parity.
-  const { getTenantTrackingDefaults } = await import("../../../tenants/[tenantId]/settings/tracking-actions");
-  const trackDefaults = await getTenantTrackingDefaults(tenantId).catch(() => ({} as Record<string, string | undefined>));
+  // Tracking lives ON THE WEBSITE (editor → Settings → Tracking & scripts) — Ali's ruling:
+  // it belongs with the site's domain settings, not tenant-wide Settings (tab removed).
   const tracking = {
-    ga4Id: siteSettings?.ga4Id || trackDefaults.ga4Id,
-    gtmId: siteSettings?.gtmId || trackDefaults.gtmId,
-    metaPixelId: siteSettings?.metaPixelId || trackDefaults.metaPixelId,
-    headScripts: siteSettings?.headScripts || trackDefaults.headScripts,
-    footerScripts: siteSettings?.footerScripts || trackDefaults.footerScripts,
+    ga4Id: siteSettings?.ga4Id,
+    gtmId: siteSettings?.gtmId,
+    metaPixelId: siteSettings?.metaPixelId,
+    headScripts: siteSettings?.headScripts,
+    footerScripts: siteSettings?.footerScripts,
   };
   const pageBg = perPageBg ?? siteBg;
   const pageBgHasImage = hasBgLayer(pageBg ?? undefined);

@@ -481,6 +481,11 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — tenant_integrations created (0051)** (Ali: "Success. No rows
+  returned"): ✅ APPLIED. The 0031 drift's last piece: tenant_secrets existed but the
+  NON-secret config table never did — integration saves half-succeeded (creds stored,
+  from_number/status/sync-state lost). Live-verified immediately: Twilio config upserted
+  (from_number +18502045136) and a real test SMS delivered to Ali (sid SM0733...).
 - **2026-06-11 — Settings-area convergence (0050)** (Ali: "Success. No rows
   returned"): ✅ APPLIED. Live tenant_settings recreated per 0031 (old shape was empty
   — loss-free); tenant_shopify_stores created (0035 was never live). Verified:
