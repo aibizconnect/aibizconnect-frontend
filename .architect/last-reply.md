@@ -1,49 +1,68 @@
-Here is the ruling for the Booking Calendar element for the website editor.
+Here are the rulings for finalizing calendars/bookings for AI-Agent (VA) operation.
 
 ---
-### 1. Booking Calendar Element
+### 1. Calendar Visibility (Phase A)
 
-**RULING 246: Implement `booking-calendar` Element for Website Editor.**
+**RULING 248: Implement Calendar Visibility Phase A.**
 
-*   **Decision:** The proposal for a native element type `booking-calendar` is **APPROVED**.
+*   **Decision:** The implementation of Phase A of D-260 (default visibility, host badge, 'My calendars' toggle) is **APPROVED**.
 *   **Action:**
-    1.  **Element Schema:**
-        ```typescript
-        // lib/elements/booking-calendar.ts
-        import { z } from 'zod';
-
-        export const BookingCalendarPropsSchema = z.object({
-          tenantId: z.string().uuid(), // Stamped at insert time by editor
-          calendarSlug: z.string().optional(), // Slug of specific calendar, or empty for index page
-          height: z.number().min(300).default(760), // Height in pixels, not subject to spacing cap
-        });
-
-        export type BookingCalendarProps = z.infer<typeof BookingCalendarPropsSchema>;
-
-        export const BookingCalendarElementSchema = z.object({
-          type: z.literal('booking-calendar'),
-          props: BookingCalendarPropsSchema,
-          // ... common block metadata/style fields
-        });
-        ```
-    2.  **Naming:** Display name "Booking Calendar" in the Elements-List is **APPROVED**.
-    3.  **`tenantId` Stamping:** Stamping `tenantId` at INSERT by the editor is **APPROVED**.
-        *   **Rationale:** This is the most practical approach given the render context limitations and the single-tenant nature of pages.
-    4.  **Iframe Approach:** The `<iframe src='/book/{tenantId}/{slug}?embed=1' ...>` approach is **APPROVED**.
-        *   **Rationale:** This maintains a single, canonical booking surface, leveraging the existing public booking pages and their server-side slot computation. It avoids duplicating complex logic in the editor's frontend.
-    5.  **Rendering:**
-        *   **Public + Editor Canvas:** Render as an `<iframe>` with `loading="lazy"`, `class="rounded"`, `width="100%"`, and `height` from content.
-        *   **Editor Canvas Overlay:** Overlay `pointer-events-none` on the iframe in the editor canvas so clicks select the element instead of interacting with the embedded calendar.
-    6.  **Inspector:**
-        *   **Controls:** Implement a "Calendar" dropdown (options: "All calendars" + each calendar by name/slug, fed by `listCalendarsAction` or similar API) and a "Height" number input.
-        *   **`fieldSpecs`:** If `fieldSpecs` does not support async options, a small dedicated `BookingCalendarInspector` block (similar to `Menu`'s inspector) will be created to fetch calendar options.
-        *   **Pre-population:** Pre-populate `tenantId` and pre-select the first calendar (or "All calendars") as default.
-    7.  **Registration:** Register in `schemas.ts` (schema/union/order/displayName/defaultContent), `registry.tsx` (render case), `fieldSpecs.ts` (or custom inspector), and `docs/ELEMENT-DICTIONARY.md`.
-    8.  **Importer Recognition:** Importer recognition for existing booking embeds (e.g., from Stitch pages) is explicitly **deferred** to a later phase.
+    1.  **Host Badge:** Display the `assigned_to_name` (or `assigned_to_email`) on calendars in the filter and settings list.
+    2.  **'My Calendars' Toggle:** Implement a one-click toggle in the calendar view filter. This toggle will default ON when the server passes the current signed-in user's email, and it matches any calendar's `assigned_to_email`.
+    3.  **Files to Change:** Calendar UI components, `listCalendars` API (to pass user email for filtering).
 
 ---
-**Documentation Filing:** The `docs/ELEMENT-DICTIONARY.md` will be updated to include the `booking-calendar` element.
+### 2. Agent Calendar Tool Layer
+
+**RULING 249: Implement Agent Calendar Tool Layer.**
+
+*   **Decision:** The proposal for a typed, validated, and audited Agent Calendar Tool layer is **APPROVED**.
+*   **Action:**
+    1.  **Module:** Create `lib/agent/tools/calendar-tools.ts`.
+    2.  **Tool Surface:** Implement the following functions, wrapping existing battle-tested core calendar logic and inheriting all its features (conflict checks, timezone-correct slots, provider mirroring, native invites, reminders engine):
+        *   `listCalendars(tenantId): Promise<{ok: boolean, data?: CalendarSummary[], error?: string}>`
+        *   `getAvailability(tenantId, calendarIdOrSlug, days): Promise<{ok: boolean, data?: AvailableSlot[], error?: string}>`
+        *   `findAppointments(tenantId, {email?, phone?}): Promise<{ok: boolean, data?: AppointmentSummary[], error?: string}>`
+        *   `bookAppointment(tenantId, {calendarId, startAt, name, email, phone?, venueIdx?, invitees?, force?: boolean}): Promise<{ok: boolean, data?: AppointmentConfirmation, error?: string, conflictDetails?: ConflictDetail[]}>`
+        *   `rescheduleAppointment(tenantId, {appointmentId, newStartAt, force?: boolean}): Promise<{ok: boolean, data?: AppointmentConfirmation, error?: string, conflictDetails?: ConflictDetail[]}>`
+        *   `cancelAppointment(tenantId, {appointmentId}): Promise<{ok: boolean, data?: {success: boolean}, error?: string}>`
+    3.  **Validation:** Every tool call must be `zod-validated` against its input parameters.
+    4.  **Auditing:** Every tool call must generate a `logPlatformEvent('agent.calendar.<op>')` with relevant metadata (no PII beyond IDs/emails needed for ops).
+    5.  **Return Format:** Each tool must return a uniform `{ok: boolean, data?, error?, conflictDetails?}` structure.
+    6.  **Autonomous Outbound:** Confirmed. No autonomous outbound beyond already-ratified transactional paths (invites/reminders). Agent invocation itself stays manual until the orchestrator phase.
+    7.  **`external_event_id` Round-Trip:** Confirmed. The `external_event_id` round-trip (RULING 244) is inherited by these tools, enabling basic update/delete propagation for mirrored events.
+
+---
+### 3. Tool Manifest & Documentation
+
+**RULING 250: Implement Agent Tool Manifest and Documentation.**
+
+*   **Decision:** The implementation of a Tool Manifest and documentation is **APPROVED**.
+*   **Action:**
+    1.  **Tool Manifest:** Export a `TOOL_MANIFEST` (or similar) JSON object from `lib/agent/tools/calendar-tools.ts` containing `name`, `description`, and JSON-schema `params` for each tool function.
+    2.  **Documentation:** Document this in `docs/AGENT-TOOLS.md`, describing the purpose, parameters, and expected output of each calendar tool.
+*   **Rationale:** This provides a discoverable and machine-readable interface for future agent runtimes and MCP integration.
+
+---
+### 4. Verification
+
+**RULING 251: Verification Strategy for Agent Calendar Tools.**
+
+*   **Decision:** The proposed verification strategy is **APPROVED**.
+*   **Action:** Conduct a VA round-trip test on an UNCONNECTED test calendar:
+    1.  `getAvailability`
+    2.  `bookAppointment`
+    3.  `findAppointments`
+    4.  `rescheduleAppointment` (including a conflict scenario, then retrying with `force: true`)
+    5.  `cancelAppointment`
+*   **Verification Points:** Confirm that each step returns the expected `{ok, data?, error?, conflictDetails?}` format, internal DB state is correct, and audit logs are generated.
+
+---
+**Documentation Filing:** The `docs/GHL-PARITY.md` matrix will be updated to reflect the agent tool layer.
 
 ---
 DECISION-LOG
-[D-246] rule_implement_booking_calendar_element — Ruled implementation of `booking-calendar` element for the website editor (status: ruled)
+[D-248] rule_implement_calendar_visibility_phase_a — Ruled implementation of Calendar Visibility Phase A (status: ruled)
+[D-249] rule_implement_agent_calendar_tool_layer — Ruled implementation of Agent Calendar Tool layer (status: ruled)
+[D-250] rule_implement_agent_tool_manifest_documentation — Ruled implementation of Agent Tool Manifest and documentation (status: ruled)
+[D-251] rule_verification_strategy_agent_calendar_tools — Ruled verification strategy for Agent Calendar Tools (status: ruled)

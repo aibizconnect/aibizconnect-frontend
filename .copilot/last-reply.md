@@ -1,148 +1,208 @@
-Ali — Report #45 is filed and this becomes the official Blueprint v3.2 — Multi‑Channel Activation + Settings Convergence Finalization Milestone.
-This batch closes three major fronts at once: SMS channel activation, Settings‑crash epilogue, and Ali’s ruling on External Tracking.
+Ali — Report #46 is filed and this becomes the official Blueprint v3.2 — Calendar Visibility Model (D‑260) Milestone, the authoritative ruling on who sees which calendars across single‑user, multi‑user, and franchise deployments.
 
-Below is the canonical blueprint entry.
+This is now the canonical visibility model for the entire scheduling system.
 
-BLUEPRINT v3.2 — MULTI‑CHANNEL ACTIVATION + SETTINGS CLEANUP (Report #45 Filed)
+BLUEPRINT v3.2 — CALENDAR VISIBILITY MODEL (D‑260 Filed)
 
-(Commit dfbec7c — D‑259B shipped)
+(Three‑phase model ratified — Phase A shipped)
 
-1) SMS Channel — FULLY LIVE (FILED)
+1) Ali’s Ruling — Three‑Phase Visibility Model (FILED)
 
-Ali’s Twilio credentials were verified end‑to‑end:
+This ruling defines the long‑term architecture for calendar visibility across:
 
-from_number +18502045136 stored
+Small teams
 
-Real test SMS delivered to Ali’s phone
+Multi‑user tenants
 
-SID: SM0733…
+Corporate/franchise organizations
 
-Reminder engine + booking confirmations now have a live SMS channel
+Filed under Calendar Visibility Protocol.
 
-Channel gating rules remain enforced (per‑calendar toggles + Twilio presence)
+PHASE A — NOW (NO SCHEMA CHANGES)
+Status: SHIPPED
+Rules:
 
-Drift Fix Along the Way — Migration 0051
+Every user in a tenant sees ALL calendars
 
-The final piece of 0031‑era drift was discovered:
+This matches real small‑team behavior (receptionists book for everyone)
 
-tenant_integrations (non‑secret config side) never existed live
+Calendars display a HOST badge using existing assigned_to_email
 
-Integration saves were half‑succeeding:
+Calendar filter gains a “My calendars” quick toggle
 
-tenant_secrets OK
+Defaults ON for assignees
 
-config silently lost
+Zero friction for single‑user tenants
 
-Ali applied 0051, verified live, and the DDL ledger is now through 0051.
+Zero confusion for multi‑user teams
 
-Filed under Send Channel Provisioning Protocol.
+Why Phase A first:
 
-2) Settings Crash — EPILOGUE (FILED)
+Zero schema
 
-Ali confirmed in production:
+Zero migration
 
-“worked”
+Zero risk
 
-The use‑server runtime‑export bug is now closed end‑to‑end.
+Immediate clarity for all tenants
 
-Bounce‑Email Noise Explained
+Filed under Calendar Visibility A.
 
-Reminder‑engine tests had mirrored bookings with fabricated guests onto Ali’s connected Google account:
+PHASE B — Tenant Roles (WITH tenant_users)
+Status: Planned — builds on Ali’s go
+Rules:
 
-Google legitimately sent invites (pipeline proof)
+Tenant membership gains:
 
-Two orphaned mirrored events were deleted via API with sendUpdates=none
+owner
 
-No further noise expected
+admin
 
-Practice Rule Adopted
+member
 
-Live booking tests must use calendars WITHOUT external connections,
-or cleanup must be done via deleteEntry so deletion propagates.
+GHL‑style “only assigned data” flag
 
-Filed under Testing Protocol v2.
+Restricted members see:
 
-3) Ali’s Ruling — External Tracking REMOVED (SHIPPED & FILED)
+Only calendars assigned to them
 
-Ali ruled:
+Calendars explicitly shared with them
 
-External Tracking does NOT belong in tenant Settings.
+Enforced server‑side in:
 
-Executed:
+listCalendars
 
-External Tracking tab removed from Settings
+listEntriesRange
 
-Tenant fallback removed from public renderer
+Integrates with the existing auth‑hook plan
 
-tracking-actions.ts deleted
+Why Phase B:
 
-Website Editor’s “Tracking & Scripts” (beside Domain & Email) is now the single source of truth per site
+Enables real multi‑agent teams
 
-This restores the one‑place‑only rule for tracking scripts.
+Prevents accidental cross‑visibility
 
-Filed under Tracking & Scripts Protocol.
+Prepares the ground for org‑level rollups
 
-4) Build Status (FILED)
+Filed under Calendar Visibility B.
 
-Commit: dfbec7c
+PHASE C — Corporations / Franchises (ORG LAYER)
+Status: Planned — requires org model
+Rules:
 
-Build green
+Each LOCATION = its own tenant
 
-All Settings, Calendar, Contacts, and Website Editor flows verified clean
+All data (calendars, contacts, booking pages) stays local
 
-Filed under Deployment Ledger.
+HQ receives:
 
-5) NEXT — App‑Wide Time Zone Field Sweep (ACTION REQUIRED)
+org_admin membership
 
-Ali’s directive:
+tenant switcher
 
-Replace every free‑text Time Zone field with the standard‑zones dropdown.
+cross‑tenant rollup reporting (later)
 
-Plan (Filed):
+Pricing naturally becomes per‑location
 
-Extract the D‑253 curated TIMEZONES list into a shared module
+Why Phase C:
 
-Sweep all apps:
+Preserves franchisee privacy
 
-Settings
+Avoids cross‑location data bleed
 
-Calendar
+Matches real brokerage/franchise structures
 
-Contacts
+Enables future RLS and org‑level analytics cleanly
 
-Automations
+Explicitly Rejected:
 
-Website Editor
+location_id inside one tenant  
+Because it:
 
-Any legacy fields
+Breaks contact isolation
 
-Replace free‑text inputs with the curated dropdown
+Complicates future RLS
 
-Ensure live GMT offsets everywhere
+Fights the org‑layer model
 
-Enforce Toronto‑first ordering
+Makes rollups harder, not easier
 
-Guarantee no server‑TZ drift across the platform
+Filed under Calendar Visibility C.
+
+2) Phase A Implementation — SHIPPED
+
+HOST badge live
+
+“My calendars” quick toggle live
+
+No schema changes
+
+Zero migration
+
+Immediate clarity for all tenants
+
+Filed under Calendar Visibility A — Implementation.
+
+3) Additional Milestones Shipped This Hour (FILED)
+A. App‑wide Time‑Zone Dropdowns (SHIPPED)
+
+Commit 158742d
+
+All free‑text TZ fields replaced
+
+Uses the curated D‑253 list
+
+Shared module extracted
+
+Live GMT offsets everywhere
+
+Toronto‑first ordering
 
 Filed under Timezone Standardization Protocol.
 
-Blueprint v3.2 Status — Multi‑Channel Activation Batch is SHIPPED & LIVE
+B. External Tracking Relocated (SHIPPED)
+
+Removed from tenant Settings
+
+Removed tenant fallback from public renderer
+
+tracking-actions.ts deleted
+
+Website Editor’s Tracking & Scripts is now the single source of truth
+
+Filed under Tracking & Scripts Protocol.
+
+C. SMS Channel Live (SHIPPED)
+
+Twilio verified
+
+Real SMS delivered to Ali’s phone
+
+Reminder engine + confirmations now SMS‑capable
+
+DDL through 0051
+
+Filed under SMS Channel Activation.
+
+Blueprint v3.2 Status — Calendar Visibility Model v1 is RATIFIED
 
 The platform now has:
 
-SMS channel fully operational
+Phase A visibility live
 
-Settings layer fully stable
+Phase B ready to build with tenant_users
 
-Integration schema fully converged
+Phase C defined for org/franchise deployments
 
-External Tracking unified under Website Editor
+Timezone dropdowns app‑wide
 
-Reminder engine + contact sync ready to send (awaiting Resend identity)
+External Tracking unified
 
-Calendar v1.3, Contacts v1, Scheduler v1.3 all stable
+SMS channel live
 
-Ali — you’re now clear to wire Resend next.
-Once the key lands, I’ll automatically configure domain + DNS + DKIM via Cloudflare and bring the email channel fully online.
+DDL through 0051
+
+Ali — the visibility model is now locked in.
+Standing by for your next directive.
 
 Edit in a page

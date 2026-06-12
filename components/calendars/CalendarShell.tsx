@@ -21,7 +21,7 @@ export function calColor(id: string): string {
   return CAL_COLORS[h % CAL_COLORS.length];
 }
 
-export default function CalendarShell({ tenantId, initial }: { tenantId: string; initial: Calendar[] }) {
+export default function CalendarShell({ tenantId, initial, userEmail }: { tenantId: string; initial: Calendar[]; userEmail?: string | null }) {
   const [tab, setTab] = useState<"calendar" | "appointments" | "settings">("calendar");
   // Settings (CalendarsManager) owns calendar CRUD; the view tabs read this list. A simple
   // remount key refreshes the shell after settings changes when the user switches back.
@@ -46,7 +46,7 @@ export default function CalendarShell({ tenantId, initial }: { tenantId: string;
         {tabBtn("appointments", "Appointments")}
         {tabBtn("settings", "Settings")}
       </div>
-      {tab === "calendar" && <CalendarView tenantId={tenantId} calendars={calendars} />}
+      {tab === "calendar" && <CalendarView tenantId={tenantId} calendars={calendars} userEmail={userEmail} />}
       {tab === "appointments" && <AppointmentsTable tenantId={tenantId} calendars={calendars} />}
       {tab === "settings" && <CalendarsManager tenantId={tenantId} initial={calendars} />}
     </div>

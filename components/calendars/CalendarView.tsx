@@ -32,10 +32,12 @@ const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute:
 
 type View = "day" | "week" | "month";
 
-export default function CalendarView({ tenantId, calendars }: { tenantId: string; calendars: Calendar[] }) {
+export default function CalendarView({ tenantId, calendars, userEmail }: { tenantId: string; calendars: Calendar[]; userEmail?: string | null }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(dayStart(new Date()));
-  const [selected, setSelected] = useState<Set<string>>(new Set(calendars.map((c) => c.id))); // calendar filter
+  // D-261 Phase A: assignees open on "My calendars"; everyone else sees all.
+  const mine = userEmail ? calendars.filter((c) => c.assignedToEmail?.toLowerCase() === userEmail.toLowerCase()) : [];
+  const [selected, setSelected] = useState<Set<string>>(new Set((mine.length ? mine : calendars).map((c) => c.id))); // calendar filter
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [, startT] = useTransition();
   const [filterOpen, setFilterOpen] = useState(false);
@@ -260,13 +262,26 @@ export default function CalendarView({ tenantId, calendars }: { tenantId: string
             Calendars ({selected.size}/{calendars.length}) ▾
           </button>
           {filterOpen && (
-            <div className="absolute z-30 mt-1 w-60 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+            <div className="absolute z-30 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+              <div className="mb-1 flex gap-1 border-b border-slate-100 pb-1.5">
+                {mine.length > 0 && (
+                  <button onClick={() => setSelected(new Set(mine.map((c) => c.id)))}
+                    className="rounded bg-[#1e3a8a]/5 px-2 py-1 text-xs font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/10">My calendars</button>
+                )}
+                <button onClick={() => setSelected(new Set(calendars.map((c) => c.id)))}
+                  className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200">All</button>
+              </div>
               {calendars.map((c) => (
                 <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-slate-50">
                   <input type="checkbox" checked={selected.has(c.id)}
                     onChange={(e) => setSelected((s) => { const n = new Set(s); e.target.checked ? n.add(c.id) : n.delete(c.id); return n; })} />
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: calColor(c.id) }} />
-                  <span className="truncate">{c.name}</span>
+                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                  {(c.assignedToName || c.assignedToEmail) && (
+                    <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500" title={c.assignedToEmail ?? undefined}>
+                      {c.assignedToName || c.assignedToEmail}
+                    </span>
+                  )}
                 </label>
               ))}
               {calendars.length === 0 && <div className="px-2 py-1 text-xs text-slate-400">No calendars yet — create one in Settings.</div>}
