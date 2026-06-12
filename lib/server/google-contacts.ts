@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { encryptSecret, decryptSecret, encryptionReady } from "./encryption";
 import { setIntegrationSecret, getIntegrationSecret, deleteIntegrationSecret } from "./integrations";
-import { googleCalCreds } from "./google-calendar";
+import { googleCalCreds, googleRedirectUri } from "./google-calendar";
 
 /**
  * Google Contacts import sync (D-258, Blueprint v3.2) — READ-ONLY v1. Tenant-level
@@ -20,21 +20,21 @@ const SCOPES = [
 ];
 const PROVIDER = "google_contacts";
 
-function appBase(): string {
-  return (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
-}
-export function contactsRedirectUri(): string { return `${appBase()}/api/contacts/google/callback`; }
+/** The contacts flow rides the CALENDAR redirect URI — it's the one registered on the
+ *  platform's Google OAuth client (a second URI would 400 redirect_uri_mismatch). The
+ *  calendar callback disambiguates via the `flow` marker in our encrypted state. */
+export function contactsRedirectUri(): string { return googleRedirectUri(); }
 
-interface CState { tenantId: string; nonce: string; ts: number }
+interface CState { flow: "contacts"; tenantId: string; nonce: string; ts: number }
 export function makeContactsState(tenantId: string): string | null {
   if (!encryptionReady()) return null;
-  const payload: CState = { tenantId, nonce: crypto.randomBytes(12).toString("hex"), ts: Date.now() };
+  const payload: CState = { flow: "contacts", tenantId, nonce: crypto.randomBytes(12).toString("hex"), ts: Date.now() };
   return Buffer.from(encryptSecret(JSON.stringify(payload)), "utf8").toString("base64url");
 }
 export function readContactsState(state: string): CState | null {
   try {
     const p = JSON.parse(decryptSecret(Buffer.from(state, "base64url").toString("utf8"))) as CState;
-    if (!p?.tenantId || !p?.nonce || !p?.ts) return null;
+    if (p?.flow !== "contacts" || !p?.tenantId || !p?.nonce || !p?.ts) return null;
     if (Date.now() - p.ts > 15 * 60 * 1000) return null;
     return p;
   } catch { return null; }
