@@ -4,14 +4,23 @@ import {
   toolListCalendars, toolGetAvailability, toolFindAppointments,
   toolBookAppointment, toolRescheduleAppointment, toolCancelAppointment,
 } from "@/lib/agent/tools/calendar-tools";
+import {
+  CONTACT_TOOL_MANIFEST,
+  toolFindContacts, toolCreateContact, toolUpdateContact, toolAddContactTag, toolAddContactNote,
+} from "@/lib/agent/tools/contact-tools";
+import { COMMS_TOOL_MANIFEST, toolSendEmail, toolSendSms } from "@/lib/agent/tools/comms-tools";
 import type { AiAgentDef } from "@/lib/agent/agents-store";
 
 /**
- * AI Agent RUNTIME (D-274): a model-agnostic function-calling loop over the audited
- * VA tool layer. The model answers with ONE JSON object per turn — either a tool call
- * or a final reply — so any provider (OpenAI today; Gemini per Ali's bridge note)
- * drives the same tools. Write-tools (book/reschedule/cancel) are only offered when
- * the caller enables LIVE actions; read-tools are always safe.
+ * AI Agent RUNTIME (D-274/D-275): a model-agnostic function-calling loop over the
+ * audited tool layer (calendar + contacts + comms). The model answers with ONE JSON
+ * object per turn — a tool call or a final reply — so any provider (OpenAI/Gemini
+ * chain) drives the same tools. Three privilege levels:
+ *   read-only (default test) — read tools only;
+ *   live — read + write tools for the agent's enabled skills;
+ *   PUBLIC (anonymous channels, e.g. the website chat) — calendar list/availability/
+ *   book + contacts.create ONLY. No contacts.find (privacy), no email/sms send
+ *   (spam vector), no reschedule/cancel (needs verified identity). D-275 ruling.
  */
 
 export interface AgentChatMessage { role: "user" | "agent"; text: string }
@@ -19,16 +28,40 @@ export interface AgentToolStep { tool: string; args: Record<string, unknown>; ok
 export interface AgentTurnResult { reply: string; steps: AgentToolStep[]; error?: string }
 
 type ToolFn = (tenantId: string, args: unknown) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
-const READ_TOOLS: Record<string, ToolFn> = {
-  "calendar.list": (t) => toolListCalendars(t),
-  "calendar.availability": (t, a) => toolGetAvailability(t, a),
-  "calendar.find": (t, a) => toolFindAppointments(t, a),
+
+type SkillKey = keyof AiAgentDef["skills"];
+const SKILL_TOOLS: Record<string, { skill: SkillKey; write: boolean; fn: ToolFn }> = {
+  "calendar.list":         { skill: "calendar", write: false, fn: (t) => toolListCalendars(t) },
+  "calendar.availability": { skill: "calendar", write: false, fn: (t, a) => toolGetAvailability(t, a) },
+  "calendar.find":         { skill: "calendar", write: false, fn: (t, a) => toolFindAppointments(t, a) },
+  "calendar.book":         { skill: "calendar", write: true,  fn: (t, a) => toolBookAppointment(t, a) },
+  "calendar.reschedule":   { skill: "calendar", write: true,  fn: (t, a) => toolRescheduleAppointment(t, a) },
+  "calendar.cancel":       { skill: "calendar", write: true,  fn: (t, a) => toolCancelAppointment(t, a) },
+  "contacts.find":         { skill: "contacts", write: false, fn: (t, a) => toolFindContacts(t, a) },
+  "contacts.create":       { skill: "contacts", write: true,  fn: (t, a) => toolCreateContact(t, a) },
+  "contacts.update":       { skill: "contacts", write: true,  fn: (t, a) => toolUpdateContact(t, a) },
+  "contacts.addTag":       { skill: "contacts", write: true,  fn: (t, a) => toolAddContactTag(t, a) },
+  "contacts.addNote":      { skill: "contacts", write: true,  fn: (t, a) => toolAddContactNote(t, a) },
+  "email.send":            { skill: "email",    write: true,  fn: (t, a) => toolSendEmail(t, a) },
+  "sms.send":              { skill: "sms",      write: true,  fn: (t, a) => toolSendSms(t, a) },
 };
-const WRITE_TOOLS: Record<string, ToolFn> = {
-  "calendar.book": (t, a) => toolBookAppointment(t, a),
-  "calendar.reschedule": (t, a) => toolRescheduleAppointment(t, a),
-  "calendar.cancel": (t, a) => toolCancelAppointment(t, a),
-};
+const ALL_MANIFESTS = [...CALENDAR_TOOL_MANIFEST, ...CONTACT_TOOL_MANIFEST, ...COMMS_TOOL_MANIFEST];
+
+/** Anonymous-channel allowlist (D-275): book + become-a-lead, nothing else. */
+const PUBLIC_TOOL_NAMES = new Set(["calendar.list", "calendar.availability", "calendar.book", "contacts.create"]);
+
+export type AgentAccessMode = "readonly" | "live" | "public";
+
+function toolsetFor(agent: AiAgentDef, mode: AgentAccessMode): Record<string, ToolFn> {
+  const out: Record<string, ToolFn> = {};
+  for (const [name, t] of Object.entries(SKILL_TOOLS)) {
+    if (!agent.skills[t.skill]) continue;
+    if (mode === "public" && !PUBLIC_TOOL_NAMES.has(name)) continue;
+    if (mode === "readonly" && t.write) continue;
+    out[name] = t.fn;
+  }
+  return out;
+}
 
 const TONE_HINTS: Record<AiAgentDef["tone"], string> = {
   professional: "Polished and professional; warm but businesslike.",
@@ -37,14 +70,16 @@ const TONE_HINTS: Record<AiAgentDef["tone"], string> = {
   enthusiastic: "Upbeat and energetic, without being pushy.",
 };
 
-function buildSystemPrompt(agent: AiAgentDef, businessFacts: string, liveActions: boolean): string {
-  const tools = agent.skills.calendar
-    ? CALENDAR_TOOL_MANIFEST.filter((t) => liveActions || t.name in READ_TOOLS)
-    : [];
+function buildSystemPrompt(agent: AiAgentDef, businessFacts: string, toolNames: Set<string>, mode: AgentAccessMode): string {
+  const tools = ALL_MANIFESTS.filter((t) => toolNames.has(t.name));
+  const modeNote =
+    mode === "readonly" ? "NOTE: this is a read-only session — tools that change anything are disabled; tell the user what you WOULD do instead.\n"
+    : mode === "public" ? "NOTE: you are chatting with a VISITOR on the business's website. Be welcoming. Collect their name and email naturally (create a contact when you have them). You can check availability and book for them. You cannot look up private records, reschedule, or cancel — ask them to contact the business directly for that.\n"
+    : "";
   const toolBlock = tools.length
     ? `TOOLS you may call (real systems — results come back as observations):\n${tools
         .map((t) => `- ${t.name}: ${t.description} Params: ${JSON.stringify(t.params)}`)
-        .join("\n")}\n${liveActions ? "" : "NOTE: this is a read-only session — booking/changing/cancelling tools are disabled; tell the user what you WOULD do instead.\n"}`
+        .join("\n")}\n${modeNote}`
     : "You have no tools in this session — answer from the business knowledge only.\n";
   return [
     `You are "${agent.name}", an AI ${agent.role.replace(/_/g, " ")} for the business below. ${TONE_HINTS[agent.tone]}`,
@@ -87,11 +122,11 @@ export async function runAgentTurn(
   tenantId: string,
   agent: AiAgentDef,
   transcript: AgentChatMessage[],
-  opts: { liveActions?: boolean } = {},
+  opts: { liveActions?: boolean; mode?: AgentAccessMode } = {},
 ): Promise<AgentTurnResult> {
-  const live = !!opts.liveActions;
-  const system = buildSystemPrompt(agent, await businessFactsFor(tenantId), live);
-  const tools: Record<string, ToolFn> = agent.skills.calendar ? { ...READ_TOOLS, ...(live ? WRITE_TOOLS : {}) } : {};
+  const mode: AgentAccessMode = opts.mode ?? (opts.liveActions ? "live" : "readonly");
+  const tools = toolsetFor(agent, mode);
+  const system = buildSystemPrompt(agent, await businessFactsFor(tenantId), new Set(Object.keys(tools)), mode);
 
   const convo = transcript.slice(-16).map((m) => `${m.role === "user" ? "USER" : "YOU"}: ${m.text}`).join("\n");
   const steps: AgentToolStep[] = [];

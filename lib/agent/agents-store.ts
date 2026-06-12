@@ -19,6 +19,8 @@ export interface AiAgentDef {
   instructions: string;
   skills: { calendar: boolean; contacts: boolean; email: boolean; sms: boolean; voice: boolean; reviews: boolean };
   knowledge: { businessProfileMerged: boolean; snippets: AgentSnippet[] };
+  /** Channels this agent answers on. webchat = the floating AI chat on the tenant's public sites. */
+  channels: { webchat: boolean };
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +55,7 @@ const normalize = (raw: any, id: string): AiAgentDef => ({
   instructions: String(raw?.instructions ?? ""),
   skills: { calendar: true, contacts: false, email: false, sms: false, voice: false, reviews: false, ...(raw?.skills ?? {}) },
   knowledge: { businessProfileMerged: raw?.knowledge?.businessProfileMerged !== false, snippets: Array.isArray(raw?.knowledge?.snippets) ? raw.knowledge.snippets : [] },
+  channels: { webchat: raw?.channels?.webchat === true },
   enabled: raw?.enabled !== false,
   createdAt: String(raw?.createdAt ?? new Date().toISOString()),
   updatedAt: String(raw?.updatedAt ?? new Date().toISOString()),

@@ -22,11 +22,15 @@ const ROLES = Object.keys(ROLE_LABELS) as AgentRole[];
 
 const SKILLS: { key: keyof AiAgentDef["skills"]; label: string; desc: string; live: boolean }[] = [
   { key: "calendar", label: "Calendar & Bookings", desc: "List calendars, check live availability, book, reschedule and cancel appointments — with conflict checks, invites and reminders.", live: true },
-  { key: "contacts", label: "Contacts & CRM", desc: "Look up and update contacts, add tags and notes.", live: false },
-  { key: "email", label: "Email", desc: "Draft and send emails on the business's behalf.", live: false },
-  { key: "sms", label: "SMS", desc: "Text with leads over the business's Twilio number.", live: false },
-  { key: "voice", label: "Voice", desc: "Answer phone calls and book appointments by voice.", live: false },
-  { key: "reviews", label: "Reviews", desc: "Monitor and respond to Google reviews.", live: false },
+  { key: "contacts", label: "Contacts & CRM", desc: "Find contacts, create new leads (deduped by email), update details, add tags (auto-created in your tag registry) and notes.", live: true },
+  { key: "email", label: "Email", desc: "Send emails from your verified sender identity (set up in Sites → website → Settings → Email sending; the agent explains if it isn't configured yet).", live: true },
+  { key: "sms", label: "SMS", desc: "Text people from your connected Twilio number.", live: true },
+  { key: "voice", label: "Voice", desc: "Answer phone calls and book appointments by voice (Twilio Voice streaming — design ready, build queued).", live: false },
+  { key: "reviews", label: "Reviews", desc: "Monitor and respond to Google reviews (needs the Google Business connection — design ready).", live: false },
+];
+
+const CHANNELS: { key: keyof AiAgentDef["channels"]; label: string; desc: string; live: boolean }[] = [
+  { key: "webchat", label: "Website chat", desc: "A floating AI chat bubble on your published websites. Visitors can ask questions, check availability and book — the agent captures them as CRM leads. Anonymous-safe: no CRM reads, no sends, no cancellations.", live: true },
 ];
 
 const newAgent = (): AiAgentDef => ({
@@ -37,6 +41,7 @@ const newAgent = (): AiAgentDef => ({
   instructions: ROLE_PRESETS.va_bookings,
   skills: { calendar: true, contacts: false, email: false, sms: false, voice: false, reviews: false },
   knowledge: { businessProfileMerged: true, snippets: [] },
+  channels: { webchat: false },
   enabled: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -128,7 +133,7 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
   onClose: () => void; onSaved: (a: AiAgentDef) => void; onDeleted: (id: string) => void;
 }) {
   const [a, setA] = useState<AiAgentDef>(initial);
-  const [sub, setSub] = useState<"general" | "skills" | "knowledge" | "test">("general");
+  const [sub, setSub] = useState<"general" | "skills" | "channels" | "knowledge" | "test">("general");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const set = <K extends keyof AiAgentDef>(k: K, v: AiAgentDef[K]) => setA((p) => ({ ...p, [k]: v }));
@@ -157,7 +162,7 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
       </div>
 
       <div className="mt-3 flex gap-1 rounded-lg bg-slate-50 p-1">
-        {subBtn("general", "General")}{subBtn("skills", "Skills")}{subBtn("knowledge", "Knowledge")}{subBtn("test", "Test")}
+        {subBtn("general", "General")}{subBtn("skills", "Skills")}{subBtn("channels", "Channels")}{subBtn("knowledge", "Knowledge")}{subBtn("test", "Test")}
       </div>
 
       {sub === "general" && (
@@ -203,6 +208,32 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
               </span>
             </label>
           ))}
+        </div>
+      )}
+
+      {sub === "channels" && (
+        <div className="mt-4 max-w-2xl space-y-3">
+          {CHANNELS.map((c) => (
+            <label key={c.key} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+              <input type="checkbox" className="mt-1" checked={a.channels[c.key]}
+                onChange={(e) => set("channels", { ...a.channels, [c.key]: e.target.checked })} />
+              <span>
+                <span className="text-sm font-medium text-slate-800">{c.label}</span>
+                <span className="block text-xs text-slate-500">{c.desc}</span>
+              </span>
+            </label>
+          ))}
+          {["SMS conversations", "Facebook / Instagram DMs", "WhatsApp", "Phone (Voice)"].map((label) => (
+            <div key={label} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-70">
+              <span className="text-sm font-medium text-slate-600">{label}</span>
+              <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">Soon</span>
+            </div>
+          ))}
+          {a.channels.webchat && (
+            <p className="rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
+              Save the agent, and the chat bubble appears on your published sites automatically — brand-colored, with the agent's name.
+            </p>
+          )}
         </div>
       )}
 

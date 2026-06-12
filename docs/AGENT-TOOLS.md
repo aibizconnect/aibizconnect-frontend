@@ -46,3 +46,33 @@ Storage: tenant_ai_agents (0053 queued) with tenant_settings 'ai_agent:<id>' fal
 LLM: provider chain OpenAI→Gemini (lib/agent/llm.ts) — Gemini carries the load while
 the platform OpenAI key is over quota. Legacy Agent Mesh panel lives under the
 hub's "Ops" tab.
+
+## D-275 (2026-06-12): skills completed + AI chat channel
+- **Contact tools** (lib/agent/tools/contact-tools.ts): contacts.find (read) +
+  create (email-deduped, source ai_agent) / update / addTag (auto-creates in
+  tenant_tags registry, D-265) / addNote (writes). Audited agent.contacts.*.
+- **Comms tools** (lib/agent/tools/comms-tools.ts): email.send (verified Resend
+  identity; honest setup error until configured), sms.send (connected Twilio).
+  Audited agent.comms.*. WRITE-only, never public.
+- **Privilege modes** (agent-runtime.ts): readonly (reads only) · live (reads +
+  writes for enabled skills) · PUBLIC = calendar.list/availability/book +
+  contacts.create ONLY (no CRM reads = privacy, no sends = spam vector, no
+  reschedule/cancel = needs verified identity).
+- **AI chat channel**: agent.channels.webchat → floating SiteChatWidget on all
+  published pages (brand-colored, sessionStorage transcript) → POST
+  /api/agent-chat (zod, per-IP throttle 20 turns/5min, enabled+webchat agents
+  only, public mode, tool NAMES only in response).
+
+### Voice (SOON — design)
+Twilio Voice → TwiML webhook answers the call → media stream (WebSocket) →
+STT (Deepgram/Whisper) → runAgentTurn(mode: "voice" = public toolset + caller's
+verified number as contact match) → TTS (ElevenLabs/Polly) → stream back.
+Needs: a stateful relay worker (CF worker or render-bridge sibling) for the
+audio socket; per-call transcript persisted to contact timeline; barge-in
+handling. Prereqs: Twilio number voice-enabled (have), streaming worker (build).
+
+### Reviews (SOON — design)
+Google Business Profile OAuth (new scope; same platform-OAuth pattern as
+calendar/contacts) → reviews.list / reviews.reply tools; auto-draft replies
+held for approval (drafts-only law) with per-rating tone presets. Prereq:
+Google Business Profile API enablement + the business's GBP location ID.

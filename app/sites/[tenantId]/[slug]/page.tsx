@@ -17,6 +17,7 @@ import BookingWidget from "@/components/calendars/BookingWidget";
 import { listPopups } from "@/lib/popups";
 import type { BrandSettings } from "@/lib/sections/schemas";
 import { resolveTheme, mergeBrandRows } from "@/lib/sections/theme";
+import SiteChatWidget from "@/components/sites/SiteChatWidget";
 import { collectPageFonts } from "@/lib/fonts";
 import { jsonLdScript } from "@/lib/seo/structured-data";
 import SiteScripts from "@/components/site/SiteScripts";
@@ -270,6 +271,16 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
   let _cssId = 0;
   const cssSink = { nextId: () => ++_cssId };
 
+  // AI chat widget (D-275): site chrome shown when the tenant has an enabled agent
+  // with the webchat channel on. Anonymous-safe — the public endpoint only allows
+  // availability + booking + become-a-lead.
+  let chatAgent: { id: string; name: string } | null = null;
+  try {
+    const { listAiAgents } = await import("@/lib/agent/agents-store");
+    const found = (await listAiAgents(tenantId)).find((x) => x.enabled && x.channels.webchat);
+    if (found) chatAgent = { id: found.id, name: found.name };
+  } catch { /* widget is best-effort */ }
+
   return (
     <div style={{ ...brandStyle, ...(pageBgCss ?? {}), ...(pageBgHasImage ? { position: "relative" as const } : {}) }} className="min-h-screen">
       {/* Page background image layer (blur/parallax/fade affect only the background). */}
@@ -277,6 +288,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
       {pageBgOverlay && <div aria-hidden style={pageBgOverlay} />}
       {/* Content sits above the background layers. */}
       {pageBgHasImage ? <div style={{ position: "relative", zIndex: 1 }}>{renderBody()}</div> : renderBody()}
+      {chatAgent && <SiteChatWidget tenantId={tenantId} agentId={chatAgent.id} agentName={chatAgent.name} brandColor={brand?.primary_color ?? null} />}
     </div>
   );
 
