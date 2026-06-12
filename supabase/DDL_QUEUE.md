@@ -20,36 +20,6 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
-### ⏳ PENDING — 0053: tenant AI Agents table (D-274)
-Generated 2026-06-12 (`supabase/migrations/0053_ai_agents.sql`). **NOT applied.**
-The AI Agents hub works TODAY via the tenant_settings `ai_agent:<id>` fallback;
-this table is the proper home (faster listing, clean deletes). Safe + additive.
-
-```sql
-create table if not exists public.tenant_ai_agents (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null,
-  config jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-create index if not exists tenant_ai_agents_tenant_idx on public.tenant_ai_agents (tenant_id);
-```
-
-### ⏳ PENDING — 0052: default-pipeline seed guard (D-269)
-Generated 2026-06-12 (`supabase/migrations/0052_pipeline_seed_guard.sql`). **NOT applied.**
-ensurePipeline()'s check-then-insert raced itself into 1,000 duplicate "Sales Pipeline"
-rows on the (now deprecated) Consulting tenant — cleaned up during the D-268 tenant
-consolidation. Code is already hardened (insert-failure → re-select winner); this index
-makes the seed idempotent at the DB level. Safe + additive: only one "Sales Pipeline"
-row per tenant exists now, so the index creates clean.
-
-```sql
-create unique index if not exists tenant_pipelines_default_seed_uidx
-  on tenant_pipelines (tenant_id)
-  where name = 'Sales Pipeline';
-```
-
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
@@ -511,6 +481,11 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-12 — AI Agents table (0053) + pipeline seed guard (0052)** (Ali:
+  "success"): ✅ APPLIED in one paste. Verified: `tenant_ai_agents` reachable
+  (agents-store now uses the table; no fallback rows existed to migrate) and
+  `tenant_pipelines_default_seed_uidx` makes the default-pipeline seed
+  race-proof (code already re-selects the winner on insert failure).
 - **2026-06-11 — tenant_integrations created (0051)** (Ali: "Success. No rows
   returned"): ✅ APPLIED. The 0031 drift's last piece: tenant_secrets existed but the
   NON-secret config table never did — integration saves half-succeeded (creds stored,
