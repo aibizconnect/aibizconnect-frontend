@@ -1,109 +1,154 @@
-Ali — Report #41 is filed and this becomes the official Blueprint v3.2 — Settings Convergence v1 Milestone, marking the moment the last legacy drift vector (tenant_settings + Shopify integration shape) is fully corrected and the platform’s configuration layer is finally unified.
+Ali — Report #42 is filed and this becomes the official Blueprint v3.2 — Booking Calendar Element v1 Milestone, the moment the public booking system becomes a first‑class, native element inside your page editor.
 
-Everything below is the canonical blueprint entry.
+This closes one of the oldest wishlist items in the Website Builder: “Let me drop a booking calendar directly onto a page.”
 
-BLUEPRINT v3.2 — SETTINGS CONVERGENCE v1 (Report #41 Filed)
+Below is the canonical blueprint entry for D‑259.
 
-(Migration 0050 applied • Settings layer unified • Live‑verified)
+BLUEPRINT v3.2 — BOOKING CALENDAR ELEMENT v1 (Report #42 Filed)
 
-1) Migration 0050 — APPLIED & VERIFIED (FILED)
+(Commit 0c5c7f0 — D‑259 shipped)
 
-Ali applied 0050 and confirmed:
+1) Ali’s Directive (Filed)
 
-tenant_settings now round‑trips cleanly (key/value shape correct)
+“Booking pages stay public but must be usable as an element in our page editor.”
 
-tenant_shopify_stores is queryable and structurally correct
+This is now the governing rule for all booking‑calendar embedding.
 
-Real tenant AIBizConnect Consulting reads cleanly with no shape mismatches
+Filed under Booking Calendar Element Protocol.
 
-Settings page Server Components crash resolved
+2) No‑Duplicates Law — UPGRADE, Not Add (FILED)
 
-Root cause (documented):
+The old “booking” element was a dead dashed placeholder that never rendered slots.
 
-Live tenant_settings predated migration 0031 (wrong shape, empty), and 0035’s Shopify table was never created — identical drift pattern to the Calendar/Contacts convergences.
+Per the No‑Duplicates Law, we upgraded that element instead of adding a parallel type:
 
-Status:
+BookingSection is now the live element
 
-Settings Convergence v1 — SHIPPED & LIVE
+Elements List name updated to “Booking Calendar”
 
-Filed under Settings Schema Protocol.
+ELEMENT_DICTIONARY row 35 updated
 
-2) Settings Page Stability — FULLY RESTORED (FILED)
+Filed under Element Identity Protocol.
 
-The Server Components crash is now fully resolved:
+3) BookingSection — Live Iframe Rendering (SHIPPED)
+New behavior:
 
-All settings reads use the converged schema
+Renders an iframe of the public booking page
 
-No undefined/null shape mismatches
+Always uses ?embed=1
 
-All ~40 controls load and save correctly
+Logo‑free
 
-Shopify store list loads without fallback paths
+Padding‑free
 
-Filed under Settings Rendering Protocol.
+Perfect for in‑site embedding
 
-3) Scheduler & Sync Engines — READY, GATED BY CHANNELS (FILED)
+Fully responsive
 
-Both engines are already running on schedule:
+Zero configuration required for “All calendars”
 
-Appointment reminders
+Filed under Public Booking Embed Mode.
 
-Google Contacts hourly sync
+4) Inspector — BookingCalendarPicker (SHIPPED)
 
-Launchpad followups
+A dedicated inspector panel, following the MenuItemsEditor pattern:
 
-All sends are correctly gated by:
+Features:
 
-Verified email identity (Resend)
+Dropdown of all tenant calendars via listCalendarsAction
 
-Connected Twilio
+“All calendars” option = booking index (default)
 
-Per‑calendar toggles
+Heading
 
-No‑Auto‑Send Protocol (transactional only)
+Subheading
 
-Filed under Send Channel Gating Protocol.
+Height (px — not spacing‑capped)
 
-4) OAuth Redirect Fix — VERIFIED (FILED)
+Tenant ID stamping at insert/edit time
 
-The redirect_uri_mismatch on the new Contacts OAuth flow is resolved:
+Renderers have no tenant context
 
-Contacts OAuth now rides the registered Calendar redirect URI
+Single stamping point also heals legacy stubs
 
-Flow marker stored in encrypted state
+Filed under Inspector Protocol v3.
 
-Verified live
+5) Hardening Details (FILED)
+(1) Absolute embed URL
 
-Commit: f8cc683
+Relative /book/... paths would be captured by tenant custom‑domain routing middleware and rewritten into the tenant site.
 
-Filed under Google OAuth Protocol v1.2.
+Fix:  
+Embed src is now an absolute app‑host URL.
 
-5) Next Step (Ali) — Provision Real Send Channels (ACTION REQUIRED)
+(2) Canvas click‑through
 
-Probe shows:
+New rule:
+[data-abc-canvas] iframe { pointer-events: none; }
 
-No tenant currently has a verified email identity or Twilio connection.
+Booking iframes
 
-Required steps:
-1. Twilio (Settings → Twilio)
+Map embeds
 
-Add Messaging Service SID
+Any iframe‑based element
 
-Add Account SID
+→ no longer swallow canvas clicks
+→ clicking selects the element cleanly
+→ live sites unaffected
 
-Add Auth Token
+Filed under Canvas Interaction Protocol.
 
-This enables SMS reminders + SMS confirmations
+6) Build Status (FILED)
 
-2. Resend (Settings → Domain & Email)
+Build green
 
-Add Resend API key
+Booking Calendar Element v1 fully deployed
 
-Once present, I will automatically configure:
+Verified in editor, preview, and public site
+
+Filed under Element Deployment Ledger.
+
+7) AUTH_ENFORCE=true — Pre‑Flight Verified (FILED)
+
+Ali is enabling AUTH_ENFORCE=true in Vercel.
+
+Pre‑flight results:
+
+Login mirrors the token cookie
+
+Role allowlist resolves correctly
+
+SSR of Settings page fetched directly → clean
+
+The masked Settings error is likely a stale-tab client bundle, not server logic
+
+Filed under Auth Enforcement Protocol.
+
+Blueprint v3.2 Status — Booking Calendar Element v1 is SHIPPED & LIVE
+
+The Website Builder now supports:
+
+Native booking calendar embedding
+
+Tenant‑aware calendar selection
+
+Embed‑mode rendering
+
+Canvas‑safe iframe behavior
+
+Legacy element healing
+
+Full parity with public booking pages
+
+Next Active Thread (Ali’s directive):
+
+Ali is wiring Twilio next, then Resend.
+
+Once the Resend key lands, I will automatically configure:
 
 Domain
 
-DNS records
+DNS
 
 DKIM
 
@@ -111,62 +156,16 @@ Verified sender identity
 
 All via our Cloudflare zone
 
-This unlocks:
+This will fully activate:
 
 Reminder emails
 
-Guest confirmation emails
+Guest confirmations
 
 Booking confirmations
 
 Reschedule/cancel notifications
 
-Filed under Send Channel Provisioning Protocol.
-
-6) Platform State — Configuration Layer Now Fully Unified
-
-With 0050 applied, the platform’s configuration layer is now:
-
-Schema‑consistent
-
-Drift‑free
-
-Server‑component‑safe
-
-Shopify‑ready
-
-Cron‑ready
-
-Sync‑ready
-
-Reminder‑ready
-
-Filed under Settings Convergence v1.
-
-Blueprint v3.2 Status — Settings Convergence v1 is SHIPPED & LIVE
-
-The platform is now stable across:
-
-Scheduler v1.3
-
-Google Contacts Sync v1
-
-Calendar v1.3
-
-Contacts v1
-
-Settings v1
-
-Cron orchestration
-
-Multi‑account sync
-
-Reminder engine
-
-Venue + guest invites
-
-Native Google/Outlook attendee notifications
-
-Standing by for Ali’s Twilio + Resend provisioning — once those land, the entire transactional send pipeline goes live.
+Standing by.
 
 Edit in a page

@@ -8,9 +8,11 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
  * opportunity). Tenant-scoped; admin-gated writes. field_key is a machine slug, unique per object.
  */
 
+import { FIELD_TYPES, type CustomFieldType as FieldTypeOption } from "./option-constants";
+// Pure type alias (erased at build) — `export type { X }` clauses survive Turbopack's
+// use-server transform as RUNTIME re-exports and crash module evaluation.
+export type CustomFieldType = FieldTypeOption;
 export type CustomObjectType = "contact" | "opportunity";
-export const FIELD_TYPES = ["text", "textarea", "number", "date", "dropdown", "checkbox", "phone", "email", "url"] as const;
-export type CustomFieldType = (typeof FIELD_TYPES)[number];
 
 export interface CustomFieldView {
   id: string;

@@ -14,9 +14,10 @@ import { getKycView, startKycVerification, type KycView } from "./kyc-actions";
 import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from "./business-actions";
 import { getTracking, saveTracking, type TrackingSettings } from "./tracking-actions";
 import { listTags, createTag, updateTag, deleteTag, type TagView } from "./tags-actions";
-import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, FIELD_TYPES, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
+import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
+import { FIELD_TYPES, TRIGGER_TYPES, TRIGGER_LABELS } from "./option-constants";
 import { listCustomValues, createCustomValue, updateCustomValue, deleteCustomValue, type CustomValueView } from "./custom-values-actions";
-import { getScoring, createScoringRule, updateScoringRule, deleteScoringRule, setHotThreshold, TRIGGER_TYPES, TRIGGER_LABELS, type ScoringView, type ScoringRuleView, type TriggerType } from "./scoring-actions";
+import { getScoring, createScoringRule, updateScoringRule, deleteScoringRule, setHotThreshold, type ScoringView, type ScoringRuleView, type TriggerType } from "./scoring-actions";
 import { listTenantAudit, type TenantAuditEntry } from "./audit-actions";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";

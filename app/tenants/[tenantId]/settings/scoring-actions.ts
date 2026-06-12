@@ -9,17 +9,8 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
  * is a later step — this manages the RULES + threshold. Tenant-scoped; admin-gated writes.
  */
 
-export const TRIGGER_TYPES = ["tag_added", "field_equals", "form_submitted", "email_opened", "link_clicked", "page_visited"] as const;
-export type TriggerType = (typeof TRIGGER_TYPES)[number];
-
-export const TRIGGER_LABELS: Record<TriggerType, string> = {
-  tag_added: "Tag added",
-  field_equals: "Field equals value",
-  form_submitted: "Form submitted",
-  email_opened: "Email opened",
-  link_clicked: "Link clicked",
-  page_visited: "Page visited",
-};
+import { TRIGGER_TYPES, type TriggerType as TriggerTypeOption } from "./option-constants";
+export type TriggerType = TriggerTypeOption;
 
 export interface ScoringRuleView {
   id: string;
