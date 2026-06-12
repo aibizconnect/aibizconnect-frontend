@@ -52,7 +52,7 @@ const GROUP_1: Item[] = [
 
 const GROUP_2: Item[] = [
   { label: "AI Agents", key: "agents", route: "agents" },
-  { label: "Marketing", key: "marketing", soon: true },
+  { label: "Marketing", key: "marketing", route: "marketing" },
   { label: "Automation", key: "automation", route: "automations" },
   { label: "Sites", key: "sites", route: "sites" },
   { label: "Strategy", key: "strategy", route: "strategy" },

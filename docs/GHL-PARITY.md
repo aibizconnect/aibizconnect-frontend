@@ -63,3 +63,28 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 **DDL prerequisites:** 0043+0044+0045+0046+0047 all applied ✅ — conflict checks,
 "book anyway" overrides (including identical start times), soft-delete/Restore and
 outbound mirroring are fully live.
+
+## Marketing menu (D-280, 2026-06-12) — LIVE
+Email Campaigns end-to-end at /marketing: audience = all-contacts or any-of tag
+chips from the registry, with Do Not Contact / Unsubscribed / Bounced tags and
+dnd=true ALWAYS excluded (compliance floor, not configurable); AI draft
+(subject+preheader+body) via the OpenAI→Gemini chain grounded in the Business
+Profile; live recipient count + samples; preview pane; test-send-to-self;
+explicit confirmed Send via the verified Resend identity (emailReady-gated,
+drafts-only law — nothing auto-sends); per-campaign send log + stats; metering
+to ai_usage_events (email_campaign_send). Templates tab (reusable subject/
+preheader/body → "Use in campaign"). Store: tenant_email_campaigns (0054
+queued) with tenant_settings fallback.
+
+### Social Planner (SOON — design)
+Calendar UI over tenant_social_accounts (FB/IG/LinkedIn already connectable in
+Settings). Compose once → per-network variants (AI-adapted lengths/hashtags) →
+scheduled rows → cron worker posts via Meta Graph / LinkedIn APIs at the slot.
+Approval state per post (drafts-only law). Prereq: publish scopes on the
+platform Meta app + LinkedIn app review.
+
+### SMS Campaigns (SOON — design)
+Bulk Twilio sends with MANDATORY filters: SMS Consent custom field = true AND
+no guard tags; STOP/HELP auto-handling via Twilio webhook → sets Unsubscribed
+tag; quiet-hours window per tenant timezone; A2P 10DLC registration required
+before volume sending. Reuses the campaign store (channel: "sms").

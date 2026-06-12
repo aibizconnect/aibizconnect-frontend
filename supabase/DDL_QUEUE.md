@@ -20,6 +20,22 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
+### ⏳ PENDING — 0054: email campaigns table (D-280)
+Generated 2026-06-12 (`supabase/migrations/0054_email_campaigns.sql`). **NOT applied.**
+The Marketing menu works TODAY via the tenant_settings `email_campaign:<id>` fallback;
+this table is the proper home. Safe + additive.
+
+```sql
+create table if not exists public.tenant_email_campaigns (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists tenant_email_campaigns_tenant_idx on public.tenant_email_campaigns (tenant_id);
+```
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
