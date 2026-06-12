@@ -1,195 +1,147 @@
-Ali — Report #39 is filed and this becomes the official Blueprint v3.2 — Google Contacts Sync v1 Milestone, closing the final major CRM integration gap and bringing your platform to true multi‑surface, multi‑provider contact intelligence.
+Ali — Report #40 is filed and this becomes the official Blueprint v3.2 — Scheduler v1.3 (FULLY LIVE) entry.
+This milestone closes the entire scheduling pipeline: schema, cron, reminders, venues, guests, invites, and now production‑grade cron orchestration.
 
-This is the canonical blueprint entry for D‑258, fully integrated into Contacts v1 and the Sync Layer.
+Below is the canonical blueprint filing.
 
-BLUEPRINT v3.2 — GOOGLE CONTACTS SYNC v1 (Report #39 Filed)
+BLUEPRINT v3.2 — SCHEDULER v1.3 (FULLY LIVE)
 
-(Commit 7e4ef95 — D‑258 shipped)
+(0049 applied • CRON_SECRET installed • Worker handshake verified)
 
-1) Ali’s Directive (Filed)
+1) Migration 0049 — APPLIED (FILED)
 
-“Sync the CRM with chosen Google contact GROUPS, carrying every group label in as a tag.”
+Ali applied 0049 and verified live:
 
-This is now the governing rule for Google → CRM ingestion.
+Venue + guest fields now persist
 
-Filed under Google Contacts Sync Protocol.
+Reminder engine schema active
 
-2) Architecture — Read‑Only v1 (SHIPPED & FILED)
-OAuth & Storage
+Booking settings save cleanly
 
-Tenant‑level OAuth using the platform Google client
+No drift, no partial writes
 
-Scope: contacts.readonly
+Filed under Calendar Schema v1.3.
 
-Tokens encrypted in tenant_secrets
+2) CRON_SECRET Installed in Vercel (FILED)
+Production handshake verified:
 
-Integration state in tenant_integrations.config
+/api/cron/appointment-reminders returns 200 with worker secret
 
-No DDL required — Google resourceName stored in tenant_contacts.custom
+/api/cron/contact-sync returns 200
 
-UI — New “Google Sync” Tab
+Cloudflare Worker (aibizconnect-cron) is now fully authorized to drive:
 
-Admin‑gated
+Appointment reminders
 
-OAuth opens in new tab
+Google Contacts hourly sync
 
-Focus‑reload on return
+Launchpad followups
 
-Checkbox list of Google contact groups with member counts
+Filed under Cron Orchestration Protocol.
 
-Actions:
+3) Round‑3 Verification — ALL CHECKS PASS (FILED)
+Live booking test:
 
-Save
+Venue = Zoom stored correctly
 
-Sync now
+2 guests stored correctly
 
-Last‑sync report
+Conflict engine refused Ali’s originally chosen test slot because his real evening calendar was busy — correct
 
-Filed under Contacts Integrations v1.
+Reminder engine scanned the day‑before window
 
-3) Sync Semantics (SHIPPED & FILED)
+Channel gates held:
 
-All semantics were Gemini‑ruled and live‑verified with fabricated People API payloads.
+No verified email identity → no sends
 
-3.1 Group‑Driven Inclusion
+No false reminders_sent markers
 
-Selected groups determine WHO syncs
+Filed under Reminder Engine QA.
 
-ALL group labels become tags
+4) OAuth Redirect Mismatch — FIXED (FILED)
+Root cause:
 
-Case‑insensitive union
+Google Contacts OAuth flow used a redirect URI not registered in the Google Cloud console.
 
-Tags are never removed (CRM is authoritative)
+Fix:
 
-3.2 Matching Rules
+Reuse the registered Calendar redirect URI
 
-Primary: Google resourceName
+Add a flow marker in encrypted state
 
-Fallback: Email
+Works for both Calendar + Contacts OAuth
 
-Survives email changes in Google
+Commit: f8cc683 (deployed)
 
-No duplicates created
+Filed under Google OAuth Protocol v1.1.
 
-3.3 Field Merge Rules
+5) Scheduler v1.3 — End‑to‑End Status (FILED)
 
-Fill‑empty‑only for:
+The entire scheduling stack is now fully live:
 
-Name
+Timezone‑correct slot generation
 
-Phone
+Multi‑account provider sync
 
-Company
+All‑sub‑calendar busy sweep
 
-CRM edits always win
+Venues (Zoom/Teams/Meet/phone/in‑person/custom)
 
-Google never overwrites CRM data
+Guest invites (Google + Outlook native attendee notifications)
 
-3.4 Idempotency
+Transactional reminder engine (email + SMS)
 
-Re‑runs produce identical results
+Embed mode
 
-No drift
+Hourly Google Contacts sync
 
-No double‑tags
+Cron worker orchestration
 
-No duplicate contacts
-
-3.5 Skips & Reports
-
-Contacts with no email are skipped
-
-Reported in the sync summary
-
-3.6 Write‑Back
-
-No deletes
-
-No writes back to Google
-
-Two‑way sync deferred to a future ruling
-
-Filed under Google Contacts Sync v1 — Merge Semantics.
-
-4) Auto‑Sync Engine (SHIPPED & FILED)
-Cron Route
-
-/api/cron/contact-sync
-
-Protected by CRON_SECRET
-
-Cloudflare Worker
-
-aibizconnect-cron updated
-
-Runs every 15 minutes
-
-Per‑tenant hourly throttle
-
-Also drives Launchpad followups
-
-Audit Logging
-
-Logged as crm.contacts.google_sync (counts only)
-
-Filed under Sync Engine v1.
-
-5) Caveat (Filed)
-
-The platform’s Google Cloud project may require People API to be enabled.
-UI surfaces a clear message if so.
-
-Filed under Integration Readiness v1.
-
-6) Pre‑DDL Graceful Mode (Filed)
-
-Until Ali applies DDL 0049 (from Calendar Round 3):
-
-Bookings work
-
-Venue + guests dropped with a clear hint
-
-Google Contacts sync unaffected (no schema changes)
-
-Settings save shows upgrade notice
-
-Filed under Calendar Schema v1.3 — Migration Gate.
-
-7) GHL‑PARITY.md Updated (Filed)
-
-Google Contacts sync row added.
-The Notifications exclusion is now correctly scoped to marketing only.
-
-Filed under GHL‑Parity Matrix v1.4.
-
-Blueprint v3.2 Status — Google Contacts Sync v1
-
-Google Contacts Sync now satisfies:
-
-Group‑driven ingestion
-
-Tag union semantics
-
-resourceName‑first matching
-
-Fill‑empty‑only merges
-
-Idempotent re‑runs
-
-Hourly auto‑sync
-
-Transactional audit logging
+Idempotent markers
 
 No‑Auto‑Send compliance
 
 Native‑Elements‑Only Supreme Rule
 
-Spacing Protocol (SPACING_MAX=20)
+SPACING_MAX=20 everywhere
 
-Status:  
-GOOGLE CONTACTS SYNC v1 — SHIPPED & LIVE
+Filed under Scheduler v1.3.
 
-Ali — Calendar v1.3 and Google Contacts Sync v1 are now fully live.
-Standing by for your next directive: Gallery Recognition or Automations Engine E1.
+6) NEXT — Wiring Ali’s Real Send Channels (ACTION REQUIRED)
+
+Probe results:
+
+No tenant currently has a verified email identity or Twilio connection.
+
+Required next steps (Ali):
+
+Go to Settings → Domain & Email
+
+Add Resend API key
+
+Once present, I can automate domain + DNS via our Cloudflare zone
+
+Go to Settings → Twilio
+
+Add Messaging Service SID
+
+Add Account SID + Auth Token
+
+Once these are in place:
+
+Reminder emails will send
+
+SMS reminders will send
+
+Guest confirmations will send
+
+All transactional channels will be fully operational
+
+Filed under Send Channel Provisioning Protocol.
+
+Blueprint v3.2 Status — Scheduler v1.3 is FULLY LIVE
+
+Everything from Rounds 1–3 is now complete, stable, and production‑verified.
+
+Standing by to proceed with Gallery Recognition or Automations Engine E1 whenever you call it.
 
 Edit in a page
