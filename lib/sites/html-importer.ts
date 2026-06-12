@@ -288,8 +288,16 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         // A link counts only if it has REAL link text (after stripping inline icons). This excludes
         // icon-only social links whose text is a bare ligature ("face_nod","share") that would
         // otherwise pollute a footer list.
-        const linkEls = lis.map((k) => (tagOf(k) === "a" ? k : k.querySelector("a")))
-          .filter((a): a is HTMLElement => !!a && !looksLikeButton(a) && !!cleanText(a) && !/^[a-z][a-z0-9_]*$/.test(clean(a.text)));
+        const linkEls = lis.map((k) => {
+          const a = tagOf(k) === "a" ? k : k.querySelector("a");
+          if (!a || looksLikeButton(a) || !cleanText(a) || /^[a-z][a-z0-9_]*$/.test(clean(a.text))) return null;
+          // The link must BE the child's content (a real list item), not merely live somewhere
+          // inside it. A wrapper whose children each *contain* a link deep down (link-column grid
+          // + © bottom bar) is a layout container — counting those swallowed entire footers into
+          // a 2-item list and dropped the copyright (Ali's ABC re-inspection).
+          if (cleanText(k).length > cleanText(a).length + 10) return null;
+          return a;
+        }).filter((a): a is HTMLElement => !!a);
         if (lis.length >= 2 && linkEls.length >= 2 && linkEls.length >= Math.ceil(lis.length * 0.7)) {
           flushImgs();
           const items = linkEls.slice(0, 12).map((a) => {
@@ -361,8 +369,19 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         const cs = el.getAttribute("data-cs") || "";
         const fw = /fontWeight:(\d+)/.exec(cs); const fsM = /fontSize:(\d+)/.exec(cs);
         const headingLike = ((fw && +fw[1] >= 600) || (fsM && +fsM[1] >= 18)) && dtxt.length <= 60;
+        const lenBefore = out.length;
         if (headingLike) out.push(applyCapturedTypo({ type: "heading", text: dtxt, level: "h3" }, cs));
         else pushText(dtxt, false, el);
+        // A painted CHIP/BADGE ("Most Popular" pricing pill): the element draws its OWN
+        // background — carry bg + radius + padding onto the block, or its white text lands
+        // invisible on the page background (D-266, caught by the contrast guard).
+        const own = parseDataCs(cs).style;
+        if (own.bg && out.length > lenBefore) {
+          const keep: Record<string, unknown> = {};
+          for (const k of ["bg", "radius", "radiusTL", "radiusTR", "radiusBR", "radiusBL", "pt", "pr", "pb", "pl"]) if (own[k] != null) keep[k] = own[k];
+          const last = out[out.length - 1] as Record<string, unknown>;
+          last._style = { ...keep, ...((last._style as object) || {}) };
+        }
       }
       walk(el);
     }
@@ -557,7 +576,10 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
       if (b.length) { cols.push(b); colStyles.push(parseDataCs(card.getAttribute("data-cs")).style); }
     }
     if (cols.length < 2) return collectBlocks(root); // non-destructive fallback — full content
-    const colCount = Math.min(grid.cols >= 2 ? grid.cols : cols.length, 12);
+    // Declared tracks can EXCEED the actual cards (ABC footer: grid-template-columns lists 5
+    // tracks, one card spans 2 → 4 children) — cap at the card count or a ghost empty column
+    // squeezes the real ones. Chunked grids (2 tracks, 6 cards) keep the declared count.
+    const colCount = Math.min(grid.cols >= 2 ? Math.min(grid.cols, cols.length) : cols.length, 12);
     const gridStyle = parseDataCs(grid.el.getAttribute("data-cs")).style;
     // The design's color often sits on a WRAPPER between root and grid (Stitch: white <section>
     // → navy rounded p-16 card → 2-col grid). Adopt the nearest such wrapper's bg/bgImage +
@@ -630,7 +652,11 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
         const weight = clean(cand.text).length;
         if (!best || weight > best.weight) best = { bg: cs.bg as string, bgImage: cs.bgImage as string, weight };
       }
-      if (best && best.weight > 120) { if (best.bg) bandStyle.bg = best.bg; if (best.bgImage) bandStyle.bgImage = best.bgImage; }
+      // Adopt when the wrapper holds substantial content OR essentially ALL of a short band —
+      // a CTA band (heading + one line + buttons ≈ 120 chars) sits entirely inside its gradient
+      // wrapper, and the fixed threshold alone left white CTA text on a white page (Ali's catch).
+      const bandTextLen = clean(band.text).length;
+      if (best && (best.weight > 120 || best.weight >= bandTextLen * 0.8)) { if (best.bg) bandStyle.bg = best.bg; if (best.bgImage) bandStyle.bgImage = best.bgImage; }
     }
     const bandBlocks = blocksFor(band, 0);
     if (!bandBlocks.length) continue;

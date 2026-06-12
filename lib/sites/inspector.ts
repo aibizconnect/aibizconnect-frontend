@@ -113,6 +113,84 @@ export async function inspectPage(
     }
   }
 
+  // 7. CONTRAST fidelity guard (D-266, Ali's ABC re-inspection: white CTA text on a white page
+  // because the band's gradient bg was dropped). NOT a WCAG audit — it flags text that is
+  // effectively INVISIBLE against its band's background (ratio < 1.6 vs every background paint),
+  // which on an import almost always means a lost background, not a design choice.
+  {
+    const lum = (hex: string): number | null => {
+      const m = /^#([0-9a-f]{6})$/i.exec(hex.length === 4 ? "#" + hex.slice(1).split("").map((c) => c + c).join("") : hex);
+      if (!m) return null;
+      const [r, g, b] = [0, 2, 4].map((i) => {
+        const c = parseInt(m[1].slice(i, i + 2), 16) / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const toHex = (v: string): string | null => {
+      if (/^#[0-9a-f]{3,6}$/i.test(v)) return v;
+      const m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(v);
+      if (!m) return null;
+      return "#" + [m[1], m[2], m[3]].map((n) => (+n).toString(16).padStart(2, "0")).join("");
+    };
+    // All paint colors of a background value: solid hex → [hex]; gradient → its color stops.
+    const paintsOf = (bg: unknown): string[] => {
+      if (typeof bg !== "string" || !bg || bg === "transparent") return [];
+      if (/gradient\(/.test(bg)) {
+        return [...bg.matchAll(/#[0-9a-f]{3,6}|rgba?\([^)]+\)/gi)].map((m) => toHex(m[0])).filter((h): h is string => !!h);
+      }
+      const h = toHex(bg);
+      return h ? [h] : [];
+    };
+    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    let reported = 0;
+    const checkBlocks = (blocks: unknown, bgPaints: string[], where: string): void => {
+      if (reported >= 3 || !Array.isArray(blocks)) return;
+      for (const b of blocks as Record<string, unknown>[]) {
+        if (!b || typeof b !== "object" || reported >= 3) continue;
+        if (b.type === "row") {
+          const ownBg = paintsOf((b._style as Record<string, unknown>)?.bg);
+          const nextBg = ownBg.length ? ownBg : bgPaints;
+          for (const cell of (b.children as unknown[][]) || []) checkBlocks(cell, nextBg, where);
+          continue;
+        }
+        // Self-painted blocks (button bgColor, chip/badge _style.bg) are judged against
+        // their OWN background, not the band's.
+        const own = b.type === "button"
+          ? paintsOf(b.bgColor)
+          : paintsOf((b._style as Record<string, unknown> | undefined)?.bg);
+        const fg = toHex(String(b.textColor || b.color || ""));
+        const text = String(b.text || (Array.isArray(b.items) ? (b.items[0] as any)?.text : "") || "");
+        if (!fg || !text) continue;
+        // Decorative WATERMARK numerals ("01/02/03" step backdrops, 72px at 10% alpha) are
+        // near-invisible BY DESIGN — huge font + tiny text is ornament, not content.
+        if (Number(b.fontSize) >= 40 && text.trim().length <= 4) continue;
+        const fgLum = lum(fg);
+        if (fgLum == null) continue;
+        const against = own.length ? own : bgPaints.length ? bgPaints : ["#ffffff"]; // page default
+        const visible = against.some((p) => { const l = lum(p); return l != null && ratio(fgLum, l) >= 1.6; });
+        if (!visible) {
+          reported++;
+          issues.push({ severity: "error", code: "text-invisible", message: `Text "${text.slice(0, 40)}" (${fg}) is invisible against its background (${against[0]}) — a band background was likely lost on import.`, where });
+        }
+      }
+    };
+    for (const s of sections) {
+      if (s.type !== "row") continue;
+      const bg = paintsOf((s._style as Record<string, unknown>)?.bg);
+      for (const cell of (s.children as unknown[][]) || []) checkBlocks(cell, bg, String(s._name || "row"));
+    }
+  }
+
+  // 8. Copyright bar position (D-266): when the page carries a © line it must sit in the LAST
+  // band — Ali's law: "the copyright statement is at the very end of the page".
+  if (sections.length > 1) {
+    const hasCopy = (s: unknown) => /©|\(c\)\s*\d{4}/i.test(JSON.stringify(s));
+    if (sections.slice(0, -1).some(hasCopy) && !hasCopy(sections[sections.length - 1])) {
+      issues.push({ severity: "warning", code: "copyright-not-last", message: "A © copyright line exists but is NOT in the page's last band — the footer bottom bar was misplaced." });
+    }
+  }
+
   // 6. Broken images (HEAD, capped + best-effort).
   let checkedImages = 0;
   if (opts?.checkImages !== false) {

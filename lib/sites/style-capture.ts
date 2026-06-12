@@ -10,8 +10,15 @@ function rgbToHex(v?: string): string | undefined {
   const m = /rgba?\(([^)]+)\)/.exec(v);
   if (!m) return undefined;
   const p = m[1].split(",").map((s) => s.trim());
-  if (p.length >= 4 && parseFloat(p[3]) === 0) return undefined; // fully transparent
-  const h = (n: string) => Math.max(0, Math.min(255, parseInt(n, 10) || 0)).toString(16).padStart(2, "0");
+  const alpha = p.length >= 4 ? parseFloat(p[3]) : 1;
+  if (alpha === 0) return undefined; // fully transparent
+  // Semi-transparent colors COMPOSITE over the (typically white) page — dropping the alpha
+  // turned a 10%-blue tint chip into solid navy behind navy text (D-266 contrast catch).
+  const h = (n: string) => {
+    const c = Math.max(0, Math.min(255, parseInt(n, 10) || 0));
+    const blended = alpha < 1 ? Math.round(alpha * c + (1 - alpha) * 255) : c;
+    return blended.toString(16).padStart(2, "0");
+  };
   if (p.length >= 3) return "#" + h(p[0]) + h(p[1]) + h(p[2]);
   return undefined;
 }
@@ -41,7 +48,12 @@ export function parseDataCs(dataCs?: string | null): CapturedStyle {
   }
 
   const bg = rgbToHex(map.backgroundColor); if (bg) style.bg = bg;
-  const bgi = /url\((['"]?)([^'")]+)\1\)/.exec(map.backgroundImage || ""); if (bgi) style.bgImage = bgi[2];
+  const bgiRaw = map.backgroundImage || "";
+  const bgi = /url\((['"]?)([^'")]+)\1\)/.exec(bgiRaw); if (bgi) style.bgImage = bgi[2];
+  // CSS gradient backgrounds (CTA bands, hero washes): bgValue() passes any CSS paint
+  // string through to `background`, so the gradient survives as _style.bg verbatim. It
+  // wins over a plain backgroundColor — the gradient is the visible paint, the color its backdrop.
+  else if (/(?:linear|radial|conic)-gradient\(/.test(bgiRaw)) style.bg = bgiRaw.trim();
 
   if (map.textAlign === "center" || map.textAlign === "right") { style.align = map.textAlign; typo.align = map.textAlign; }
 
