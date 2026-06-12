@@ -47,8 +47,9 @@ const SKILL_TOOLS: Record<string, { skill: SkillKey; write: boolean; fn: ToolFn 
 };
 const ALL_MANIFESTS = [...CALENDAR_TOOL_MANIFEST, ...CONTACT_TOOL_MANIFEST, ...COMMS_TOOL_MANIFEST];
 
-/** Anonymous-channel allowlist (D-275): book + become-a-lead, nothing else. */
-const PUBLIC_TOOL_NAMES = new Set(["calendar.list", "calendar.availability", "calendar.book", "contacts.create"]);
+/** Anonymous-channel allowlist (D-275/D-281): book + become-a-lead + note the lead's
+ *  own need (contactId comes from contacts.create; uuids are unguessable — no reads). */
+const PUBLIC_TOOL_NAMES = new Set(["calendar.list", "calendar.availability", "calendar.book", "contacts.create", "contacts.addNote"]);
 
 export type AgentAccessMode = "readonly" | "live" | "public";
 
@@ -74,7 +75,7 @@ function buildSystemPrompt(agent: AiAgentDef, businessFacts: string, toolNames: 
   const tools = ALL_MANIFESTS.filter((t) => toolNames.has(t.name));
   const modeNote =
     mode === "readonly" ? "NOTE: this is a read-only session — tools that change anything are disabled; tell the user what you WOULD do instead.\n"
-    : mode === "public" ? "NOTE: you are chatting with a VISITOR on the business's website. Be welcoming. Collect their name and email naturally (create a contact when you have them). You can check availability and book for them. You cannot look up private records, reschedule, or cancel — ask them to contact the business directly for that.\n"
+    : mode === "public" ? "NOTE: you are chatting with a VISITOR on the business's website. Be welcoming, one question at a time. Discover what they need (their pain point), and collect their name, email and phone naturally in conversation — never as a form. Once you have name + email: create the contact, then immediately save a one-line note about their need (contacts.addNote with the contactId you just received). Offer 2-3 concrete open slots and book the appointment — booking sends their confirmation email and invites, and schedules the reminders automatically. You cannot look up private records, reschedule, or cancel — ask them to contact the business directly for that.\n"
     : "";
   const toolBlock = tools.length
     ? `TOOLS you may call (real systems — results come back as observations):\n${tools

@@ -15,6 +15,7 @@ import { runAgentTurn } from "@/lib/agent/agent-runtime";
 const bodySchema = z.object({
   tenantId: z.string().uuid(),
   agentId: z.string().uuid(),
+  sessionId: z.string().uuid().optional(), // widget chat session — enables conversation storage
   messages: z.array(z.object({ role: z.enum(["user", "agent"]), text: z.string().min(1).max(2000) })).min(1).max(40),
 });
 
@@ -46,6 +47,28 @@ export async function POST(req: NextRequest) {
 
   const r = await runAgentTurn(body.tenantId, agent, body.messages, { mode: "public" });
   if (r.error) return NextResponse.json({ error: "The assistant is unavailable right now." }, { status: 503 });
+
+  // STORE THE CONVERSATION (D-281): one record per widget session, linked to the CRM
+  // contact the moment the agent creates one mid-chat. Best-effort — never blocks the reply.
+  if (body.sessionId) {
+    try {
+      const { upsertConversation, getConversation } = await import("@/lib/agent/conversations-store");
+      const prev = await getConversation(body.tenantId, body.sessionId);
+      const createStep = r.steps.find((s) => s.tool === "contacts.create" && s.ok);
+      const contactEmail = (createStep?.args as any)?.email ?? prev?.contactEmail ?? null;
+      await upsertConversation(body.tenantId, {
+        sessionId: body.sessionId,
+        agentId: agent.id,
+        channel: "webchat",
+        contactEmail: typeof contactEmail === "string" ? contactEmail : null,
+        messages: [...body.messages, ...(r.reply ? [{ role: "agent" as const, text: r.reply }] : [])],
+        toolEvents: [...(prev?.toolEvents ?? []), ...r.steps.map((s) => `${s.tool}${s.ok ? "" : "✗"}`)],
+        startedAt: prev?.startedAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch { /* storage is best-effort */ }
+  }
+
   // Tool names only — never internal args/summaries — leave the server.
   return NextResponse.json({ reply: r.reply, tools: r.steps.map((s) => s.tool) });
 }

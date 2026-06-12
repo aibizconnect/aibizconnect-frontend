@@ -57,18 +57,27 @@ const createSchema = z.object({
   source: z.string().max(60).optional(),
 }).refine((v) => v.email || v.phone, { message: "A contact needs an email or a phone number." });
 
-export async function toolCreateContact(tenantId: string, raw: unknown): Promise<ToolResult<{ created: boolean; existingId?: string }>> {
+export async function toolCreateContact(tenantId: string, raw: unknown): Promise<ToolResult<{ created: boolean; contactId: string | null }>> {
   const p = createSchema.safeParse(raw);
   if (!p.success) return fail(p.error.issues[0]?.message ?? "Invalid arguments.");
   // Dedupe by email first (same rule as CSV import) — agents must not spawn duplicates.
   if (p.data.email) {
     const { data: ex } = await svc().from("tenant_contacts").select("id").eq("tenant_id", tenantId).ilike("email", p.data.email).maybeSingle();
-    if (ex) { await audit(tenantId, "create", { dedupe: true }); return { ok: true, data: { created: false, existingId: (ex as any).id } }; }
+    if (ex) { await audit(tenantId, "create", { dedupe: true }); return { ok: true, data: { created: false, contactId: (ex as any).id } }; }
   }
   const r = await createContact(tenantId, { ...p.data, source: p.data.source ?? "ai_agent" });
   if (!r.ok) return fail(r.error ?? "Could not create the contact.");
+  // Return the new id so the agent can immediately addNote/addTag (the lead-capture loop).
+  let contactId: string | null = null;
+  try {
+    let q = svc().from("tenant_contacts").select("id").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(1);
+    if (p.data.email) q = q.ilike("email", p.data.email);
+    else if (p.data.phone) q = q.eq("phone", p.data.phone);
+    const { data } = await q.maybeSingle();
+    contactId = (data as any)?.id ?? null;
+  } catch { /* id lookup is best-effort */ }
   await audit(tenantId, "create", { email: p.data.email ?? null, phone: p.data.phone ?? null });
-  return { ok: true, data: { created: true } };
+  return { ok: true, data: { created: true, contactId } };
 }
 
 // ── update (WRITE, fill-empty discipline for identity fields) ────────────────
@@ -133,7 +142,7 @@ export async function toolAddContactNote(tenantId: string, raw: unknown): Promis
 
 export const CONTACT_TOOL_MANIFEST = [
   { name: "contacts.find", description: "Find CRM contacts by email, phone, or name (max 10).", params: { email: "optional", phone: "optional", name: "optional (one required)" } },
-  { name: "contacts.create", description: "Create a CRM contact (deduped by email; source defaults to ai_agent).", params: { name: "", email: "optional", phone: "optional (email or phone required)", company: "optional", source: "optional" } },
+  { name: "contacts.create", description: "Create a CRM contact (deduped by email; source defaults to ai_agent). Returns contactId — use it right away with contacts.addNote to record what the person needs.", params: { name: "", email: "optional", phone: "optional (email or phone required)", company: "optional", source: "optional" } },
   { name: "contacts.update", description: "Update a contact's name/email/phone/company.", params: { contactId: "uuid", name: "optional", email: "optional", phone: "optional", company: "optional" } },
   { name: "contacts.addTag", description: "Tag a contact. New tags are created in the tenant's tag registry automatically.", params: { contactId: "uuid", tag: "tag name" } },
   { name: "contacts.addNote", description: "Add a note to a contact's timeline.", params: { contactId: "uuid", note: "" } },

@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   saveAiAgentAction, deleteAiAgentAction, runAgentTestTurnAction, listAgentAuditAction, getAgentUsageAction,
+  scrapeKnowledgeUrlAction, draftAgentInstructionsAction, listConversationsAction,
   type AgentAuditRow, type AgentUsageSummary,
 } from "@/app/tenants/[tenantId]/agents/ai-actions";
+import type { StoredConversation } from "@/lib/agent/conversations-store";
 import { ROLE_LABELS, ROLE_PRESETS, type AiAgentDef, type AgentRole, type AgentTone } from "@/lib/agent/agents-store";
-import { confirmDialog } from "@/lib/ui/dialogs";
+import { confirmDialog, notify } from "@/lib/ui/dialogs";
 import type { AgentChatMessage, AgentToolStep } from "@/lib/agent/agent-runtime";
 
 /**
@@ -55,7 +57,7 @@ export default function AiAgentsHub({ tenantId, initialAgents, ops }: {
   initialAgents: AiAgentDef[];
   ops?: React.ReactNode; // legacy Agent Mesh panel
 }) {
-  const [tab, setTab] = useState<"agents" | "audit" | "ops">("agents");
+  const [tab, setTab] = useState<"agents" | "conversations" | "audit" | "ops">("agents");
   const [agents, setAgents] = useState<AiAgentDef[]>(initialAgents);
   const [editing, setEditing] = useState<AiAgentDef | null>(null);
 
@@ -73,6 +75,7 @@ export default function AiAgentsHub({ tenantId, initialAgents, ops }: {
 
       <div className="mt-4 flex gap-1 border-b border-slate-200">
         {tabBtn("agents", "Agents")}
+        {tabBtn("conversations", "Conversations")}
         {tabBtn("audit", "Usage & Audit")}
         {ops && tabBtn("ops", "Ops (Agent Mesh)")}
       </div>
@@ -91,6 +94,7 @@ export default function AiAgentsHub({ tenantId, initialAgents, ops }: {
           onSaved={(a) => setAgents((p) => (p.some((x) => x.id === a.id) ? p.map((x) => (x.id === a.id ? a : x)) : [...p, a]))}
           onDeleted={(id) => { setAgents((p) => p.filter((x) => x.id !== id)); setEditing(null); }} />
       )}
+      {tab === "conversations" && <ConversationsTab tenantId={tenantId} agents={agents} />}
       {tab === "audit" && <AuditTab tenantId={tenantId} />}
       {tab === "ops" && ops}
     </div>
@@ -139,6 +143,8 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
   const [sub, setSub] = useState<"general" | "skills" | "channels" | "knowledge" | "test">("general");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [aiBrief, setAiBrief] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
   const set = <K extends keyof AiAgentDef>(k: K, v: AiAgentDef[K]) => setA((p) => ({ ...p, [k]: v }));
 
   const save = async () => {
@@ -186,8 +192,20 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
           <label className="flex items-end gap-2 pb-1 text-sm text-slate-600">
             <input type="checkbox" checked={a.enabled} onChange={(e) => set("enabled", e.target.checked)} /> Enabled
           </label>
+          <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+            <span className={lbl}>✨ AI assist — describe what you want in plain words</span>
+            <textarea className={`${inp} min-h-[56px]`} value={aiBrief} onChange={(e) => setAiBrief(e.target.value)}
+              placeholder="e.g. Engage visitors, find out their pain point and what they need, get their name, email and phone, then book a discovery call with our calendar." />
+            <button onClick={async () => {
+              setAiBusy(true);
+              const r = await draftAgentInstructionsAction(tenantId, ROLE_LABELS[a.role], aiBrief);
+              setAiBusy(false);
+              if (r.ok && r.instructions) set("instructions", r.instructions);
+              else setMsg(r.message ?? "Draft failed.");
+            }} disabled={aiBusy} className="mt-2 rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50">{aiBusy ? "Writing…" : "Write the instructions for me"}</button>
+          </div>
           <label className="sm:col-span-2"><span className={lbl}>Instructions</span>
-            <textarea className={`${inp} min-h-[120px]`} value={a.instructions} onChange={(e) => set("instructions", e.target.value)}
+            <textarea className={`${inp} min-h-[160px]`} value={a.instructions} onChange={(e) => set("instructions", e.target.value)}
               placeholder="How should this agent behave? What should it always / never do?" /></label>
           <div className="sm:col-span-2">
             <button onClick={async () => { if (await confirmDialog("Delete this agent?")) { await deleteAiAgentAction(tenantId, a.id); onDeleted(a.id); } }}
@@ -294,27 +312,83 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
       )}
 
       {sub === "knowledge" && (
-        <div className="mt-4 max-w-2xl space-y-4">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-            Your <b>Business Profile</b> (name, phone, address, industry, hours) is merged into this agent automatically — one source of truth, set in Settings → Business Profile.
-          </div>
-          <div>
-            <span className={lbl}>Extra knowledge (FAQs, policies, service details)</span>
-            {a.knowledge.snippets.map((s) => (
-              <div key={s.id} className="mb-2 flex items-start gap-2">
-                <textarea className={`${inp} min-h-[60px]`} value={s.content}
-                  onChange={(e) => set("knowledge", { ...a.knowledge, snippets: a.knowledge.snippets.map((x) => (x.id === s.id ? { ...x, content: e.target.value } : x)) })} />
-                <button onClick={() => set("knowledge", { ...a.knowledge, snippets: a.knowledge.snippets.filter((x) => x.id !== s.id) })}
-                  className="mt-1 text-slate-400 hover:text-red-500" title="Remove">✕</button>
-              </div>
-            ))}
-            <button onClick={() => set("knowledge", { ...a.knowledge, snippets: [...a.knowledge.snippets, { id: crypto.randomUUID(), content: "", source: "manual" }] })}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">+ Add knowledge</button>
-          </div>
-        </div>
+        <KnowledgeTab tenantId={tenantId} agent={a} onChange={(k) => set("knowledge", k)} />
       )}
 
       {sub === "test" && <TestConsole tenantId={tenantId} agent={a} onTested={(at) => set("lastTestedAt", at)} />}
+    </div>
+  );
+}
+
+function KnowledgeTab({ tenantId, agent: a, onChange }: { tenantId: string; agent: AiAgentDef; onChange: (k: AiAgentDef["knowledge"]) => void }) {
+  const [url, setUrl] = useState("");
+  const [scraping, setScraping] = useState(false);
+  const add = (content: string, source: string) =>
+    onChange({ ...a.knowledge, snippets: [...a.knowledge.snippets, { id: crypto.randomUUID(), content, source }] });
+
+  const scrape = async () => {
+    if (!url.trim()) return;
+    setScraping(true);
+    const r = await scrapeKnowledgeUrlAction(tenantId, url.trim());
+    setScraping(false);
+    if (r.ok && r.content) { add(r.content, r.source ?? "url"); setUrl(""); notify(`Added "${r.title}" ✓ — remember to Save the agent.`); }
+    else notify(r.message ?? "Couldn't read that page.");
+  };
+
+  const onFiles = async (files: FileList | null) => {
+    if (!files) return;
+    for (const f of Array.from(files).slice(0, 5)) {
+      if (!/\.(txt|md|csv)$/i.test(f.name)) { notify(`"${f.name}": only .txt, .md and .csv for now (PDF coming).`); continue; }
+      if (f.size > 1024 * 1024) { notify(`"${f.name}" is too large (1MB max).`); continue; }
+      const text = await f.text();
+      add(text.slice(0, 6000), `file:${f.name}`);
+    }
+    notify("File content added — remember to Save the agent.");
+  };
+
+  const badge = (source: string) => {
+    const kind = source.startsWith("url:") ? source : source.startsWith("file:") ? source : "text";
+    const cls = source.startsWith("url:") ? "bg-sky-100 text-sky-700" : source.startsWith("file:") ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500";
+    return <span className={`rounded px-1.5 py-0.5 text-[10px] ${cls}`}>{kind}</span>;
+  };
+
+  return (
+    <div className="mt-4 max-w-2xl space-y-4">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        Your <b>Business Profile</b> (name, phone, address, industry, hours) is merged into this agent automatically — one source of truth, set in Settings → Business Profile.
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <span className={lbl}>Add from a web page</span>
+        <div className="flex gap-2">
+          <input className={inp} value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && scrape()}
+            placeholder="https://yourbiz.com/services" />
+          <button onClick={scrape} disabled={scraping} className="shrink-0 rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{scraping ? "Reading…" : "Scrape page"}</button>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <span className={lbl + " mb-0"}>Or upload files</span>
+          <input type="file" multiple accept=".txt,.md,.csv" onChange={(e) => onFiles(e.target.files)}
+            className="text-xs text-slate-500 file:mr-2 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-xs file:text-slate-600" />
+        </div>
+        <p className="mt-1 text-[11px] text-slate-400">.txt / .md / .csv up to 1MB (PDF support coming). Long content is trimmed to 6,000 characters per snippet.</p>
+      </div>
+
+      <div>
+        <span className={lbl}>Knowledge snippets (FAQs, policies, services, scraped pages, files)</span>
+        {a.knowledge.snippets.map((s) => (
+          <div key={s.id} className="mb-2 rounded-xl border border-slate-200 bg-white p-2">
+            <div className="mb-1 flex items-center justify-between">
+              {badge(s.source)}
+              <button onClick={() => onChange({ ...a.knowledge, snippets: a.knowledge.snippets.filter((x) => x.id !== s.id) })}
+                className="text-slate-400 hover:text-red-500" title="Remove">✕</button>
+            </div>
+            <textarea className={`${inp} min-h-[60px] border-0 p-1 focus:ring-0`} value={s.content}
+              onChange={(e) => onChange({ ...a.knowledge, snippets: a.knowledge.snippets.map((x) => (x.id === s.id ? { ...x, content: e.target.value } : x)) })} />
+          </div>
+        ))}
+        <button onClick={() => onChange({ ...a.knowledge, snippets: [...a.knowledge.snippets, { id: crypto.randomUUID(), content: "", source: "manual" }] })}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">+ Add text</button>
+      </div>
     </div>
   );
 }
@@ -376,6 +450,48 @@ function TestConsole({ tenantId, agent, onTested }: { tenantId: string; agent: A
         <button onClick={send} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Send</button>
       </div>
       <p className="mt-2 text-[11px] text-slate-400">Tip: changes you make in the other tabs apply here immediately — no save needed to test.</p>
+    </div>
+  );
+}
+
+function ConversationsTab({ tenantId, agents }: { tenantId: string; agents: AiAgentDef[] }) {
+  const [convos, setConvos] = useState<StoredConversation[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => { listConversationsAction(tenantId).then(setConvos).catch(() => setConvos([])); }, [tenantId]);
+  if (!convos) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
+  if (!convos.length) return <p className="py-8 text-center text-sm text-slate-400">No conversations yet — they appear here as soon as visitors chat with your website widget.</p>;
+  const agentName = (id: string) => agents.find((a) => a.id === id)?.name ?? "Agent";
+  return (
+    <div className="mt-4 space-y-2">
+      {convos.map((c) => (
+        <div key={c.sessionId} className="rounded-xl border border-slate-200 bg-white">
+          <button onClick={() => setOpen(open === c.sessionId ? null : c.sessionId)} className="flex w-full items-center justify-between gap-3 p-3 text-left">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-slate-900">{c.contactEmail ?? "Anonymous visitor"}</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">{c.channel}</span>
+                <span className="text-xs text-slate-400">with {agentName(c.agentId)}</span>
+              </div>
+              <div className="truncate text-xs text-slate-500">{c.messages[c.messages.length - 1]?.text ?? ""}</div>
+            </div>
+            <div className="shrink-0 text-right text-xs text-slate-400">
+              {new Date(c.updatedAt).toLocaleString()}<br />{c.messages.length} messages
+            </div>
+          </button>
+          {open === c.sessionId && (
+            <div className="border-t border-slate-100 p-3">
+              {c.toolEvents.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">{c.toolEvents.map((t, i) => <span key={i} className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">⚙ {t}</span>)}</div>
+              )}
+              {c.messages.map((m, i) => (
+                <div key={i} className={`mb-2 ${m.role === "user" ? "text-right" : ""}`}>
+                  <span className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.role === "user" ? "bg-[#1e3a8a] text-white" : "bg-slate-100 text-slate-800"}`}>{m.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

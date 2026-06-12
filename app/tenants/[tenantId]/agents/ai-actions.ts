@@ -72,6 +72,30 @@ export async function getAgentUsageAction(tenantId: string): Promise<AgentUsageS
   return out;
 }
 
+/** Scrape a URL into a knowledge snippet (D-281). */
+export async function scrapeKnowledgeUrlAction(tenantId: string, url: string): Promise<{ ok: boolean; title?: string; content?: string; source?: string; message?: string }> {
+  await requireTenantAccess(tenantId);
+  const { scrapeUrlToSnippet } = await import("@/lib/agent/agent-knowledge");
+  const r = await scrapeUrlToSnippet(url);
+  return r.ok ? { ok: true, title: r.title, content: r.content, source: r.source } : { ok: false, message: r.error };
+}
+
+/** Plain-language wish → structured agent instructions (D-281 AI assist). */
+export async function draftAgentInstructionsAction(tenantId: string, role: string, brief: string): Promise<{ ok: boolean; instructions?: string; message?: string }> {
+  await requireTenantAccess(tenantId);
+  if (!brief.trim()) return { ok: false, message: "Describe what you want the agent to do." };
+  const { draftAgentInstructions } = await import("@/lib/agent/agent-knowledge");
+  const out = await draftAgentInstructions(tenantId, role, brief.trim());
+  return out ? { ok: true, instructions: out } : { ok: false, message: "The AI couldn't draft this — try rephrasing." };
+}
+
+/** Stored chat sessions (webchat) for the Conversations tab. */
+export async function listConversationsAction(tenantId: string) {
+  await requireTenantAccess(tenantId);
+  const { listConversations } = await import("@/lib/agent/conversations-store");
+  return listConversations(tenantId, 50);
+}
+
 export interface AgentAuditRow { action: string; createdAt: string; meta: Record<string, unknown> }
 
 /** Recent agent activity from the platform audit log (agent.* actions for this tenant). */

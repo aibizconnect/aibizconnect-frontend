@@ -32,8 +32,15 @@ export default function SiteChatWidget({ tenantId, agentId, agentName, brandColo
   const [error, setError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
+  const [sessionId, setSessionId] = useState<string>("");
   useEffect(() => {
     try { const saved = sessionStorage.getItem(storeKey); if (saved) setMessages(JSON.parse(saved)); } catch { /* ignore */ }
+    try {
+      const k = `${storeKey}-sid`;
+      let sid = sessionStorage.getItem(k);
+      if (!sid) { sid = crypto.randomUUID(); sessionStorage.setItem(k, sid); }
+      setSessionId(sid);
+    } catch { setSessionId(crypto.randomUUID()); }
   }, [storeKey]);
   useEffect(() => {
     try { sessionStorage.setItem(storeKey, JSON.stringify(messages.slice(-40))); } catch { /* ignore */ }
@@ -50,7 +57,7 @@ export default function SiteChatWidget({ tenantId, agentId, agentName, brandColo
     try {
       const res = await fetch("/api/agent-chat", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tenantId, agentId, messages: next.slice(-20) }),
+        body: JSON.stringify({ tenantId, agentId, sessionId: sessionId || undefined, messages: next.slice(-20) }),
       });
       const j = await res.json();
       if (!res.ok) setError(j.error ?? "Something went wrong — please try again.");

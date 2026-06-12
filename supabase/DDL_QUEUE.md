@@ -20,6 +20,23 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
+### ⏳ PENDING — 0055: agent conversations table (D-281)
+Generated 2026-06-12 (`supabase/migrations/0055_agent_conversations.sql`). **NOT applied.**
+Webchat conversation storage works TODAY via the tenant_settings `agent_convo:<id>`
+fallback; this table is the proper home (volume data — apply before real traffic).
+
+```sql
+create table if not exists public.tenant_agent_conversations (
+  id uuid primary key,
+  tenant_id uuid not null,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists tenant_agent_conversations_tenant_idx
+  on public.tenant_agent_conversations (tenant_id, updated_at desc);
+```
+
 ### ⏳ PENDING — 0054: email campaigns table (D-280)
 Generated 2026-06-12 (`supabase/migrations/0054_email_campaigns.sql`). **NOT applied.**
 The Marketing menu works TODAY via the tenant_settings `email_campaign:<id>` fallback;
