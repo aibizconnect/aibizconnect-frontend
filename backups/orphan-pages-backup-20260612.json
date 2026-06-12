@@ -1,0 +1,199 @@
+[
+ {
+  "id": "7af4a05f-74b7-4eb6-b635-e70e8ab64232",
+  "slug": "funnel-landing",
+  "title": "Landing",
+  "website_id": null,
+  "is_public": false,
+  "created_at": "2026-06-04T03:42:40.580104+00:00",
+  "draft_sections": [
+   {
+    "type": "hero",
+    "heading": "Transform your business with AIBizConnect Platform",
+    "primaryCta": {
+     "href": "#",
+     "label": "Get started"
+    },
+    "subheading": "The offer your audience has been waiting for."
+   },
+   {
+    "type": "features",
+    "heading": "Why it works",
+    "features": [
+     {
+      "title": "Proven",
+      "description": "Results you can measure."
+     },
+     {
+      "title": "Fast",
+      "description": "Up and running quickly."
+     },
+     {
+      "title": "Supported",
+      "description": "We're with you the whole way."
+     }
+    ]
+   },
+   {
+    "cta": {
+     "href": "#",
+     "label": "Claim your spot"
+    },
+    "type": "cta",
+    "heading": "Ready to start?"
+   }
+  ]
+ },
+ {
+  "id": "2b9205cb-720c-4f00-8629-cd6ef8450090",
+  "slug": "funnel-sales",
+  "title": "Sales",
+  "website_id": null,
+  "is_public": false,
+  "created_at": "2026-06-04T03:42:40.757542+00:00",
+  "draft_sections": [
+   {
+    "type": "hero",
+    "heading": "The complete AIBizConnect Platform offer",
+    "primaryCta": {
+     "href": "#",
+     "label": "Buy now"
+    },
+    "subheading": "Everything you need to win — in one place."
+   },
+   {
+    "type": "features",
+    "heading": "What's included",
+    "features": [
+     {
+      "title": "Core program",
+      "description": "The full system."
+     },
+     {
+      "title": "Bonuses",
+      "description": "Extra wins."
+     },
+     {
+      "title": "Support",
+      "description": "Help when you need it."
+     }
+    ]
+   },
+   {
+    "type": "pricing",
+    "plans": [
+     {
+      "name": "Standard",
+      "price": "$497",
+      "ctaHref": "#",
+      "ctaLabel": "Get Standard",
+      "features": [
+       {
+        "text": "Core program"
+       },
+       {
+        "text": "Email support"
+       }
+      ]
+     },
+     {
+      "name": "Premium",
+      "price": "$997",
+      "ctaHref": "#",
+      "ctaLabel": "Get Premium",
+      "features": [
+       {
+        "text": "Everything"
+       },
+       {
+        "text": "1:1 support"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "cta": {
+     "href": "#",
+     "label": "Buy now"
+    },
+    "type": "cta",
+    "heading": "Start today"
+   }
+  ]
+ },
+ {
+  "id": "90271ee1-a478-48ef-9c53-7cfefbec7bed",
+  "slug": "funnel-checkout",
+  "title": "Checkout",
+  "website_id": null,
+  "is_public": false,
+  "created_at": "2026-06-04T03:42:41.004036+00:00",
+  "draft_sections": [
+   {
+    "type": "hero",
+    "heading": "Complete your order",
+    "subheading": "Secure checkout. Your details are protected."
+   },
+   {
+    "text": "Order summary",
+    "type": "heading",
+    "level": "h3"
+   },
+   {
+    "text": "Payment is processed securely. (Checkout never auto-charges until billing is connected and you approve.)",
+    "type": "text"
+   }
+  ]
+ },
+ {
+  "id": "f0f8786a-3a13-4fb8-90cc-ec5a777c87b1",
+  "slug": "funnel-upsell",
+  "title": "Upsell",
+  "website_id": null,
+  "is_public": false,
+  "created_at": "2026-06-04T03:42:41.237629+00:00",
+  "draft_sections": [
+   {
+    "type": "hero",
+    "heading": "Wait — add this and save",
+    "primaryCta": {
+     "href": "#",
+     "label": "Yes, add it"
+    },
+    "subheading": "A one-time offer just for you."
+   },
+   {
+    "cta": {
+     "href": "#",
+     "label": "Add to my order"
+    },
+    "type": "cta",
+    "heading": "Limited time"
+   }
+  ]
+ },
+ {
+  "id": "fcc929b2-cb88-4717-a08f-115e1757de12",
+  "slug": "funnel-thank-you",
+  "title": "Thank you",
+  "website_id": null,
+  "is_public": false,
+  "created_at": "2026-06-04T03:42:41.472244+00:00",
+  "draft_sections": [
+   {
+    "type": "hero",
+    "heading": "🎉 Thank you!",
+    "subheading": "Your spot is confirmed. Check your email for next steps."
+   },
+   {
+    "cta": {
+     "href": "#",
+     "label": "Explore more"
+    },
+    "type": "cta",
+    "heading": "While you're here"
+   }
+  ]
+ }
+]
