@@ -2702,18 +2702,72 @@ export async function deleteMedia(mediaId: string, tenantId: string): Promise<vo
  * curated set as inline SVG data-URIs so they always render with no external deps
  * or storage. (A future phase can serve real files from tenantId/system.)
  */
-// ---- Stock provider search (SCAFFOLD — keys-gated, no real API calls) ----
+// ---- Stock provider search (Unsplash LIVE per Ali's "unlock media for Unsplash"; Pixabay still keys-gated) ----
 export type StockProvider = "unsplash" | "pixabay";
-export interface ProviderResult { id: string; thumb: string; url: string; alt?: string; }
+export interface ProviderResult {
+  id: string; thumb: string; url: string; alt?: string;
+  // Unsplash API guideline fields: photographer credit (UTM-tagged) + the
+  // download_location endpoint we must ping when a user actually USES a photo.
+  photographer?: string; photographerUrl?: string; downloadLocation?: string;
+}
+const UNSPLASH_UTM = "utm_source=abc_app&utm_medium=referral";
+async function unsplashKey(tenantId?: string): Promise<string | null> {
+  if (tenantId) {
+    try {
+      const { getIntegrationSecret } = await import("@/lib/server/integrations");
+      const s = await getIntegrationSecret(tenantId, "unsplash");
+      if (s?.access_key) return String(s.access_key);
+    } catch { /* fall through to env */ }
+  }
+  return process.env.UNSPLASH_ACCESS_KEY || null;
+}
 /**
- * Search a stock provider. Phase 1 SCAFFOLD: providers connect via the tenant's OWN
- * API key (Settings → Integrations) — none configured, so this returns hasKey:false
- * and zero results, never calling an external API. When keys exist, this is the only
- * function to fill in (UI already wired). We never auto-connect a provider.
+ * Search a stock provider. Unsplash uses the tenant's own Access Key (tenant_secrets,
+ * provider "unsplash") with a platform env fallback; photos are HOTLINKED per the
+ * Unsplash guidelines (importStockMedia stores the URL, no re-upload). Pixabay remains
+ * the keys-gated scaffold. We never auto-connect a provider.
  */
-export async function searchProvider(provider: StockProvider, _query: string, page = 1): Promise<{ hasKey: boolean; results: ProviderResult[]; page: number; message?: string }> {
-  const label = provider === "unsplash" ? "Unsplash" : "Pixabay";
-  return { hasKey: false, results: [], page, message: `Add your ${label} API key in Settings → Integrations to search free images. We never connect a provider automatically.` };
+export async function searchProvider(provider: StockProvider, query: string, page = 1, tenantId?: string): Promise<{ hasKey: boolean; results: ProviderResult[]; page: number; message?: string }> {
+  if (provider === "unsplash") {
+    const key = await unsplashKey(tenantId);
+    if (!key) return { hasKey: false, results: [], page, message: "Add your Unsplash API key in Settings → Integrations to search free images. We never connect a provider automatically." };
+    if (!query?.trim()) return { hasKey: true, results: [], page };
+    try {
+      const res = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query.trim())}&page=${Math.max(1, page)}&per_page=24&content_filter=high`,
+        { headers: { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" } },
+      );
+      if (!res.ok) {
+        const msg = res.status === 403 ? "Unsplash hourly rate limit reached (Demo apps: 50 requests/hour) — try again shortly." : `Unsplash returned ${res.status}.`;
+        return { hasKey: true, results: [], page, message: msg };
+      }
+      const j = (await res.json()) as { results?: Array<Record<string, any>> };
+      const results: ProviderResult[] = (j.results ?? []).map((r) => ({
+        id: String(r.id),
+        thumb: r.urls?.small ?? r.urls?.thumb ?? "",
+        url: r.urls?.regular ?? r.urls?.full ?? "",
+        alt: r.alt_description ?? r.description ?? undefined,
+        photographer: r.user?.name ?? undefined,
+        photographerUrl: r.user?.links?.html ? `${r.user.links.html}?${UNSPLASH_UTM}` : undefined,
+        downloadLocation: r.links?.download_location ?? undefined,
+      })).filter((r) => r.thumb && r.url);
+      return { hasKey: true, results, page, message: results.length ? undefined : "No results — try different keywords." };
+    } catch (e) {
+      return { hasKey: true, results: [], page, message: `Unsplash request failed: ${(e as Error).message}` };
+    }
+  }
+  return { hasKey: false, results: [], page, message: "Add your Pixabay API key in Settings → Integrations to search free images. We never connect a provider automatically." };
+}
+
+/** Unsplash guideline compliance: when a user USES a photo (inserts or saves it), ping its
+ *  download_location endpoint. Best-effort — never blocks or fails the user's action. */
+export async function trackStockUse(tenantId: string, downloadLocation: string): Promise<void> {
+  try {
+    if (!/^https:\/\/api\.unsplash\.com\//.test(downloadLocation)) return; // only Unsplash's own endpoint
+    const key = await unsplashKey(tenantId);
+    if (!key) return;
+    await fetch(downloadLocation, { headers: { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" } });
+  } catch { /* best effort */ }
 }
 
 // ---- AI usage metering (Ali) -----------------------------------------------

@@ -5,7 +5,7 @@ import {
   listMedia, uploadMedia, deleteMedia, importStockMedia, importAiMedia, importCanvaMedia,
   getSystemAssets, getMediaUsage, getTenantQuota,
   listFolders, createFolder, renameFolder, deleteFolder, moveMediaToFolder, moveFolder, getFolderImageCount, ensureDefaultMediaFolders,
-  searchProvider, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, suggestMediaTags, getAiUsage, getAllAiUsage,
+  searchProvider, trackStockUse, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, suggestMediaTags, getAiUsage, getAllAiUsage,
   type MediaItem, type MediaSource, type SystemAsset, type MediaFolder, type StockProvider, type ProviderResult, type AiUsage, type TenantAiUsage,
 } from "@/app/tenants/[tenantId]/website/actions";
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
@@ -948,7 +948,14 @@ export default function MediaLibraryRoot({
       {tab === "drive" && (<DriveTab tenantId={tenantId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />)}
 
       {tab === "stock" && (<>
-        <ProviderSearch provider={stockProvider} setProvider={setStockProvider} onPick={(url) => insert ? pick(url) : copyLink(url, url)} />
+        <ProviderSearch tenantId={tenantId} provider={stockProvider} setProvider={setStockProvider} onPick={async (r) => {
+          // Unsplash guideline: USING a photo (insert or save) must ping its download endpoint.
+          if (r.downloadLocation) trackStockUse(tenantId, r.downloadLocation).catch(() => {});
+          if (insert) { pick(r.url); return; }
+          try { const item = await importStockMedia(tenantId, r.url, r.alt || undefined); setItems((p) => [item, ...p]); }
+          catch { /* duplicate/transient — copy still works */ }
+          copyLink(r.url, r.url);
+        }} />
         <div className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Saved free images</div>
         {Toolbar}{BulkBar}{filtered.length === 0 ? <p className="py-6 text-center text-sm text-slate-400">No saved images yet — search above, or add one in <b>By URL</b>.</p> : <Grid>{filtered.map((m) => <Card key={m.id} m={m} />)}</Grid>}</>)}
 
@@ -1305,7 +1312,7 @@ function AiGenerate({ tenantId, onGenerated, folderId }: { tenantId: string; onG
  * grid + stubbed pagination, wired to searchProvider(). Until the tenant adds a key it
  * shows a clear "add your key" state and makes zero external calls.
  */
-function ProviderSearch({ onPick, provider, setProvider }: { onPick: (url: string) => void; provider: StockProvider; setProvider: (p: StockProvider) => void }) {
+function ProviderSearch({ tenantId, onPick, provider, setProvider }: { tenantId: string; onPick: (r: ProviderResult) => void; provider: StockProvider; setProvider: (p: StockProvider) => void }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -1315,7 +1322,7 @@ function ProviderSearch({ onPick, provider, setProvider }: { onPick: (url: strin
 
   async function run(p = 1) {
     setBusy(true);
-    try { const r = await searchProvider(provider, query, p); setResults(r.results); setHasKey(r.hasKey); setMessage(r.message ?? ""); setPage(r.page); }
+    try { const r = await searchProvider(provider, query, p, tenantId); setResults(r.results); setHasKey(r.hasKey); setMessage(r.message ?? ""); setPage(r.page); }
     finally { setBusy(false); }
   }
   return (
@@ -1331,18 +1338,28 @@ function ProviderSearch({ onPick, provider, setProvider }: { onPick: (url: strin
         <button onClick={() => run(1)} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-4 py-1.5 text-sm text-white disabled:opacity-50">{busy ? "Searching…" : "Search"}</button>
       </div>
 
-      {!hasKey && message && (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{message}</div>
+      {message && (
+        <div className={`mt-3 rounded-md border px-3 py-2 text-xs ${hasKey ? "border-slate-200 bg-white text-slate-500" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{message}</div>
       )}
 
       {results.length > 0 && (
         <>
           <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5">
             {results.map((r) => (
-              <button key={r.id} onClick={() => onPick(r.url)} className="overflow-hidden rounded-lg border border-slate-200 hover:border-[#1e3a8a]" title={r.alt ?? "Insert"}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.thumb} alt={r.alt ?? ""} className="h-24 w-full object-cover" />
-              </button>
+              // Unsplash guideline: every photo credits its photographer with UTM-tagged links.
+              <figure key={r.id} className="overflow-hidden rounded-lg border border-slate-200 hover:border-[#1e3a8a]">
+                <button onClick={() => onPick(r)} className="block w-full" title={r.alt ?? "Use this photo"}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={r.thumb} alt={r.alt ?? ""} className="h-24 w-full object-cover" />
+                </button>
+                {r.photographer && (
+                  <figcaption className="truncate bg-white px-1.5 py-0.5 text-[10px] text-slate-400">
+                    by {r.photographerUrl ? <a href={r.photographerUrl} target="_blank" rel="noreferrer" className="underline hover:text-slate-600">{r.photographer}</a> : r.photographer}
+                    {" on "}
+                    <a href={`https://unsplash.com/?utm_source=abc_app&utm_medium=referral`} target="_blank" rel="noreferrer" className="underline hover:text-slate-600">Unsplash</a>
+                  </figcaption>
+                )}
+              </figure>
             ))}
           </div>
           <div className="mt-3 flex items-center justify-center gap-3 text-sm">
