@@ -38,7 +38,18 @@ export async function startOnboarding(args: {
   email: string;
   templateKey: string;
   location?: { country?: string; region?: string; city?: string; area?: string };
+  /** D-270 (Ali's law): NOTHING creates a tenant without an explicit ask. The signup UI
+   *  passes true from the user's deliberate "Generate my site" action; any script, agent,
+   *  or test caller without it is refused and the attempt is audited. */
+  userConfirmedNewWorkspace?: boolean;
 }): Promise<OnboardingResult> {
+  if (args.userConfirmedNewWorkspace !== true) {
+    try {
+      const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
+      await logPlatformEvent({ action: "tenant.creation_refused", actorEmail: (args.email ?? "").trim() || null, meta: { reason: "userConfirmedNewWorkspace missing (D-270)", businessName: args.businessName } });
+    } catch { /* best effort */ }
+    return { ok: false, error: "Creating a new workspace requires explicit confirmation (userConfirmedNewWorkspace)." };
+  }
   const businessName = (args.businessName ?? "").trim();
   const email = (args.email ?? "").trim();
   if (businessName.length < 2) return { ok: false, error: "Enter your business name." };

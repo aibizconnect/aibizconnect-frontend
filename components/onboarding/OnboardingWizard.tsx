@@ -37,7 +37,8 @@ export default function OnboardingWizard({ templates }: { templates: TemplateCar
     try {
       const r = await fetch("/api/onboarding/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName, email, templateKey, location: { country, region, city } }),
+        // userConfirmedNewWorkspace: this click IS the user's explicit ask for a new workspace (D-270).
+        body: JSON.stringify({ businessName, email, templateKey, location: { country, region, city }, userConfirmedNewWorkspace: true }),
       });
       const j = await r.json();
       if (j.status === "ok" && j.result?.ok) {

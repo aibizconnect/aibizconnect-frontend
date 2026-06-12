@@ -14,6 +14,9 @@ const bodySchema = z.object({
   location: z
     .object({ country: z.string().optional(), region: z.string().optional(), city: z.string().optional(), area: z.string().optional() })
     .optional(),
+  // D-270 (Ali's law): tenant creation requires the user's explicit confirmation —
+  // the signup button passes true; anything else is refused downstream and audited.
+  userConfirmedNewWorkspace: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {

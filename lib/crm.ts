@@ -371,8 +371,14 @@ export async function ensurePipeline(tenantId: string): Promise<Pipeline> {
   const sb = service();
   const { data } = await sb.from("tenant_pipelines").select("id,name,stages").eq("tenant_id", tenantId).order("created_at").limit(1);
   if (data && data[0]) return { id: data[0].id, name: data[0].name, stages: data[0].stages };
-  const { data: created } = await sb.from("tenant_pipelines").insert({ tenant_id: tenantId, name: "Sales Pipeline" }).select("id,name,stages").single();
-  return { id: created!.id, name: created!.name, stages: created!.stages };
+  // D-269: this check-then-insert raced itself into 1,000 duplicate "Sales Pipeline" rows
+  // (concurrent first-render callers). On ANY insert failure — including the queued unique
+  // guard (0052) — re-read and return the winner; never trust the insert to be first.
+  const ins = await sb.from("tenant_pipelines").insert({ tenant_id: tenantId, name: "Sales Pipeline" }).select("id,name,stages").single();
+  if (!ins.error && ins.data) return { id: ins.data.id, name: ins.data.name, stages: ins.data.stages };
+  const { data: winner } = await sb.from("tenant_pipelines").select("id,name,stages").eq("tenant_id", tenantId).order("created_at").limit(1);
+  if (winner && winner[0]) return { id: winner[0].id, name: winner[0].name, stages: winner[0].stages };
+  throw new Error(`ensurePipeline: could not create or find a pipeline (${ins.error?.message ?? "unknown"})`);
 }
 
 // ---- opportunities ----

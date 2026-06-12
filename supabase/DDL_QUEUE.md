@@ -20,6 +20,20 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
+### ⏳ PENDING — 0052: default-pipeline seed guard (D-269)
+Generated 2026-06-12 (`supabase/migrations/0052_pipeline_seed_guard.sql`). **NOT applied.**
+ensurePipeline()'s check-then-insert raced itself into 1,000 duplicate "Sales Pipeline"
+rows on the (now deprecated) Consulting tenant — cleaned up during the D-268 tenant
+consolidation. Code is already hardened (insert-failure → re-select winner); this index
+makes the seed idempotent at the DB level. Safe + additive: only one "Sales Pipeline"
+row per tenant exists now, so the index creates clean.
+
+```sql
+create unique index if not exists tenant_pipelines_default_seed_uidx
+  on tenant_pipelines (tenant_id)
+  where name = 'Sales Pipeline';
+```
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
