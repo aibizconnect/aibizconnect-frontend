@@ -948,7 +948,7 @@ export default function MediaLibraryRoot({
       {tab === "drive" && (<DriveTab tenantId={tenantId} onImported={() => { reloadMedia(); reloadUsage(); }} notify={notify} />)}
 
       {tab === "stock" && (<>
-        <ProviderSearch tenantId={tenantId} provider={stockProvider} setProvider={setStockProvider} onPick={async (r) => {
+        <ProviderSearch tenantId={tenantId} provider={stockProvider} onPick={async (r) => {
           // Unsplash guideline: USING a photo (insert or save) must ping its download endpoint.
           if (r.downloadLocation) trackStockUse(tenantId, r.downloadLocation).catch(() => {});
           if (insert) { pick(r.url); return; }
@@ -1312,7 +1312,7 @@ function AiGenerate({ tenantId, onGenerated, folderId }: { tenantId: string; onG
  * grid + stubbed pagination, wired to searchProvider(). Until the tenant adds a key it
  * shows a clear "add your key" state and makes zero external calls.
  */
-function ProviderSearch({ tenantId, onPick, provider, setProvider }: { tenantId: string; onPick: (r: ProviderResult) => void; provider: StockProvider; setProvider: (p: StockProvider) => void }) {
+function ProviderSearch({ tenantId, onPick, provider }: { tenantId: string; onPick: (r: ProviderResult) => void; provider: StockProvider }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -1320,23 +1320,26 @@ function ProviderSearch({ tenantId, onPick, provider, setProvider }: { tenantId:
   const [hasKey, setHasKey] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("");
 
-  async function run(p = 1) {
+  async function run(p = 1, q = query) {
     setBusy(true);
-    try { const r = await searchProvider(provider, query, p, tenantId); setResults(r.results); setHasKey(r.hasKey); setMessage(r.message ?? ""); setPage(r.page); }
+    try { const r = await searchProvider(provider, q, p, tenantId); setResults(r.results); setHasKey(r.hasKey); setMessage(r.message ?? ""); setPage(r.page); }
     finally { setBusy(false); }
   }
+  // Landing feed (Ali): opening the provider page immediately shows the 50 newest photos
+  // (empty query = newest feed server-side). Re-runs when the rail switches provider.
+  useEffect(() => { setQuery(""); setResults([]); run(1, ""); }, [provider]); // eslint-disable-line react-hooks/exhaustive-deps
+  const label = provider === "unsplash" ? "Unsplash" : "Pixabay";
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex overflow-hidden rounded-md border border-slate-300 text-sm">
-          {(["unsplash", "pixabay"] as StockProvider[]).map((p) => (
-            <button key={p} onClick={() => setProvider(p)} className={`px-3 py-1.5 capitalize ${provider === p ? "bg-[#1e3a8a] text-white" : "bg-white text-slate-600"}`}>{p}</button>
-          ))}
-        </div>
+        <span className="rounded-md bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white">{label}</span>
         <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run(1)}
-          placeholder="Search free stock images…" className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm" />
+          placeholder={`Search free ${label} images…`} className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm" />
         <button onClick={() => run(1)} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-4 py-1.5 text-sm text-white disabled:opacity-50">{busy ? "Searching…" : "Search"}</button>
       </div>
+      {results.length > 0 && !query.trim() && (
+        <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Newest on {label}</div>
+      )}
 
       {message && (
         <div className={`mt-3 rounded-md border px-3 py-2 text-xs ${hasKey ? "border-slate-200 bg-white text-slate-500" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{message}</div>

@@ -2731,27 +2731,38 @@ export async function searchProvider(provider: StockProvider, query: string, pag
   if (provider === "unsplash") {
     const key = await unsplashKey(tenantId);
     if (!key) return { hasKey: false, results: [], page, message: "Add your Unsplash API key in Settings → Integrations to search free images. We never connect a provider automatically." };
-    if (!query?.trim()) return { hasKey: true, results: [], page };
+    const mapPhoto = (r: Record<string, any>): ProviderResult => ({
+      id: String(r.id),
+      thumb: r.urls?.small ?? r.urls?.thumb ?? "",
+      url: r.urls?.regular ?? r.urls?.full ?? "",
+      alt: r.alt_description ?? r.description ?? undefined,
+      photographer: r.user?.name ?? undefined,
+      photographerUrl: r.user?.links?.html ? `${r.user.links.html}?${UNSPLASH_UTM}` : undefined,
+      downloadLocation: r.links?.download_location ?? undefined,
+    });
+    // 50 photos per UI page (Ali) = two parallel 25-photo API calls — Unsplash caps
+    // per_page at 30. UI page p maps to API pages 2p-1 and 2p. Empty query = the
+    // LANDING FEED: the 50 newest photos on Unsplash (order_by=latest).
+    const q = query?.trim();
+    const ui = Math.max(1, page);
+    const urlFor = (p: number) => q
+      ? `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&page=${p}&per_page=25&content_filter=high`
+      : `https://api.unsplash.com/photos?order_by=latest&page=${p}&per_page=25`;
     try {
-      const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query.trim())}&page=${Math.max(1, page)}&per_page=24&content_filter=high`,
-        { headers: { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" } },
-      );
-      if (!res.ok) {
-        const msg = res.status === 403 ? "Unsplash hourly rate limit reached (Demo apps: 50 requests/hour) — try again shortly." : `Unsplash returned ${res.status}.`;
+      const H = { headers: { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" } };
+      const resps = await Promise.all([ui * 2 - 1, ui * 2].map((p) => fetch(urlFor(p), H)));
+      if (resps.every((r) => !r.ok)) {
+        const s = resps[0].status;
+        const msg = s === 403 ? "Unsplash hourly rate limit reached (Demo apps: 50 requests/hour) — try again shortly." : `Unsplash returned ${s}.`;
         return { hasKey: true, results: [], page, message: msg };
       }
-      const j = (await res.json()) as { results?: Array<Record<string, any>> };
-      const results: ProviderResult[] = (j.results ?? []).map((r) => ({
-        id: String(r.id),
-        thumb: r.urls?.small ?? r.urls?.thumb ?? "",
-        url: r.urls?.regular ?? r.urls?.full ?? "",
-        alt: r.alt_description ?? r.description ?? undefined,
-        photographer: r.user?.name ?? undefined,
-        photographerUrl: r.user?.links?.html ? `${r.user.links.html}?${UNSPLASH_UTM}` : undefined,
-        downloadLocation: r.links?.download_location ?? undefined,
-      })).filter((r) => r.thumb && r.url);
-      return { hasKey: true, results, page, message: results.length ? undefined : "No results — try different keywords." };
+      const lists = await Promise.all(resps.filter((r) => r.ok).map(async (r) => {
+        const j = await r.json();
+        return ((q ? j.results : j) ?? []) as Array<Record<string, any>>;
+      }));
+      const seen = new Set<string>();
+      const results = lists.flat().map(mapPhoto).filter((r) => r.thumb && r.url && !seen.has(r.id) && (seen.add(r.id), true));
+      return { hasKey: true, results, page, message: results.length ? undefined : q ? "No results — try different keywords." : undefined };
     } catch (e) {
       return { hasKey: true, results: [], page, message: `Unsplash request failed: ${(e as Error).message}` };
     }
