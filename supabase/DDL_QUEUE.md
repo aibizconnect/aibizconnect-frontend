@@ -19,46 +19,6 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 
 ## Pending
 
-### ⏳ PENDING — 0050: Settings-area convergence (tenant_settings shape + shopify table)
-Generated: 2026-06-11 (file `supabase/migrations/0050_settings_converge.sql`). Found
-diagnosing Ali's Settings crash on tenant 214ca58a: live tenant_settings predates 0031
-(no setting_key/setting_value — table EMPTY, recreate loss-free); tenant_shopify_stores
-never created (0035 unapplied). Breaks Business Profile, Tracking, Preferences,
-lead-scoring threshold, Launchpad settings and the Shopify card until applied.
-
-```sql
-drop table if exists public.tenant_settings;
-create table public.tenant_settings (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null,
-  setting_key text not null,
-  setting_value jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (tenant_id, setting_key)
-);
-create index if not exists idx_tenant_settings_tenant on public.tenant_settings (tenant_id);
-create index if not exists idx_tenant_settings_key on public.tenant_settings (setting_key);
-
-create table if not exists public.tenant_shopify_stores (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null,
-  shop_domain text not null,
-  shop_name text,
-  email text,
-  plan_name text,
-  scopes text[] not null default '{}',
-  status text not null default 'connected',
-  encrypted_tokens text not null,
-  connected_by text,
-  config jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (tenant_id, shop_domain)
-);
-create index if not exists idx_tss_tenant on public.tenant_shopify_stores (tenant_id);
-```
-
 
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
@@ -521,6 +481,11 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — Settings-area convergence (0050)** (Ali: "Success. No rows
+  returned"): ✅ APPLIED. Live tenant_settings recreated per 0031 (old shape was empty
+  — loss-free); tenant_shopify_stores created (0035 was never live). Verified:
+  key/value round trip on tenant_settings, shopify table queryable, Ali's tenant
+  reads cleanly. Root cause of the Settings-page Server Components crash.
 - **2026-06-11 — Venues, invitees, reminders (0049)** (Ali: "Success. No rows
   returned"): ✅ APPLIED. tenant_calendars gained venues + reminders jsonb;
   tenant_appointments gained venue/invitees/reminders_sent + the reminder partial
