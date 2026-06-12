@@ -11,11 +11,19 @@ import { useEffect, useRef, useState } from "react";
  */
 
 interface Msg { role: "user" | "agent"; text: string }
+export interface ChatWidgetLook { position: "bottom-right" | "bottom-left"; color: string; greeting: string; size: "compact" | "standard" | "large" }
 
-export default function SiteChatWidget({ tenantId, agentId, agentName, brandColor }: {
-  tenantId: string; agentId: string; agentName: string; brandColor?: string | null;
+const BUBBLE_PX = { compact: 48, standard: 56, large: 64 } as const;
+
+export default function SiteChatWidget({ tenantId, agentId, agentName, brandColor, look }: {
+  tenantId: string; agentId: string; agentName: string; brandColor?: string | null; look?: ChatWidgetLook | null;
 }) {
-  const color = brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#1e3a8a";
+  // The tenant decides look + position (D-276); brand primary is only the default.
+  const own = look?.color && /^#[0-9a-fA-F]{6}$/.test(look.color) ? look.color : null;
+  const color = own ?? (brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#1e3a8a");
+  const onLeft = look?.position === "bottom-left";
+  const bubble = BUBBLE_PX[look?.size ?? "standard"];
+  const greeting = look?.greeting?.trim() || "Hi! I can answer questions and book appointments. How can I help?";
   const storeKey = `abc-chat-${agentId}`;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -52,7 +60,7 @@ export default function SiteChatWidget({ tenantId, agentId, agentName, brandColo
   };
 
   return (
-    <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 9999, fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ position: "fixed", ...(onLeft ? { left: 20 } : { right: 20 }), bottom: 20, zIndex: 9999, fontFamily: "system-ui, sans-serif" }}>
       {open && (
         <div style={{ width: 340, height: 460, marginBottom: 12, display: "flex", flexDirection: "column", background: "#fff", borderRadius: 16, boxShadow: "0 12px 40px rgba(0,0,0,.18)", overflow: "hidden", border: "1px solid #e2e8f0" }}>
           <div style={{ background: color, color: "#fff", padding: "12px 16px" }}>
@@ -62,7 +70,7 @@ export default function SiteChatWidget({ tenantId, agentId, agentName, brandColo
           <div style={{ flex: 1, overflowY: "auto", padding: 12, background: "#f8fafc" }}>
             {messages.length === 0 && (
               <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: "40px 12px" }}>
-                Hi! I can answer questions and book appointments. How can I help?
+                {greeting}
               </div>
             )}
             {messages.map((m, i) => (
@@ -95,7 +103,7 @@ export default function SiteChatWidget({ tenantId, agentId, agentName, brandColo
         </div>
       )}
       <button onClick={() => setOpen((v) => !v)} aria-label={open ? "Close chat" : "Chat with us"}
-        style={{ marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center", width: 56, height: 56, borderRadius: "50%", background: color, color: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.22)", cursor: "pointer", float: "right" }}>
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: bubble, height: bubble, borderRadius: "50%", background: color, color: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.22)", cursor: "pointer", float: onLeft ? "left" : "right" }}>
         {open ? (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
         ) : (

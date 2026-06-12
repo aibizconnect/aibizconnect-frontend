@@ -42,6 +42,7 @@ const newAgent = (): AiAgentDef => ({
   skills: { calendar: true, contacts: false, email: false, sms: false, voice: false, reviews: false },
   knowledge: { businessProfileMerged: true, snippets: [] },
   channels: { webchat: false },
+  widget: { position: "bottom-right", color: "", greeting: "", size: "standard" },
   enabled: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -230,9 +231,51 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
             </div>
           ))}
           {a.channels.webchat && (
-            <p className="rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
-              Save the agent, and the chat bubble appears on your published sites automatically — brand-colored, with the agent's name.
-            </p>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 text-sm font-semibold text-slate-800">Bubble appearance <span className="font-normal text-slate-400">— you decide the look and position</span></div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label><span className={lbl}>Position</span>
+                  <select className={inp} value={a.widget.position} onChange={(e) => set("widget", { ...a.widget, position: e.target.value as AiAgentDef["widget"]["position"] })}>
+                    <option value="bottom-right">Bottom right</option>
+                    <option value="bottom-left">Bottom left</option>
+                  </select></label>
+                <label><span className={lbl}>Bubble size</span>
+                  <select className={inp} value={a.widget.size} onChange={(e) => set("widget", { ...a.widget, size: e.target.value as AiAgentDef["widget"]["size"] })}>
+                    <option value="compact">Compact</option>
+                    <option value="standard">Standard</option>
+                    <option value="large">Large</option>
+                  </select></label>
+                <label><span className={lbl}>Color</span>
+                  <span className="flex items-center gap-2">
+                    <input type="color" value={a.widget.color || "#1e3a8a"} disabled={!a.widget.color}
+                      onChange={(e) => set("widget", { ...a.widget, color: e.target.value })}
+                      className="h-9 w-12 cursor-pointer rounded border border-slate-300 disabled:opacity-40" />
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <input type="checkbox" checked={!a.widget.color}
+                        onChange={(e) => set("widget", { ...a.widget, color: e.target.checked ? "" : "#1e3a8a" })} />
+                      Use the site&apos;s brand color
+                    </label>
+                  </span></label>
+                <label><span className={lbl}>Greeting message</span>
+                  <input className={inp} value={a.widget.greeting} placeholder="Hi! I can answer questions and book appointments. How can I help?"
+                    onChange={(e) => set("widget", { ...a.widget, greeting: e.target.value })} /></label>
+              </div>
+              {/* Mini preview: corner placement + size + color at a glance. */}
+              <div className="relative mt-4 h-24 overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                <span className="absolute left-2 top-2 text-[10px] uppercase tracking-wide text-slate-400">Preview — your published page</span>
+                <span style={{
+                  position: "absolute", bottom: 10, [a.widget.position === "bottom-left" ? "left" : "right"]: 10,
+                  width: { compact: 32, standard: 40, large: 48 }[a.widget.size], height: { compact: 32, standard: 40, large: 48 }[a.widget.size],
+                  borderRadius: "50%", background: a.widget.color || "#1e3a8a", boxShadow: "0 4px 12px rgba(0,0,0,.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+                } as React.CSSProperties}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8.8L5 20.6A1 1 0 0 1 3.4 19.8V6a2 2 0 0 1 .6-1.4A2 2 0 0 1 4 4z" /></svg>
+                </span>
+              </div>
+              <p className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
+                Save the agent and the bubble appears on your published sites with these settings.
+              </p>
+            </div>
           )}
         </div>
       )}

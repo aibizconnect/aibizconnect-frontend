@@ -274,11 +274,11 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
   // AI chat widget (D-275): site chrome shown when the tenant has an enabled agent
   // with the webchat channel on. Anonymous-safe — the public endpoint only allows
   // availability + booking + become-a-lead.
-  let chatAgent: { id: string; name: string } | null = null;
+  let chatAgent: { id: string; name: string; widget: { position: "bottom-right" | "bottom-left"; color: string; greeting: string; size: "compact" | "standard" | "large" } } | null = null;
   try {
     const { listAiAgents } = await import("@/lib/agent/agents-store");
     const found = (await listAiAgents(tenantId)).find((x) => x.enabled && x.channels.webchat);
-    if (found) chatAgent = { id: found.id, name: found.name };
+    if (found) chatAgent = { id: found.id, name: found.name, widget: found.widget };
   } catch { /* widget is best-effort */ }
 
   return (
@@ -288,7 +288,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
       {pageBgOverlay && <div aria-hidden style={pageBgOverlay} />}
       {/* Content sits above the background layers. */}
       {pageBgHasImage ? <div style={{ position: "relative", zIndex: 1 }}>{renderBody()}</div> : renderBody()}
-      {chatAgent && <SiteChatWidget tenantId={tenantId} agentId={chatAgent.id} agentName={chatAgent.name} brandColor={brand?.primary_color ?? null} />}
+      {chatAgent && <SiteChatWidget tenantId={tenantId} agentId={chatAgent.id} agentName={chatAgent.name} brandColor={brand?.primary_color ?? null} look={chatAgent.widget} />}
     </div>
   );
 

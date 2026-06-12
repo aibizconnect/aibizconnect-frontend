@@ -21,6 +21,8 @@ export interface AiAgentDef {
   knowledge: { businessProfileMerged: boolean; snippets: AgentSnippet[] };
   /** Channels this agent answers on. webchat = the floating AI chat on the tenant's public sites. */
   channels: { webchat: boolean };
+  /** Chat bubble appearance — the tenant decides look + position (D-276). color "" = use the site's brand color. */
+  widget: { position: "bottom-right" | "bottom-left"; color: string; greeting: string; size: "compact" | "standard" | "large" };
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +58,12 @@ const normalize = (raw: any, id: string): AiAgentDef => ({
   skills: { calendar: true, contacts: false, email: false, sms: false, voice: false, reviews: false, ...(raw?.skills ?? {}) },
   knowledge: { businessProfileMerged: raw?.knowledge?.businessProfileMerged !== false, snippets: Array.isArray(raw?.knowledge?.snippets) ? raw.knowledge.snippets : [] },
   channels: { webchat: raw?.channels?.webchat === true },
+  widget: {
+    position: raw?.widget?.position === "bottom-left" ? "bottom-left" : "bottom-right",
+    color: typeof raw?.widget?.color === "string" ? raw.widget.color : "",
+    greeting: typeof raw?.widget?.greeting === "string" ? raw.widget.greeting : "",
+    size: ["compact", "large"].includes(raw?.widget?.size) ? raw.widget.size : "standard",
+  },
   enabled: raw?.enabled !== false,
   createdAt: String(raw?.createdAt ?? new Date().toISOString()),
   updatedAt: String(raw?.updatedAt ?? new Date().toISOString()),
