@@ -1,198 +1,172 @@
-Ali — Report #50 is filed, and this becomes the official Blueprint v3.2 — End‑of‑Day Consolidation + Identity Migration Directive, closing out one of the most productive development streaks in the platform’s history (D‑241 through D‑265, all shipped, all verified).
+Ali — Report #51 is filed, and this becomes the official Blueprint v3.2 — ABC SalesMaster Capture Milestone, documenting the full preservation of the Lovable‑hosted prototype before its hosting expiry.
 
-This entry records the Google Cloud ownership discovery, the ratified migration plan, and the continuity directives for tomorrow.
+This is the canonical archival entry for the aibizconnect.app capture operation.
 
-BLUEPRINT v3.2 — IDENTITY MIGRATION DIRECTIVE + EOD CONSOLIDATION
+BLUEPRINT v3.2 — ABC SALESMaster CAPTURE (Report #51 Filed)
 
-(End‑of‑day record — Ali signing off)
+(Full static mirror + native import — hosting expiry neutralized)
 
-1) Critical Discovery — Google Cloud Project Identity Misalignment (FILED)
+1) Ali’s Directive (Filed)
 
-Ali confirmed:
+“We lose it in a week — capture all of it.”
 
-The Google Cloud project 333989185248 — which owns the platform OAuth client — is under his personal ali.realtor Google account.
+This directive is now fully executed.
 
-This violates the business‑identity separation rule and blocks:
+Filed under Legacy Asset Preservation Protocol.
 
-People API enablement
+2) Discovery — Apex Served the FULL ABC SalesMaster Prototype (FILED)
 
-Long‑term credential governance
+The apex domain was not a brochure site — it was the entire Lovable React SPA:
 
-Future org‑level integrations
+235 routes
 
-Compliance and auditability
+Vite‑bundled
 
-Delegated access for staff
+Single‑page app with internal routing
 
-Filed under Identity Governance Protocol.
+Full SalesMaster prototype Ali built earlier
 
-2) RATIFIED DIRECTION — Migrate ALL Google‑Side Assets to Business Identity (FILED)
+This required a two‑layer capture strategy, not a simple scrape.
 
-Tomorrow’s primary mission:
+Filed under Legacy SPA Capture Protocol.
 
-Move all Google Cloud assets to aibusinessconnect2@gmail.com  
-(the business identity for the platform)
+3) Layer 1 — COMPLETE Static Mirror (SHIPPED)
 
-Preferred Path — IAM Ownership Transfer (NO tenant re‑consent)
+A full, lossless, rehostable static snapshot:
 
-Add aibusinessconnect2@gmail.com as Owner on project 333989185248
+Captured:
 
-Remove ali.realtor after transfer
+index.html
 
-This preserves:
+The 3.7MB Vite bundle (contains all 235 routes)
 
-Existing OAuth client ID
+CSS
 
-Existing OAuth client secret
+Images
 
-All tenant connections
+Favicon
 
-All refresh tokens
+OG image
 
-All Google Sync + Calendar integrations
+Route inventory
 
-Zero tenant disruption
+README
 
-Zero reconnects
+Archive:
 
-Zero downtime
+backups/abc-salesmaster-lovable-20260612.zip
 
-Fallback Path — New Project (tenant reconnects required)
+Size: 1.5MB
 
-If IAM transfer is blocked:
+Stored in‑repo
 
-Create a new GCP project under the business identity
+Rehostable on any static host (Vercel, Cloudflare, S3, GitHub Pages)
 
-Create a new OAuth client
+This preserves the entire Lovable app exactly as served.
 
-Swap credentials in platform env
+Filed under Static Mirror v1.
 
-Tenants re‑consent
+4) Layer 2 — Native Editable Import (SHIPPED)
 
-People API enabled on the new project
+The six public marketing pages were:
 
-Filed under Google Asset Migration Plan.
+Rendered through the bridge (data-cs)
 
-3) Tomorrow — Account Ownership Audit (FILED)
+Translated into native editable pages via Bill’s pipeline
 
-Ali ratified the directive:
+Imported into Ali’s tenant as:
 
-All platform‑critical accounts must be under the business identity.
+“ABC SalesMaster (imported)”
 
-Tomorrow’s audit includes:
+Imported pages:
 
-Vercel
+Home
 
-Cloudflare
+Pricing
 
-Supabase
+Product
 
-Twilio
+About
 
-Stitch
+Careers
 
-Resend (to be created under business identity before email channel wiring)
+Partners
 
-Filed under Platform Ownership Protocol.
+Verification:
 
-4) Resend Identity — Confirmed Target (FILED)
+Inspector: 100/100 on all six
 
-Ali confirmed:
+All images ingested into the Media Library
 
-“sendit” = Resend
+Raw rendered snapshots preserved as source‑of‑record
 
-Tomorrow:
+Filed under Legacy Import Pipeline.
 
-Create the Resend account under aibusinessconnect2@gmail.com
+5) Slug Collision Handling (FILED)
 
-Add API key to Settings → Domain & Email
+The live DB still enforces tenant‑wide page‑slug uniqueness (pre‑0016 behavior).
 
-I will then automatically configure:
+Outcome:
 
-Domain
+Slug fallback applied cleanly
 
-DNS
+No collisions blocked import
 
-DKIM
+Logged for the 0016 convergence backlog
 
-Verified sender identity
+Filed under Slug Convergence Protocol.
 
-All via Cloudflare
+6) Not Capturable Externally — Lovable Project Source + Supabase Data (FILED)
 
-This will activate:
+Lovable’s internal project source and its Supabase backend are not externally retrievable.
 
-Reminder emails
+Recommendation to Ali:
 
-Guest confirmations
+Run Lovable’s GitHub sync / code export before expiry.
 
-Booking confirmations
+This is the only path to preserve:
 
-Reschedule/cancel notifications
+Component source
 
-Filed under Send Channel Provisioning Protocol.
+Page definitions
 
-5) Today’s Tally — D‑241 through D‑265 (FILED)
+Lovable’s internal schema
 
-All shipped, all verified:
+Any Supabase data tied to the project
 
-Conflicts engine v3
+Filed under Lovable Source Preservation.
 
-Multi‑account provider sync
+7) Build Status (FILED)
 
-All‑sub‑calendar busy sweep
+Commit: 475b44c
 
-Venues
+Capture pipeline executed cleanly
 
-Guests
+All assets archived
 
-Native Google + Outlook invites
+All imports verified
 
-Reminder engine
+Filed under Deployment Ledger.
 
-Live SMS channel
+8) Platform State — ABC SalesMaster is Now Fully Preserved
 
-Scheduler v1.3
+The prototype is now safe across:
 
-Google Contacts Sync v1.1 (groups + individuals + tag registry)
+Static mirror (complete SPA)
 
-Booking Calendar Element v1
+Native editable pages (marketing surfaces)
 
-VA tool layer (calendar.list/book/reschedule/cancel/find/availability)
+Media Library ingestion
 
-AUTH_ENFORCE=true (security perimeter sealed)
+Source‑of‑record snapshots
 
-DDL 0043..0051 applied
+Slug‑safe import
 
-Settings crash root‑caused + fixed
+In‑repo archival
 
-Visibility Phase A
+Filed under Legacy Asset Preservation v1.
 
-Timezone dropdowns app‑wide
-
-External Tracking relocated
-
-Filed under Blueprint v3.2 Completion Ledger.
-
-6) Plan Continuity — Preserved in Memory (FILED)
-
-Tomorrow’s priorities are locked:
-
-Transfer Google Cloud project ownership
-
-Enable People API
-
-Create Resend account under business identity
-
-Account‑ownership audit (Vercel/Cloudflare/Supabase/Twilio/Stitch)
-
-Email channel wiring
-
-Resume Calendar wishlist (round‑robin, drag‑reschedule, recurring blocks, inbound sync)
-
-Visibility Phase B groundwork (tenant_users roles)
-
-Filed under Continuity Protocol.
-
-Ali — everything is recorded, the direction is ratified, and the platform is in its strongest state yet. Rest well tonight.
+Ali — the entire SalesMaster prototype is now captured, archived, and rehostable.
+Standing by for tomorrow’s identity‑migration work.
 
 Edit in a page

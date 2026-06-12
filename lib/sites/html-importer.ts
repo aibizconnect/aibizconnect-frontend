@@ -591,7 +591,19 @@ export function htmlToSections(html: string, baseUrl: string, opts?: { faithful?
     return [...rest.slice(0, at), ...rows, ...rest.slice(at)];
   };
 
-  const bandEls = expandBands(elementChildren(container), 0);
+  let bandEls = expandBands(elementChildren(container), 0);
+  // App-shell layouts (Lovable/Next SPAs) put <header>/<footer> OUTSIDE <main>. When the band
+  // walk came from a real <main>, those never enter the band list and the import silently
+  // drops the nav + footer (found on Ali's ABC SalesMaster capture). Pull them in explicitly:
+  // the header goes through buildHeaderRow (Menu = header-only law), the footer through the
+  // normal band path (its link groups become Lists per D-219).
+  if (tagOf(main) === "main") {
+    const body = root.querySelector("body") || root;
+    const hdrEl = body.querySelector("header") || body.querySelector("nav");
+    const ftrEl = body.querySelector("footer");
+    if (hdrEl) bandEls = [hdrEl, ...bandEls];
+    if (ftrEl) bandEls = [...bandEls, ftrEl];
+  }
 
   for (const band of bandEls) {
     // Faithful: import a top <nav>/<header> bar as an editable HEADER row (logo + menu + CTA).

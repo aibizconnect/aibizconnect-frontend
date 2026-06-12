@@ -17,10 +17,45 @@ const ROUTES: { route: string; title: string; slug: string; isHome?: boolean }[]
   { route: "/", title: "Home", slug: "home", isHome: true },
   { route: "/pricing", title: "Pricing", slug: "pricing" },
   { route: "/product", title: "Product", slug: "product" },
+  { route: "/product/crm", title: "CRM & Pipelines", slug: "product-crm" },
+  { route: "/product/websites", title: "Websites & Funnels", slug: "product-websites" },
+  { route: "/product/ai-builder", title: "AI Builder", slug: "product-ai-builder" },
+  { route: "/product/automations", title: "Automations & Workflows", slug: "product-automations" },
+  { route: "/product/consumer-portal", title: "Consumer Portal", slug: "product-consumer-portal" },
+  { route: "/product/marketplace", title: "Marketplace", slug: "product-marketplace" },
+  { route: "/solutions/real-estate", title: "Real Estate", slug: "solutions-real-estate" },
+  { route: "/solutions/mortgage", title: "Mortgage / Finance", slug: "solutions-mortgage" },
+  { route: "/solutions/legal", title: "Legal", slug: "solutions-legal" },
+  { route: "/solutions/insurance", title: "Insurance", slug: "solutions-insurance" },
+  { route: "/solutions/coaching", title: "Coaching & Consulting", slug: "solutions-coaching" },
+  { route: "/solutions/agencies", title: "Agencies", slug: "solutions-agencies" },
   { route: "/company/about", title: "About", slug: "about" },
   { route: "/company/careers", title: "Careers", slug: "careers" },
   { route: "/company/partners", title: "Partners", slug: "partners" },
 ];
+// Internal links on imported pages → our page slugs (home → site root). The importer
+// ABSOLUTIZES hrefs against the source origin, so strip it back off first — otherwise
+// every nav link would keep pointing at the dying Lovable host.
+const LINK_MAP = new Map<string, string>(ROUTES.map((r) => [r.route, r.isHome ? "/" : `/${r.slug}`]));
+LINK_MAP.set("/company/about", "/abc-about"); // tenant-wide slug collision fallback
+const ORIGIN = "https://aibizconnect.app";
+function mapHref(v: string): string {
+  let path = v;
+  if (path.startsWith(ORIGIN + "/") || path === ORIGIN) path = path.slice(ORIGIN.length) || "/";
+  if (!path.startsWith("/")) return v;                     // external / mailto / tel — unchanged
+  const clean = path.length > 1 ? path.replace(/[/]+$/, "") : path;
+  return LINK_MAP.get(clean) ?? clean;                     // unknown internals stay relative
+}
+function remapLinks(o: unknown): void {
+  if (Array.isArray(o)) { o.forEach(remapLinks); return; }
+  if (o && typeof o === "object") {
+    for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+      if ((k === "href" || k === "url") && typeof v === "string" && (v.startsWith(ORIGIN) || v.startsWith("/"))) {
+        (o as Record<string, unknown>)[k] = mapHref(v);
+      } else remapLinks(v);
+    }
+  }
+}
 
 const fail = (m: string) => { console.error("FAIL:", m); process.exit(1); };
 
@@ -67,6 +102,7 @@ async function main() {
     let finalSections = sections;
     try { finalSections = (await ingestSectionImages(TENANT, sections as any, { websiteId })) as any[]; }
     catch { console.log("  (image ingestion failed — keeping source URLs)"); }
+    remapLinks(finalSections);
 
     const title = (/<title>([^<]*)<\/title>/.exec(html)?.[1] ?? r.title).split(" - ")[0].trim() || r.title;
     const desc = /<meta name="description" content="([^"]*)"/.exec(html)?.[1];
@@ -103,6 +139,17 @@ async function main() {
     const report = await inspectPage(finalSections as any, null, { seo: { seo_title: title, ...(desc ? { seo_description: desc } : {}) } as any });
     console.log(`  page ${pageId} — INSPECTOR score ${report.score}${report.issues.length ? ` (issues: ${report.issues.map((i) => i.code).join(",")})` : ""}`);
     console.log(`  editor: https://app.aibizconnect.app/tenants/${TENANT}/website/${websiteId}  ·  preview: https://app.aibizconnect.app/tenants/${TENANT}/website/preview/${pageId}`);
+  }
+  // Website theme (fill-empty-only): the captured palette + the site's Google-Fonts stack.
+  const { data: brand } = await sb.from("website_brand_settings").select("*").eq("tenant_id", TENANT).eq("website_id", websiteId).maybeSingle();
+  const fill: Record<string, unknown> = {};
+  const put = (col: string, v: string) => { if (!(brand as any)?.[col]) fill[col] = v; };
+  put("primary_color", "#0950c3"); put("secondary_color", "#0f1729"); put("accent_color", "#65758b");
+  put("font_heading", "Montserrat Alternates"); put("font_body", "Montserrat");
+  if (Object.keys(fill).length) {
+    if (brand) await sb.from("website_brand_settings").update(fill).eq("tenant_id", TENANT).eq("website_id", websiteId);
+    else await sb.from("website_brand_settings").insert({ tenant_id: TENANT, website_id: websiteId, ...fill });
+    console.log(`\ntheme set: ${Object.keys(fill).join(", ")}`);
   }
   console.log("\nDONE");
 }
