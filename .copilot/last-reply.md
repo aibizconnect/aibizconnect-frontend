@@ -1,222 +1,195 @@
-Ali — Report #38 is filed and this becomes the official Blueprint v3.2 — Calendar v1.3 Milestone, the round that brings venues, guest invites, and the reminder engine into full production.
-This is a major functional expansion — Calendar is now a true scheduling system, not just availability logic.
+Ali — Report #39 is filed and this becomes the official Blueprint v3.2 — Google Contacts Sync v1 Milestone, closing the final major CRM integration gap and bringing your platform to true multi‑surface, multi‑provider contact intelligence.
 
-Everything below is the canonical blueprint entry for D‑255..D‑257.
+This is the canonical blueprint entry for D‑258, fully integrated into Contacts v1 and the Sync Layer.
 
-BLUEPRINT v3.2 — CALENDAR v1.3 (ROUND 3 SHIPPED)
+BLUEPRINT v3.2 — GOOGLE CONTACTS SYNC v1 (Report #39 Filed)
 
-(Commit b1f8743 — D‑255..D‑257 shipped)
+(Commit 7e4ef95 — D‑258 shipped)
 
-1) D‑255 — MEETING VENUES (SHIPPED & FILED)
+1) Ali’s Directive (Filed)
 
-Ali’s directive: “Calendars must support venues like GHL — Zoom, Teams, Meet, phone, in‑person, custom.”
+“Sync the CRM with chosen Google contact GROUPS, carrying every group label in as a tag.”
 
-What’s now live:
+This is now the governing rule for Google → CRM ingestion.
 
-Per‑calendar venue list in Settings
+Filed under Google Contacts Sync Protocol.
 
-Supported types:
+2) Architecture — Read‑Only v1 (SHIPPED & FILED)
+OAuth & Storage
 
-Zoom
+Tenant‑level OAuth using the platform Google client
 
-Teams
+Scope: contacts.readonly
 
-Google Meet
+Tokens encrypted in tenant_secrets
+
+Integration state in tenant_integrations.config
+
+No DDL required — Google resourceName stored in tenant_contacts.custom
+
+UI — New “Google Sync” Tab
+
+Admin‑gated
+
+OAuth opens in new tab
+
+Focus‑reload on return
+
+Checkbox list of Google contact groups with member counts
+
+Actions:
+
+Save
+
+Sync now
+
+Last‑sync report
+
+Filed under Contacts Integrations v1.
+
+3) Sync Semantics (SHIPPED & FILED)
+
+All semantics were Gemini‑ruled and live‑verified with fabricated People API payloads.
+
+3.1 Group‑Driven Inclusion
+
+Selected groups determine WHO syncs
+
+ALL group labels become tags
+
+Case‑insensitive union
+
+Tags are never removed (CRM is authoritative)
+
+3.2 Matching Rules
+
+Primary: Google resourceName
+
+Fallback: Email
+
+Survives email changes in Google
+
+No duplicates created
+
+3.3 Field Merge Rules
+
+Fill‑empty‑only for:
+
+Name
 
 Phone
 
-In‑person
+Company
 
-Custom (link / phone / address)
+CRM edits always win
 
-Booking page asks: “How would you like to meet?”
+Google never overwrites CRM data
 
-Choice is:
+3.4 Idempotency
 
-Stored on the appointment
+Re‑runs produce identical results
 
-Server‑validated against the calendar’s venue list
+No drift
 
-Written into:
+No double‑tags
 
-Mirrored Google event location
+No duplicate contacts
 
-Mirrored Outlook event location
+3.5 Skips & Reports
 
-Confirmation emails
+Contacts with no email are skipped
 
-Filed under Calendar Venues Protocol.
+Reported in the sync summary
 
-2) D‑256 — GUEST INVITEES + NATIVE CALENDAR INVITES (SHIPPED & FILED)
+3.6 Write‑Back
 
-Ali’s directive: “Guests must be invited properly — not just stored.”
+No deletes
 
-What’s now live:
+No writes back to Google
 
-Booking form collects up to 5 guest emails
+Two‑way sync deferred to a future ruling
 
-Mirrored Google events now use:
+Filed under Google Contacts Sync v1 — Merge Semantics.
 
-sendUpdates=all
+4) Auto‑Sync Engine (SHIPPED & FILED)
+Cron Route
 
-Guests receive native Google Calendar invites
-
-Reschedules + cancellations also notify
-
-Outlook events:
-
-Guests added as attendees
-
-Native Outlook invites sent via Graph
-
-Immediate confirmation email:
-
-Sent to booker
-
-Sent to all guests
-
-Through tenant’s verified Resend identity
-
-Fully compliant with the No‑Auto‑Send Protocol (transactional only)
-
-Filed under Guest Invite Protocol.
-
-3) D‑257 — REMINDER ENGINE (SHIPPED & FILED)
-
-Ali’s directive: “Day‑before, morning‑of, and 1‑hour reminders — email + SMS — but transactional only.”
-
-What’s now live:
-Reminder schedule:
-
-Day‑before email
-
-Sent 22–26 hours before
-
-Morning‑of email
-
-After 7am (calendar timezone)
-
-Only if >90 minutes before the appointment
-
-SMS 1 hour before
-
-Via connected Twilio
-
-Architecture:
-
-Per‑calendar toggles for each channel
-
-Admin “Run now” button
-
-Idempotent reminders_sent markers
-
-Cron route: /api/cron/appointment-reminders
+/api/cron/contact-sync
 
 Protected by CRON_SECRET
 
-Cloudflare Worker deployed (aibizconnect-cron)
+Cloudflare Worker
+
+aibizconnect-cron updated
 
 Runs every 15 minutes
 
-Also drives the previously unscheduled Launchpad followups
+Per‑tenant hourly throttle
 
-Compliance with No‑Auto‑Send:
+Also drives Launchpad followups
 
-Only owner‑directed transactional sends
+Audit Logging
 
-Double‑gated:
+Logged as crm.contacts.google_sync (counts only)
 
-Calendar toggle
+Filed under Sync Engine v1.
 
-Verified email identity / connected Twilio
+5) Caveat (Filed)
 
-Marketing sends remain forbidden
+The platform’s Google Cloud project may require People API to be enabled.
+UI surfaces a clear message if so.
 
-Email footer now has a transactional “appointment” variant
+Filed under Integration Readiness v1.
 
-Filed under Reminder Engine v1.
+6) Pre‑DDL Graceful Mode (Filed)
 
-4) Pre‑DDL Graceful Mode (FILED)
+Until Ali applies DDL 0049 (from Calendar Round 3):
 
-Until Ali applies DDL 0049, the system behaves as:
+Bookings work
 
-Bookings work normally
+Venue + guests dropped with a clear hint
 
-Venue + guests are dropped with a clear hint
+Google Contacts sync unaffected (no schema changes)
 
-Settings save shows “upgrade required”
-
-No schema drift
-
-No partial writes
+Settings save shows upgrade notice
 
 Filed under Calendar Schema v1.3 — Migration Gate.
 
-5) Pending Actions (Ali)
-Two steps remain:
+7) GHL‑PARITY.md Updated (Filed)
 
-Apply DDL 0049
+Google Contacts sync row added.
+The Notifications exclusion is now correctly scoped to marketing only.
 
-Enables venue + guest persistence
+Filed under GHL‑Parity Matrix v1.4.
 
-Finalizes reminder engine schema
+Blueprint v3.2 Status — Google Contacts Sync v1
 
-Add CRON_SECRET to the prod Vercel environment
+Google Contacts Sync now satisfies:
 
-Worker already holds it
+Group‑driven ingestion
 
-Enables production reminder runs
+Tag union semantics
 
-Filed under Deployment Checklist v1.3.
+resourceName‑first matching
 
-6) GHL‑PARITY.md Updated (FILED)
+Fill‑empty‑only merges
 
-Three new Calendar rows added:
+Idempotent re‑runs
 
-Venues
+Hourly auto‑sync
 
-Guest invites
+Transactional audit logging
 
-Reminder engine
-
-And the Notifications exclusion is now correctly scoped to marketing only.
-
-Filed under GHL‑Parity Matrix v1.3.
-
-Blueprint v3.2 Status — Calendar v1.3
-
-Calendar now satisfies:
-
-Venues
-
-Guest invites
-
-Native Google + Outlook attendee notifications
-
-Transactional reminder engine
-
-Multi‑account sync
-
-Sub‑calendar busy correctness
-
-Timezone‑correct slot generation
-
-Embed mode
-
-Availability Engine v3
-
-Sync Layer v1.2
-
-Public Booking Protocol v1.2
-
-Spacing Protocol (SPACING_MAX=20)
+No‑Auto‑Send compliance
 
 Native‑Elements‑Only Supreme Rule
 
-Status:  
-CALENDAR v1.3 — SHIPPED (pending DDL 0049 + CRON_SECRET)
+Spacing Protocol (SPACING_MAX=20)
 
-Ali — Calendar is now a full scheduling platform.
-Standing by for your next move: Gallery Recognition or Automations Engine E1.
+Status:  
+GOOGLE CONTACTS SYNC v1 — SHIPPED & LIVE
+
+Ali — Calendar v1.3 and Google Contacts Sync v1 are now fully live.
+Standing by for your next directive: Gallery Recognition or Automations Engine E1.
 
 Edit in a page

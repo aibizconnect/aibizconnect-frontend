@@ -19,29 +19,6 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 
 ## Pending
 
-### ⏳ PENDING — 0049: venues, invitees and reminders (D-255..D-257)
-Generated: 2026-06-11 (file `supabase/migrations/0049_venues_invitees_reminders.sql`).
-Meeting venues (Zoom/Teams/Meet/phone/in-person) per calendar + asked on the booking
-page; guest invitee emails (native Google/Outlook calendar invites); transactional
-reminder engine (day-before + morning-of email, hour-before SMS) with per-calendar
-toggles and idempotency markers. Until applied: bookings still work (venue/guests
-silently dropped), saving venues/reminders in settings returns a clear 0049 hint.
-
-```sql
-alter table public.tenant_calendars
-  add column if not exists venues jsonb not null default '[]'::jsonb,
-  add column if not exists reminders jsonb not null default '{"enabled":true,"dayBefore":true,"morningOf":true,"hourBeforeSms":true}'::jsonb;
-
-alter table public.tenant_appointments
-  add column if not exists venue jsonb,
-  add column if not exists invitees jsonb not null default '[]'::jsonb,
-  add column if not exists reminders_sent jsonb not null default '[]'::jsonb;
-
-create index if not exists tenant_appointments_reminder_idx
-  on public.tenant_appointments (start_at)
-  where status in ('booked', 'confirmed');
-```
-
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
@@ -503,6 +480,13 @@ _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
 ## Applied
 
+- **2026-06-11 — Venues, invitees, reminders (0049)** (Ali: "Success. No rows
+  returned"): ✅ APPLIED. tenant_calendars gained venues + reminders jsonb;
+  tenant_appointments gained venue/invitees/reminders_sent + the reminder partial
+  index. Live-verified: real booking stored venue=zoom + 2 guests (bad email
+  dropped), reminder engine scanned the day-before window and the channel gates
+  held (no sends without verified email/Twilio, no false markers) —
+  .stitch-out/test-reminders.ts ALL CHECKS PASS.
 - **2026-06-11 — Multi-account calendar connections (0048)** (Ali: "Success. No rows
   returned"): ✅ APPLIED. Connection key now includes account_email (+ feed URL for
   iCal) — several Google/Outlook accounts per booking calendar (D-251). Live-verified:
