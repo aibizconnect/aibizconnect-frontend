@@ -165,3 +165,18 @@ export async function disconnectGoogleContactsAction(tenantId: string): Promise<
   await audit(tenantId, "crm.contacts.google_sync_disconnect", {});
   return { ok: true };
 }
+
+export async function searchGooglePeopleAction(tenantId: string, query: string) {
+  await requireTenant(tenantId);
+  const { searchPeople } = await import("@/lib/server/google-contacts");
+  return searchPeople(tenantId, query);
+}
+
+export async function saveGooglePeopleAction(tenantId: string, people: { resourceName: string; name: string | null; email: string | null }[]): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  try { await requireAdminGc(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { saveSelectedPeople } = await import("@/lib/server/google-contacts");
+  const r = await saveSelectedPeople(tenantId, people);
+  if (r.ok) await audit(tenantId, "crm.contacts.google_sync_people", { count: people.length });
+  return r;
+}

@@ -48,9 +48,20 @@ const P = (over: Partial<SyncPerson>): SyncPerson => ({
   if (r4.created !== 0 || r4.updated !== 1) fail(`resourceName match failed: ${JSON.stringify(r4)}`);
   console.log("4. resourceName match beats email change OK");
 
+  // 5) labels became REGISTERED tags in tenant_tags (D-265)
+  const { data: tagRows } = await sb.from("tenant_tags").select("name").eq("tenant_id", T);
+  const names = new Set(((tagRows ?? []) as any[]).map((r) => String(r.name).toLowerCase()));
+  for (const t of ["lawyers", "clients", "buyers", "mortgage refinancing", "mortgage renewal"]) {
+    if (!names.has(t)) fail(`tag not registered in tenant_tags: ${t}`);
+  }
+  console.log("5. all labels registered in tenant_tags OK");
+
   // cleanup
   for (const e of ["gc-larry@example.com", "gc-betty@example.com", "gc-betty-new@example.com"]) {
     await sb.from("tenant_contacts").delete().eq("tenant_id", T).eq("email", e);
   }
-  console.log("5. cleanup OK — ALL CHECKS PASS");
+  for (const t of ["Lawyers", "Clients", "Buyers", "Mortgage Refinancing", "Mortgage Renewal", "Sellers"]) {
+    await sb.from("tenant_tags").delete().eq("tenant_id", T).eq("name", t);
+  }
+  console.log("6. cleanup OK — ALL CHECKS PASS");
 })();

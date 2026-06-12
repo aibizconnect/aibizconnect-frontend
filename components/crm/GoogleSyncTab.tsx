@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getGoogleContactsStateAction, getGoogleContactsConnectUrlAction, listGoogleContactGroupsAction,
   saveGoogleContactGroupsAction, runGoogleContactSyncAction, disconnectGoogleContactsAction,
+  searchGooglePeopleAction, saveGooglePeopleAction,
 } from "@/app/tenants/[tenantId]/contacts/crm-actions";
 import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 
 type Group = { resourceName: string; name: string; memberCount: number };
+type Person = { resourceName: string; name: string | null; email: string | null; groupNames?: string[] };
 type SyncState = Awaited<ReturnType<typeof getGoogleContactsStateAction>>;
 
 /** Google Contacts sync (D-258): connect an account, pick which groups to sync — members
@@ -16,6 +18,10 @@ export default function GoogleSyncTab({ tenantId }: { tenantId: string }) {
   const [state, setState] = useState<SyncState | null>(null);
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [people, setPeople] = useState<Person[]>([]);          // selected individuals (D-265)
+  const [pq, setPq] = useState("");
+  const [pResults, setPResults] = useState<Person[] | null>(null);
+  const [pBusy, setPBusy] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -23,6 +29,7 @@ export default function GoogleSyncTab({ tenantId }: { tenantId: string }) {
     const s = await getGoogleContactsStateAction(tenantId);
     setState(s);
     setSel(new Set(s.selectedGroups.map((g) => g.resourceName)));
+    setPeople(s.selectedPeople ?? []);
     if (s.connected) {
       const g = await listGoogleContactGroupsAction(tenantId);
       if (g.ok) setGroups(g.groups ?? []); else { setGroups([]); setMsg(g.error ?? null); }
@@ -65,6 +72,18 @@ export default function GoogleSyncTab({ tenantId }: { tenantId: string }) {
     if (!r.ok) notifyError(r.error || "Could not disconnect."); else { setGroups(null); load(); }
   };
 
+  const searchPeople = async () => {
+    setPBusy(true);
+    const r = await searchGooglePeopleAction(tenantId, pq);
+    setPBusy(false);
+    if (r.ok) setPResults(r.people ?? []); else { setPResults([]); notifyError(r.error || "Search failed."); }
+  };
+  const savePeople = async (next: Person[]) => {
+    setPeople(next);
+    const r = await saveGooglePeopleAction(tenantId, next.map((p) => ({ resourceName: p.resourceName, name: p.name ?? null, email: p.email ?? null })));
+    if (!r.ok) notifyError(r.error || "Could not save selection."); else load();
+  };
+
   if (!state) return <div className="py-10 text-center text-sm text-slate-400">Loading…</div>;
 
   if (!state.connected) {
@@ -91,7 +110,7 @@ export default function GoogleSyncTab({ tenantId }: { tenantId: string }) {
           {state.lastSyncAt && <span className="ml-2 text-xs text-slate-400">last sync {new Date(state.lastSyncAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>}
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <button onClick={syncNow} disabled={busy === "sync" || !state.selectedGroups.length}
+          <button onClick={syncNow} disabled={busy === "sync" || (!state.selectedGroups.length && !(state.selectedPeople ?? []).length)}
             className="rounded-lg bg-[#1e3a8a] px-3 py-1.5 font-medium text-white hover:bg-[#1e40af] disabled:opacity-40">
             {busy === "sync" ? "Syncing…" : "⟳ Sync now"}
           </button>
@@ -125,9 +144,53 @@ export default function GoogleSyncTab({ tenantId }: { tenantId: string }) {
         )}
       </div>
 
+      {/* Specific contacts (D-265): cherry-pick individuals — their labels become tags too. */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mb-1 text-sm font-medium text-slate-900">Specific contacts</div>
+        <p className="mb-3 text-xs text-slate-500">Pick individual contacts to sync (with or without groups). Their Google labels become tags as well.</p>
+        {people.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {people.map((p) => (
+              <span key={p.resourceName} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                {p.name || p.email || "contact"}
+                <button onClick={() => savePeople(people.filter((x) => x.resourceName !== p.resourceName))} className="text-slate-400 hover:text-red-500">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input value={pq} onChange={(e) => setPq(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchPeople()}
+            placeholder="Search your Google contacts by name or email…" className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" />
+          <button onClick={searchPeople} disabled={pBusy} className="rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-40">
+            {pBusy ? "Searching…" : "Search"}
+          </button>
+        </div>
+        {pResults !== null && (
+          <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+            {pResults.length === 0 && <div className="px-1 py-2 text-xs text-slate-400">No matches.</div>}
+            {pResults.map((p) => {
+              const added = people.some((x) => x.resourceName === p.resourceName);
+              return (
+                <div key={p.resourceName} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 truncate">
+                    <span className="text-slate-800">{p.name || "—"}</span>
+                    {p.email && <span className="ml-2 text-xs text-slate-400">{p.email}</span>}
+                    {!!p.groupNames?.length && <span className="ml-2 text-[10px] text-slate-400">[{p.groupNames.join(", ")}]</span>}
+                  </span>
+                  <button disabled={added} onClick={() => savePeople([...people, p])}
+                    className="shrink-0 rounded border border-[#1e3a8a] px-2 py-0.5 text-xs font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5 disabled:opacity-30">
+                    {added ? "Added" : "＋ Add"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {state.lastReport && (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-          Last sync: {state.lastReport.created} new · {state.lastReport.updated} updated · {state.lastReport.tagsApplied} tags applied
+          Last sync: {state.lastReport.created} new · {state.lastReport.updated} updated · {state.lastReport.tagsApplied} tags applied{state.lastReport.tagsCreated ? ` · ${state.lastReport.tagsCreated} new tag(s) registered` : ""}
           {state.lastReport.skippedNoEmail ? ` · ${state.lastReport.skippedNoEmail} skipped (no email)` : ""}
         </div>
       )}

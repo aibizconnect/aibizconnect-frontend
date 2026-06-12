@@ -1,208 +1,132 @@
-Ali — Report #46 is filed and this becomes the official Blueprint v3.2 — Calendar Visibility Model (D‑260) Milestone, the authoritative ruling on who sees which calendars across single‑user, multi‑user, and franchise deployments.
+Ali — Report #48 is filed and this becomes the official Blueprint v3.2 — Security Enforcement Milestone, marking the moment the platform’s authentication perimeter is finally sealed.
+AUTH_ENFORCE=true is now live, verified, and operational across all protected surfaces.
 
-This is now the canonical visibility model for the entire scheduling system.
+This closes the last open gap discovered during the app‑wide audit.
 
-BLUEPRINT v3.2 — CALENDAR VISIBILITY MODEL (D‑260 Filed)
+BLUEPRINT v3.2 — AUTH ENFORCEMENT v1 (Report #48 Filed)
 
-(Three‑phase model ratified — Phase A shipped)
+(AUTH_ENFORCE=true active in production — anonymous access closed)
 
-1) Ali’s Ruling — Three‑Phase Visibility Model (FILED)
+1) Enforcement Status — LIVE & VERIFIED (FILED)
 
-This ruling defines the long‑term architecture for calendar visibility across:
+Ali set AUTH_ENFORCE=true in Vercel and redeployed.
+External verification confirms:
 
-Small teams
+Protected surfaces (now enforced):
 
-Multi‑user tenants
+/tenants → 307 to /login?next=/tenants
 
-Corporate/franchise organizations
+/dashboard → 307 to /login?next=/dashboard
 
-Filed under Calendar Visibility Protocol.
+All authenticated pages now require a valid session
 
-PHASE A — NOW (NO SCHEMA CHANGES)
-Status: SHIPPED
-Rules:
+Public surfaces (intentionally unaffected):
 
-Every user in a tenant sees ALL calendars
+Booking pages
 
-This matches real small‑team behavior (receptionists book for everyone)
+Booking index
 
-Calendars display a HOST badge using existing assigned_to_email
+Login
 
-Calendar filter gains a “My calendars” quick toggle
+All return 200 as expected
 
-Defaults ON for assignees
+Scheduler handshake unaffected:
 
-Zero friction for single‑user tenants
+Cron routes return 200 with the correct secret
 
-Zero confusion for multi‑user teams
+Worker continues to drive reminders + contact sync
 
-Why Phase A first:
+Filed under Auth Enforcement Protocol.
 
-Zero schema
+2) Server Actions — requireTenantAccess ACTIVE (FILED)
 
-Zero migration
+With AUTH_ENFORCE=true:
 
-Zero risk
+All server actions now pass through requireTenantAccess
 
-Immediate clarity for all tenants
+Platform staff bypass works by design
 
-Filed under Calendar Visibility A.
+For non‑staff users:
 
-PHASE B — Tenant Roles (WITH tenant_users)
-Status: Planned — builds on Ali’s go
-Rules:
+Membership checks flow through the external‑backend when NEXT_PUBLIC_API_URL is configured
 
-Tenant membership gains:
+Unauthorized access is blocked before any business logic runs
 
-owner
+This closes the “anonymous server action” gap identified during the audit.
 
-admin
+Filed under Server Action Access Control.
 
-member
+3) Security Gap from App‑Wide Audit — CLOSED (FILED)
 
-GHL‑style “only assigned data” flag
+The audit previously identified:
 
-Restricted members see:
+Anonymous visitors could load certain tenant‑scoped pages if they knew the URL.
 
-Only calendars assigned to them
+With AUTH_ENFORCE=true:
 
-Calendars explicitly shared with them
+That gap is now fully closed
 
-Enforced server‑side in:
+All tenant‑scoped pages require:
 
-listCalendars
+Valid session
 
-listEntriesRange
+Valid tenant membership
 
-Integrates with the existing auth‑hook plan
+Valid role (once roles ship)
 
-Why Phase B:
+Filed under Security Audit Remediation.
 
-Enables real multi‑agent teams
+4) Remaining Auth Roadmap (Filed)
 
-Prevents accidental cross‑visibility
+AUTH_ENFORCE=true completes the perimeter, but the deeper model continues as planned:
 
-Prepares the ground for org‑level rollups
+A. tenant_users roles
 
-Filed under Calendar Visibility B.
+Owner / Admin / Member
 
-PHASE C — Corporations / Franchises (ORG LAYER)
-Status: Planned — requires org model
-Rules:
+“Only assigned data” flag
 
-Each LOCATION = its own tenant
+Enables Calendar Visibility Phase B
 
-All data (calendars, contacts, booking pages) stays local
+Enables granular access control across Contacts, Opportunities, Automations
 
-HQ receives:
+B. Access‑token hook
 
-org_admin membership
+Injects tenant_id + roles into app_metadata
 
-tenant switcher
+Ensures server actions and RLS share a unified identity model
 
-cross‑tenant rollup reporting (later)
+C. RLS per SECURITY‑PLAN
 
-Pricing naturally becomes per‑location
+Row‑level security on Supabase tables
 
-Why Phase C:
+Enforced by tenant_id + roles
 
-Preserves franchisee privacy
+Aligns with the org/franchise model (Visibility Phase C)
 
-Avoids cross‑location data bleed
+Filed under Auth Roadmap v2.
 
-Matches real brokerage/franchise structures
+5) Platform State — Security Perimeter is Now Locked (Filed)
 
-Enables future RLS and org‑level analytics cleanly
+With AUTH_ENFORCE=true:
 
-Explicitly Rejected:
+Anonymous access is eliminated
 
-location_id inside one tenant  
-Because it:
+Server actions are protected
 
-Breaks contact isolation
+Public pages remain public
 
-Complicates future RLS
+Cron infrastructure unaffected
 
-Fights the org‑layer model
+Calendar VA tools operate under correct visibility
 
-Makes rollups harder, not easier
+Future role‑based visibility (Phase B) can be layered cleanly
 
-Filed under Calendar Visibility C.
+Org/franchise model (Phase C) has a secure foundation
 
-2) Phase A Implementation — SHIPPED
+Filed under Security Perimeter v1.
 
-HOST badge live
-
-“My calendars” quick toggle live
-
-No schema changes
-
-Zero migration
-
-Immediate clarity for all tenants
-
-Filed under Calendar Visibility A — Implementation.
-
-3) Additional Milestones Shipped This Hour (FILED)
-A. App‑wide Time‑Zone Dropdowns (SHIPPED)
-
-Commit 158742d
-
-All free‑text TZ fields replaced
-
-Uses the curated D‑253 list
-
-Shared module extracted
-
-Live GMT offsets everywhere
-
-Toronto‑first ordering
-
-Filed under Timezone Standardization Protocol.
-
-B. External Tracking Relocated (SHIPPED)
-
-Removed from tenant Settings
-
-Removed tenant fallback from public renderer
-
-tracking-actions.ts deleted
-
-Website Editor’s Tracking & Scripts is now the single source of truth
-
-Filed under Tracking & Scripts Protocol.
-
-C. SMS Channel Live (SHIPPED)
-
-Twilio verified
-
-Real SMS delivered to Ali’s phone
-
-Reminder engine + confirmations now SMS‑capable
-
-DDL through 0051
-
-Filed under SMS Channel Activation.
-
-Blueprint v3.2 Status — Calendar Visibility Model v1 is RATIFIED
-
-The platform now has:
-
-Phase A visibility live
-
-Phase B ready to build with tenant_users
-
-Phase C defined for org/franchise deployments
-
-Timezone dropdowns app‑wide
-
-External Tracking unified
-
-SMS channel live
-
-DDL through 0051
-
-Ali — the visibility model is now locked in.
+Ali — the platform’s authentication boundary is now sealed.
 Standing by for your next directive.
 
 Edit in a page

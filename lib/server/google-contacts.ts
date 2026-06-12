@@ -104,11 +104,13 @@ async function validToken(tenantId: string): Promise<string | null> {
   return null;
 }
 
+export interface SelectedPerson { resourceName: string; name: string | null; email: string | null }
 export interface GcSyncState {
   connected: boolean; accountEmail: string | null;
   selectedGroups: { resourceName: string; name: string }[];
+  selectedPeople: SelectedPerson[];
   lastSyncAt: string | null;
-  lastReport: { matched: number; created: number; updated: number; skippedNoEmail: number; tagsApplied: number } | null;
+  lastReport: { matched: number; created: number; updated: number; skippedNoEmail: number; tagsApplied: number; tagsCreated?: number } | null;
 }
 export async function getContactsSyncState(tenantId: string): Promise<GcSyncState> {
   const sb = createSupabaseServiceClient();
@@ -118,6 +120,7 @@ export async function getContactsSyncState(tenantId: string): Promise<GcSyncStat
     connected: (data as any)?.status === "connected",
     accountEmail: cfg.accountEmail ?? null,
     selectedGroups: Array.isArray(cfg.selectedGroups) ? cfg.selectedGroups : [],
+    selectedPeople: Array.isArray(cfg.selectedPeople) ? cfg.selectedPeople : [],
     lastSyncAt: cfg.lastSyncAt ?? null,
     lastReport: cfg.lastReport ?? null,
   };
@@ -129,6 +132,27 @@ export async function saveSelectedGroups(tenantId: string, groups: { resourceNam
   const config = { ...((data as any)?.config ?? {}), selectedGroups: groups.slice(0, 20) };
   const { error } = await sb.from("tenant_integrations").update({ config, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("provider", PROVIDER);
   return { ok: !error, error: error?.message };
+}
+
+export async function saveSelectedPeople(tenantId: string, people: SelectedPerson[]): Promise<{ ok: boolean; error?: string }> {
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("tenant_integrations").select("config").eq("tenant_id", tenantId).eq("provider", PROVIDER).maybeSingle();
+  const config = { ...((data as any)?.config ?? {}), selectedPeople: people.slice(0, 200) };
+  const { error } = await sb.from("tenant_integrations").update({ config, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("provider", PROVIDER);
+  return { ok: !error, error: error?.message };
+}
+
+/** Search the account's contacts by name/email substring (D-265) — powers the
+ *  "Specific contacts" picker. Top 20 matches. */
+export async function searchPeople(tenantId: string, query: string): Promise<{ ok: boolean; people?: { resourceName: string; name: string | null; email: string | null; groupNames: string[] }[]; error?: string }> {
+  const f = await fetchPeople(tenantId);
+  if (!f.ok) return { ok: false, error: f.error };
+  const q = (query || "").trim().toLowerCase();
+  const hits = f.people!
+    .filter((p) => !q || (p.name ?? "").toLowerCase().includes(q) || (p.email ?? "").includes(q))
+    .slice(0, 20)
+    .map((p) => ({ resourceName: p.resourceName, name: p.name, email: p.email, groupNames: p.groupNames }));
+  return { ok: true, people: hits };
 }
 
 export async function disconnectContacts(tenantId: string): Promise<void> {
@@ -202,7 +226,7 @@ async function fetchPeople(tenantId: string): Promise<{ ok: boolean; people?: Sy
   return { ok: true, people, groupsByRn };
 }
 
-export interface SyncReport { matched: number; created: number; updated: number; skippedNoEmail: number; tagsApplied: number }
+export interface SyncReport { matched: number; created: number; updated: number; skippedNoEmail: number; tagsApplied: number; tagsCreated: number }
 
 /** Upsert synced people into tenant_contacts (D-258): match custom.googleResourceName →
  *  email; fill-empty-only on name/phone/company (our edits win); tags = union of ours +
@@ -210,7 +234,8 @@ export interface SyncReport { matched: number; created: number; updated: number;
  *  fabricated payloads — no live Google needed. */
 export async function applySyncedPeople(tenantId: string, people: SyncPerson[]): Promise<SyncReport> {
   const sb = createSupabaseServiceClient();
-  const report: SyncReport = { matched: people.length, created: 0, updated: 0, skippedNoEmail: 0, tagsApplied: 0 };
+  const report: SyncReport = { matched: people.length, created: 0, updated: 0, skippedNoEmail: 0, tagsApplied: 0, tagsCreated: 0 };
+  const allTagNames = new Set<string>();
   for (const p of people) {
     if (!p.email) { report.skippedNoEmail++; continue; }
     let { data: row } = await sb.from("tenant_contacts").select("id, name, phone, company, tags, custom, deleted_at")
@@ -221,6 +246,7 @@ export async function applySyncedPeople(tenantId: string, people: SyncPerson[]):
       row = byEmail?.[0] ?? null;
     }
     const groupTags = [...new Set(p.groupNames.map((g) => g.trim()).filter(Boolean))];
+    groupTags.forEach((t) => allTagNames.add(t));
     if (row) {
       const existingTags: string[] = Array.isArray((row as any).tags) ? (row as any).tags : [];
       const have = new Set(existingTags.map((t) => t.toLowerCase()));
@@ -248,20 +274,33 @@ export async function applySyncedPeople(tenantId: string, people: SyncPerson[]):
       if (!error) { report.created++; report.tagsApplied += groupTags.length; }
     }
   }
+  // Register brand-new labels in the tenant's tag registry (D-265) so they show up in
+  // Settings → Tags and every tag filter — unique on (tenant_id, lower(name)).
+  if (allTagNames.size) {
+    const { data: existing } = await sb.from("tenant_tags").select("name").eq("tenant_id", tenantId);
+    const have = new Set(((existing ?? []) as any[]).map((r) => String(r.name).toLowerCase()));
+    const fresh = [...allTagNames].filter((t) => !have.has(t.toLowerCase()));
+    if (fresh.length) {
+      const { error } = await sb.from("tenant_tags").insert(fresh.map((name) => ({ tenant_id: tenantId, name, color: "#64748b" })));
+      if (!error) report.tagsCreated = fresh.length;
+    }
+  }
   return report;
 }
 
-/** Full sync run: fetch → filter to the selected groups → apply → record the report. */
+/** Full sync run: fetch → filter to the selected scope → apply → record the report. */
 export async function runContactSync(tenantId: string): Promise<{ ok: boolean; report?: SyncReport; error?: string }> {
   const state = await getContactsSyncState(tenantId);
   if (!state.connected) return { ok: false, error: "Google Contacts is not connected." };
-  if (!state.selectedGroups.length) return { ok: false, error: "Pick at least one group to sync." };
+  if (!state.selectedGroups.length && !state.selectedPeople.length) return { ok: false, error: "Pick at least one group or contact to sync." };
 
   const f = await fetchPeople(tenantId);
   if (!f.ok) return { ok: false, error: f.error };
-  // Selected groups decide WHO syncs; every group label they carry becomes a tag.
+  // Scope = members of the selected groups ∪ individually selected contacts (D-265);
+  // every group label a synced person carries becomes a tag either way.
   const selected = new Set(state.selectedGroups.map((g) => g.resourceName));
-  const inScope = f.people!.filter((p) => p.groupRns.some((rn) => selected.has(rn)));
+  const selectedRns = new Set(state.selectedPeople.map((p) => p.resourceName));
+  const inScope = f.people!.filter((p) => p.groupRns.some((rn) => selected.has(rn)) || selectedRns.has(p.resourceName));
 
   const report = await applySyncedPeople(tenantId, inScope);
 
