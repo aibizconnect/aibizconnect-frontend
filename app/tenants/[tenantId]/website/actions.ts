@@ -2709,6 +2709,9 @@ export interface ProviderResult {
   // Unsplash API guideline fields: photographer credit (UTM-tagged) + the
   // download_location endpoint we must ping when a user actually USES a photo.
   photographer?: string; photographerUrl?: string; downloadLocation?: string;
+  // Pixabay TOS: permanent hotlinking is NOT allowed — picked photos must be
+  // downloaded into the tenant's own storage before use.
+  ingestRequired?: boolean;
 }
 const UNSPLASH_UTM = "utm_source=abc_app&utm_medium=referral";
 async function unsplashKey(tenantId?: string): Promise<string | null> {
@@ -2767,7 +2770,57 @@ export async function searchProvider(provider: StockProvider, query: string, pag
       return { hasKey: true, results: [], page, message: `Unsplash request failed: ${(e as Error).message}` };
     }
   }
-  return { hasKey: false, results: [], page, message: "Add your Pixabay API key in Settings → Integrations to search free images. We never connect a provider automatically." };
+  // ---- Pixabay (one call covers 50 — per_page max is 200; limit 100 req/minute) ----
+  const pkey = await pixabayKey(tenantId);
+  if (!pkey) return { hasKey: false, results: [], page, message: "Add your Pixabay API key in Settings → Integrations to search free images. We never connect a provider automatically." };
+  const pq = query?.trim();
+  // Landing feed = the 50 newest photos (order=latest); searches rank by relevance.
+  const pUrl = `https://pixabay.com/api/?key=${encodeURIComponent(pkey)}&per_page=50&page=${Math.max(1, page)}&image_type=photo&safesearch=true&order=${pq ? "popular" : "latest"}${pq ? `&q=${encodeURIComponent(pq)}` : ""}`;
+  try {
+    const res = await fetch(pUrl);
+    if (!res.ok) {
+      const msg = res.status === 429 ? "Pixabay rate limit reached (100 requests/minute) — try again in a minute." : `Pixabay returned ${res.status}.`;
+      return { hasKey: true, results: [], page, message: msg };
+    }
+    const j = (await res.json()) as { hits?: Array<Record<string, any>> };
+    const results: ProviderResult[] = (j.hits ?? []).map((h) => ({
+      id: String(h.id),
+      thumb: h.webformatURL ?? h.previewURL ?? "",
+      url: h.largeImageURL ?? h.webformatURL ?? "",
+      alt: typeof h.tags === "string" ? h.tags : undefined,
+      photographer: h.user ?? undefined,
+      photographerUrl: h.pageURL ?? undefined,
+      ingestRequired: true,
+    })).filter((r) => r.thumb && r.url);
+    return { hasKey: true, results, page, message: results.length ? undefined : pq ? "No results — try different keywords." : undefined };
+  } catch (e) {
+    return { hasKey: true, results: [], page, message: `Pixabay request failed: ${(e as Error).message}` };
+  }
+}
+
+async function pixabayKey(tenantId?: string): Promise<string | null> {
+  if (tenantId) {
+    try {
+      const { getIntegrationSecret } = await import("@/lib/server/integrations");
+      const s = await getIntegrationSecret(tenantId, "pixabay");
+      if (s?.api_key) return String(s.api_key);
+    } catch { /* fall through to env */ }
+  }
+  return process.env.PIXABAY_API_KEY || null;
+}
+
+/** Pixabay TOS compliance: picked photos are DOWNLOADED into the tenant's own storage
+ *  (R2) and the stored copy is what gets inserted/linked — never a permanent hotlink. */
+export async function ingestStockImage(tenantId: string, url: string, alt?: string): Promise<MediaItem> {
+  await requireTenantAccess(tenantId);
+  const { ingestExternalImage } = await import("@/lib/media/ingest");
+  const tags = (alt ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 8);
+  const ing = await ingestExternalImage(tenantId, url, { sourceType: "stock_image", tags });
+  if (!ing) throw new Error("Could not download the image.");
+  const supabase = createSupabaseServiceClient();
+  const { data, error } = await supabase.from("website_media").select(MEDIA_COLS).eq("id", ing.id).single();
+  if (error) throw new Error(error.message);
+  return withMeta(data);
 }
 
 /** Unsplash guideline compliance: when a user USES a photo (inserts or saves it), ping its

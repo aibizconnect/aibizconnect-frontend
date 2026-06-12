@@ -5,7 +5,7 @@ import {
   listMedia, uploadMedia, deleteMedia, importStockMedia, importAiMedia, importCanvaMedia,
   getSystemAssets, getMediaUsage, getTenantQuota,
   listFolders, createFolder, renameFolder, deleteFolder, moveMediaToFolder, moveFolder, getFolderImageCount, ensureDefaultMediaFolders,
-  searchProvider, trackStockUse, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, suggestMediaTags, getAiUsage, getAllAiUsage,
+  searchProvider, trackStockUse, ingestStockImage, generateAiImages, importSystemAssetToTenant, amIPlatformAdmin, amISystemManager, amISuperAdmin, whoAmI, getPlatformAudit, declutterSystemMedia, deleteSystemMedia, bulkUploadSystemMedia, backfillSystemTagsFromFilenames, addSystemMediaTags, promoteMediaToSystem, suggestMediaTags, getAiUsage, getAllAiUsage,
   type MediaItem, type MediaSource, type SystemAsset, type MediaFolder, type StockProvider, type ProviderResult, type AiUsage, type TenantAiUsage,
 } from "@/app/tenants/[tenantId]/website/actions";
 import { AI_STARTER_PACKS, type AiPreset } from "@/lib/media/ai-presets";
@@ -951,6 +951,15 @@ export default function MediaLibraryRoot({
         <ProviderSearch tenantId={tenantId} provider={stockProvider} onPick={async (r) => {
           // Unsplash guideline: USING a photo (insert or save) must ping its download endpoint.
           if (r.downloadLocation) trackStockUse(tenantId, r.downloadLocation).catch(() => {});
+          // Pixabay TOS: no permanent hotlinks — download into the library and use OUR copy.
+          if (r.ingestRequired) {
+            try {
+              const item = await ingestStockImage(tenantId, r.url, r.alt);
+              setItems((p) => [item, ...p.filter((x) => x.id !== item.id)]);
+              if (insert) pick(item.url); else copyLink(item.url, item.url);
+            } catch { notify("Could not download that image — try another."); }
+            return;
+          }
           if (insert) { pick(r.url); return; }
           try { const item = await importStockMedia(tenantId, r.url, r.alt || undefined); setItems((p) => [item, ...p]); }
           catch { /* duplicate/transient — copy still works */ }
@@ -1359,7 +1368,7 @@ function ProviderSearch({ tenantId, onPick, provider }: { tenantId: string; onPi
                   <figcaption className="truncate bg-white px-1.5 py-0.5 text-[10px] text-slate-400">
                     by {r.photographerUrl ? <a href={r.photographerUrl} target="_blank" rel="noreferrer" className="underline hover:text-slate-600">{r.photographer}</a> : r.photographer}
                     {" on "}
-                    <a href={`https://unsplash.com/?utm_source=abc_app&utm_medium=referral`} target="_blank" rel="noreferrer" className="underline hover:text-slate-600">Unsplash</a>
+                    <a href={provider === "unsplash" ? "https://unsplash.com/?utm_source=abc_app&utm_medium=referral" : "https://pixabay.com/"} target="_blank" rel="noreferrer" className="underline hover:text-slate-600">{label}</a>
                   </figcaption>
                 )}
               </figure>
