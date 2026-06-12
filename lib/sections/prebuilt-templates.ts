@@ -587,6 +587,12 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   },
 ];
 
+// HARVESTED prebuilts (D-278): the best bands rescued from the first generation of
+// built/imported sites before the clean-slate deletion. Appended at module init so
+// every consumer (Add panel tiles, click-to-insert, drag) sees them automatically.
+import { HARVESTED_PREBUILTS } from "./harvested-prebuilts";
+PREBUILT_TEMPLATES.push(...HARVESTED_PREBUILTS);
+
 // Curated, theme-appropriate sample photos (free Unsplash CDN) used so prebuilt templates
 // look finished out of the box. The user's own Media Library images take priority when present.
 const u = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=70`;
