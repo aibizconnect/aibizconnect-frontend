@@ -1,132 +1,198 @@
-Ali — Report #48 is filed and this becomes the official Blueprint v3.2 — Security Enforcement Milestone, marking the moment the platform’s authentication perimeter is finally sealed.
-AUTH_ENFORCE=true is now live, verified, and operational across all protected surfaces.
+Ali — Report #50 is filed, and this becomes the official Blueprint v3.2 — End‑of‑Day Consolidation + Identity Migration Directive, closing out one of the most productive development streaks in the platform’s history (D‑241 through D‑265, all shipped, all verified).
 
-This closes the last open gap discovered during the app‑wide audit.
+This entry records the Google Cloud ownership discovery, the ratified migration plan, and the continuity directives for tomorrow.
 
-BLUEPRINT v3.2 — AUTH ENFORCEMENT v1 (Report #48 Filed)
+BLUEPRINT v3.2 — IDENTITY MIGRATION DIRECTIVE + EOD CONSOLIDATION
 
-(AUTH_ENFORCE=true active in production — anonymous access closed)
+(End‑of‑day record — Ali signing off)
 
-1) Enforcement Status — LIVE & VERIFIED (FILED)
+1) Critical Discovery — Google Cloud Project Identity Misalignment (FILED)
 
-Ali set AUTH_ENFORCE=true in Vercel and redeployed.
-External verification confirms:
+Ali confirmed:
 
-Protected surfaces (now enforced):
+The Google Cloud project 333989185248 — which owns the platform OAuth client — is under his personal ali.realtor Google account.
 
-/tenants → 307 to /login?next=/tenants
+This violates the business‑identity separation rule and blocks:
 
-/dashboard → 307 to /login?next=/dashboard
+People API enablement
 
-All authenticated pages now require a valid session
+Long‑term credential governance
 
-Public surfaces (intentionally unaffected):
+Future org‑level integrations
 
-Booking pages
+Compliance and auditability
 
-Booking index
+Delegated access for staff
 
-Login
+Filed under Identity Governance Protocol.
 
-All return 200 as expected
+2) RATIFIED DIRECTION — Migrate ALL Google‑Side Assets to Business Identity (FILED)
 
-Scheduler handshake unaffected:
+Tomorrow’s primary mission:
 
-Cron routes return 200 with the correct secret
+Move all Google Cloud assets to aibusinessconnect2@gmail.com  
+(the business identity for the platform)
 
-Worker continues to drive reminders + contact sync
+Preferred Path — IAM Ownership Transfer (NO tenant re‑consent)
 
-Filed under Auth Enforcement Protocol.
+Add aibusinessconnect2@gmail.com as Owner on project 333989185248
 
-2) Server Actions — requireTenantAccess ACTIVE (FILED)
+Remove ali.realtor after transfer
 
-With AUTH_ENFORCE=true:
+This preserves:
 
-All server actions now pass through requireTenantAccess
+Existing OAuth client ID
 
-Platform staff bypass works by design
+Existing OAuth client secret
 
-For non‑staff users:
+All tenant connections
 
-Membership checks flow through the external‑backend when NEXT_PUBLIC_API_URL is configured
+All refresh tokens
 
-Unauthorized access is blocked before any business logic runs
+All Google Sync + Calendar integrations
 
-This closes the “anonymous server action” gap identified during the audit.
+Zero tenant disruption
 
-Filed under Server Action Access Control.
+Zero reconnects
 
-3) Security Gap from App‑Wide Audit — CLOSED (FILED)
+Zero downtime
 
-The audit previously identified:
+Fallback Path — New Project (tenant reconnects required)
 
-Anonymous visitors could load certain tenant‑scoped pages if they knew the URL.
+If IAM transfer is blocked:
 
-With AUTH_ENFORCE=true:
+Create a new GCP project under the business identity
 
-That gap is now fully closed
+Create a new OAuth client
 
-All tenant‑scoped pages require:
+Swap credentials in platform env
 
-Valid session
+Tenants re‑consent
 
-Valid tenant membership
+People API enabled on the new project
 
-Valid role (once roles ship)
+Filed under Google Asset Migration Plan.
 
-Filed under Security Audit Remediation.
+3) Tomorrow — Account Ownership Audit (FILED)
 
-4) Remaining Auth Roadmap (Filed)
+Ali ratified the directive:
 
-AUTH_ENFORCE=true completes the perimeter, but the deeper model continues as planned:
+All platform‑critical accounts must be under the business identity.
 
-A. tenant_users roles
+Tomorrow’s audit includes:
 
-Owner / Admin / Member
+Vercel
 
-“Only assigned data” flag
+Cloudflare
 
-Enables Calendar Visibility Phase B
+Supabase
 
-Enables granular access control across Contacts, Opportunities, Automations
+Twilio
 
-B. Access‑token hook
+Stitch
 
-Injects tenant_id + roles into app_metadata
+Resend (to be created under business identity before email channel wiring)
 
-Ensures server actions and RLS share a unified identity model
+Filed under Platform Ownership Protocol.
 
-C. RLS per SECURITY‑PLAN
+4) Resend Identity — Confirmed Target (FILED)
 
-Row‑level security on Supabase tables
+Ali confirmed:
 
-Enforced by tenant_id + roles
+“sendit” = Resend
 
-Aligns with the org/franchise model (Visibility Phase C)
+Tomorrow:
 
-Filed under Auth Roadmap v2.
+Create the Resend account under aibusinessconnect2@gmail.com
 
-5) Platform State — Security Perimeter is Now Locked (Filed)
+Add API key to Settings → Domain & Email
 
-With AUTH_ENFORCE=true:
+I will then automatically configure:
 
-Anonymous access is eliminated
+Domain
 
-Server actions are protected
+DNS
 
-Public pages remain public
+DKIM
 
-Cron infrastructure unaffected
+Verified sender identity
 
-Calendar VA tools operate under correct visibility
+All via Cloudflare
 
-Future role‑based visibility (Phase B) can be layered cleanly
+This will activate:
 
-Org/franchise model (Phase C) has a secure foundation
+Reminder emails
 
-Filed under Security Perimeter v1.
+Guest confirmations
 
-Ali — the platform’s authentication boundary is now sealed.
-Standing by for your next directive.
+Booking confirmations
+
+Reschedule/cancel notifications
+
+Filed under Send Channel Provisioning Protocol.
+
+5) Today’s Tally — D‑241 through D‑265 (FILED)
+
+All shipped, all verified:
+
+Conflicts engine v3
+
+Multi‑account provider sync
+
+All‑sub‑calendar busy sweep
+
+Venues
+
+Guests
+
+Native Google + Outlook invites
+
+Reminder engine
+
+Live SMS channel
+
+Scheduler v1.3
+
+Google Contacts Sync v1.1 (groups + individuals + tag registry)
+
+Booking Calendar Element v1
+
+VA tool layer (calendar.list/book/reschedule/cancel/find/availability)
+
+AUTH_ENFORCE=true (security perimeter sealed)
+
+DDL 0043..0051 applied
+
+Settings crash root‑caused + fixed
+
+Visibility Phase A
+
+Timezone dropdowns app‑wide
+
+External Tracking relocated
+
+Filed under Blueprint v3.2 Completion Ledger.
+
+6) Plan Continuity — Preserved in Memory (FILED)
+
+Tomorrow’s priorities are locked:
+
+Transfer Google Cloud project ownership
+
+Enable People API
+
+Create Resend account under business identity
+
+Account‑ownership audit (Vercel/Cloudflare/Supabase/Twilio/Stitch)
+
+Email channel wiring
+
+Resume Calendar wishlist (round‑robin, drag‑reschedule, recurring blocks, inbound sync)
+
+Visibility Phase B groundwork (tenant_users roles)
+
+Filed under Continuity Protocol.
+
+Ali — everything is recorded, the direction is ratified, and the platform is in its strongest state yet. Rest well tonight.
 
 Edit in a page
