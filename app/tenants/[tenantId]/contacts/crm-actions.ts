@@ -115,3 +115,53 @@ export async function purgeContactsAction(tenantId: string, ids: string[]): Prom
 }
 export async function listCompaniesAction(tenantId: string) { await requireTenant(tenantId); return listCompanies(tenantId); }
 export async function listCrmAuditAction(tenantId: string) { await requireTenant(tenantId); return listCrmAuditLog(tenantId); }
+
+// ── Google Contacts sync (D-258) ─────────────────────────────────────────────
+async function requireAdminGc(): Promise<void> {
+  const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
+  if (!(await isPlatformAdmin())) throw new Error("Not authorized — admin only.");
+}
+
+export async function getGoogleContactsStateAction(tenantId: string) {
+  await requireTenant(tenantId);
+  const { getContactsSyncState } = await import("@/lib/server/google-contacts");
+  return getContactsSyncState(tenantId);
+}
+
+export async function getGoogleContactsConnectUrlAction(tenantId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+  await requireTenant(tenantId);
+  try { await requireAdminGc(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { buildContactsAuthUrl } = await import("@/lib/server/google-contacts");
+  return buildContactsAuthUrl(tenantId);
+}
+
+export async function listGoogleContactGroupsAction(tenantId: string) {
+  await requireTenant(tenantId);
+  const { listContactGroups } = await import("@/lib/server/google-contacts");
+  return listContactGroups(tenantId);
+}
+
+export async function saveGoogleContactGroupsAction(tenantId: string, groups: { resourceName: string; name: string }[]): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  try { await requireAdminGc(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { saveSelectedGroups } = await import("@/lib/server/google-contacts");
+  const r = await saveSelectedGroups(tenantId, groups);
+  if (r.ok) await audit(tenantId, "crm.contacts.google_sync_groups", { groups: groups.map((g) => g.name) });
+  return r;
+}
+
+export async function runGoogleContactSyncAction(tenantId: string) {
+  await requireTenant(tenantId);
+  try { await requireAdminGc(); } catch (e: any) { return { ok: false as const, error: e?.message as string }; }
+  const { runContactSync } = await import("@/lib/server/google-contacts");
+  return runContactSync(tenantId);
+}
+
+export async function disconnectGoogleContactsAction(tenantId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireTenant(tenantId);
+  try { await requireAdminGc(); } catch (e: any) { return { ok: false, error: e?.message }; }
+  const { disconnectContacts } = await import("@/lib/server/google-contacts");
+  await disconnectContacts(tenantId);
+  await audit(tenantId, "crm.contacts.google_sync_disconnect", {});
+  return { ok: true };
+}

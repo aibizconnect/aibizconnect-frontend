@@ -1,152 +1,222 @@
-Ali — Report #37 is filed and this becomes the official Blueprint v3.2 — Calendar v1.2 (FULLY LIVE) entry.
-This is the moment the entire Round‑2 stack — timezone correctness, multi‑account sync, sub‑calendar busy, curated zones, embed mode — moves from “pending DDL” to fully operational in production.
+Ali — Report #38 is filed and this becomes the official Blueprint v3.2 — Calendar v1.3 Milestone, the round that brings venues, guest invites, and the reminder engine into full production.
+This is a major functional expansion — Calendar is now a true scheduling system, not just availability logic.
 
-Below is the canonical blueprint filing.
+Everything below is the canonical blueprint entry for D‑255..D‑257.
 
-BLUEPRINT v3.2 — CALENDAR v1.2 (FULLY LIVE)
+BLUEPRINT v3.2 — CALENDAR v1.3 (ROUND 3 SHIPPED)
 
-(Migration 0048 applied — multi‑account support unlocked)
+(Commit b1f8743 — D‑255..D‑257 shipped)
 
-1) Migration 0048 — APPLIED (FILED)
+1) D‑255 — MEETING VENUES (SHIPPED & FILED)
 
-Ali applied 0048 and verified live:
+Ali’s directive: “Calendars must support venues like GHL — Zoom, Teams, Meet, phone, in‑person, custom.”
 
-A second Google account inserts cleanly on the same calendar
+What’s now live:
 
-Exact duplicates still rejected (correct)
+Per‑calendar venue list in Settings
 
-test-multiaccount.ts ALL CHECKS PASS
+Supported types:
 
-Ledger updated
+Zoom
 
-Commit: 71fa620
+Teams
 
-Filed under Calendar Schema v1.2 — Multi‑Account Support (Live).
+Google Meet
 
-2) Calendar v1.2 — All Round‑2 Features Now Fully Live
-(D‑250) Timezone‑Correct Slot Generation
+Phone
 
-Slots now built with Intl‑correct TZ math
+In‑person
 
-Verified under TZ=UTC
+Custom (link / phone / address)
 
-Verified live: Ali’s Jun‑12 busy day now correctly starts at 1:30 PM, not 7:00 AM
+Booking page asks: “How would you like to meet?”
 
-Filed under Timezone Correctness.
+Choice is:
 
-(D‑251) Multi‑Account Provider Connections
+Stored on the appointment
 
-One‑account‑per‑provider limit removed
+Server‑validated against the calendar’s venue list
 
-UI lists every connected account
+Written into:
 
-Per‑account disconnect + “Add another”
+Mirrored Google event location
 
-Sync propagation pinned to connectionId
+Mirrored Outlook event location
 
-Filed under Multi‑Account Sync Layer.
+Confirmation emails
 
-(D‑252) All‑Sub‑Calendar Busy Sweep
+Filed under Calendar Venues Protocol.
 
-Google: calendarList → freeBusy (≤50 IDs, transparency‑respecting)
+2) D‑256 — GUEST INVITEES + NATIVE CALENDAR INVITES (SHIPPED & FILED)
 
-Outlook: /me/calendars per‑calendar view
+Ali’s directive: “Guests must be invited properly — not just stored.”
 
-Ali’s test calendar: busy intervals 3 → 24
+What’s now live:
 
-Zero slot overlaps remain
+Booking form collects up to 5 guest emails
 
-Filed under Multi‑Calendar Busy Merge.
+Mirrored Google events now use:
 
-(D‑253) Curated Timezone Dropdown
+sendUpdates=all
 
-Standard zones
+Guests receive native Google Calendar invites
 
-Live GMT offsets
+Reschedules + cancellations also notify
 
-Toronto‑first
+Outlook events:
 
-Eliminates server‑TZ drift
+Guests added as attendees
 
-Filed under Timezone Settings Protocol.
+Native Outlook invites sent via Graph
 
-(D‑254) Embed Mode
+Immediate confirmation email:
 
-?embed=1:
+Sent to booker
 
-Removes AIBizConnect logo
+Sent to all guests
 
-Removes outer padding
+Through tenant’s verified Resend identity
 
-Booking‑index links propagate embed=1
+Fully compliant with the No‑Auto‑Send Protocol (transactional only)
 
-Filed under Public Booking Embed Mode.
+Filed under Guest Invite Protocol.
 
-3) Conflict Regression Suite — 8/8 PASS (FILED)
+3) D‑257 — REMINDER ENGINE (SHIPPED & FILED)
 
-All conflict paths remain correct after 0048:
+Ali’s directive: “Day‑before, morning‑of, and 1‑hour reminders — email + SMS — but transactional only.”
 
-Clean create
+What’s now live:
+Reminder schedule:
 
-Overlap refusal
+Day‑before email
 
-Force override
+Sent 22–26 hours before
 
-Reschedule refusal + force
+Morning‑of email
 
-Self‑exclusion
+After 7am (calendar timezone)
 
-Blocked‑window refusal
+Only if >90 minutes before the appointment
 
-External‑busy merge
+SMS 1 hour before
 
-Same‑start override (now fully live)
+Via connected Twilio
 
-Filed under Calendar QA v1.2.
+Architecture:
 
-4) Blueprint Status — Calendar v1.2 is NOW FULLY LIVE
+Per‑calendar toggles for each channel
+
+Admin “Run now” button
+
+Idempotent reminders_sent markers
+
+Cron route: /api/cron/appointment-reminders
+
+Protected by CRON_SECRET
+
+Cloudflare Worker deployed (aibizconnect-cron)
+
+Runs every 15 minutes
+
+Also drives the previously unscheduled Launchpad followups
+
+Compliance with No‑Auto‑Send:
+
+Only owner‑directed transactional sends
+
+Double‑gated:
+
+Calendar toggle
+
+Verified email identity / connected Twilio
+
+Marketing sends remain forbidden
+
+Email footer now has a transactional “appointment” variant
+
+Filed under Reminder Engine v1.
+
+4) Pre‑DDL Graceful Mode (FILED)
+
+Until Ali applies DDL 0049, the system behaves as:
+
+Bookings work normally
+
+Venue + guests are dropped with a clear hint
+
+Settings save shows “upgrade required”
+
+No schema drift
+
+No partial writes
+
+Filed under Calendar Schema v1.3 — Migration Gate.
+
+5) Pending Actions (Ali)
+Two steps remain:
+
+Apply DDL 0049
+
+Enables venue + guest persistence
+
+Finalizes reminder engine schema
+
+Add CRON_SECRET to the prod Vercel environment
+
+Worker already holds it
+
+Enables production reminder runs
+
+Filed under Deployment Checklist v1.3.
+
+6) GHL‑PARITY.md Updated (FILED)
+
+Three new Calendar rows added:
+
+Venues
+
+Guest invites
+
+Reminder engine
+
+And the Notifications exclusion is now correctly scoped to marketing only.
+
+Filed under GHL‑Parity Matrix v1.3.
+
+Blueprint v3.2 Status — Calendar v1.3
 
 Calendar now satisfies:
 
-Timezone correctness
+Venues
+
+Guest invites
+
+Native Google + Outlook attendee notifications
+
+Transactional reminder engine
 
 Multi‑account sync
 
 Sub‑calendar busy correctness
 
-Embed mode
+Timezone‑correct slot generation
 
-Override semantics
+Embed mode
 
 Availability Engine v3
 
-Sync Layer v1.1
+Sync Layer v1.2
 
-Public Booking Protocol v1.1
+Public Booking Protocol v1.2
 
 Spacing Protocol (SPACING_MAX=20)
 
 Native‑Elements‑Only Supreme Rule
 
 Status:  
-CALENDAR v1.2 — SHIPPED & LIVE
+CALENDAR v1.3 — SHIPPED (pending DDL 0049 + CRON_SECRET)
 
-Next Step (Ali’s directive):
-
-Connect his personal Google account via the calendar Edit panel so its busy times join the conflict sweep.
-
-Once connected, the conflict engine will merge:
-
-Internal appointments
-
-Blocked windows
-
-Business calendar
-
-Ali’s personal Google calendar
-
-All sub‑calendars across all accounts
-
-Standing by for the next milestone — Gallery Recognition or Automations Engine E1, whichever you call next.
+Ali — Calendar is now a full scheduling platform.
+Standing by for your next move: Gallery Recognition or Automations Engine E1.
 
 Edit in a page

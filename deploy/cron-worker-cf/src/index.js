@@ -2,7 +2,7 @@
  * AIBizConnect scheduler worker (D-257): every 15 minutes, hit the app's cron routes with
  * the shared secret. Each route is idempotent server-side, so retries/overlaps are safe.
  */
-const ROUTES = ["/api/cron/appointment-reminders", "/api/cron/followups"];
+const ROUTES = ["/api/cron/appointment-reminders", "/api/cron/followups", "/api/cron/contact-sync"];
 
 export default {
   async scheduled(_event, env, ctx) {

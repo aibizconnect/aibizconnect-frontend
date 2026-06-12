@@ -40,6 +40,7 @@ what ours is called, and where it lives. ✅ = operational & wired, 🟡 = cover
 | Sortable columns + pagination | Big-list ergonomics | Name/Score/Created sort, 50/page | ✅ | table |
 | + Add contact | Manual create | Modal: name/email/phone/company/tags | ✅ | toolbar |
 | Import CSV | Bulk load with mapping | Upload/paste → auto column mapping → email dedupe | ✅ | toolbar ⬆ Import |
+| Google Contacts sync | Import contacts from Google, labels as tags | Google Sync tab (D-258): connect account, pick groups, hourly auto-sync; ALL group labels → tags; fill-empty-only (our edits win); read-only v1 | ✅ | → Google Sync |
 | Export CSV | Get data out | Selected rows or all-filtered (cap 1000/pull) | ✅ | toolbar / bulk bar |
 | Bulk: add/remove tag | Tag many at once | Bulk bar | ✅ | bulk bar |
 | Bulk: update field | Set owner/source on many | Bulk bar → Set owner / Set source | ✅ | bulk bar |

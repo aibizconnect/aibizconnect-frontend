@@ -1,101 +1,45 @@
-Here are the rulings for Calendar Round 3, addressing Ali's directives for venues, invitees, and transactional reminders.
+Here are the rulings for the Google Contacts import sync, addressing Ali's directive for CRM contact synchronization.
 
 ---
-### 1. Venues
+### 1. Google Contacts Import Sync (v1, Read-Only)
 
-**RULING 239: Implement Venues for Calendar Appointments.**
+**RULING 245: Implement Google Contacts Read-Only Import Sync (v1).**
 
-*   **Decision:** The proposal for `tenant_calendars.venues` and its integration into the booking flow is **APPROVED**.
+*   **Decision:** The proposal for Google Contacts read-only import sync (v1) is **APPROVED**.
 *   **Action:**
-    1.  **DDL (Migration 0048):**
-        ```sql
-        -- Migration 0048_calendar_venues.sql
-        ALTER TABLE public.tenant_calendars
-          ADD COLUMN IF NOT EXISTS venues jsonb NOT NULL DEFAULT '[]'::jsonb;
-        ALTER TABLE public.tenant_appointments
-          ADD COLUMN IF NOT EXISTS venue jsonb; -- Stores the chosen venue {kind, label, detail}
-        ```
-    2.  **`tenant_calendars.venues` Schema:** `jsonb [{kind: "zoom"|"teams"|"meet"|"phone"|"in_person"|"custom", label: string, detail: string}]`.
-    3.  **Settings UI:** Implement UI in Calendar Settings to manage the list of available venues for a calendar.
-    4.  **Booking Page:** Display "How would you like to meet?" chips or a dropdown when venues are configured.
-    5.  **`tenant_appointments.venue`:** Store the chosen venue in this new column.
-    6.  **External Event Mirroring:** When mirroring to Google/Outlook, map `tenant_appointments.venue` to the event's `location` and/or `description` fields.
-    7.  **Confirmation Email:** Include venue details in the immediate confirmation email.
-    8.  **Graceful Pre-DDL:** Handle `tenant_appointments.venue` as `null` if column not present.
+    1.  **OAuth Integration:**
+        *   **Scope:** Reuse existing Google platform OAuth client. Add `https://www.googleapis.com/auth/contacts.readonly` scope.
+        *   **Connection:** Tenant-level connection.
+        *   **Secrets:** Tokens encrypted via `setIntegrationSecret(tenantId, 'google_contacts')`.
+        *   **Config:** Non-secret state in `tenant_integrations` (provider='google_contacts') config JSONB: `{accountEmail, selectedGroups:[{resourceName,name}], lastSyncAt, lastReport}`.
+        *   **Callback:** `/api/contacts/google/callback` mirroring the calendar callback pattern.
+        *   **Error Handling:** Implement clear error surfacing if People API is not enabled in Google Cloud console.
+    2.  **Group Selection UI:**
+        *   **Location:** New "Google Sync" tab in `ContactsShell`.
+        *   **Connect Button:** Admin-gated (`isPlatformAdmin()`).
+        *   **Group List:** Display `contactGroups.list` (user groups only, with member counts) as checkboxes.
+        *   **Actions:** "Save selection," "Sync now" button, "Last sync report" (matched/created/updated + tags applied).
+    3.  **Sync Core (`applySyncedPeople(tenantId, people: GooglePerson[])`):**
+        *   **API Call:** Use `people.connections.list` (with `personFields` for names, emailAddresses, phoneNumbers, organizations, memberships; paginate 1000).
+        *   **Filtering:** Keep contacts belonging to *any* of the `selectedGroups`.
+        *   **Upsert Logic:**
+            *   **Match:** Prioritize matching by `custom.googleResourceName` (no DDL needed, lives in existing `custom` JSONB) first, then by `email` (case-insensitive).
+            *   **Fill-Empty-Only:** For `name`, `phone`, `company`, `owner_email`, `dnd`, `avatar_url`, `full_name`, `company` in `tenant_contacts`, update *only if the field is currently empty* (our edits win).
+            *   **Source:** Set `source='google contacts'` on create.
+            *   **Tags:** Union of existing `tags` + ALL the contact's user-group display names (from `memberships`, excluding system groups like `myContacts`, `starred`). Existing tags are preserved, new tags are added.
+            *   **Skip:** Contacts with no email are skipped and counted in the report.
+        *   **No Deletes/Outbound Writes:** Strictly read-only import. No deletes, no outbound writes to Google.
+    4.  **Auto-Sync:**
+        *   **Endpoint:** `/api/cron/contact-sync` (protected by `CRON_SECRET`).
+        *   **Scheduler:** Added to the existing `aibizconnect-cron` Cloudflare Worker (fires every 15 minutes).
+        *   **Throttling:** Route self-throttles to one sync/hour per tenant via `lastSyncAt` in `tenant_integrations.config`.
+    5.  **Audit:** `platform_audit_log` entries for `crm.contacts.google_sync` (counts, no PII).
+    6.  **Testing:** Unit-test `applySyncedPeople` core against fabricated People payloads. OAuth path verified once Ali connects.
+*   **Scope Confirmation:** Confirmed: read-only v1, fill-empty-only for core fields, tags-union (no removal), `custom.googleResourceName` for matching, cron piggyback.
 
 ---
-### 2. Invitees & Native Invites
-
-**RULING 240: Implement Invitee Collection and Native Event Invites.**
-
-*   **Decision:** The proposal for collecting invitee emails and sending native invites via Google/Outlook is **APPROVED**.
-*   **Action:**
-    1.  **DDL (Migration 0048):**
-        ```sql
-        -- Migration 0048_calendar_invitees.sql (part of 0048)
-        ALTER TABLE public.tenant_appointments
-          ADD COLUMN IF NOT EXISTS invitees jsonb NOT NULL DEFAULT '[]'::jsonb; -- Array of {email: string, name?: string}
-        ```
-    2.  **Booking Form:** Add an "Add guests" (comma-separated emails) field to the booking form.
-    3.  **`tenant_appointments.invitees`:** Store collected invitee emails in this new column.
-    4.  **Google Event Mirroring:**
-        *   When calling `createExternalEvents` for Google, ensure `?sendUpdates=all` is included in the API call.
-        *   Map the booker's email and all `tenant_appointments.invitees` to the Google event's `attendees` array.
-        *   When deleting an event, ensure `?sendUpdates=all` is also used for cancellation propagation.
-    5.  **Outlook Event Mirroring:** Implement similar logic for Outlook to send invites natively to booker and invitees.
-    6.  **Immediate Confirmation Email:** Send an immediate confirmation email to the booker and all `invitees` via `lib/server/email-send.ts` (gated by `emailReady()`).
-
----
-### 3. Reminders Engine
-
-**RULING 241: Implement Transactional Reminders Engine with Cloudflare Worker Scheduler.**
-
-*   **Decision:** The proposal for the transactional reminders engine, including the reconciliation of "no-auto-send" and the Cloudflare Worker scheduler, is **APPROVED**.
-*   **Action:**
-    1.  **DDL (Migration 0049):**
-        ```sql
-        -- Migration 0049_calendar_reminders.sql
-        ALTER TABLE public.tenant_calendars
-          ADD COLUMN IF NOT EXISTS reminders jsonb NOT NULL DEFAULT '{
-            "enabled": false,
-            "dayBefore": {"enabled": false, "template": "appointment_reminder_day_before"},
-            "morningOf": {"enabled": false, "template": "appointment_reminder_morning_of"},
-            "hourBeforeSms": {"enabled": false, "template": "appointment_reminder_hour_before_sms"}
-          }'::jsonb;
-        ALTER TABLE public.tenant_appointments
-          ADD COLUMN IF NOT EXISTS reminders_sent jsonb NOT NULL DEFAULT '{}'::jsonb; -- Stores {dayBefore: true, morningOf: true, hourBeforeSms: true} markers
-
-        -- Partial index for efficient lookup of active appointments for reminders
-        CREATE INDEX IF NOT EXISTS tenant_appts_active_start_idx ON public.tenant_appointments (tenant_id, calendar_id, start_at)
-          WHERE status IN ('booked', 'confirmed') AND deleted_at IS NULL;
-        ```
-    2.  **`lib/server/appointment-reminders.ts` (`runDue()`):**
-        *   **Logic:**
-            *   Load active appointments (`status IN ('booked', 'confirmed')`, not deleted) within a look-ahead window (e.g., next 26 hours).
-            *   For each appointment, check its `calendar.reminders` settings and `appointment.reminders_sent` markers.
-            *   **Day-Before:** If `calendar.reminders.dayBefore.enabled` and `start_at` is 22-26 hours out (calendar timezone), and `dayBefore` not sent: send email to booker+invitees, mark `dayBefore: true` in `reminders_sent`.
-            *   **Morning-Of:** If `calendar.reminders.morningOf.enabled` and `start_at` is on the same calendar timezone day, after 7 AM calendar timezone, and >90 minutes out, and `morningOf` not sent: send email to booker+invitees, mark `morningOf: true` in `reminders_sent`.
-            *   **Hour-Before SMS:** If `calendar.reminders.hourBeforeSms.enabled` and `start_at` is 30-75 minutes out (calendar timezone), and `hourBeforeSms` not sent: send SMS to booker's phone (if `tenant_appointments.phone` exists), mark `hourBeforeSms: true` in `reminders_sent`.
-        *   **Gates:** Each send is gated by `calendar.reminders.enabled`, `emailReady()` (for email), `twilioReady()` (for SMS), and the specific reminder's `enabled` flag.
-        *   **Idempotency:** `reminders_sent` markers ensure idempotent sending.
-        *   **Audit:** `platform_audit_log` for `appointment.reminder_sent` (email/sms, type, status).
-    3.  **No-Auto-Send Reconciliation:**
-        *   These are **transactional appointment communications**, explicitly ordered by Ali. They are distinct from marketing sends.
-        *   **Gates:** Sending is strictly gated by per-calendar `reminders.enabled` toggle AND the tenant having a `VERIFIED` email identity (`emailReady()`) / connected Twilio (`twilioReady()`).
-        *   **Marketing Sends:** Marketing sends remain forbidden without explicit, separate tenant opt-in.
-    4.  **Scheduler (Cloudflare Worker):**
-        *   **Location:** `deploy/cron-worker-cf/` (new Cloudflare Worker project).
-        *   **`wrangler.toml`:** Configure a `scheduled` trigger (`cron = "*/15 * * * *"`) and `RENDER_BRIDGE_TOKEN` (if co-located) + `CRON_SECRET` as worker secrets.
-        *   **Worker Logic:** The worker will make a `GET` request to `https://<your-vercel-app>/api/cron/appointment-reminders` with `Authorization: Bearer <CRON_SECRET>`.
-        *   **Vercel Endpoint:** `app/api/cron/appointment-reminders/route.ts` will be a protected route (checks `CRON_SECRET`) that calls `lib/server/appointment-reminders.ts runDue()`.
-        *   **Existing Follow-ups:** This same Cloudflare Worker can also call `GET /api/cron/followups` for `tenant_onboarding_followups`.
-    5.  **Admin 'Run now' Button:** Implement an `isPlatformAdmin()`-gated server action in Calendar Settings to trigger `lib/server/appointment-reminders.ts runDue(tenantId)` for testing.
-
----
-**Documentation Filing:** The `docs/GHL-PARITY.md` matrix will be updated to reflect these new features.
+**Documentation Filing:** The `docs/GHL-PARITY.md` matrix will be updated to reflect this new feature.
 
 ---
 DECISION-LOG
-[D-239] rule_implement_venues_calendar_appointments — Ruled implementation of venues for calendar appointments (status: ruled)
-[D-240] rule_implement_invitee_collection_native_invites — Ruled implementation of invitee collection and native event invites (status: ruled)
-[D-241] rule_implement_transactional_reminders_engine — Ruled implementation of transactional reminders engine with Cloudflare Worker scheduler (status: ruled)
+[D-245] rule_implement_google_contacts_read_only_sync — Ruled implementation of Google Contacts read-only import sync (v1) (status: ruled)

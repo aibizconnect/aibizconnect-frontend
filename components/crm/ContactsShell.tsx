@@ -6,13 +6,15 @@ import TasksRollup from "./TasksRollup";
 import RestoreTab from "./RestoreTab";
 import BulkActionsLog from "./BulkActionsLog";
 import CompaniesTab from "./CompaniesTab";
+import GoogleSyncTab from "./GoogleSyncTab";
 
 /**
  * Contacts area shell (GHL-parity, D-230 + sweep D-232..D-236) — the full GHL tab set:
- * Smart Lists (the list) | Bulk Actions (audit log) | Restore (soft-deleted) | Tasks | Companies.
+ * Smart Lists (the list) | Bulk Actions (audit log) | Restore (soft-deleted) | Tasks | Companies,
+ * plus Google Sync (D-258: group-scoped import, labels → tags).
  */
 export default function ContactsShell({ tenantId }: { tenantId: string }) {
-  const [tab, setTab] = useState<"contacts" | "bulk" | "restore" | "tasks" | "companies">("contacts");
+  const [tab, setTab] = useState<"contacts" | "bulk" | "restore" | "tasks" | "companies" | "gsync">("contacts");
   // Companies → click-through opens the list pre-filtered to that company.
   const [companyFilter, setCompanyFilter] = useState<string | null>(null);
 
@@ -34,12 +36,14 @@ export default function ContactsShell({ tenantId }: { tenantId: string }) {
         {tabBtn("restore", "Restore")}
         {tabBtn("tasks", "Tasks")}
         {tabBtn("companies", "Companies")}
+        {tabBtn("gsync", "Google Sync")}
       </div>
       {tab === "contacts" && <ContactsList tenantId={tenantId} companyFilter={companyFilter} onClearCompany={() => setCompanyFilter(null)} />}
       {tab === "bulk" && <BulkActionsLog tenantId={tenantId} />}
       {tab === "restore" && <RestoreTab tenantId={tenantId} />}
       {tab === "tasks" && <TasksRollup tenantId={tenantId} />}
       {tab === "companies" && <CompaniesTab tenantId={tenantId} onOpen={(name) => { setCompanyFilter(name); setTab("contacts"); }} />}
+      {tab === "gsync" && <GoogleSyncTab tenantId={tenantId} />}
     </div>
   );
 }
