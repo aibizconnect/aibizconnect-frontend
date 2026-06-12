@@ -15,16 +15,25 @@ export interface LLMRequest {
   temperature?: number;
 }
 
+/** Token usage for one completion — the metering currency (D-277). */
+export interface LLMUsage { tokensIn: number; tokensOut: number; provider: string }
+export interface LLMCompletion { text: string | null; usage: LLMUsage | null }
+
 export interface LLMProvider {
   name: string;
   complete(req: LLMRequest, tenantId?: string): Promise<string | null>;
+  /** Like complete(), but also returns the provider's reported token usage. */
+  completeWithUsage(req: LLMRequest, tenantId?: string): Promise<LLMCompletion>;
 }
 
 class OpenAIProvider implements LLMProvider {
   name = "openai";
   async complete(req: LLMRequest, tenantId?: string): Promise<string | null> {
+    return (await this.completeWithUsage(req, tenantId)).text;
+  }
+  async completeWithUsage(req: LLMRequest, tenantId?: string): Promise<LLMCompletion> {
     const key = await keyStore.resolve("openai", tenantId);
-    if (!key) return null; // -> caller falls back (L-3)
+    if (!key) return { text: null, usage: null }; // -> caller falls back (L-3)
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -39,12 +48,13 @@ class OpenAIProvider implements LLMProvider {
           ],
         }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) return { text: null, usage: null };
       const j = await res.json();
       const text = j.choices?.[0]?.message?.content;
-      return typeof text === "string" ? text : null;
+      const usage = j.usage ? { tokensIn: j.usage.prompt_tokens ?? 0, tokensOut: j.usage.completion_tokens ?? 0, provider: this.name } : null;
+      return { text: typeof text === "string" ? text : null, usage };
     } catch {
-      return null;
+      return { text: null, usage: null };
     }
   }
 }
@@ -52,8 +62,11 @@ class OpenAIProvider implements LLMProvider {
 class GeminiProvider implements LLMProvider {
   name = "gemini";
   async complete(req: LLMRequest, tenantId?: string): Promise<string | null> {
+    return (await this.completeWithUsage(req, tenantId)).text;
+  }
+  async completeWithUsage(req: LLMRequest, tenantId?: string): Promise<LLMCompletion> {
     const key = await keyStore.resolve("gemini", tenantId);
-    if (!key) return null;
+    if (!key) return { text: null, usage: null };
     try {
       const model = req.model && /gemini/i.test(req.model) ? req.model : "gemini-2.5-flash";
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
@@ -68,12 +81,14 @@ class GeminiProvider implements LLMProvider {
           },
         }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) return { text: null, usage: null };
       const j = await res.json();
       const text = j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("");
-      return typeof text === "string" && text.trim() ? text : null;
+      const um = j.usageMetadata;
+      const usage = um ? { tokensIn: um.promptTokenCount ?? 0, tokensOut: um.candidatesTokenCount ?? 0, provider: this.name } : null;
+      return { text: typeof text === "string" && text.trim() ? text : null, usage };
     } catch {
-      return null;
+      return { text: null, usage: null };
     }
   }
 }
@@ -86,11 +101,14 @@ class ChainProvider implements LLMProvider {
   name = "chain(openai>gemini)";
   private providers: LLMProvider[] = [new OpenAIProvider(), new GeminiProvider()];
   async complete(req: LLMRequest, tenantId?: string): Promise<string | null> {
+    return (await this.completeWithUsage(req, tenantId)).text;
+  }
+  async completeWithUsage(req: LLMRequest, tenantId?: string): Promise<LLMCompletion> {
     for (const p of this.providers) {
-      const out = await p.complete(req, tenantId);
-      if (out != null) return out;
+      const out = await p.completeWithUsage(req, tenantId);
+      if (out.text != null) return out;
     }
-    return null;
+    return { text: null, usage: null };
   }
 }
 

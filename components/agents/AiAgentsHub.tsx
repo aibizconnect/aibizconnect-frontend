@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  saveAiAgentAction, deleteAiAgentAction, runAgentTestTurnAction, listAgentAuditAction, type AgentAuditRow,
+  saveAiAgentAction, deleteAiAgentAction, runAgentTestTurnAction, listAgentAuditAction, getAgentUsageAction,
+  type AgentAuditRow, type AgentUsageSummary,
 } from "@/app/tenants/[tenantId]/agents/ai-actions";
 import { ROLE_LABELS, ROLE_PRESETS, type AiAgentDef, type AgentRole, type AgentTone } from "@/lib/agent/agents-store";
 import { confirmDialog } from "@/lib/ui/dialogs";
@@ -43,6 +44,7 @@ const newAgent = (): AiAgentDef => ({
   knowledge: { businessProfileMerged: true, snippets: [] },
   channels: { webchat: false },
   widget: { position: "bottom-right", color: "", greeting: "", size: "standard" },
+  lastTestedAt: null,
   enabled: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -214,16 +216,27 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
 
       {sub === "channels" && (
         <div className="mt-4 max-w-2xl space-y-3">
-          {CHANNELS.map((c) => (
-            <label key={c.key} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
-              <input type="checkbox" className="mt-1" checked={a.channels[c.key]}
+          {/* TEST-DRIVE GATE (D-277): no public channel until the tenant has actually
+              talked to this agent in the Test tab. Already-live channels stay toggleable. */}
+          {!a.lastTestedAt && !a.channels.webchat && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <span><b>Test-drive required</b> — have at least one conversation with this agent before putting it in front of your visitors.</span>
+              <button onClick={() => setSub("test")} className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white">Go test it</button>
+            </div>
+          )}
+          {CHANNELS.map((c) => {
+            const locked = !a.lastTestedAt && !a.channels[c.key];
+            return (
+            <label key={c.key} className={`flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 ${locked ? "opacity-60" : ""}`}>
+              <input type="checkbox" className="mt-1" disabled={locked} checked={a.channels[c.key]}
                 onChange={(e) => set("channels", { ...a.channels, [c.key]: e.target.checked })} />
               <span>
                 <span className="text-sm font-medium text-slate-800">{c.label}</span>
                 <span className="block text-xs text-slate-500">{c.desc}</span>
+                {a.lastTestedAt && <span className="mt-0.5 block text-[11px] text-emerald-600">Test-driven {new Date(a.lastTestedAt).toLocaleString()} ✓</span>}
               </span>
             </label>
-          ))}
+          );})}
           {["SMS conversations", "Facebook / Instagram DMs", "WhatsApp", "Phone (Voice)"].map((label) => (
             <div key={label} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-70">
               <span className="text-sm font-medium text-slate-600">{label}</span>
@@ -301,13 +314,13 @@ function AgentEditor({ tenantId, agent: initial, onClose, onSaved, onDeleted }: 
         </div>
       )}
 
-      {sub === "test" && <TestConsole tenantId={tenantId} agent={a} />}
+      {sub === "test" && <TestConsole tenantId={tenantId} agent={a} onTested={(at) => set("lastTestedAt", at)} />}
     </div>
   );
 }
 
-function TestConsole({ tenantId, agent }: { tenantId: string; agent: AiAgentDef }) {
-  const [messages, setMessages] = useState<(AgentChatMessage & { steps?: AgentToolStep[] })[]>([]);
+function TestConsole({ tenantId, agent, onTested }: { tenantId: string; agent: AiAgentDef; onTested?: (at: string) => void }) {
+  const [messages, setMessages] = useState<(AgentChatMessage & { steps?: AgentToolStep[]; tokens?: number })[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState(false);
@@ -325,7 +338,8 @@ function TestConsole({ tenantId, agent }: { tenantId: string; agent: AiAgentDef 
     try {
       const r = await runAgentTestTurnAction(tenantId, agent, transcript, live);
       if (r.error) setError(r.error);
-      if (r.reply || r.steps.length) setMessages((p) => [...p, { role: "agent", text: r.reply || "(no reply)", steps: r.steps }]);
+      if (r.reply || r.steps.length) setMessages((p) => [...p, { role: "agent", text: r.reply || "(no reply)", steps: r.steps, tokens: r.tokensIn + r.tokensOut }]);
+      if (r.testedAt) onTested?.(r.testedAt); // unlocks public channels (D-277 test-drive gate)
     } finally { setBusy(false); }
   };
 
@@ -348,6 +362,7 @@ function TestConsole({ tenantId, agent }: { tenantId: string; agent: AiAgentDef 
               </div>
             )}
             <span className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.role === "user" ? "bg-[#1e3a8a] text-white" : "bg-slate-100 text-slate-800"}`}>{m.text}</span>
+            {m.role === "agent" && !!m.tokens && <span className="mt-0.5 block text-[10px] text-slate-300">≈{m.tokens.toLocaleString()} tokens</span>}
           </div>
         ))}
         {busy && <p className="text-xs text-slate-400">thinking…</p>}
@@ -367,10 +382,31 @@ function TestConsole({ tenantId, agent }: { tenantId: string; agent: AiAgentDef 
 
 function AuditTab({ tenantId }: { tenantId: string }) {
   const [rows, setRows] = useState<AgentAuditRow[] | null>(null);
-  useEffect(() => { listAgentAuditAction(tenantId).then(setRows).catch(() => setRows([])); }, [tenantId]);
+  const [usage, setUsage] = useState<AgentUsageSummary | null>(null);
+  useEffect(() => {
+    listAgentAuditAction(tenantId).then(setRows).catch(() => setRows([]));
+    getAgentUsageAction(tenantId).then(setUsage).catch(() => setUsage(null));
+  }, [tenantId]);
   if (!rows) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
-  if (!rows.length) return <p className="py-8 text-center text-sm text-slate-400">No agent activity yet — run a conversation in an agent's Test tab.</p>;
+  const usageCards = usage && (
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {[
+        ["Conversations this month", usage.monthTurns.toLocaleString()],
+        ["Tokens this month", usage.monthTokens.toLocaleString()],
+        ["Conversations all-time", usage.totalTurns.toLocaleString()],
+        ["Tokens all-time", usage.totalTokens.toLocaleString()],
+      ].map(([label, value]) => (
+        <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="text-xs text-slate-400">{label}</div>
+          <div className="mt-1 text-xl font-semibold text-slate-900">{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+  if (!rows.length) return <>{usageCards}<p className="py-8 text-center text-sm text-slate-400">No agent activity yet — run a conversation in an agent's Test tab.</p></>;
   return (
+    <>
+    {usageCards}
     <div className="mt-4 overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -387,5 +423,6 @@ function AuditTab({ tenantId }: { tenantId: string }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }

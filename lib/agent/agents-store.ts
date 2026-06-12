@@ -23,6 +23,9 @@ export interface AiAgentDef {
   channels: { webchat: boolean };
   /** Chat bubble appearance — the tenant decides look + position (D-276). color "" = use the site's brand color. */
   widget: { position: "bottom-right" | "bottom-left"; color: string; greeting: string; size: "compact" | "standard" | "large" };
+  /** Stamped by a successful Test-console conversation — the TEST-DRIVE GATE (D-277):
+   *  public channels can't be enabled until the tenant has actually talked to the agent. */
+  lastTestedAt: string | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +67,7 @@ const normalize = (raw: any, id: string): AiAgentDef => ({
     greeting: typeof raw?.widget?.greeting === "string" ? raw.widget.greeting : "",
     size: ["compact", "large"].includes(raw?.widget?.size) ? raw.widget.size : "standard",
   },
+  lastTestedAt: typeof raw?.lastTestedAt === "string" ? raw.lastTestedAt : null,
   enabled: raw?.enabled !== false,
   createdAt: String(raw?.createdAt ?? new Date().toISOString()),
   updatedAt: String(raw?.updatedAt ?? new Date().toISOString()),

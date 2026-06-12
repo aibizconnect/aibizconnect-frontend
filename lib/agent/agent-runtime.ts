@@ -25,7 +25,7 @@ import type { AiAgentDef } from "@/lib/agent/agents-store";
 
 export interface AgentChatMessage { role: "user" | "agent"; text: string }
 export interface AgentToolStep { tool: string; args: Record<string, unknown>; ok: boolean; summary: string }
-export interface AgentTurnResult { reply: string; steps: AgentToolStep[]; error?: string }
+export interface AgentTurnResult { reply: string; steps: AgentToolStep[]; tokensIn: number; tokensOut: number; error?: string }
 
 type ToolFn = (tenantId: string, args: unknown) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
 
@@ -131,17 +131,33 @@ export async function runAgentTurn(
   const convo = transcript.slice(-16).map((m) => `${m.role === "user" ? "USER" : "YOU"}: ${m.text}`).join("\n");
   const steps: AgentToolStep[] = [];
   let scratch = "";
+  let tokensIn = 0, tokensOut = 0, provider = "";
+
+  // Token METERING (D-277): every turn records tokens + a turn event to ai_usage_events
+  // (same store as image metering) so per-tenant agent usage is billable later.
+  const finish = async (r: Omit<AgentTurnResult, "tokensIn" | "tokensOut">): Promise<AgentTurnResult> => {
+    try {
+      const { createSupabaseServiceClient } = await import("@/lib/supabase/service");
+      const sb = createSupabaseServiceClient();
+      const meta = { agentId: agent.id, mode, provider, llmCalls: steps.length + 1, toolCalls: steps.length };
+      const rows: Record<string, unknown>[] = [{ tenant_id: tenantId, kind: "agent_turn", units: 1, meta }];
+      if (tokensIn + tokensOut > 0) rows.push({ tenant_id: tenantId, kind: "agent_tokens", units: tokensIn + tokensOut, meta: { ...meta, tokensIn, tokensOut } });
+      await sb.from("ai_usage_events").insert(rows);
+    } catch { /* metering is best-effort, never blocks the reply */ }
+    return { ...r, tokensIn, tokensOut };
+  };
 
   for (let i = 0; i < MAX_STEPS; i++) {
     const user = `CONVERSATION SO FAR:\n${convo}\n${scratch ? `\nTOOL OBSERVATIONS THIS TURN:\n${scratch}\n` : ""}\nRespond per the protocol (one JSON object).`;
-    const raw = await llm.complete({ system, user, jsonObject: true, temperature: 0.3 }, tenantId);
-    if (raw == null) return { reply: "", steps, error: "No AI model is configured — add an OpenAI key (platform or tenant) to power agents." };
+    const { text: raw, usage } = await llm.completeWithUsage({ system, user, jsonObject: true, temperature: 0.3 }, tenantId);
+    if (usage) { tokensIn += usage.tokensIn; tokensOut += usage.tokensOut; provider = usage.provider; }
+    if (raw == null) return finish({ reply: "", steps, error: "No AI model is configured — add an OpenAI key (platform or tenant) to power agents." });
 
     let parsed: any;
     try { parsed = JSON.parse(stripFences(raw)); }
-    catch { return { reply: raw.slice(0, 1200), steps }; } // model ignored protocol — surface its text
+    catch { return finish({ reply: raw.slice(0, 1200), steps }); } // model ignored protocol — surface its text
 
-    if (parsed?.type === "reply") return { reply: String(parsed.text ?? "").slice(0, 4000), steps };
+    if (parsed?.type === "reply") return finish({ reply: String(parsed.text ?? "").slice(0, 4000), steps });
 
     if (parsed?.type === "tool") {
       const name = String(parsed.name ?? "");
@@ -157,7 +173,7 @@ export async function runAgentTurn(
       scratch += `TOOL ${name}(${JSON.stringify(args).slice(0, 300)}) -> ${summary}\n`;
       continue;
     }
-    return { reply: typeof raw === "string" ? raw.slice(0, 1200) : "", steps };
+    return finish({ reply: typeof raw === "string" ? raw.slice(0, 1200) : "", steps });
   }
-  return { reply: "I gathered the information but ran out of steps — could you rephrase or narrow the request?", steps };
+  return finish({ reply: "I gathered the information but ran out of steps — could you rephrase or narrow the request?", steps });
 }
