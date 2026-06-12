@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { createPage, saveDraft, setWebsiteChrome } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks, type BusinessProfile } from "@/lib/sites/page-generate";
@@ -375,6 +376,7 @@ export async function createWebsiteFromWizard(
   tenantId: string,
   payload: WizardPayload
 ): Promise<CreateWizardResult> {
+  await requireTenantAccess(tenantId); // write path — membership, not just a session cookie
   const name = (payload.businessName || "").trim();
   if (!name) return { ok: false, error: "Business name is required." };
   if (!payload.industry?.trim()) return { ok: false, error: "Industry is required." };
@@ -514,7 +516,32 @@ export async function createWebsiteFromWizard(
     pagesCreated = await scaffoldSkeleton(tenantId, websiteId, payload.aiConsent, wizardJson);
   }
 
+  // D-267 (Ali): every staff member's build uses the TENANT's information — the Business
+  // Profile is the single source. The wizard pre-fills from it; a successful build writes
+  // back FILL-EMPTY-ONLY so the first build seeds the profile for the whole team. Existing
+  // profile values are never overwritten by a wizard run.
+  await fillEmptyBusinessProfile(tenantId, {
+    business_name: name,
+    business_niche: payload.industry,
+    address_country: payload.country,
+    address_city: payload.city,
+    business_website: payload.existingUrl,
+  });
+
   return { ok: true, websiteId, subdomain, host: check.host, pagesCreated, aiUsed, benchmarkedSites: (wizardJson as Record<string, any>).benchmarkedSites };
+}
+
+async function fillEmptyBusinessProfile(tenantId: string, vals: Record<string, string | null | undefined>): Promise<void> {
+  try {
+    const supabase = createSupabaseServiceClient();
+    const keys = Object.keys(vals).filter((k) => (vals[k] || "").trim());
+    if (!keys.length) return;
+    const { data } = await supabase.from("tenant_settings").select("setting_key, setting_value").eq("tenant_id", tenantId).in("setting_key", keys);
+    const have = new Set((data ?? []).filter((r: any) => String(r.setting_value ?? "").trim()).map((r: any) => r.setting_key as string));
+    const now = new Date().toISOString();
+    const rows = keys.filter((k) => !have.has(k)).map((k) => ({ tenant_id: tenantId, setting_key: k, setting_value: String(vals[k]).trim(), updated_at: now }));
+    if (rows.length) await supabase.from("tenant_settings").upsert(rows, { onConflict: "tenant_id,setting_key" });
+  } catch { /* profile seeding is best-effort — never fail the build over it */ }
 }
 
 /** Minimal hand-built skeleton when AI is off or generation failed. Still GEO-seeded. */

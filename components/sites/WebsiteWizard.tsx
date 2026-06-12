@@ -25,17 +25,21 @@ const PLAN_KIND_CLS: Record<string, string> = {
 const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]";
 const label = "mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500";
 
-export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
+export default function WebsiteWizard({ tenantId, initialProfile }: {
+  tenantId: string;
+  /** D-267: tenant Business Profile pre-fill — every staff member starts from the SAME tenant info. */
+  initialProfile?: { businessName?: string; industry?: string; country?: string; city?: string; website?: string };
+}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Form state.
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [country, setCountry] = useState("");
-  const [city, setCity] = useState("");
+  // Form state — seeded from the tenant Business Profile (editable, never forced).
+  const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? "");
+  const [industry, setIndustry] = useState(initialProfile?.industry ?? "");
+  const [country, setCountry] = useState(initialProfile?.country ?? "");
+  const [city, setCity] = useState(initialProfile?.city ?? "");
   const [audience, setAudience] = useState("");
   const [services, setServices] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
@@ -54,7 +58,7 @@ export default function WebsiteWizard({ tenantId }: { tenantId: string }) {
     setNewPageTitle("");
   };
 
-  const [existingUrl, setExistingUrl] = useState("");
+  const [existingUrl, setExistingUrl] = useState(initialProfile?.website ?? "");
   const [existingBlog, setExistingBlog] = useState("");
   const [socialLinks, setSocialLinks] = useState<string[]>([""]);
   const [analyzing, setAnalyzing] = useState(false);
