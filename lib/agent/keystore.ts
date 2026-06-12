@@ -10,6 +10,7 @@
 
 export type ServiceKey =
   | "openai"     // LLM (platform key today)
+  | "gemini"     // LLM (Google AI — fallback chain + Ali's function-calling bridge direction)
   | "resend"     // email (DL-1)
   | "social"     // social publishing (DL — next reference domain)
   | "meta_ads"   // ads (future)
@@ -18,6 +19,7 @@ export type ServiceKey =
 
 const ENV_MAP: Record<ServiceKey, string> = {
   openai: "OPENAI_API_KEY",
+  gemini: "GOOGLE_AI_API_KEY",
   resend: "RESEND_API_KEY",
   social: "SOCIAL_API_TOKEN",
   meta_ads: "META_ADS_TOKEN",

@@ -35,3 +35,14 @@ runtimes / future MCP exposure.
 - Marketing sends remain forbidden platform-wide.
 - Tools add capability only; wiring them to a live agent loop is a separate, ratified phase
   (see the agent orchestrator on the roadmap and docs/AUTOMATIONS-ENGINE-PLAN.md).
+
+## AI Agents hub (D-274, 2026-06-12)
+Tenant-facing "AI Agents" menu (app/tenants/[tenantId]/agents): create agents (role
+presets, tone, instructions), Skills (Calendar LIVE via this tool layer; Contacts/
+Email/SMS/Voice/Reviews = SOON), Knowledge (Business Profile auto-merged + snippets),
+and a Test console running the REAL tool loop (lib/agent/agent-runtime.ts — one-JSON-
+object protocol, ≤6 steps, read-only by default, LIVE actions on explicit opt-in).
+Storage: tenant_ai_agents (0053 queued) with tenant_settings 'ai_agent:<id>' fallback.
+LLM: provider chain OpenAI→Gemini (lib/agent/llm.ts) — Gemini carries the load while
+the platform OpenAI key is over quota. Legacy Agent Mesh panel lives under the
+hub's "Ops" tab.

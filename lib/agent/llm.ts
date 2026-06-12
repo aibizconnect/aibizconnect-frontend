@@ -49,6 +49,51 @@ class OpenAIProvider implements LLMProvider {
   }
 }
 
-export const llm: LLMProvider = new OpenAIProvider();
+class GeminiProvider implements LLMProvider {
+  name = "gemini";
+  async complete(req: LLMRequest, tenantId?: string): Promise<string | null> {
+    const key = await keyStore.resolve("gemini", tenantId);
+    if (!key) return null;
+    try {
+      const model = req.model && /gemini/i.test(req.model) ? req.model : "gemini-2.5-flash";
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: req.system }] },
+          contents: [{ role: "user", parts: [{ text: req.user }] }],
+          generationConfig: {
+            temperature: req.temperature ?? 0.4,
+            ...(req.jsonObject ? { responseMimeType: "application/json" } : {}),
+          },
+        }),
+      });
+      if (!res.ok) return null;
+      const j = await res.json();
+      const text = j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("");
+      return typeof text === "string" && text.trim() ? text : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/** Provider CHAIN (L-3): try each in order, first non-null answer wins. OpenAI stays
+ *  primary; Gemini picks up when OpenAI has no key or errors — found live 2026-06-12
+ *  when the platform OpenAI key hit insufficient_quota and every LLM feature was
+ *  silently falling back to deterministic mode. */
+class ChainProvider implements LLMProvider {
+  name = "chain(openai>gemini)";
+  private providers: LLMProvider[] = [new OpenAIProvider(), new GeminiProvider()];
+  async complete(req: LLMRequest, tenantId?: string): Promise<string | null> {
+    for (const p of this.providers) {
+      const out = await p.complete(req, tenantId);
+      if (out != null) return out;
+    }
+    return null;
+  }
+}
+
+export const llm: LLMProvider = new ChainProvider();
 
 export const stripFences = (s: string) => s.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
