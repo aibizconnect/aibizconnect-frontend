@@ -5,47 +5,10 @@ import { createCalendarAction, updateCalendarAction, deleteCalendarAction, listA
 import type { Calendar, Appointment, Venue } from "@/lib/calendars";
 import { VENUE_KINDS } from "@/lib/calendars";
 import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
+import { TIMEZONES, gmtOffset } from "@/lib/timezones";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** Curated standard timezones (D-253) — friendly names, GMT offsets shown live. */
-const TIMEZONES: { tz: string; label: string }[] = [
-  { tz: "America/St_Johns", label: "Newfoundland — St. John's" },
-  { tz: "America/Halifax", label: "Atlantic Time — Halifax" },
-  { tz: "America/Toronto", label: "Eastern Time — Toronto, New York" },
-  { tz: "America/Winnipeg", label: "Central Time — Winnipeg, Chicago" },
-  { tz: "America/Edmonton", label: "Mountain Time — Edmonton, Denver" },
-  { tz: "America/Phoenix", label: "Arizona — Phoenix (no DST)" },
-  { tz: "America/Vancouver", label: "Pacific Time — Vancouver, Los Angeles" },
-  { tz: "America/Anchorage", label: "Alaska — Anchorage" },
-  { tz: "Pacific/Honolulu", label: "Hawaii — Honolulu" },
-  { tz: "America/Mexico_City", label: "Mexico City" },
-  { tz: "America/Sao_Paulo", label: "São Paulo" },
-  { tz: "UTC", label: "UTC" },
-  { tz: "Europe/London", label: "London, Dublin" },
-  { tz: "Europe/Paris", label: "Paris, Berlin, Rome, Madrid" },
-  { tz: "Europe/Athens", label: "Athens, Helsinki, Kyiv" },
-  { tz: "Europe/Istanbul", label: "Istanbul" },
-  { tz: "Asia/Dubai", label: "Dubai, Abu Dhabi" },
-  { tz: "Asia/Tehran", label: "Tehran" },
-  { tz: "Asia/Karachi", label: "Karachi, Islamabad" },
-  { tz: "Asia/Kolkata", label: "India — Mumbai, Delhi" },
-  { tz: "Asia/Dhaka", label: "Dhaka" },
-  { tz: "Asia/Bangkok", label: "Bangkok, Jakarta" },
-  { tz: "Asia/Shanghai", label: "China — Beijing, Shanghai" },
-  { tz: "Asia/Singapore", label: "Singapore, Kuala Lumpur" },
-  { tz: "Asia/Hong_Kong", label: "Hong Kong" },
-  { tz: "Asia/Tokyo", label: "Tokyo, Seoul" },
-  { tz: "Australia/Perth", label: "Perth" },
-  { tz: "Australia/Sydney", label: "Sydney, Melbourne" },
-  { tz: "Pacific/Auckland", label: "Auckland" },
-];
-function gmtOffset(tz: string): string {
-  try {
-    const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((x) => x.type === "timeZoneName");
-    return p?.value?.replace("GMT", "GMT+0").replace("GMT+0-", "GMT-").replace("GMT+0+", "GMT+") ?? "";
-  } catch { return ""; }
-}
 
 export default function CalendarsManager({ tenantId, initial }: { tenantId: string; initial: Calendar[] }) {
   const [cals, setCals] = useState<Calendar[]>(initial);

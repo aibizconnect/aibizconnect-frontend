@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import TimezoneSelect from "@/components/design/TimezoneSelect";
 import { useRouter } from "next/navigation";
 import { getSiteSettings, saveSiteSettings, type SiteSettings } from "../actions";
 import { renameWebsite, setWebsiteDomain, deleteWebsite, setPrimaryWebsite } from "../website-actions";
@@ -195,7 +196,7 @@ export default function WebsiteSettings({ tenantId, websiteId, websiteName, subd
           <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Language</span>
             <input className={inp} placeholder="en" value={s.language ?? ""} onChange={(e) => set({ language: e.target.value })} /></label>
           <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Timezone</span>
-            <input className={inp} placeholder="America/Toronto" value={s.timezone ?? ""} onChange={(e) => set({ timezone: e.target.value })} /></label>
+            <TimezoneSelect className={inp} value={s.timezone ?? ""} onChange={(v) => set({ timezone: v })} allowEmpty /></label>
         </div>
         <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Default social image (OG)</span>
           <input className={inp} placeholder="https://… (fallback share image)" value={s.defaultOgImage ?? ""} onChange={(e) => set({ defaultOgImage: e.target.value })} /></label>

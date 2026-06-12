@@ -1,165 +1,148 @@
-Ali — Report #44 is filed and this becomes the official Blueprint v3.2 — Settings Stability v1.2 (Postmortem Closure).
-This milestone formally closes the Settings crash incident, validates the fix in production, and records the operational practice changes that emerged from the investigation.
+Ali — Report #45 is filed and this becomes the official Blueprint v3.2 — Multi‑Channel Activation + Settings Convergence Finalization Milestone.
+This batch closes three major fronts at once: SMS channel activation, Settings‑crash epilogue, and Ali’s ruling on External Tracking.
 
-Everything below is the canonical blueprint entry.
+Below is the canonical blueprint entry.
 
-BLUEPRINT v3.2 — SETTINGS STABILITY v1.2 (CONFIRMED FIX + PRACTICE UPDATE)
+BLUEPRINT v3.2 — MULTI‑CHANNEL ACTIVATION + SETTINGS CLEANUP (Report #45 Filed)
 
-(Postmortem closure — e428ce0 live‑verified)
+(Commit dfbec7c — D‑259B shipped)
 
-1) Fix Confirmed in Production (FILED)
+1) SMS Channel — FULLY LIVE (FILED)
 
-Ali reloaded Settings on the real tenant after deployment of commit e428ce0:
+Ali’s Twilio credentials were verified end‑to‑end:
 
-“worked”
+from_number +18502045136 stored
 
-This confirms:
+Real test SMS delivered to Ali’s phone
 
-The Next 16 runtime‑export failure is fully resolved
+SID: SM0733…
 
-The Settings action bundle now evaluates cleanly
+Reminder engine + booking confirmations now have a live SMS channel
 
-The masked digest banner is gone
+Channel gating rules remain enforced (per‑calendar toggles + Twilio presence)
 
-All Settings tabs load and execute server actions normally
+Drift Fix Along the Way — Migration 0051
 
-Filed under Settings Stability Protocol.
+The final piece of 0031‑era drift was discovered:
 
-2) Side Effect: Real Google Invites (Filed)
+tenant_integrations (non‑secret config side) never existed live
 
-During reminder‑engine testing, mirrored bookings were created on Ali’s connected Google account with fabricated guests.
+Integration saves were half‑succeeding:
 
-Because the system now uses native Google attendee notifications, Google legitimately sent:
+tenant_secrets OK
 
-Guest invites
+config silently lost
 
-Updates
-
-Calendar notifications
-
-These landed in Ali’s inbox — pipeline proof that:
-
-Native attendee notifications work
-
-sendUpdates=all is functioning
-
-The sync layer is correct end‑to‑end
-
-Filed under Guest Invite Protocol.
-
-3) Cleanup of Orphaned Mirrored Events (FILED)
-
-Two mirrored events created during direct‑DB test cleanup did not propagate deletions (expected — DB bypass).
-
-They were removed via API with:
-
-sendUpdates=none
-
-Correctly avoided sending cancellation emails to fabricated guests
-
-Filed under Calendar Sync Layer v1.2.
-
-4) New Operational Practice (Filed)
-Rule adopted:
-
-Live booking tests must use calendars WITHOUT external connections.
-
-Or:
-
-If testing on a connected calendar, cleanup must be done via deleteEntry so deletion propagates.
-
-This prevents:
-
-Unintended Google/Outlook notifications
-
-Orphaned mirrored events
-
-Confusion during reminder‑engine QA
-
-Filed under Testing Protocol v2.
-
-5) Ali Unblocked — Next Steps (ACTION REQUIRED)
-
-Ali is now fully unblocked to wire real send channels.
-
-1. Twilio (Settings → Twilio)
-
-Messaging Service SID
-
-Account SID
-
-Auth Token
-
-Enables:
-
-SMS reminders
-
-SMS confirmations
-
-2. Resend (Settings → Domain & Email)
-
-Add Resend API key
-
-Once present, I will automatically configure:
-
-Domain
-
-DNS
-
-DKIM
-
-Verified sender identity
-
-All via our Cloudflare zone
-
-This activates:
-
-Reminder emails
-
-Guest confirmations
-
-Booking confirmations
-
-Reschedule/cancel notifications
+Ali applied 0051, verified live, and the DDL ledger is now through 0051.
 
 Filed under Send Channel Provisioning Protocol.
 
-6) AUTH_ENFORCE=true — Still Queued (Filed)
+2) Settings Crash — EPILOGUE (FILED)
 
-Pre‑flight remains clean:
+Ali confirmed in production:
 
-Token cookie mirrored
+“worked”
 
-Role allowlist resolves
+The use‑server runtime‑export bug is now closed end‑to‑end.
 
-SSR of Settings verified clean
+Bounce‑Email Noise Explained
 
-Ali may flip it at any time.
+Reminder‑engine tests had mirrored bookings with fabricated guests onto Ali’s connected Google account:
 
-Filed under Auth Enforcement Protocol.
+Google legitimately sent invites (pipeline proof)
 
-Blueprint v3.2 Status — Settings Stability v1.2 is SHIPPED & VERIFIED
+Two orphaned mirrored events were deleted via API with sendUpdates=none
 
-The platform is now stable across:
+No further noise expected
 
-Settings v1.2
+Practice Rule Adopted
 
-Scheduler v1.3
+Live booking tests must use calendars WITHOUT external connections,
+or cleanup must be done via deleteEntry so deletion propagates.
 
-Google Contacts Sync v1
+Filed under Testing Protocol v2.
 
-Calendar v1.3
+3) Ali’s Ruling — External Tracking REMOVED (SHIPPED & FILED)
 
-Contacts v1
+Ali ruled:
 
-Cron orchestration
+External Tracking does NOT belong in tenant Settings.
 
-Reminder engine
+Executed:
 
-Venue + guest invites
+External Tracking tab removed from Settings
 
-Booking Calendar Element v1
+Tenant fallback removed from public renderer
 
-Standing by for Twilio + Resend provisioning.
+tracking-actions.ts deleted
+
+Website Editor’s “Tracking & Scripts” (beside Domain & Email) is now the single source of truth per site
+
+This restores the one‑place‑only rule for tracking scripts.
+
+Filed under Tracking & Scripts Protocol.
+
+4) Build Status (FILED)
+
+Commit: dfbec7c
+
+Build green
+
+All Settings, Calendar, Contacts, and Website Editor flows verified clean
+
+Filed under Deployment Ledger.
+
+5) NEXT — App‑Wide Time Zone Field Sweep (ACTION REQUIRED)
+
+Ali’s directive:
+
+Replace every free‑text Time Zone field with the standard‑zones dropdown.
+
+Plan (Filed):
+
+Extract the D‑253 curated TIMEZONES list into a shared module
+
+Sweep all apps:
+
+Settings
+
+Calendar
+
+Contacts
+
+Automations
+
+Website Editor
+
+Any legacy fields
+
+Replace free‑text inputs with the curated dropdown
+
+Ensure live GMT offsets everywhere
+
+Enforce Toronto‑first ordering
+
+Guarantee no server‑TZ drift across the platform
+
+Filed under Timezone Standardization Protocol.
+
+Blueprint v3.2 Status — Multi‑Channel Activation Batch is SHIPPED & LIVE
+
+The platform now has:
+
+SMS channel fully operational
+
+Settings layer fully stable
+
+Integration schema fully converged
+
+External Tracking unified under Website Editor
+
+Reminder engine + contact sync ready to send (awaiting Resend identity)
+
+Calendar v1.3, Contacts v1, Scheduler v1.3 all stable
+
+Ali — you’re now clear to wire Resend next.
+Once the key lands, I’ll automatically configure domain + DNS + DKIM via Cloudflare and bring the email channel fully online.
 
 Edit in a page

@@ -15,6 +15,7 @@ import { getBusinessProfile, saveBusinessProfile, type BusinessProfile } from ".
 import { listTags, createTag, updateTag, deleteTag, type TagView } from "./tags-actions";
 import { listCustomFields, createCustomField, updateCustomField, deleteCustomField, type CustomFieldView, type CustomObjectType, type CustomFieldType } from "./custom-fields-actions";
 import { FIELD_TYPES, TRIGGER_TYPES, TRIGGER_LABELS } from "./option-constants";
+import TimezoneSelect from "@/components/design/TimezoneSelect";
 import { listCustomValues, createCustomValue, updateCustomValue, deleteCustomValue, type CustomValueView } from "./custom-values-actions";
 import { getScoring, createScoringRule, updateScoringRule, deleteScoringRule, setHotThreshold, type ScoringView, type ScoringRuleView, type TriggerType } from "./scoring-actions";
 import { listTenantAudit, type TenantAuditEntry } from "./audit-actions";
@@ -566,7 +567,10 @@ function BusinessProfileSection({ tenantId, isAdmin }: { tenantId: string; isAdm
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-800">Locale</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <F k="default_timezone" label="Time zone" placeholder="America/Toronto" hint="IANA name, e.g. America/Toronto." />
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-slate-600">Time zone</span>
+            <TimezoneSelect className={inp} disabled={!isAdmin} value={p.default_timezone} onChange={(v) => set("default_timezone", v)} allowEmpty />
+          </label>
           <F k="currency" label="Currency" placeholder="CAD" hint="3-letter ISO code, e.g. CAD, USD." />
           <F k="platform_language" label="Language" placeholder="English (Canada)" />
         </div>
@@ -940,7 +944,7 @@ function Preferences({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean
         {savedAt && <span className="text-xs text-emerald-600">Saved ✓</span>}
       </div>
       <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Default timezone</span>
-        <input className={inp} disabled={!isAdmin} placeholder="America/Toronto" value={tz} onChange={(e) => setTz(e.target.value)} onBlur={() => save("default_timezone", tz)} /></label>
+        <TimezoneSelect className={inp} disabled={!isAdmin} value={tz} onChange={(v) => { setTz(v); save("default_timezone", v); }} allowEmpty /></label>
       <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Currency</span>
         <input className={inp} disabled={!isAdmin} placeholder="CAD" value={currency} onChange={(e) => setCurrency(e.target.value)} onBlur={() => save("currency", currency)} /></label>
       <p className="text-xs text-slate-400">Brand colors, fonts, and backgrounds are set per website in that website's editor (Brand panel).</p>
