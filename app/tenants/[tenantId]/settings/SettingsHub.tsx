@@ -529,6 +529,10 @@ function BusinessProfileSection({ tenantId, isAdmin }: { tenantId: string; isAdm
 
   if (!p) return <div className="py-8 text-center text-sm text-slate-400">Loading…</div>;
 
+  // Render HELPER, deliberately invoked as {F({…})} — NOT as <F/>. As a JSX component its
+  // identity changes every render (it's redefined in this closure), so React REMOUNTS the
+  // input on each keystroke and focus drops after one letter (Ali's bug). Calling it as a
+  // function inlines stable <label>/<input> elements instead.
   const F = ({ k, label, placeholder, hint, type = "text" }: { k: keyof BusinessProfile; label: string; placeholder?: string; hint?: string; type?: string }) => (
     <label className="flex flex-col gap-1">
       <span className="text-xs font-medium text-slate-600">{label}</span>
@@ -544,23 +548,23 @@ function BusinessProfileSection({ tenantId, isAdmin }: { tenantId: string; isAdm
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-800">General information</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <F k="business_name" label="Business name" placeholder="Al Biz Connect" />
-          <F k="legal_business_name" label="Legal business name" placeholder="As registered (for invoices & KYC)" hint="The exact legal name, as registered." />
-          <F k="business_email" label="Business email" placeholder="hello@yourbiz.com" type="email" />
-          <F k="business_phone" label="Business phone" placeholder="+1 416 555 1234" />
-          <F k="business_website" label="Website" placeholder="https://yourbiz.com" />
-          <F k="business_niche" label="Industry / niche" placeholder="Real estate, dental, fitness…" />
+          {F({ k: "business_name", label: "Business name", placeholder: "Al Biz Connect" })}
+          {F({ k: "legal_business_name", label: "Legal business name", placeholder: "As registered (for invoices & KYC)", hint: "The exact legal name, as registered." })}
+          {F({ k: "business_email", label: "Business email", placeholder: "hello@yourbiz.com", type: "email" })}
+          {F({ k: "business_phone", label: "Business phone", placeholder: "+1 416 555 1234" })}
+          {F({ k: "business_website", label: "Website", placeholder: "https://yourbiz.com" })}
+          {F({ k: "business_niche", label: "Industry / niche", placeholder: "Real estate, dental, fitness…" })}
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-800">Physical address</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2"><F k="address_street" label="Street address" placeholder="396 Hwy 7 E" /></div>
-          <F k="address_city" label="City" placeholder="Richmond Hill" />
-          <F k="address_state" label="State / Province / Region" placeholder="Ontario" />
-          <F k="address_postal" label="Postal / ZIP code" placeholder="L4B 0G7" />
-          <F k="address_country" label="Country" placeholder="Canada" />
+          <div className="sm:col-span-2">{F({ k: "address_street", label: "Street address", placeholder: "396 Hwy 7 E" })}</div>
+          {F({ k: "address_city", label: "City", placeholder: "Richmond Hill" })}
+          {F({ k: "address_state", label: "State / Province / Region", placeholder: "Ontario" })}
+          {F({ k: "address_postal", label: "Postal / ZIP code", placeholder: "L4B 0G7" })}
+          {F({ k: "address_country", label: "Country", placeholder: "Canada" })}
         </div>
       </section>
 
@@ -571,8 +575,8 @@ function BusinessProfileSection({ tenantId, isAdmin }: { tenantId: string; isAdm
             <span className="text-xs font-medium text-slate-600">Time zone</span>
             <TimezoneSelect className={inp} disabled={!isAdmin} value={p.default_timezone} onChange={(v) => set("default_timezone", v)} allowEmpty />
           </label>
-          <F k="currency" label="Currency" placeholder="CAD" hint="3-letter ISO code, e.g. CAD, USD." />
-          <F k="platform_language" label="Language" placeholder="English (Canada)" />
+          {F({ k: "currency", label: "Currency", placeholder: "CAD", hint: "3-letter ISO code, e.g. CAD, USD." })}
+          {F({ k: "platform_language", label: "Language", placeholder: "English (Canada)" })}
         </div>
       </section>
 
