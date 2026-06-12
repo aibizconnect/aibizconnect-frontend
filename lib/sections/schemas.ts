@@ -350,11 +350,16 @@ export const surveySchema = z.object({
 });
 // Booking element (GHL parity): embeds a calendar's slot picker on a page. The visitor books a slot
 // (respecting the agent's Google/Outlook/iCal availability) → appointment + CRM contact.
+/** Booking Calendar (D-259): embeds the tenant's PUBLIC booking page via ?embed=1 (logo-free).
+ *  tenantId is STAMPED AT INSERT by the editor (renderers have no tenant context);
+ *  calendarSlug "" = the all-calendars booking index. height = iframe px (not spacing). */
 export const bookingSchema = z.object({
   type: z.literal("booking"),
+  tenantId: z.string().optional(),
   calendarSlug: z.string().default(""),
   heading: z.string().optional(),
   subheading: z.string().optional(),
+  height: z.coerce.number().optional(),               // px, default 760
 });
 // Ticker / scrolling marquee (stock-ticker / news-ticker / announcement).
 export const tickerSchema = z.object({
@@ -628,7 +633,7 @@ export const sectionLabels: Record<SectionType, string> = {
   tabs: "Tabs",
   ticker: "Ticker",
   survey: "Survey",
-  booking: "Booking",
+  booking: "Booking Calendar",
 };
 
 /** Sensible default content when a new section is added. */
@@ -779,7 +784,8 @@ export function defaultContentFor(type: SectionType): SectionContent {
         { label: "Your email", kind: "email", options: [], required: true },
       ] };
     case "booking":
-      return { type: "booking", calendarSlug: "", heading: "Book a time", subheading: "Pick a slot that works for you." };
+      // tenantId + first calendar slug are stamped by the editor at insert (D-259).
+      return { type: "booking", calendarSlug: "", heading: "Book a time", subheading: "Pick a slot that works for you.", height: 760 };
   }
 }
 

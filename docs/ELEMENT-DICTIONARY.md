@@ -111,7 +111,7 @@ Per-element details in the master table below; pending upgrades are tracked in D
 | 32 | `listings` | Listings | property/product cards | items[] | — | domain composite |
 | 33 | `contact-form` | Contact Form | CRM-wired form (name/email/phone/message → /api/leads/submit) | heading, fields[{name,label,type}], submitLabel, submitColor, submitTextColor, successMessage | `<form>` w/ inputs | OK — projected ✓ (labels via sibling-label D-170) |
 | 34 | `survey` | Survey | multi-question form | questions[] | multi-fieldset forms | OK |
-| 35 | `booking` | Booking | appointment widget | config | — | OK |
+| 35 | `booking` | Booking Calendar | LIVE embed of the public booking page (?embed=1, logo-free; D-259): calendar dropdown (All calendars = index), heading/subheading, height px; tenantId stamped at insert/edit; absolute app-host URL (custom-domain safe); iframe inert in canvas (clicks select) | config | — | OK |
 | — | `imported-html` | Imported design | lossless band (verbatim HTML + patches) | html, patches[] | (is itself the container) | Layer-tree edited; nodes project to elements above |
 | — | `imported-css` | Design CSS | snapshot + font hrefs carrier | css, fontHrefs | — | hidden from add picker |
 

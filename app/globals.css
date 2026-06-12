@@ -172,3 +172,9 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+/* Editor canvas (D-259): embeds (booking calendar, maps) must not swallow clicks —
+   clicking them selects the element; they're interactive on the live site only. */
+[data-abc-canvas] iframe {
+  pointer-events: none;
+}

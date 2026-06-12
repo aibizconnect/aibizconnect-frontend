@@ -1226,7 +1226,7 @@ export default function Canvas({
   cpRef.current = { doCopy, doPaste, undo, redo };
 
   return (
-    <div className="p-4">
+    <div className="p-4" data-abc-canvas>
       {/* Entrance animations start on scroll-into-view here too (WYSIWYG). */}
       <AnimateOnView />
       <SaveAssetModal

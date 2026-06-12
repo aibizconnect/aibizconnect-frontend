@@ -339,10 +339,11 @@ export const sectionFieldSpecs: Record<SectionType, FieldSpec[]> = {
     { kind: "text", key: "submitLabel", label: "Submit button label" },
     { kind: "text", key: "successMessage", label: "Success message" },
   ],
+  // Calendar choice is the dedicated BookingCalendarPicker dropdown (D-259) — not a raw field.
   booking: [
-    { kind: "text", key: "calendarSlug", label: "Calendar slug (from Calendars page)" },
     { kind: "text", key: "heading", label: "Heading" },
     { kind: "text", key: "subheading", label: "Subheading" },
+    { kind: "number", key: "height", label: "Height", min: 320, max: 1600, unit: "px" },
   ],
   // Menu items + submenus are edited by the dedicated MenuItemsEditor in the right
   // panel; these specs cover only presentational options.

@@ -47,3 +47,4 @@ _*.mjs
 
 .vercel
 .stitch-out/cron-secret.txt
+.stitch-out/render-token.txt

@@ -297,6 +297,32 @@ type MenuItem = {
  * reveal its link + its submenu children (add / reorder / remove). This is the
  * "list the items on the right panel, each with a submenu ready to expand" UX.
  */
+/** Booking Calendar picker (D-259): pre-populated dropdown of this tenant's calendars
+ *  ("All calendars" = the booking index). Also stamps tenantId onto the element content
+ *  so the public renderer can build the embed URL. */
+function BookingCalendarPicker({ value, tenantId, setField }: { value: any; tenantId: string; setField: (k: string, v: unknown) => void }) {
+  const [cals, setCals] = useState<{ slug: string; name: string }[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    import("@/app/tenants/[tenantId]/calendars/actions").then(({ listCalendarsAction }) =>
+      listCalendarsAction(tenantId).then((cs) => { if (live) setCals(cs.map((c) => ({ slug: c.slug, name: c.name }))); })
+    ).catch(() => setCals([]));
+    return () => { live = false; };
+  }, [tenantId]);
+  useEffect(() => { if (tenantId && value?.tenantId !== tenantId) setField("tenantId", tenantId); /* stamp at edit/insert */ }, [tenantId, value?.tenantId, setField]);
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-sm font-medium">Calendar</span>
+      <select value={value?.calendarSlug ?? ""} onChange={(e) => setField("calendarSlug", e.target.value)}
+        className="rounded border border-gray-300 px-2 py-1 text-sm">
+        <option value="">All calendars (booking index)</option>
+        {(cals ?? []).map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+      </select>
+      {cals !== null && cals.length === 0 && <span className="text-[11px] text-gray-400">No calendars yet — create one under Calendars → Settings.</span>}
+    </label>
+  );
+}
+
 function MenuItemsEditor({ items, onChange, tenantId }: { items: MenuItem[]; onChange: (next: MenuItem[]) => void; tenantId: string }) {
   const [open, setOpen] = useState<Set<number>>(new Set()); // collapsed-first; persists until re-clicked
   const toggle = (i: number) => setOpen((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
@@ -607,6 +633,7 @@ export default function SectionEditor({
                 </label>
               )}
               {type === "menu" && <MenuItemsEditor items={(value.items ?? []) as MenuItem[]} onChange={(next) => setField("items", next)} tenantId={tenantId ?? ""} />}
+              {type === "booking" && <BookingCalendarPicker value={value} tenantId={tenantId ?? ""} setField={setField} />}
               {menuFont && renderSpec(menuFont)}
               {buckets.Content.map(renderSpec)}
             </Group>

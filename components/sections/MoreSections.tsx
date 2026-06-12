@@ -353,15 +353,28 @@ export function TabsSection({ content, theme }: { content: TabsContent; theme?: 
 }
 
 /** Editor-canvas PREVIEW of a booking element. The live site renders the functional BookingWidget. */
+/** Booking Calendar (D-259): live embed of the tenant's public booking page (?embed=1 strips
+ *  our logo + outer padding). calendarSlug "" = the all-calendars index. tenantId is stamped
+ *  by the editor at insert; without it (legacy elements) we show a configure hint. */
 export function BookingSection({ content, theme }: { content: BookingContent; theme?: ThemeTokens }) {
+  const height = content.height ?? 760;
+  // ABSOLUTE app-host URL: on tenant custom domains a relative /book path would be
+  // rewritten by the host-routing middleware into the tenant's own site and 404.
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
+  const src = content.tenantId
+    ? `${base}/book/${content.tenantId}${content.calendarSlug ? `/${content.calendarSlug}` : ""}?embed=1`
+    : null;
   return (
-    <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-5 text-center">
-      {content.heading && <h3 className="text-lg font-semibold" style={{ color: primary(theme) }}>{content.heading}</h3>}
-      {content.subheading && <p className="mt-1 text-sm text-slate-500">{content.subheading}</p>}
-      <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-400">
-        📅 Booking calendar{content.calendarSlug ? <> — <span className="font-mono text-slate-600">{content.calendarSlug}</span></> : <> — set a <b>calendar slug</b> in the inspector</>}<br />
-        <span className="text-xs">Available times appear here on the live site.</span>
-      </div>
+    <div className="mx-auto w-full">
+      {content.heading && <h3 className="text-center text-lg font-semibold" style={{ color: primary(theme) }}>{content.heading}</h3>}
+      {content.subheading && <p className="mt-1 text-center text-sm text-slate-500">{content.subheading}</p>}
+      {src ? (
+        <iframe title="Book a time" src={src} loading="lazy" className="mt-4 w-full rounded-xl border-0" style={{ height }} />
+      ) : (
+        <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
+          📅 Booking calendar — pick a calendar in the inspector to go live.
+        </div>
+      )}
     </div>
   );
 }
