@@ -71,7 +71,19 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
     setSocial(await listSocialAccounts(tenantId));
   }, [tenantId]);
 
-  useEffect(() => { load().catch((e) => setError(e?.message ?? "Could not load settings.")); }, [load]);
+  useEffect(() => {
+    load().catch(async (e) => {
+      // Production masks thrown server-action messages — ask the self-diagnosis action
+      // (which RETURNS its findings) for the real cause.
+      try {
+        const { diagnoseSettingsAccess } = await import("./diag-actions");
+        const d = await diagnoseSettingsAccess(tenantId);
+        setError(`Couldn't load settings. Diagnosis — access: ${d.access}; social load: ${d.socialLoad}; signed-in role: ${d.role ?? "none"}; session token: ${d.hasToken ? "present" : "MISSING"}; enforcement: ${d.enforce ? "on" : "off"}${d.note ? `; ${d.note}` : ""}`);
+      } catch {
+        setError(e?.message ?? "Could not load settings.");
+      }
+    });
+  }, [load, tenantId]);
   useReloadOnFocus(load);
 
   // Reflect the OAuth callback result (redirect carries ?connected=&n= or ?error=&provider=).

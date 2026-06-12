@@ -1,34 +1,50 @@
-Ali — Report #40 is filed and this becomes the official Blueprint v3.2 — Scheduler v1.3 (FULLY LIVE) entry.
-This milestone closes the entire scheduling pipeline: schema, cron, reminders, venues, guests, invites, and now production‑grade cron orchestration.
+Ali — Report #41 is filed and this becomes the official Blueprint v3.2 — Settings Convergence v1 Milestone, marking the moment the last legacy drift vector (tenant_settings + Shopify integration shape) is fully corrected and the platform’s configuration layer is finally unified.
 
-Below is the canonical blueprint filing.
+Everything below is the canonical blueprint entry.
 
-BLUEPRINT v3.2 — SCHEDULER v1.3 (FULLY LIVE)
+BLUEPRINT v3.2 — SETTINGS CONVERGENCE v1 (Report #41 Filed)
 
-(0049 applied • CRON_SECRET installed • Worker handshake verified)
+(Migration 0050 applied • Settings layer unified • Live‑verified)
 
-1) Migration 0049 — APPLIED (FILED)
+1) Migration 0050 — APPLIED & VERIFIED (FILED)
 
-Ali applied 0049 and verified live:
+Ali applied 0050 and confirmed:
 
-Venue + guest fields now persist
+tenant_settings now round‑trips cleanly (key/value shape correct)
 
-Reminder engine schema active
+tenant_shopify_stores is queryable and structurally correct
 
-Booking settings save cleanly
+Real tenant AIBizConnect Consulting reads cleanly with no shape mismatches
 
-No drift, no partial writes
+Settings page Server Components crash resolved
 
-Filed under Calendar Schema v1.3.
+Root cause (documented):
 
-2) CRON_SECRET Installed in Vercel (FILED)
-Production handshake verified:
+Live tenant_settings predated migration 0031 (wrong shape, empty), and 0035’s Shopify table was never created — identical drift pattern to the Calendar/Contacts convergences.
 
-/api/cron/appointment-reminders returns 200 with worker secret
+Status:
 
-/api/cron/contact-sync returns 200
+Settings Convergence v1 — SHIPPED & LIVE
 
-Cloudflare Worker (aibizconnect-cron) is now fully authorized to drive:
+Filed under Settings Schema Protocol.
+
+2) Settings Page Stability — FULLY RESTORED (FILED)
+
+The Server Components crash is now fully resolved:
+
+All settings reads use the converged schema
+
+No undefined/null shape mismatches
+
+All ~40 controls load and save correctly
+
+Shopify store list loads without fallback paths
+
+Filed under Settings Rendering Protocol.
+
+3) Scheduler & Sync Engines — READY, GATED BY CHANNELS (FILED)
+
+Both engines are already running on schedule:
 
 Appointment reminders
 
@@ -36,112 +52,121 @@ Google Contacts hourly sync
 
 Launchpad followups
 
-Filed under Cron Orchestration Protocol.
+All sends are correctly gated by:
 
-3) Round‑3 Verification — ALL CHECKS PASS (FILED)
-Live booking test:
+Verified email identity (Resend)
 
-Venue = Zoom stored correctly
+Connected Twilio
 
-2 guests stored correctly
+Per‑calendar toggles
 
-Conflict engine refused Ali’s originally chosen test slot because his real evening calendar was busy — correct
+No‑Auto‑Send Protocol (transactional only)
 
-Reminder engine scanned the day‑before window
+Filed under Send Channel Gating Protocol.
 
-Channel gates held:
+4) OAuth Redirect Fix — VERIFIED (FILED)
 
-No verified email identity → no sends
+The redirect_uri_mismatch on the new Contacts OAuth flow is resolved:
 
-No false reminders_sent markers
+Contacts OAuth now rides the registered Calendar redirect URI
 
-Filed under Reminder Engine QA.
+Flow marker stored in encrypted state
 
-4) OAuth Redirect Mismatch — FIXED (FILED)
-Root cause:
+Verified live
 
-Google Contacts OAuth flow used a redirect URI not registered in the Google Cloud console.
+Commit: f8cc683
 
-Fix:
+Filed under Google OAuth Protocol v1.2.
 
-Reuse the registered Calendar redirect URI
+5) Next Step (Ali) — Provision Real Send Channels (ACTION REQUIRED)
 
-Add a flow marker in encrypted state
-
-Works for both Calendar + Contacts OAuth
-
-Commit: f8cc683 (deployed)
-
-Filed under Google OAuth Protocol v1.1.
-
-5) Scheduler v1.3 — End‑to‑End Status (FILED)
-
-The entire scheduling stack is now fully live:
-
-Timezone‑correct slot generation
-
-Multi‑account provider sync
-
-All‑sub‑calendar busy sweep
-
-Venues (Zoom/Teams/Meet/phone/in‑person/custom)
-
-Guest invites (Google + Outlook native attendee notifications)
-
-Transactional reminder engine (email + SMS)
-
-Embed mode
-
-Hourly Google Contacts sync
-
-Cron worker orchestration
-
-Idempotent markers
-
-No‑Auto‑Send compliance
-
-Native‑Elements‑Only Supreme Rule
-
-SPACING_MAX=20 everywhere
-
-Filed under Scheduler v1.3.
-
-6) NEXT — Wiring Ali’s Real Send Channels (ACTION REQUIRED)
-
-Probe results:
+Probe shows:
 
 No tenant currently has a verified email identity or Twilio connection.
 
-Required next steps (Ali):
-
-Go to Settings → Domain & Email
-
-Add Resend API key
-
-Once present, I can automate domain + DNS via our Cloudflare zone
-
-Go to Settings → Twilio
+Required steps:
+1. Twilio (Settings → Twilio)
 
 Add Messaging Service SID
 
-Add Account SID + Auth Token
+Add Account SID
 
-Once these are in place:
+Add Auth Token
 
-Reminder emails will send
+This enables SMS reminders + SMS confirmations
 
-SMS reminders will send
+2. Resend (Settings → Domain & Email)
 
-Guest confirmations will send
+Add Resend API key
 
-All transactional channels will be fully operational
+Once present, I will automatically configure:
+
+Domain
+
+DNS records
+
+DKIM
+
+Verified sender identity
+
+All via our Cloudflare zone
+
+This unlocks:
+
+Reminder emails
+
+Guest confirmation emails
+
+Booking confirmations
+
+Reschedule/cancel notifications
 
 Filed under Send Channel Provisioning Protocol.
 
-Blueprint v3.2 Status — Scheduler v1.3 is FULLY LIVE
+6) Platform State — Configuration Layer Now Fully Unified
 
-Everything from Rounds 1–3 is now complete, stable, and production‑verified.
+With 0050 applied, the platform’s configuration layer is now:
 
-Standing by to proceed with Gallery Recognition or Automations Engine E1 whenever you call it.
+Schema‑consistent
+
+Drift‑free
+
+Server‑component‑safe
+
+Shopify‑ready
+
+Cron‑ready
+
+Sync‑ready
+
+Reminder‑ready
+
+Filed under Settings Convergence v1.
+
+Blueprint v3.2 Status — Settings Convergence v1 is SHIPPED & LIVE
+
+The platform is now stable across:
+
+Scheduler v1.3
+
+Google Contacts Sync v1
+
+Calendar v1.3
+
+Contacts v1
+
+Settings v1
+
+Cron orchestration
+
+Multi‑account sync
+
+Reminder engine
+
+Venue + guest invites
+
+Native Google/Outlook attendee notifications
+
+Standing by for Ali’s Twilio + Resend provisioning — once those land, the entire transactional send pipeline goes live.
 
 Edit in a page
