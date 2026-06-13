@@ -386,8 +386,11 @@ export async function listOpportunities(tenantId: string, pipelineId: string): P
   const { data } = await service().from("tenant_opportunities").select("id,name,value,stage,status,contact_id").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
   return (data ?? []).map((r: any) => ({ id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id }));
 }
-export async function createOpportunity(tenantId: string, pipelineId: string, o: { name: string; value?: number; stage: string }): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await service().from("tenant_opportunities").insert({ tenant_id: tenantId, pipeline_id: pipelineId, name: o.name, value: o.value ?? 0, stage: o.stage });
+export async function createOpportunity(tenantId: string, pipelineId: string, o: { name: string; value?: number; stage: string; contactId?: string | null; status?: "open" | "won" | "lost" }): Promise<{ ok: boolean; error?: string }> {
+  const row: Record<string, unknown> = { tenant_id: tenantId, pipeline_id: pipelineId, name: o.name, value: o.value ?? 0, stage: o.stage };
+  if (o.contactId) row.contact_id = o.contactId;
+  if (o.status) row.status = o.status;
+  const { error } = await service().from("tenant_opportunities").insert(row);
   return { ok: !error, error: error?.message };
 }
 export async function moveOpportunity(tenantId: string, id: string, stage: string): Promise<void> {
@@ -395,4 +398,50 @@ export async function moveOpportunity(tenantId: string, id: string, stage: strin
 }
 export async function deleteOpportunity(tenantId: string, id: string): Promise<void> {
   await service().from("tenant_opportunities").delete().eq("tenant_id", tenantId).eq("id", id);
+}
+
+// ── multi-pipeline + rich opportunities for the list view (D-307+) ────────────
+const DEFAULT_PIPELINE_STAGES = ["New", "Contacted", "Qualified", "Proposal", "Won", "Lost"];
+export async function listPipelines(tenantId: string): Promise<Pipeline[]> {
+  const { data } = await service().from("tenant_pipelines").select("id,name,stages").eq("tenant_id", tenantId).order("created_at");
+  return (data ?? []).map((r: any) => ({ id: r.id, name: r.name, stages: r.stages ?? [] }));
+}
+export async function createPipeline(tenantId: string, name: string, stages?: string[]): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const { data, error } = await service().from("tenant_pipelines").insert({ tenant_id: tenantId, name: name.trim() || "Pipeline", stages: stages?.length ? stages : DEFAULT_PIPELINE_STAGES }).select("id").single();
+  return { ok: !error, id: data?.id, error: error?.message };
+}
+
+export interface OpportunityRow extends Opportunity { contactName: string; createdAt: string | null }
+export async function listOpportunitiesRich(tenantId: string, pipelineId: string): Promise<OpportunityRow[]> {
+  const { data } = await service().from("tenant_opportunities").select("id,name,value,stage,status,contact_id,created_at").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
+  const rows = data ?? [];
+  const ids = Array.from(new Set(rows.map((r: any) => r.contact_id).filter(Boolean)));
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: cs } = await service().from("tenant_contacts").select("id,name,email,phone").eq("tenant_id", tenantId).in("id", ids);
+    (cs ?? []).forEach((c: any) => names.set(c.id, c.name || c.email || c.phone || "—"));
+  }
+  return rows.map((r: any) => ({ id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id, contactName: r.contact_id ? (names.get(r.contact_id) ?? "—") : "—", createdAt: r.created_at ?? null }));
+}
+export async function updateOpportunity(tenantId: string, id: string, patch: { name?: string; value?: number; stage?: string; status?: "open" | "won" | "lost"; contact_id?: string | null }): Promise<{ ok: boolean; error?: string }> {
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.value !== undefined) row.value = patch.value;
+  if (patch.stage !== undefined) row.stage = patch.stage;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.contact_id !== undefined) row.contact_id = patch.contact_id;
+  const { error } = await service().from("tenant_opportunities").update(row).eq("tenant_id", tenantId).eq("id", id);
+  return { ok: !error, error: error?.message };
+}
+export async function bulkOpportunity(tenantId: string, ids: string[], op: { stage?: string; status?: "open" | "won" | "lost"; delete?: boolean }): Promise<{ ok: boolean; changed: number; error?: string }> {
+  if (!ids.length) return { ok: true, changed: 0 };
+  if (op.delete) {
+    const { error } = await service().from("tenant_opportunities").delete().eq("tenant_id", tenantId).in("id", ids);
+    return { ok: !error, changed: ids.length, error: error?.message };
+  }
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (op.stage) row.stage = op.stage;
+  if (op.status) row.status = op.status;
+  const { error } = await service().from("tenant_opportunities").update(row).eq("tenant_id", tenantId).in("id", ids);
+  return { ok: !error, changed: ids.length, error: error?.message };
 }

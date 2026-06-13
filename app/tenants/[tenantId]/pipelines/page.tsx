@@ -1,12 +1,14 @@
-import CrmPipeline from "@/components/crm/CrmPipeline";
-import { loadPipelineAction } from "./crm-actions";
+import OpportunitiesHub from "@/components/crm/OpportunitiesHub";
+import { loadOpportunitiesAction } from "./crm-actions";
+import { listContacts } from "@/lib/crm";
 
 export default async function PipelinesPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   try {
-    const { pipeline, opps } = await loadPipelineAction(tenantId);
-    return <CrmPipeline tenantId={tenantId} pipeline={pipeline} initial={opps} />;
+    const { pipelines, pipeline, opps } = await loadOpportunitiesAction(tenantId);
+    const contacts = (await listContacts(tenantId).catch(() => [])).map((c) => ({ id: c.id, name: c.name || c.email || c.phone || "—", email: c.email }));
+    return <OpportunitiesHub tenantId={tenantId} pipelines={pipelines} pipeline={pipeline} initialOpps={opps} contacts={contacts} />;
   } catch {
-    return <div className="mx-auto max-w-2xl p-8 text-sm text-slate-500">Run the CRM migration (QUEUED_crm.sql) to enable Opportunities.</div>;
+    return <div className="mx-auto max-w-2xl p-8 text-sm text-slate-500">Run the CRM migration to enable Opportunities.</div>;
   }
 }
