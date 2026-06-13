@@ -8,7 +8,6 @@ import {
   completeOAuthCore, registerWhatsAppNumber, listWhatsAppNumbers, removeWhatsAppNumber,
   type SocialProvider, type WhatsAppNumberView,
 } from "@/lib/server/social";
-export type { WhatsAppNumberView };
 
 async function requireAdminWrite(): Promise<void> {
   const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");

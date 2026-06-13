@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import {
   listSocialAccounts, getOAuthStartUrl, disconnectSocialAccount, refreshSocialToken,
   getWhatsAppNumbers, saveWhatsAppNumber, removeWhatsAppNumberAction,
-  type SocialProviderStatus, type SocialAccountView, type WhatsAppNumberView,
+  type SocialProviderStatus, type SocialAccountView,
 } from "./social-actions";
+import type { WhatsAppNumberView } from "@/lib/server/social";
 import { getTenantSettings, setTenantSetting } from "./integrations-actions";
 import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
 import { listShopifyStores, getShopifyStartUrl, disconnectShopifyStore, type ShopifyStoreView } from "./shopify-actions";
