@@ -107,6 +107,25 @@ export async function socialProviderReady(provider: SocialProvider): Promise<boo
   return !!(await providerAppCreds(provider));
 }
 
+/**
+ * Advanced Meta scopes that REQUIRE their product to be added to the app (Messenger / WhatsApp /
+ * Marketing) AND Meta App Review. Requesting them before that → "Invalid Scopes" on connect.
+ * They're only requested once META_ADVANCED_SCOPES=true (set after products + review are in place);
+ * the base posting scopes work in dev mode for the app admin today.
+ */
+const ADVANCED_META_SCOPES = new Set([
+  "pages_messaging", "instagram_manage_messages",
+  "whatsapp_business_management", "whatsapp_business_messaging",
+  "ads_read", "leads_retrieval", "business_management",
+]);
+function effectiveScopes(spec: ProviderSpec): string[] {
+  const isMeta = spec.provider === "facebook" || spec.provider === "instagram";
+  if (isMeta && process.env.META_ADVANCED_SCOPES !== "true") {
+    return spec.scopes.filter((s) => !ADVANCED_META_SCOPES.has(s));
+  }
+  return spec.scopes;
+}
+
 /** Build the provider authorize URL. `state` must carry CSRF + tenant binding (caller-supplied). */
 export async function buildAuthorizeUrl(
   provider: SocialProvider, opts: { state: string; redirectUri: string }
@@ -118,7 +137,7 @@ export async function buildAuthorizeUrl(
     client_id: creds.id,
     redirect_uri: opts.redirectUri,
     response_type: "code",
-    scope: spec.scopes.join(provider === "facebook" || provider === "instagram" ? "," : " "),
+    scope: effectiveScopes(spec).join(provider === "facebook" || provider === "instagram" ? "," : " "),
     state: opts.state,
   });
   // Google/X/TikTok want offline access / PKCE niceties; offline_access via access_type for Google.
