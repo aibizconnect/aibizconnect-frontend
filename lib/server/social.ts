@@ -281,7 +281,7 @@ export function readOAuthState(state: string): OAuthState | null {
   try {
     const payload = JSON.parse(decryptSecret(Buffer.from(state, "base64url").toString("utf8"))) as OAuthState;
     if (!payload?.tenantId || !isSocialProvider(payload?.provider) || !payload?.nonce || !payload?.ts) return null;
-    if (Date.now() - payload.ts > 15 * 60 * 1000) return null;
+    if (Date.now() - payload.ts > 60 * 60 * 1000) return null; // 60-min TTL (forgiving of slow first-time setup)
     return payload;
   } catch { return null; }
 }
