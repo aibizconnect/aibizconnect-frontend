@@ -8,6 +8,8 @@ import {
   listNotesAction, addNoteAction, deleteNoteAction,
   contactAppointmentsAction, contactOpportunitiesAction,
 } from "@/app/tenants/[tenantId]/contacts/crm-actions";
+import { contactThreadsAction } from "@/app/tenants/[tenantId]/conversations/actions";
+import type { ThreadSummary } from "@/lib/server/conversations";
 import { notifyError, confirmDialog } from "@/lib/ui/dialogs";
 import TasksRollup from "./TasksRollup";
 
@@ -21,7 +23,7 @@ export default function ContactDetailV2({ tenantId, contactId }: { tenantId: str
   const [c, setC] = useState<ContactFull | null>(null);
   const [fields, setFields] = useState<CustomFieldDef[]>([]);
   const [allTags, setAllTags] = useState<{ name: string; color: string }[]>([]);
-  const [tab, setTab] = useState<"notes" | "tasks" | "appointments" | "opportunities">("notes");
+  const [tab, setTab] = useState<"notes" | "conversations" | "tasks" | "appointments" | "opportunities">("notes");
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -137,16 +139,50 @@ export default function ContactDetailV2({ tenantId, contactId }: { tenantId: str
         <div className="min-w-0">
           <div className="mb-3 flex gap-5 border-b border-slate-200">
             {tabBtn("notes", "Notes")}
+            {tabBtn("conversations", "Conversations")}
             {tabBtn("tasks", "Tasks")}
             {tabBtn("appointments", "Appointments")}
             {tabBtn("opportunities", "Opportunities")}
           </div>
           {tab === "notes" && <NotesPanel tenantId={tenantId} contactId={contactId} />}
+          {tab === "conversations" && <ConversationsPanel tenantId={tenantId} contactId={contactId} />}
           {tab === "tasks" && <TasksRollup tenantId={tenantId} contactId={contactId} compact />}
           {tab === "appointments" && <AppointmentsPanel tenantId={tenantId} email={c.email} />}
           {tab === "opportunities" && <OpportunitiesPanel tenantId={tenantId} contactId={contactId} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ConversationsPanel({ tenantId, contactId }: { tenantId: string; contactId: string }) {
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    contactThreadsAction(tenantId, contactId).then(setThreads).catch(() => {}).finally(() => setLoading(false));
+  }, [tenantId, contactId]);
+  if (loading) return <p className="text-sm text-slate-400">Loading…</p>;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wide text-slate-400">Threads</span>
+        <Link href={`/tenants/${tenantId}/conversations`} className="text-xs font-medium text-[#1e3a8a] hover:underline">Open inbox →</Link>
+      </div>
+      {threads.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">
+          No conversations yet. SMS, email, and web-chat threads with this contact will appear here.
+        </p>
+      ) : (
+        threads.map((t) => (
+          <Link key={t.id} href={`/tenants/${tenantId}/conversations`}
+            className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase text-slate-600">{t.channel}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{t.lastPreview || "—"}</span>
+            {t.unreadCount > 0 && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white">{t.unreadCount}</span>}
+            <span className="shrink-0 text-[11px] text-slate-400">{t.lastMessageAt ? new Date(t.lastMessageAt).toLocaleDateString([], { month: "short", day: "numeric" }) : ""}</span>
+          </Link>
+        ))
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { getIntegrationSecret } from "./integrations";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -80,4 +81,43 @@ export async function sendSms(tenantId: string, opts: { to: string; body: string
     if (!res.ok) return { ok: false, error: json?.message || `Twilio ${res.status}` };
     return { ok: true, sid: json?.sid };
   } catch (e: any) { return { ok: false, error: e?.message ?? "Twilio send failed." }; }
+}
+
+// ── Inbound webhook support (D-298) ──────────────────────────────────────────
+
+/** Loose phone match (last 10 digits) for mapping an inbound `To` number → tenant. */
+function phoneTail(n: string): string { return (n || "").replace(/[^\d]/g, "").slice(-10); }
+
+/**
+ * Find which tenant owns the inbound `To` number. Twilio delivers inbound SMS to the webhook
+ * configured on the number; we match `To` against each tenant's configured from_number.
+ * Returns the tenant_id + that tenant's auth_token (needed to verify the request signature).
+ */
+export async function findTenantByInboundNumber(to: string): Promise<{ tenantId: string; authToken: string } | null> {
+  const tail = phoneTail(to);
+  if (!tail) return null;
+  const supabase = createSupabaseServiceClient();
+  const { data } = await supabase.from("tenant_integrations").select("tenant_id, config").eq("provider", "twilio");
+  const match = (data ?? []).find((r: any) => phoneTail(String(r.config?.from_number ?? "")) === tail);
+  if (!match) return null;
+  const creds = await getTwilioCreds(match.tenant_id);
+  if (!creds) return null;
+  return { tenantId: match.tenant_id, authToken: creds.auth_token };
+}
+
+/**
+ * Verify Twilio's `X-Twilio-Signature`. Scheme: HMAC-SHA1, key = auth_token, message =
+ * the full request URL with the POST params (sorted by key, key+value concatenated) appended.
+ * Base64 of the digest must equal the header. (https://www.twilio.com/docs/usage/security)
+ */
+export function verifyTwilioSignature(authToken: string, url: string, params: Record<string, string>, signature: string): boolean {
+  if (!authToken || !signature) return false;
+  let data = url;
+  for (const key of Object.keys(params).sort()) data += key + params[key];
+  const expected = createHmac("sha1", authToken).update(Buffer.from(data, "utf-8")).digest("base64");
+  // constant-time-ish compare
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
 }
