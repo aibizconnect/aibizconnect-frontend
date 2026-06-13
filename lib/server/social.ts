@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { encryptSecret, decryptSecret, encryptionReady } from "./encryption";
 import { SYSTEM_TENANT_ID } from "@/lib/media/system";
@@ -34,10 +35,17 @@ export interface ProviderSpec {
 
 export const PROVIDERS: Record<SocialProvider, ProviderSpec> = {
   facebook: {
+    // ONE grant covers it all (D-326): Pages posting, IG, Messenger + IG DMs, WhatsApp, Ads/leads.
     provider: "facebook",
     authorizeUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-    scopes: ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "instagram_basic", "instagram_manage_insights"],
+    scopes: [
+      "pages_show_list", "pages_read_engagement", "pages_manage_posts",
+      "instagram_basic", "instagram_manage_insights",
+      "pages_messaging", "instagram_manage_messages",
+      "whatsapp_business_management", "whatsapp_business_messaging",
+      "ads_read", "leads_retrieval", "business_management",
+    ],
     envId: "FACEBOOK_APP_ID", envSecret: "FACEBOOK_APP_SECRET", platformSecretKey: "facebook_platform_app",
   },
   instagram: {
@@ -45,7 +53,7 @@ export const PROVIDERS: Record<SocialProvider, ProviderSpec> = {
     provider: "instagram",
     authorizeUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-    scopes: ["instagram_basic", "instagram_manage_insights", "pages_show_list", "pages_read_engagement"],
+    scopes: ["instagram_basic", "instagram_manage_insights", "instagram_manage_messages", "pages_show_list", "pages_read_engagement", "pages_messaging"],
     envId: "FACEBOOK_APP_ID", envSecret: "FACEBOOK_APP_SECRET", platformSecretKey: "facebook_platform_app",
   },
   linkedin: {
@@ -331,4 +339,85 @@ export async function refreshSocialAccountToken(tenantId: string, accountId: str
     encrypted_tokens: encryptSecret(JSON.stringify(merged)), token_expires_at, status: "connected", updated_at: new Date().toISOString(),
   }).eq("tenant_id", tenantId).eq("id", accountId);
   return { ok: true };
+}
+
+// ── Meta webhook + messaging (D-327..330) ────────────────────────────────────
+const GRAPH = "https://graph.facebook.com/v19.0";
+
+/** The verify token Meta echoes during webhook setup. Env META_WEBHOOK_VERIFY_TOKEN or platform secret. */
+export async function metaWebhookVerifyToken(): Promise<string | null> {
+  if (process.env.META_WEBHOOK_VERIFY_TOKEN) return process.env.META_WEBHOOK_VERIFY_TOKEN;
+  try { const s = await getIntegrationSecret(SYSTEM_TENANT_ID, "meta_webhook_verify_token"); if (s?.token) return String(s.token); } catch { /* not configured */ }
+  return null;
+}
+
+/** Verify Meta's X-Hub-Signature-256 over the raw body using the app secret. */
+export async function verifyMetaSignature(rawBody: string, header: string | null): Promise<boolean> {
+  if (!header?.startsWith("sha256=")) return false;
+  const creds = await providerAppCreds("facebook");
+  if (!creds) return false;
+  const expected = "sha256=" + createHmac("sha256", creds.secret).update(rawBody, "utf8").digest("hex");
+  if (expected.length !== header.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ header.charCodeAt(i);
+  return diff === 0;
+}
+
+export interface MatchedAccount { tenantId: string; accountId: string; provider: SocialProvider; externalId: string; config: Record<string, unknown>; }
+
+/** Find the tenant + account that owns a Meta entity id (Page id / IG id / WhatsApp phone-number-id). */
+export async function findAccountByExternalId(externalId: string): Promise<MatchedAccount | null> {
+  if (!externalId) return null;
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("tenant_social_accounts").select("tenant_id, id, provider, external_id, config").eq("external_id", externalId).limit(1).maybeSingle();
+  if (!data) return null;
+  return { tenantId: data.tenant_id, accountId: data.id, provider: data.provider as SocialProvider, externalId: data.external_id, config: (data.config as Record<string, unknown>) ?? {} };
+}
+
+async function tokenForExternalId(externalId: string): Promise<string | null> {
+  const m = await findAccountByExternalId(externalId);
+  if (!m) return null;
+  const t = await getSocialTokens(m.tenantId, m.accountId);
+  return t?.access_token ?? null;
+}
+
+/**
+ * Send a 1:1 message on a Meta channel using the owning account's stored token.
+ * FB/IG: Messenger Send API on the Page. WhatsApp: Cloud API on the phone-number-id.
+ * accountExternalId = Page id (fb/ig) or phone-number-id (whatsapp); peerId = PSID or phone.
+ */
+export async function sendMetaMessage(channel: "facebook" | "instagram" | "whatsapp", accountExternalId: string, peerId: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  const token = await tokenForExternalId(accountExternalId);
+  if (!token) return { ok: false, error: "No stored token for this account — reconnect it in Settings." };
+  try {
+    const url = `${GRAPH}/${accountExternalId}/messages`;
+    const body: Record<string, unknown> = channel === "whatsapp"
+      ? { messaging_product: "whatsapp", to: peerId, type: "text", text: { body: text } }
+      : { recipient: { id: peerId }, messaging_type: "RESPONSE", message: { text } };
+    const res = await fetch(`${url}?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok || json?.error) return { ok: false, error: json?.error?.message || `Meta send ${res.status}` };
+    return { ok: true };
+  } catch (e: any) { return { ok: false, error: e?.message ?? "Meta send failed." }; }
+}
+
+/** Fetch a lead-ad submission's field values (name/email/phone) using the owning Page's token. */
+export async function fetchLeadAd(leadgenId: string, pageExternalId: string): Promise<{ name?: string; email?: string; phone?: string } | null> {
+  const token = await tokenForExternalId(pageExternalId);
+  if (!token) return null;
+  try {
+    const res = await fetch(`${GRAPH}/${leadgenId}?fields=field_data&access_token=${encodeURIComponent(token)}`);
+    const json: any = await res.json().catch(() => ({}));
+    const fields: any[] = json?.field_data ?? [];
+    const out: { name?: string; email?: string; phone?: string } = {};
+    for (const f of fields) {
+      const key = String(f.name || "").toLowerCase();
+      const val = Array.isArray(f.values) ? String(f.values[0] ?? "") : "";
+      if (!val) continue;
+      if (key.includes("email")) out.email = val;
+      else if (key.includes("phone")) out.phone = val;
+      else if (key.includes("name")) out.name = out.name ? `${out.name} ${val}` : val;
+    }
+    return out;
+  } catch { return null; }
 }

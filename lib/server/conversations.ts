@@ -1,6 +1,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendSms, isE164 } from "./twilio";
 import { sendEmail } from "./email-send";
+import { sendMetaMessage } from "./social";
 
 /**
  * Unified Conversations core (D-297..301) — the GHL "Conversations" inbox.
@@ -14,7 +15,9 @@ import { sendEmail } from "./email-send";
  * sender / connected Twilio but do not enforce marketing consent.
  */
 
-export type Channel = "sms" | "email" | "webchat";
+export type Channel = "sms" | "email" | "webchat" | "facebook" | "instagram" | "whatsapp";
+/** Meta channels reply out through the Graph API (Page/WhatsApp token), not Twilio/Resend. */
+const META_CHANNELS: Channel[] = ["facebook", "instagram", "whatsapp"];
 export type Direction = "inbound" | "outbound";
 export type SenderType = "contact" | "platform_user" | "agent" | "system";
 
@@ -118,6 +121,20 @@ export async function findOrCreateThread(
     if (error && missingTable(error.message)) return null;
     if (existing?.id) return existing.id;
   }
+  // Social channels (FB/IG/WhatsApp) key the thread by external_id (account:peer) since the
+  // sender may not map to a CRM contact.
+  if (opts.externalId) {
+    const { data: byExt, error } = await sb
+      .from("tenant_conversations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("channel", opts.channel)
+      .eq("external_id", opts.externalId)
+      .limit(1)
+      .maybeSingle();
+    if (error && missingTable(error.message)) return null;
+    if (byExt?.id) return byExt.id;
+  }
   const { data: created, error } = await sb
     .from("tenant_conversations")
     .insert({
@@ -217,6 +234,32 @@ export async function ingestInboundSms(
     senderName: name,
     body: sms.body,
     externalMessageId: sms.messageSid,
+  });
+  return convoId;
+}
+
+/**
+ * High-level: ingest one inbound Meta message (Messenger / IG DM / WhatsApp). Thread is keyed by
+ * `${accountExternalId}:${peerId}` (so outbound reply can resolve the Page/phone token + recipient).
+ * WhatsApp peers map to a CRM contact by phone; FB/IG peers (PSIDs) get a lightweight contact.
+ */
+export async function ingestInboundMeta(
+  tenantId: string,
+  msg: { channel: "facebook" | "instagram" | "whatsapp"; accountExternalId: string; peerId: string; peerName?: string; body: string; externalMessageId?: string },
+): Promise<string | null> {
+  const externalId = `${msg.accountExternalId}:${msg.peerId}`;
+  let contactId: string | null = null;
+  let name = msg.peerName || (msg.channel === "whatsapp" ? msg.peerId : `${msg.channel} user`);
+  if (msg.channel === "whatsapp") {
+    const r = await findOrCreateContactByPhone(tenantId, msg.peerId, msg.peerName);
+    contactId = r.contactId; name = r.contactName;
+  }
+  const label = msg.channel.charAt(0).toUpperCase() + msg.channel.slice(1);
+  const convoId = await findOrCreateThread(tenantId, { contactId, channel: msg.channel, title: `${label} with ${name}`, externalId });
+  if (!convoId) return null;
+  await recordMessage(tenantId, {
+    conversationId: convoId, channel: msg.channel, direction: "inbound", senderType: "contact",
+    senderName: name, body: msg.body, externalMessageId: msg.externalMessageId,
   });
   return convoId;
 }
@@ -346,6 +389,20 @@ export async function replyToThread(
     await recordMessage(tenantId, {
       conversationId, channel: "email", direction: "outbound", senderType: "platform_user",
       senderName, body: text, externalMessageId: res.id, status: res.ok ? "sent" : "failed", error: res.error,
+    });
+    return res.ok ? { ok: true } : { ok: false, error: res.error };
+  }
+
+  if (META_CHANNELS.includes(channel)) {
+    const { data } = await svc().from("tenant_conversations").select("external_id").eq("tenant_id", tenantId).eq("id", conversationId).maybeSingle();
+    const ext = String(data?.external_id ?? "");
+    const sep = ext.indexOf(":");
+    if (sep < 0) return { ok: false, error: "Can't resolve this conversation's destination." };
+    const accountExternalId = ext.slice(0, sep), peerId = ext.slice(sep + 1);
+    const res = await sendMetaMessage(channel as "facebook" | "instagram" | "whatsapp", accountExternalId, peerId, text);
+    await recordMessage(tenantId, {
+      conversationId, channel, direction: "outbound", senderType: "platform_user",
+      senderName, body: text, status: res.ok ? "sent" : "failed", error: res.error,
     });
     return res.ok ? { ok: true } : { ok: false, error: res.error };
   }

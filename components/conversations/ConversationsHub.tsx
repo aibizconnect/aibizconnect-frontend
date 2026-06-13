@@ -14,13 +14,20 @@ const CHANNELS: { key: Channel | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "sms", label: "SMS" },
   { key: "email", label: "Email" },
+  { key: "facebook", label: "Messenger" },
+  { key: "instagram", label: "Instagram" },
+  { key: "whatsapp", label: "WhatsApp" },
   { key: "webchat", label: "Web chat" },
 ];
 
+const BUBBLE = "M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 0 1 4 11.5 8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z";
 const CHANNEL_META: Record<Channel, { label: string; icon: string; tint: string }> = {
-  sms: { label: "SMS", icon: "M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 0 1 4 11.5 8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z", tint: "bg-emerald-100 text-emerald-700" },
+  sms: { label: "SMS", icon: BUBBLE, tint: "bg-emerald-100 text-emerald-700" },
   email: { label: "Email", icon: "M4 4h16v16H4zM22 6l-10 7L2 6", tint: "bg-sky-100 text-sky-700" },
   webchat: { label: "Web chat", icon: "M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 0 1-9 9 8.96 8.96 0 0 1-4-.94L3 21l1.06-3A8.96 8.96 0 0 1 3 12a9 9 0 1 1 18 0Z", tint: "bg-violet-100 text-violet-700" },
+  facebook: { label: "Messenger", icon: BUBBLE, tint: "bg-blue-100 text-blue-700" },
+  instagram: { label: "Instagram", icon: "M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", tint: "bg-pink-100 text-pink-700" },
+  whatsapp: { label: "WhatsApp", icon: BUBBLE, tint: "bg-green-100 text-green-700" },
 };
 
 function initials(name: string): string {
