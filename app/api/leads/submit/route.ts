@@ -56,14 +56,20 @@ export async function POST(req: NextRequest) {
   let stored = false;
   // 1) Durable store — form_submissions (captures everything, incl. message + custom fields).
   try {
-    const { error } = await supabase.from("form_submissions").insert({
+    const base: Record<string, unknown> = {
       tenant_id: tenantId,
       website_id: str(body?.websiteId, 64) ?? null,
       page_id: str(body?.pageId, 64) ?? null,
       form_name: str(body?.source, 80) ?? "website form",
       data,
       source_url: str(body?.sourceUrl, 1000) ?? req.headers.get("referer") ?? null,
-    });
+    };
+    const formId = str(body?.formId, 64);
+    let { error } = await supabase.from("form_submissions").insert(formId ? { ...base, form_id: formId } : base);
+    // form_id column not applied yet (pre-0059) → retry without it so capture never breaks.
+    if (error && formId && /column .* does not exist|schema cache/i.test(error.message)) {
+      ({ error } = await supabase.from("form_submissions").insert(base));
+    }
     stored = !error;
     if (error) console.error("[leads/submit] form_submissions insert failed:", error.message);
   } catch (e: any) { console.error("[leads/submit] form_submissions error:", e?.message); }

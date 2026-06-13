@@ -33,6 +33,8 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
             <span key={t.key} className="border-b-2 border-[#1e3a8a] pb-2 font-semibold text-[#1e3a8a]">{t.label}</span>
           ) : t.key === "funnels" && funnelsEnabled() ? (
             <Link key={t.key} href={`/tenants/${tenantId}/sites/funnels`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
+          ) : t.key === "forms" ? (
+            <Link key={t.key} href={`/tenants/${tenantId}/sites/forms`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : (
             <span key={t.key} className="pb-2 text-slate-400">{t.label}<span className="ml-1 text-[10px] uppercase tracking-wide text-slate-300">soon</span></span>
           )
