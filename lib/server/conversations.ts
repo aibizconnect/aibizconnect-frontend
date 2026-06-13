@@ -30,7 +30,11 @@ export interface ThreadSummary {
   unreadCount: number;
   lastMessageAt: string;
   lastPreview: string;
+  assignedTo: string | null;
 }
+
+/** Seat visibility (D-333): a restricted member sees only threads assigned to them OR unassigned. */
+export interface ConvScope { restrictToAssigned: boolean; userEmail: string; }
 
 export interface ConvMessage {
   id: string;
@@ -135,6 +139,12 @@ export async function findOrCreateThread(
     if (error && missingTable(error.message)) return null;
     if (byExt?.id) return byExt.id;
   }
+  // Auto-assign a new thread to the contact's owner (D-333); else it lands in the unassigned pool.
+  let assignedTo: string | null = null;
+  if (opts.contactId) {
+    const { data: c } = await sb.from("tenant_contacts").select("owner_email").eq("tenant_id", tenantId).eq("id", opts.contactId).maybeSingle();
+    assignedTo = (c?.owner_email as string) || null;
+  }
   const { data: created, error } = await sb
     .from("tenant_conversations")
     .insert({
@@ -143,6 +153,7 @@ export async function findOrCreateThread(
       channel: opts.channel,
       title: opts.title ?? null,
       external_id: opts.externalId ?? null,
+      assigned_to_email: assignedTo,
     })
     .select("id")
     .single();
@@ -266,20 +277,23 @@ export async function ingestInboundMeta(
 
 export async function listThreads(
   tenantId: string,
-  opts: { channel?: Channel; status?: string; limit?: number } = {},
+  opts: { channel?: Channel; status?: string; limit?: number; scope?: ConvScope } = {},
 ): Promise<ThreadSummary[]> {
   const sb = svc();
   let q = sb
     .from("tenant_conversations")
-    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview")
+    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview, assigned_to_email")
     .eq("tenant_id", tenantId)
     .order("last_message_at", { ascending: false })
     .limit(opts.limit ?? 100);
   if (opts.channel) q = q.eq("channel", opts.channel);
   if (opts.status) q = q.eq("status", opts.status);
+  // Seat scope: restricted members see only their assigned threads + the unassigned pool.
+  if (opts.scope?.restrictToAssigned && opts.scope.userEmail) {
+    q = q.or(`assigned_to_email.eq.${opts.scope.userEmail},assigned_to_email.is.null`);
+  }
   const { data, error } = await q;
   if (error || !data) return [];
-  // Resolve contact names in one batch.
   const ids = Array.from(new Set(data.map((r: any) => r.contact_id).filter(Boolean)));
   const names = new Map<string, string>();
   if (ids.length) {
@@ -295,14 +309,20 @@ export async function listThreads(
     unreadCount: r.unread_count ?? 0,
     lastMessageAt: r.last_message_at,
     lastPreview: r.last_preview ?? "",
+    assignedTo: r.assigned_to_email ?? null,
   }));
+}
+
+/** Assign (or unassign) a thread to a teammate's email. Caller must gate to owner/admin. */
+export async function assignThread(tenantId: string, conversationId: string, email: string | null): Promise<void> {
+  await svc().from("tenant_conversations").update({ assigned_to_email: email, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", conversationId);
 }
 
 export async function listThreadsForContact(tenantId: string, contactId: string): Promise<ThreadSummary[]> {
   const sb = svc();
   const { data, error } = await sb
     .from("tenant_conversations")
-    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview")
+    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview, assigned_to_email")
     .eq("tenant_id", tenantId)
     .eq("contact_id", contactId)
     .order("last_message_at", { ascending: false });
@@ -310,7 +330,7 @@ export async function listThreadsForContact(tenantId: string, contactId: string)
   const name = await contactName(tenantId, contactId);
   return data.map((r: any) => ({
     id: r.id, contactId: r.contact_id, contactName: name, channel: r.channel,
-    status: r.status, unreadCount: r.unread_count ?? 0, lastMessageAt: r.last_message_at, lastPreview: r.last_preview ?? "",
+    status: r.status, unreadCount: r.unread_count ?? 0, lastMessageAt: r.last_message_at, lastPreview: r.last_preview ?? "", assignedTo: r.assigned_to_email ?? null,
   }));
 }
 
@@ -321,7 +341,7 @@ export async function getThread(
   const sb = svc();
   const { data: t, error } = await sb
     .from("tenant_conversations")
-    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview")
+    .select("id, contact_id, channel, status, unread_count, last_message_at, last_preview, assigned_to_email")
     .eq("tenant_id", tenantId)
     .eq("id", conversationId)
     .maybeSingle();
@@ -336,7 +356,7 @@ export async function getThread(
   return {
     thread: {
       id: t.id, contactId: t.contact_id, contactName: name, channel: t.channel,
-      status: t.status, unreadCount: t.unread_count ?? 0, lastMessageAt: t.last_message_at, lastPreview: t.last_preview ?? "",
+      status: t.status, unreadCount: t.unread_count ?? 0, lastMessageAt: t.last_message_at, lastPreview: t.last_preview ?? "", assignedTo: t.assigned_to_email ?? null,
     },
     messages: (msgs ?? []).map((r: any) => ({
       id: r.id, channel: r.channel, direction: r.direction, senderType: r.sender_type,

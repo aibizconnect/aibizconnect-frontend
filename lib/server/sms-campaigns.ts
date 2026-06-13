@@ -128,6 +128,6 @@ export async function sendSmsCampaign(tenantId: string, campaignId: string): Pro
   log("send.done", `${sent} sent, ${failed} failed`);
   await saveSmsCampaign(tenantId, c);
 
-  try { await svc().from("ai_usage_events").insert({ tenant_id: tenantId, kind: "sms_campaign_send", units: sent, meta: { campaignId, recipients: recipients.length, failed } }); } catch { /* best-effort */ }
+  try { const { recordUsage } = await import("./ai-metering"); await recordUsage(tenantId, { kind: "sms_campaign_send", units: sent, meta: { campaignId, recipients: recipients.length, failed } }); } catch { /* best-effort */ }
   return { ok: true, sent, failed };
 }

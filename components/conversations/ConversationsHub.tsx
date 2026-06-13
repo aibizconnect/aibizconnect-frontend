@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { listThreadsAction, openThreadAction, replyAction } from "@/app/tenants/[tenantId]/conversations/actions";
+import { listThreadsAction, openThreadAction, replyAction, assignThreadAction, inboxTeamAction } from "@/app/tenants/[tenantId]/conversations/actions";
 import type { ThreadSummary, ConvMessage, Channel } from "@/lib/server/conversations";
 
 /**
@@ -63,7 +63,16 @@ export default function ConversationsHub({ tenantId, initial }: { tenantId: stri
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState<string | null>(null);
+  const [team, setTeam] = useState<{ canAssign: boolean; emails: string[] }>({ canAssign: false, emails: [] });
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { inboxTeamAction(tenantId).then(setTeam).catch(() => {}); }, [tenantId]);
+
+  async function reassign(email: string) {
+    if (!activeId) return;
+    await assignThreadAction(tenantId, activeId, email || null);
+    setThreads((prev) => prev.map((x) => (x.id === activeId ? { ...x, assignedTo: email || null } : x)));
+  }
 
   const visible = useMemo(
     () => (filter === "all" ? threads : threads.filter((t) => t.channel === filter)),
@@ -204,6 +213,16 @@ export default function ConversationsHub({ tenantId, initial }: { tenantId: stri
                     <div className="flex items-center gap-1 text-xs text-slate-500"><ChannelIcon channel={active.channel} className="h-3 w-3" />{CHANNEL_META[active.channel].label}</div>
                   </div>
                 </div>
+                {team.canAssign ? (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500">Assigned
+                    <select value={active.assignedTo ?? ""} onChange={(e) => void reassign(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700">
+                      <option value="">Unassigned</option>
+                      {Array.from(new Set([...team.emails, ...(active.assignedTo ? [active.assignedTo] : [])])).map((em) => <option key={em} value={em}>{em}</option>)}
+                    </select>
+                  </label>
+                ) : active.assignedTo ? (
+                  <span className="text-xs text-slate-400">Assigned: {active.assignedTo}</span>
+                ) : null}
               </div>
 
               <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-5">
