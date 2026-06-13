@@ -20,6 +20,35 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
+### ⏳ PENDING — 0056: tenant team + franchise organizations (D-282/283)
+Generated 2026-06-12 (`supabase/migrations/0056_team_and_orgs.sql`). **NOT applied.**
+The Team menu works TODAY with graceful column fallbacks; this adds the columns
+(tenant_users.email/name/assigned_only/invited_at, nullable user_id) + the
+organizations table + tenants.organization_id/location_label for franchises.
+Safe + additive (only one owner row exists).
+
+```sql
+alter table public.tenant_users
+  add column if not exists email text,
+  add column if not exists name text,
+  add column if not exists assigned_only boolean not null default false,
+  add column if not exists invited_at timestamptz;
+alter table public.tenant_users alter column user_id drop not null;
+create unique index if not exists tenant_users_tenant_email_uidx
+  on public.tenant_users (tenant_id, lower(email)) where email is not null;
+
+create table if not exists public.organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_user_id uuid,
+  created_at timestamptz not null default now()
+);
+alter table public.tenants
+  add column if not exists organization_id uuid references public.organizations (id) on delete set null,
+  add column if not exists location_label text;
+create index if not exists tenants_org_idx on public.tenants (organization_id);
+```
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres

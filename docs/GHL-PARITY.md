@@ -88,3 +88,18 @@ Bulk Twilio sends with MANDATORY filters: SMS Consent custom field = true AND
 no guard tags; STOP/HELP auto-handling via Twilio webhook → sets Unsubscribed
 tag; quiet-hours window per tenant timezone; A2P 10DLC registration required
 before volume sending. Reuses the campaign store (channel: "sms").
+
+## Team + Franchises (D-282/283, 2026-06-12)
+Tenant-facing /team (replaced the superadmin-only console — that roster lives at
+/admin): MEMBERS — invite by email (role owner/admin/member, assigned_only =
+GHL "only assigned data", status active/invited), role changes, removal, with
+owner-protection (sole owner can't be demoted/removed) and owner/admin-gated
+mutations (tenantRole() helper). LOCATIONS & FRANCHISE (D-260 Phase C) — create
+an organization, group location-tenants under it (each location stays a fully
+isolated workspace — the rejected alternative was location_id in one tenant),
+roll-up counts (locations/contacts/websites/appointments) + a location switcher.
+Storage: tenant_users new columns + organizations + tenants.organization_id
+(0056 queued); graceful pre-DDL (existing members manage now; invites + orgs
+show a clear "apply 0056" message). Visibility Phase A (host badges + My
+calendars) already shipped; assigned_only flag stored here feeds Phase B
+enforcement next.
