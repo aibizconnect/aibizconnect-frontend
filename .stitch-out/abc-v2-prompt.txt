@@ -1,0 +1,32 @@
+Redesign the homepage for an established product (AI Biz Connect / "ABC SalesMaster") — keep the same message and sections as a modern SaaS homepage, but make it noticeably MORE polished, spacious, and premium than a typical template.
+
+Design a modern, responsive, visually appealing home page for "AI Biz Connect", a all-in-one AI business operating system (CRM, websites, funnels, automations, AI agents) for service professionals — real estate, mortgage, legal, insurance, coaching, agencies business.
+Tone: confident, modern, premium SaaS. Audience: owners of professional-services businesses who are tired of juggling 6 disconnected tools.
+
+STRUCTURE (follow exactly — this is how the page must be built):
+- Lay the page out as a VERTICAL STACK OF FULL-WIDTH HORIZONTAL SECTIONS. One idea per section.
+- Inside each section, arrange content in a SINGLE ROW of 1 to 4 EQUAL-WIDTH columns.
+- NEVER use: absolute/overlapping positioning, CSS grid column spans, sticky/fixed elements,
+  parallax, background images with text on top (except the hero), or tables for layout.
+- Use semantic HTML5: <header>, <section>, <footer>, <h1>–<h6>, <p>, <ul><li>, <a>, <button>, <img>.
+- Spacing rhythm: section padding 24–40px; gaps 16–24px; consistent multiples of 8. Never exceed 40px for any single padding/margin.
+
+SECTIONS (use these named blocks, in this order — each must stay a clean full-width band of equal columns):
+1. HEADER — logo/brand text left, 3–5 nav links center, one primary CTA button right.
+2. HERO — big headline, one-sentence subhead, two buttons, optional supporting image on the right.
+3. FEATURES — a row of 3–4 EQUAL cards, each a small icon, a short title, and one line of text.
+4. TESTIMONIALS — 3 EQUAL cards, each a quote, a person's name, and a 5-star rating.
+5. PRICING — 3 EQUAL plan cards; mark the middle one "Most Popular" with a colored badge.
+6. FAQ — a question/answer accordion of 4–6 items.
+7. CTA — a full-width band with a single accent GRADIENT background, a headline, and one button.
+8. FOOTER — 4 columns: a short brand blurb + 3 columns of link lists; a copyright bar as the LAST line.
+
+STYLE — use ONLY this palette (no arbitrary colors, so the theme captures cleanly):
+- primary #0950c3 · accent #07b6d5 · background #ffffff · surface #f8fafc · text #0f172a · text-muted #64748b · border #e2e8f0.
+- Heading font: Montserrat Alternates (Google Fonts). Body font: Montserrat (Google Fonts).
+- Use primary for buttons, links, and badges; the ONE CTA band uses a primary→accent gradient. At most one gradient on the page.
+- Corner radius 8px; soft, subtle shadows for card elevation.
+- All text must meet WCAG-AA contrast against its background (never light text on a light band).
+- Icons: standard Material Symbols only.
+
+Make it beautiful and modern, but every section must remain a clean full-width band of equal columns built from the named blocks above. Generate complete, semantic HTML and CSS that follows every rule above.
