@@ -25,7 +25,9 @@ All of messaging / WhatsApp / ads are **Advanced Access** permissions.
 - **Dev mode (now):** works for *your own* admin/test-connected Pages/IG/WhatsApp — good for testing the full loop today.
 - **Live (real tenants):** requires **Meta App Review** for each advanced permission + Business Verification. That's a multi-day external process, not a code task.
 
+## WhatsApp setup (tenant, manual config — D-329, BUILT)
+**Settings → Integrations → WhatsApp card.** The tenant pastes their **Phone number ID** + a **permanent access token** (System User token with `whatsapp_business_messaging`, from WhatsApp Manager → API Setup). This stores a `tenant_social_accounts` row (provider `whatsapp`, external_id = phone-number-id, encrypted token) so the webhook matches inbound by phone-number-id and the inbox replies via the Cloud API. End-to-end once the Meta webhook is subscribed.
+
 ## Deferred (next phases)
-- **WhatsApp**: a tenant currently can't self-register their WhatsApp **phone-number-id** in the UI (D-329 manual config) — needs a small Settings field that writes `tenant_social_accounts` (external_id = phone-number-id, token = the WABA token). Until then, WhatsApp inbound is routed-but-dropped (no matching account).
 - **Ads**: spend/ROAS reporting + campaign management (lead-ad → contact sync is live).
-- Embedded WhatsApp Signup.
+- Embedded WhatsApp Signup (the manual phone-number-id config above covers MVP).

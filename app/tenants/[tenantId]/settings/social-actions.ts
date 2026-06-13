@@ -5,8 +5,10 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import {
   PROVIDERS, isSocialProvider, socialProviderReady, buildAuthorizeUrl,
   refreshSocialAccountToken, makeOAuthState, readOAuthState, socialRedirectUri,
-  completeOAuthCore, type SocialProvider,
+  completeOAuthCore, registerWhatsAppNumber, listWhatsAppNumbers, removeWhatsAppNumber,
+  type SocialProvider, type WhatsAppNumberView,
 } from "@/lib/server/social";
+export type { WhatsAppNumberView };
 
 async function requireAdminWrite(): Promise<void> {
   const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
@@ -104,6 +106,27 @@ export async function disconnectSocialAccount(tenantId: string, accountId: strin
     { onConflict: "tenant_id,provider" }
   );
   await audit("social.disconnect", { tenantId, provider: row.provider, externalId: row.external_id });
+  return { ok: true };
+}
+
+// ── WhatsApp Cloud (manual phone-number-id config, D-329) ─────────────────────
+export async function getWhatsAppNumbers(tenantId: string): Promise<WhatsAppNumberView[]> {
+  await requireTenantAccess(tenantId);
+  try { return await listWhatsAppNumbers(tenantId); } catch { return []; }
+}
+export async function saveWhatsAppNumber(tenantId: string, input: { phoneNumberId: string; accessToken: string; label?: string }): Promise<{ ok: boolean; message?: string }> {
+  await requireTenantAccess(tenantId);
+  try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
+  if (!input.phoneNumberId.trim() || !input.accessToken.trim()) return { ok: false, message: "Phone number ID and access token are required." };
+  const r = await registerWhatsAppNumber(tenantId, { phoneNumberId: input.phoneNumberId.trim(), accessToken: input.accessToken.trim(), label: input.label?.trim() });
+  await audit("whatsapp.register", { tenantId, phoneNumberId: input.phoneNumberId.trim(), ok: r.ok });
+  return r.ok ? { ok: true } : { ok: false, message: r.error };
+}
+export async function removeWhatsAppNumberAction(tenantId: string, id: string): Promise<{ ok: boolean; message?: string }> {
+  await requireTenantAccess(tenantId);
+  try { await requireAdminWrite(); } catch (e: any) { return { ok: false, message: e?.message }; }
+  await removeWhatsAppNumber(tenantId, id);
+  await audit("whatsapp.remove", { tenantId, id });
   return { ok: true };
 }
 

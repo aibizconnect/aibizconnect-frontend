@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   listSocialAccounts, getOAuthStartUrl, disconnectSocialAccount, refreshSocialToken,
-  type SocialProviderStatus, type SocialAccountView,
+  getWhatsAppNumbers, saveWhatsAppNumber, removeWhatsAppNumberAction,
+  type SocialProviderStatus, type SocialAccountView, type WhatsAppNumberView,
 } from "./social-actions";
 import { getTenantSettings, setTenantSetting } from "./integrations-actions";
 import { getTwilioSettings, saveTwilioSettings, testTwilio, disconnectTwilio, type TwilioSettingsView } from "./twilio-actions";
@@ -211,7 +212,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
           <section>
             <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Messaging &amp; commerce</h2>
             <p className="mb-3 text-xs text-slate-400">Twilio, Shopify, and payment gateways.</p>
-            <div className="space-y-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /><ShopifyCard tenantId={tenantId} isAdmin={isAdmin} /></div>
+            <div className="space-y-3"><TwilioCard tenantId={tenantId} isAdmin={isAdmin} /><WhatsAppCard tenantId={tenantId} isAdmin={isAdmin} /><ShopifyCard tenantId={tenantId} isAdmin={isAdmin} /></div>
           </section>
 
           {/* Payments */}
@@ -331,6 +332,75 @@ function TwilioCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean 
               {s?.hasSecret && <button type="button" disabled={busy === "disc"} onClick={disconnect} className="rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-40">Disconnect</button>}
             </div>
           ) : <Tip>Admin required to change Twilio credentials.</Tip>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [numbers, setNumbers] = useState<WhatsAppNumberView[]>([]);
+  const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [token, setToken] = useState("");
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => { setNumbers(await getWhatsAppNumbers(tenantId)); }, [tenantId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  const save = async () => {
+    setBusy("save"); setMsg(null);
+    const r = await saveWhatsAppNumber(tenantId, { phoneNumberId, accessToken: token, label });
+    setBusy(null);
+    setMsg({ ok: r.ok, text: r.ok ? "WhatsApp number connected ✓" : (r.message ?? "Could not save.") });
+    if (r.ok) { setToken(""); setPhoneNumberId(""); setLabel(""); await load(); }
+  };
+  const remove = async (id: string) => { setBusy(id); await removeWhatsAppNumberAction(tenantId, id); setBusy(null); await load(); };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "#25D366" }}>W</span>
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">WhatsApp<StatusPill status={numbers.length ? "connected" : "disconnected"} /></div>
+            <div className="text-xs text-slate-400">Two-way WhatsApp in your inbox — Cloud API. {numbers.length ? `${numbers.length} number(s)` : ""}</div>
+          </div>
+        </div>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="flex-none rounded-lg border border-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-[#1e3a8a] hover:bg-[#1e3a8a]/5">{open ? "Close" : numbers.length ? "Manage" : "Connect"}</button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+          <div className="rounded-lg bg-emerald-50 p-3">
+            <Tip><b className="text-slate-600">Where to find these:</b> in <Ext href="https://business.facebook.com/wa/manage/">WhatsApp Manager</Ext> → API Setup. Copy the <b>Phone number ID</b> and a <b>permanent access token</b> (System User token with <code>whatsapp_business_messaging</code>). Then point the Meta webhook at us (see docs).</Tip>
+          </div>
+          {numbers.length > 0 && (
+            <div className="space-y-2">
+              {numbers.map((n) => (
+                <div key={n.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
+                  <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-700">{n.label || n.phoneNumberId}</div><div className="text-xs text-slate-400">ID {n.phoneNumberId}</div></div>
+                  {isAdmin && <button type="button" disabled={busy === n.id} onClick={() => remove(n.id)} className="rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 disabled:opacity-40">Remove</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Phone number ID</span>
+            <input className={inp} disabled={!isAdmin} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value.trim())} placeholder="e.g. 109XXXXXXXXXXXX" />
+          </label>
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Access token</span>
+            <input className={inp} type="password" disabled={!isAdmin} value={token} onChange={(e) => setToken(e.target.value)} placeholder="permanent WABA / system-user token" />
+            <Tip>Stored encrypted — never shown again.</Tip>
+          </label>
+          <label className="flex flex-col gap-1"><span className="text-xs font-medium text-slate-600">Label <span className="font-normal text-slate-400">(optional)</span></span>
+            <input className={inp} disabled={!isAdmin} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Main WhatsApp line" />
+          </label>
+          {msg && <div className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{msg.text}</div>}
+          {isAdmin ? (
+            <button type="button" disabled={!phoneNumberId || !token || busy === "save"} onClick={save} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy === "save" ? "Saving…" : "Connect number"}</button>
+          ) : <Tip>Admin required to connect WhatsApp.</Tip>}
         </div>
       )}
     </div>

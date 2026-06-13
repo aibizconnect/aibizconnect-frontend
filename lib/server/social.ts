@@ -401,6 +401,38 @@ export async function sendMetaMessage(channel: "facebook" | "instagram" | "whats
   } catch (e: any) { return { ok: false, error: e?.message ?? "Meta send failed." }; }
 }
 
+// ── WhatsApp manual registration (D-329) — phone-number-id + token, no OAuth ──────
+export interface WhatsAppNumberView { id: string; phoneNumberId: string; label: string | null; status: string; }
+
+/** Register a WhatsApp Cloud number: stores a tenant_social_accounts row (provider 'whatsapp',
+ *  external_id = phone-number-id) with the encrypted access token, so the webhook can match
+ *  inbound by phone-number-id and the inbox can reply via the Cloud API. Token is a secret. */
+export async function registerWhatsAppNumber(tenantId: string, input: { phoneNumberId: string; accessToken: string; label?: string }): Promise<{ ok: boolean; error?: string }> {
+  const sb = createSupabaseServiceClient();
+  const encrypted_tokens = encryptSecret(JSON.stringify({ access_token: input.accessToken }));
+  const { error } = await sb.from("tenant_social_accounts").upsert({
+    tenant_id: tenantId, provider: "whatsapp", external_id: input.phoneNumberId,
+    account_name: input.label || `WhatsApp ${input.phoneNumberId}`, account_type: "whatsapp_number",
+    status: "connected", scopes: ["whatsapp_business_messaging"], encrypted_tokens, config: {},
+    connected_by: "manual", updated_at: new Date().toISOString(),
+  }, { onConflict: "tenant_id,provider,external_id" });
+  if (error) return { ok: false, error: error.message };
+  await sb.from("tenant_integrations").upsert(
+    { tenant_id: tenantId, provider: "whatsapp", status: "connected", config: { kind: "whatsapp" }, updated_at: new Date().toISOString() },
+    { onConflict: "tenant_id,provider" },
+  );
+  return { ok: true };
+}
+export async function listWhatsAppNumbers(tenantId: string): Promise<WhatsAppNumberView[]> {
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("tenant_social_accounts").select("id, external_id, account_name, status").eq("tenant_id", tenantId).eq("provider", "whatsapp").order("created_at", { ascending: true });
+  return (data ?? []).map((r: any) => ({ id: r.id, phoneNumberId: r.external_id, label: r.account_name, status: r.status }));
+}
+export async function removeWhatsAppNumber(tenantId: string, id: string): Promise<void> {
+  const sb = createSupabaseServiceClient();
+  await sb.from("tenant_social_accounts").delete().eq("tenant_id", tenantId).eq("id", id).eq("provider", "whatsapp");
+}
+
 /** Fetch a lead-ad submission's field values (name/email/phone) using the owning Page's token. */
 export async function fetchLeadAd(leadgenId: string, pageExternalId: string): Promise<{ name?: string; email?: string; phone?: string } | null> {
   const token = await tokenForExternalId(pageExternalId);
