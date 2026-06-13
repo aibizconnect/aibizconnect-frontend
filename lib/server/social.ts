@@ -57,10 +57,13 @@ export const PROVIDERS: Record<SocialProvider, ProviderSpec> = {
     envId: "FACEBOOK_APP_ID", envSecret: "FACEBOOK_APP_SECRET", platformSecretKey: "facebook_platform_app",
   },
   linkedin: {
+    // Modern LinkedIn: "Sign In with LinkedIn using OpenID Connect" (openid/profile/email) +
+    // "Share on LinkedIn" (w_member_social). Org-page scopes (r_/w_organization_social) need the
+    // Community Management / Marketing Developer Platform approval — added later, not at first connect.
     provider: "linkedin",
     authorizeUrl: "https://www.linkedin.com/oauth/v2/authorization",
     tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
-    scopes: ["r_liteprofile", "w_member_social", "r_organization_social", "w_organization_social"],
+    scopes: ["openid", "profile", "email", "w_member_social"],
     envId: "LINKEDIN_CLIENT_ID", envSecret: "LINKEDIN_CLIENT_SECRET", platformSecretKey: "linkedin_platform_app",
   },
   tiktok: {
@@ -224,11 +227,14 @@ export async function fetchConnectableAccounts(provider: SocialProvider, tokens:
       }));
     }
     if (provider === "linkedin") {
-      const res = await fetch("https://api.linkedin.com/v2/me", { headers: { Authorization: `Bearer ${at}` } });
+      // OpenID Connect userinfo endpoint (replaces the deprecated /v2/me + r_liteprofile).
+      const res = await fetch("https://api.linkedin.com/v2/userinfo", { headers: { Authorization: `Bearer ${at}` } });
       const json: any = await res.json().catch(() => ({}));
-      if (json?.id) return [{
-        external_id: String(json.id),
-        account_name: [json.localizedFirstName, json.localizedLastName].filter(Boolean).join(" ") || "LinkedIn",
+      if (json?.sub) return [{
+        external_id: String(json.sub),
+        account_name: json.name || [json.given_name, json.family_name].filter(Boolean).join(" ") || "LinkedIn",
+        account_username: json.email,
+        avatar_url: json.picture,
         account_type: "profile",
       }];
     }
