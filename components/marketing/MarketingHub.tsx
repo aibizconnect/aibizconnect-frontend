@@ -5,9 +5,14 @@ import {
   listCampaignsAction, saveCampaignAction, deleteCampaignAction, audienceCountAction,
   draftCampaignAction, sendCampaignTestAction, sendCampaignAction, marketingStatusAction,
   listTemplatesAction, saveTemplateAction, deleteTemplateAction,
+  listSmsCampaignsAction, saveSmsCampaignAction, deleteSmsCampaignAction, smsAudienceCountAction,
+  draftSmsCampaignAction, sendSmsTestAction, sendSmsCampaignAction,
+  listTriggerLinksAction, saveTriggerLinkAction, deleteTriggerLinkAction,
   type MarketingStatus, type EmailTemplate,
 } from "@/app/tenants/[tenantId]/marketing/actions";
 import type { EmailCampaign } from "@/lib/server/email-campaigns";
+import type { SmsCampaign } from "@/lib/server/sms-campaigns";
+import type { TriggerLink } from "@/lib/server/trigger-links";
 import { confirmDialog, notify } from "@/lib/ui/dialogs";
 
 /**
@@ -30,7 +35,7 @@ const newCampaign = (): EmailCampaign => ({
 export default function MarketingHub({ tenantId, initialCampaigns, status }: {
   tenantId: string; initialCampaigns: EmailCampaign[]; status: MarketingStatus;
 }) {
-  const [tab, setTab] = useState<"campaigns" | "templates" | "social" | "sms">("campaigns");
+  const [tab, setTab] = useState<"campaigns" | "templates" | "sms" | "links" | "social">("campaigns");
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [editing, setEditing] = useState<EmailCampaign | null>(null);
 
@@ -54,8 +59,9 @@ export default function MarketingHub({ tenantId, initialCampaigns, status }: {
       <div className="mt-4 flex gap-1 border-b border-slate-200">
         {tabBtn("campaigns", "Campaigns")}
         {tabBtn("templates", "Templates")}
+        {tabBtn("sms", "SMS Campaigns")}
+        {tabBtn("links", "Trigger Links")}
         {tabBtn("social", "Social Planner", true)}
-        {tabBtn("sms", "SMS Campaigns", true)}
       </div>
 
       {tab === "campaigns" && !editing && (
@@ -75,8 +81,191 @@ export default function MarketingHub({ tenantId, initialCampaigns, status }: {
       {tab === "social" && (
         <SoonCard title="Social Planner" body="Plan and schedule posts to Facebook, Instagram and LinkedIn from one calendar — your connected social accounts are already in Settings. Posting APIs land with the Automations engine." />
       )}
-      {tab === "sms" && (
-        <SoonCard title="SMS Campaigns" body="Bulk text campaigns over your connected Twilio number with mandatory SMS-consent filtering (the SMS Consent custom field is already in your CRM) and reply STOP handling. Built after carrier-compliance (A2P) registration." />
+      {tab === "sms" && <SmsTab tenantId={tenantId} status={status} />}
+      {tab === "links" && <LinksTab tenantId={tenantId} status={status} />}
+    </div>
+  );
+}
+
+// ── Trigger Links (D-319) ─────────────────────────────────────────────────────
+function LinksTab({ tenantId, status }: { tenantId: string; status: MarketingStatus }) {
+  const [links, setLinks] = useState<TriggerLink[] | null>(null);
+  const [modal, setModal] = useState<TriggerLink | "new" | null>(null);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); listTriggerLinksAction(tenantId).then(setLinks).catch(() => setLinks([])); }, [tenantId]);
+  const shortUrl = (slug: string) => `${origin}/l/${slug}`;
+  async function copy(t: string) { try { await navigator.clipboard.writeText(t); alert("Link copied."); } catch { /* */ } }
+
+  return (
+    <div className="mt-5 space-y-3">
+      <button onClick={() => setModal("new")} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white">+ New trigger link</button>
+      <p className="text-xs text-slate-500">Trackable short links. Drop one in an email or SMS; clicks are counted and (when sent to a known contact) the link&apos;s tags are applied — so a click can drive segmentation.</p>
+      {links === null ? <p className="py-8 text-center text-sm text-slate-400">Loading…</p> : links.length === 0 ? (
+        <p className="py-8 text-center text-sm text-slate-400">No trigger links yet.</p>
+      ) : links.map((l) => (
+        <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="min-w-0">
+            <div className="font-medium text-slate-900">{l.name}</div>
+            <div className="truncate text-xs text-slate-500">{shortUrl(l.slug)} → {l.redirectUrl}</div>
+            <div className="mt-0.5 flex flex-wrap gap-1 text-[11px] text-slate-400">{l.clicks} clicks{l.tagsToAdd.length > 0 && <> · tags: {l.tagsToAdd.join(", ")}</>}</div>
+          </div>
+          <div className="flex shrink-0 gap-2 text-sm">
+            <button onClick={() => copy(shortUrl(l.slug))} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">Copy</button>
+            <button onClick={() => setModal(l)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700">Edit</button>
+            <button onClick={async () => { if (confirm(`Delete "${l.name}"?`)) setLinks(await deleteTriggerLinkAction(tenantId, l.id)); }} className="rounded-lg px-2 py-1.5 text-slate-400 hover:text-red-600">✕</button>
+          </div>
+        </div>
+      ))}
+      {modal && <LinkModal tenantId={tenantId} initial={modal === "new" ? null : modal} tags={status.tags} onClose={() => setModal(null)} onSaved={(list) => { setLinks(list); setModal(null); }} />}
+    </div>
+  );
+}
+
+function LinkModal({ tenantId, initial, tags, onClose, onSaved }: { tenantId: string; initial: TriggerLink | null; tags: string[]; onClose: () => void; onSaved: (list: TriggerLink[]) => void }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [url, setUrl] = useState(initial?.redirectUrl ?? "https://");
+  const [picked, setPicked] = useState<string[]>(initial?.tagsToAdd ?? []);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save() {
+    setBusy(true); setErr(null);
+    try { const r = await saveTriggerLinkAction(tenantId, { id: initial?.id, name, redirectUrl: url, tagsToAdd: picked }); if (!r.ok) setErr(r.error ?? "Save failed."); else onSaved(r.links); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 p-4 pt-24" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-3 text-base font-semibold text-slate-900">{initial ? "Edit trigger link" : "New trigger link"}</h2>
+        <div className="space-y-3">
+          <label className="block text-sm"><span className="mb-1 block text-xs text-slate-500">Name</span><input value={name} onChange={(e) => setName(e.target.value)} className={inp} placeholder="Spring offer" /></label>
+          <label className="block text-sm"><span className="mb-1 block text-xs text-slate-500">Redirect URL</span><input value={url} onChange={(e) => setUrl(e.target.value)} className={inp} placeholder="https://…" /></label>
+          <div>
+            <span className="mb-1 block text-xs text-slate-500">Apply tags on click (optional)</span>
+            <div className="flex flex-wrap gap-1">
+              {tags.length === 0 && <span className="text-xs text-slate-400">No tags yet — create tags in Contacts.</span>}
+              {tags.map((t) => { const on = picked.includes(t); return <button key={t} onClick={() => setPicked(on ? picked.filter((x) => x !== t) : [...picked, t])} className={`rounded-full px-2 py-0.5 text-[11px] ${on ? "bg-[#1e3a8a] text-white" : "text-slate-600 ring-1 ring-slate-200"}`}>{t}</button>; })}
+            </div>
+          </div>
+          {err && <div className="rounded-md bg-rose-50 px-3 py-1.5 text-xs text-rose-700">{err}</div>}
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:text-slate-800">Cancel</button>
+            <button onClick={save} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SMS Campaigns (D-316..318) — mirrors email; human-approved Send; STOP appended ───────
+const newSms = (): SmsCampaign => ({
+  id: crypto.randomUUID(), name: "New SMS", body: "", audience: { mode: "all", tags: [] }, status: "draft",
+  stats: { recipients: 0, sent: 0, failed: 0 }, log: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), sentAt: null,
+});
+
+function SmsTab({ tenantId, status }: { tenantId: string; status: MarketingStatus }) {
+  const [list, setList] = useState<SmsCampaign[] | null>(null);
+  const [editing, setEditing] = useState<SmsCampaign | null>(null);
+  useEffect(() => { listSmsCampaignsAction(tenantId).then(setList).catch(() => setList([])); }, [tenantId]);
+
+  if (editing) return <SmsEditor tenantId={tenantId} campaign={editing} status={status} onClose={() => setEditing(null)} onSaved={(c) => setList((p) => (p ?? []).some((x) => x.id === c.id) ? (p ?? []).map((x) => x.id === c.id ? c : x) : [c, ...(p ?? [])])} />;
+
+  return (
+    <div className="mt-5 space-y-3">
+      {!status.smsReady && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><b>Texting isn&apos;t connected yet.</b> You can build & AI-draft SMS now; to send, connect Twilio in Settings → Integrations.</div>
+      )}
+      <button onClick={() => setEditing(newSms())} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white">+ New SMS</button>
+      {list === null ? <p className="py-8 text-center text-sm text-slate-400">Loading…</p> : list.length === 0 ? (
+        <p className="py-8 text-center text-sm text-slate-400">No SMS campaigns yet — create one and let the AI draft it.</p>
+      ) : list.map((c) => (
+        <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2"><span className="truncate font-medium text-slate-900">{c.name}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.status === "sent" ? "bg-emerald-100 text-emerald-700" : c.status === "sending" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>{c.status}</span></div>
+            <div className="truncate text-xs text-slate-500">{c.body || "(no message yet)"}{c.status === "sent" ? ` — ${c.stats.sent} sent${c.stats.failed ? `, ${c.stats.failed} failed` : ""}` : ""}</div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button onClick={() => setEditing(c)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">{c.status === "sent" ? "View" : "Edit"}</button>
+            <button onClick={async () => { if (confirm(`Delete "${c.name}"?`)) { await deleteSmsCampaignAction(tenantId, c.id); setList((p) => (p ?? []).filter((x) => x.id !== c.id)); } }} className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-red-600">✕</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SmsEditor({ tenantId, campaign, status, onClose, onSaved }: { tenantId: string; campaign: SmsCampaign; status: MarketingStatus; onClose: () => void; onSaved: (c: SmsCampaign) => void }) {
+  const [c, setC] = useState(campaign);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [brief, setBrief] = useState("");
+  const [testTo, setTestTo] = useState("");
+  const [count, setCount] = useState<{ count: number; sample: string[] } | null>(null);
+  const sent = c.status === "sent";
+  const set = <K extends keyof SmsCampaign>(k: K, v: SmsCampaign[K]) => setC((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => { let live = true; smsAudienceCountAction(tenantId, c.audience).then((r) => { if (live) setCount(r); }).catch(() => {}); return () => { live = false; }; }, [tenantId, c.audience]);
+
+  async function save(next?: Partial<SmsCampaign>) { const merged = { ...c, ...next }; setBusy("save"); try { const r = await saveSmsCampaignAction(tenantId, merged); if (r.ok) { setC(merged); onSaved(merged); } } finally { setBusy(null); } }
+  async function draft() { if (!brief.trim()) return; setBusy("draft"); try { const r = await draftSmsCampaignAction(tenantId, brief); if (r.ok && r.body) setC((p) => ({ ...p, body: r.body! })); } finally { setBusy(null); } }
+  async function test() { if (!testTo.trim()) return; setBusy("test"); try { const r = await sendSmsTestAction(tenantId, c, testTo); alert(r.ok ? "Test text sent." : (r.error ?? "Could not send test.")); } finally { setBusy(null); } }
+  async function send() {
+    if (!confirm(`Send "${c.name}" to ${count?.count ?? 0} contact(s)? This cannot be undone.`)) return;
+    setBusy("send");
+    try { await save(); const r = await sendSmsCampaignAction(tenantId, c.id); if (r.ok) { const updated = { ...c, status: "sent" as const, sentAt: new Date().toISOString(), stats: { ...c.stats, sent: r.sent ?? 0, failed: r.failed ?? 0 } }; setC(updated); onSaved(updated); alert(`Sent: ${r.sent} delivered${r.failed ? `, ${r.failed} failed` : ""}.`); } else alert(r.error ?? "Send failed."); }
+    finally { setBusy(null); }
+  }
+
+  const len = c.body.length;
+  return (
+    <div className="mt-5 space-y-4">
+      <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-800">← All SMS campaigns</button>
+      <input value={c.name} onChange={(e) => set("name", e.target.value)} disabled={sent} className={inp} placeholder="Campaign name" />
+
+      {!sent && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className={lbl}>AI draft</div>
+          <div className="flex gap-2">
+            <input value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="e.g. flash sale this weekend, 20% off" className={inp} />
+            <button onClick={draft} disabled={busy === "draft"} className="shrink-0 rounded-lg bg-[#1e3a8a] px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{busy === "draft" ? "…" : "Draft"}</button>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className={lbl}>Message</div>
+        <textarea value={c.body} onChange={(e) => set("body", e.target.value)} disabled={sent} rows={4} className={inp} placeholder="Your text message…" />
+        <div className="mt-1 flex justify-between text-xs text-slate-400"><span>{len} chars{len > 160 ? ` · ${Math.ceil(len / 153)} segments` : ""}</span><span>“Reply STOP to opt out” is appended automatically</span></div>
+      </div>
+
+      <div>
+        <div className={lbl}>Audience</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={c.audience.mode} onChange={(e) => set("audience", { ...c.audience, mode: e.target.value as "all" | "tags" })} disabled={sent} className="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+            <option value="all">All contacts with a phone</option><option value="tags">By tag</option>
+          </select>
+          {c.audience.mode === "tags" && (
+            <div className="flex flex-wrap gap-1">
+              {status.tags.length === 0 && <span className="text-xs text-slate-400">No tags yet.</span>}
+              {status.tags.map((t) => { const on = c.audience.tags.includes(t); return <button key={t} disabled={sent} onClick={() => set("audience", { ...c.audience, tags: on ? c.audience.tags.filter((x) => x !== t) : [...c.audience.tags, t] })} className={`rounded-full px-2 py-0.5 text-[11px] ${on ? "bg-[#1e3a8a] text-white" : "text-slate-600 ring-1 ring-slate-200"}`}>{t}</button>; })}
+            </div>
+          )}
+          <span className="ml-auto text-xs text-slate-500">{count ? `${count.count} sendable` : "…"}</span>
+        </div>
+        <p className="mt-1 text-[11px] text-slate-400">Do-Not-Contact, Unsubscribed, and no-phone contacts are always excluded.</p>
+      </div>
+
+      {!sent ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <button onClick={() => save()} disabled={busy === "save"} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">{busy === "save" ? "Saving…" : "Save draft"}</button>
+          <div className="flex items-center gap-1">
+            <input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+1416…" className="w-32 rounded-lg border border-slate-300 px-2 py-2 text-sm" />
+            <button onClick={test} disabled={busy === "test" || !status.smsReady} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-50">Send test</button>
+          </div>
+          <button onClick={send} disabled={busy === "send" || !status.smsReady || !c.body.trim() || (count?.count ?? 0) === 0} className="ml-auto rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy === "send" ? "Sending…" : `Send to ${count?.count ?? 0}`}</button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Sent {c.sentAt ? new Date(c.sentAt).toLocaleString() : ""} — {c.stats.sent} delivered{c.stats.failed ? `, ${c.stats.failed} failed` : ""}.</div>
       )}
     </div>
   );

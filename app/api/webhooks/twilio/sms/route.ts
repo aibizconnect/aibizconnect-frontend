@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { findTenantByInboundNumber, verifyTwilioSignature } from "@/lib/server/twilio";
-import { ingestInboundSms } from "@/lib/server/conversations";
+import { ingestInboundSms, isStopKeyword, optOutContactByPhone } from "@/lib/server/conversations";
 
 /**
  * Inbound SMS webhook (D-298). Twilio POSTs application/x-www-form-urlencoded when a contact
@@ -47,6 +47,8 @@ export async function POST(req: Request) {
 
   try {
     await ingestInboundSms(tenant.tenantId, { from, to, body, messageSid: params.MessageSid });
+    // Carrier-compliance: a STOP/UNSUBSCRIBE reply opts the contact out of all campaigns (D-318).
+    if (isStopKeyword(body)) await optOutContactByPhone(tenant.tenantId, from);
   } catch (e) {
     console.error("[twilio-inbound] ingest failed", e);
     // still ack — message is on Twilio's side; a 500 would trigger noisy retries

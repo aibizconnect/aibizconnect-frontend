@@ -180,6 +180,22 @@ export async function recordMessage(
   return { ok: true };
 }
 
+// STOP / opt-out handling (D-318) — carrier compliance for SMS campaigns.
+const STOP_RE = /^\s*(stop|stopall|unsubscribe|cancel|end|quit)\b/i;
+export function isStopKeyword(body: string): boolean { return STOP_RE.test(body || ""); }
+
+/** Mark a phone's contact opted-out: dnd=true + an 'Unsubscribed' tag (both exclude it from
+ *  every campaign audience). Best-effort; finds or creates the contact. */
+export async function optOutContactByPhone(tenantId: string, phone: string): Promise<void> {
+  const { contactId } = await findOrCreateContactByPhone(tenantId, phone);
+  if (!contactId) return;
+  const sb = svc();
+  const { data } = await sb.from("tenant_contacts").select("tags").eq("tenant_id", tenantId).eq("id", contactId).maybeSingle();
+  const tags: string[] = Array.isArray(data?.tags) ? data.tags : [];
+  if (!tags.map((t) => String(t).toLowerCase()).includes("unsubscribed")) tags.push("Unsubscribed");
+  await sb.from("tenant_contacts").update({ dnd: true, tags, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", contactId);
+}
+
 /** High-level: ingest one inbound SMS. Returns the conversationId (or null if not stored). */
 export async function ingestInboundSms(
   tenantId: string,
