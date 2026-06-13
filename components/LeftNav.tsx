@@ -47,7 +47,7 @@ const GROUP_1: Item[] = [
   { label: "Calendars", key: "calendars", route: "calendars" },
   { label: "Contacts", key: "contacts", route: "contacts" },
   { label: "Opportunities", key: "opportunities", route: "pipelines" },
-  { label: "Payments", key: "payments", soon: true },
+  { label: "Payments", key: "payments", route: "payments" },
 ];
 
 const GROUP_2: Item[] = [
