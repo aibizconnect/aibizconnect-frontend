@@ -104,6 +104,20 @@ create table if not exists public.idx_favorites (
   unique (tenant_id, contact_id, listing_id)
 );
 
+-- Area aggregation (D-351): Municipality -> Community -> Listings hierarchy for SEO area pages.
+create or replace function public.idx_municipalities(p_tenant uuid)
+returns table(municipality text, n bigint) language sql stable as $$
+  select address_city, count(*) from public.idx_listings
+  where tenant_id = p_tenant and inactive_at is null and coalesce(address_city,'') <> ''
+  group by address_city order by count(*) desc, address_city
+$$;
+create or replace function public.idx_communities(p_tenant uuid, p_municipality text)
+returns table(community text, n bigint) language sql stable as $$
+  select community, count(*) from public.idx_listings
+  where tenant_id = p_tenant and inactive_at is null and address_city = p_municipality and coalesce(community,'') <> ''
+  group by community order by count(*) desc, community
+$$;
+
 alter table public.idx_feeds          enable row level security;
 alter table public.idx_listings       enable row level security;
 alter table public.idx_listing_media  enable row level security;

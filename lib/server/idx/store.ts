@@ -76,8 +76,31 @@ export async function purgeInactive(tenantId: string, source: string, retentionD
   return ids.length;
 }
 
+// ── areas: Municipality -> Community hierarchy (for SEO area pages) ──────────────
+export function areaSlug(s: string): string {
+  return (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "area";
+}
+export interface AreaCount { name: string; slug: string; count: number }
+export async function listMunicipalities(tenantId: string): Promise<AreaCount[]> {
+  const { data, error } = await svc().rpc("idx_municipalities", { p_tenant: tenantId });
+  if (error) return [];
+  return (data ?? []).map((r: any) => ({ name: r.municipality, slug: areaSlug(r.municipality), count: Number(r.n) }));
+}
+export async function listCommunities(tenantId: string, municipality: string): Promise<AreaCount[]> {
+  const { data, error } = await svc().rpc("idx_communities", { p_tenant: tenantId, p_municipality: municipality });
+  if (error) return [];
+  return (data ?? []).map((r: any) => ({ name: r.community, slug: areaSlug(r.community), count: Number(r.n) }));
+}
+/** Resolve a municipality slug back to its exact DB name. */
+export async function municipalityFromSlug(tenantId: string, slug: string): Promise<AreaCount | null> {
+  return (await listMunicipalities(tenantId)).find((m) => m.slug === slug) ?? null;
+}
+export async function communityFromSlug(tenantId: string, municipality: string, slug: string): Promise<AreaCount | null> {
+  return (await listCommunities(tenantId, municipality)).find((c) => c.slug === slug) ?? null;
+}
+
 // ── read (display) ────────────────────────────────────────────────────────────
-export interface ListingFilter { city?: string; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number }
+export interface ListingFilter { city?: string; municipality?: string; community?: string; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number }
 export interface ListingCard { id: string; mlsNumber: string | null; status: string | null; propertyType: string | null; listPrice: number | null; currency: string; city: string | null; province: string | null; beds: number | null; baths: number | null; sqft: number | null; brokerage: string | null; modifiedAt: string; cover: string | null }
 
 export async function listListings(tenantId: string, f: ListingFilter = {}): Promise<{ rows: ListingCard[]; total: number }> {
@@ -85,7 +108,9 @@ export async function listListings(tenantId: string, f: ListingFilter = {}): Pro
   const pageSize = Math.min(f.pageSize ?? 24, 100); const page = Math.max(0, f.page ?? 0);
   let q = sb.from("idx_listings").select("*", { count: "exact" }).eq("tenant_id", tenantId).is("inactive_at", null);
   q = q.eq("status", f.status ?? "Active");
-  if (f.city) q = q.ilike("address_city", `%${f.city}%`);
+  if (f.municipality) q = q.eq("address_city", f.municipality);
+  else if (f.city) q = q.ilike("address_city", `%${f.city}%`);
+  if (f.community) q = q.eq("community", f.community);
   if (f.minPrice != null) q = q.gte("list_price", f.minPrice);
   if (f.maxPrice != null) q = q.lte("list_price", f.maxPrice);
   if (f.beds != null) q = q.gte("bedrooms", f.beds);

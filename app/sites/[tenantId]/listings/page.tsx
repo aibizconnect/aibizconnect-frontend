@@ -27,7 +27,10 @@ export default async function PublicListings({ params, searchParams }: { params:
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white" style={{ borderTopColor: brand.accent, borderTopWidth: 3 }}>
         <div className="mx-auto max-w-6xl px-6 py-6">
-          <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: brand.accent }}>{brand.businessName}</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: brand.accent }}>{brand.businessName}</div>
+            <Link href={`/sites/${tenantId}/areas`} className="text-sm font-medium hover:underline" style={{ color: brand.accent }}>Browse by city &amp; community →</Link>
+          </div>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Listings</h1>
           <form className="mt-4 flex flex-wrap gap-2 text-sm">
             <input name="city" defaultValue={sp.city ?? ""} placeholder="City" className="rounded-lg border border-slate-300 px-3 py-1.5" />
