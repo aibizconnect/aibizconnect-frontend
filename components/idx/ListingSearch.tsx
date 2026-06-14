@@ -23,6 +23,10 @@ export default function ListingSearch({ tenantId, accent, initial }: { tenantId:
   const [beds, setBeds] = useState(initial?.beds || "");
   const [baths, setBaths] = useState(initial?.baths || "");
   const [maxFee, setMaxFee] = useState(initial?.fee || "");
+  // commercial (only the fields CREA DDF reliably populates — property use + building sqft;
+  // zoning / # units / lot come from the TRREB direct feed, not the national DDF)
+  const [use, setUse] = useState(initial?.use || "");
+  const [sqft, setSqft] = useState(initial?.sqft || "");
 
   function search() {
     const q = new URLSearchParams();
@@ -31,9 +35,19 @@ export default function ListingSearch({ tenantId, accent, initial }: { tenantId:
     if (min) q.set("min", min); if (max) q.set("max", max);
     if (cls !== "Commercial") { if (beds) q.set("beds", beds); if (baths) q.set("baths", baths); }
     if (cls === "Condo & Other" && maxFee) q.set("fee", maxFee);
+    if (cls === "Commercial") {
+      if (use) q.set("use", use);
+      if (sqft) q.set("sqft", sqft);
+    }
     router.push(`/sites/${tenantId}/listings?${q.toString()}`);
   }
   const num = ["Any", "1", "2", "3", "4", "5"];
+  // CREA commercial PropertyType values (ilike-matched server-side; "Multi" catches Multi-family/Multi Family).
+  const USES: { label: string; value: string }[] = [
+    { label: "Any use", value: "" }, { label: "Retail", value: "Retail" }, { label: "Office", value: "Office" },
+    { label: "Industrial", value: "Industrial" }, { label: "Business", value: "Business" }, { label: "Multi-family", value: "Multi" },
+    { label: "Hospitality", value: "Hospitality" }, { label: "Agriculture", value: "Agriculture" }, { label: "Vacant land", value: "Land" },
+  ];
 
   return (
     <div style={{ ["--accent" as string]: accent }}>
@@ -64,6 +78,14 @@ export default function ListingSearch({ tenantId, accent, initial }: { tenantId:
         {cls === "Condo & Other" && (
           <label className="flex flex-col gap-0.5 text-xs text-slate-500">Max condo fee $
             <input value={maxFee} onChange={(e) => setMaxFee(e.target.value)} type="number" className={`${inp} w-28`} /></label>
+        )}
+        {cls === "Commercial" && (
+          <>
+            <label className="flex flex-col gap-0.5 text-xs text-slate-500">Property use
+              <select value={use} onChange={(e) => setUse(e.target.value)} className={inp}>{USES.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
+            <label className="flex flex-col gap-0.5 text-xs text-slate-500">Min sq ft
+              <input value={sqft} onChange={(e) => setSqft(e.target.value)} type="number" placeholder="e.g. 2000" className={`${inp} w-32`} /></label>
+          </>
         )}
 
         <button onClick={search} className="rounded-lg px-5 py-2 text-sm font-semibold text-white" style={{ background: accent }}>Search</button>

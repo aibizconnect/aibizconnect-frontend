@@ -37,6 +37,7 @@ export async function upsertListings(tenantId: string, source: string, listings:
       public_remarks: l.publicRemarks ?? null, listing_brokerage_name: l.listingBrokerageName ?? null, listing_agent_name: l.listingAgentName ?? null,
       community: l.community ?? null, transaction_type: l.transactionType ?? null, photos_count: l.photosCount ?? null, more_info_url: l.moreInfoUrl ?? null,
       property_class: l.propertyClass ?? null, ownership_type: l.ownershipType ?? null, property_sub_type: l.propertySubType ?? null, association_fee: l.associationFee ?? null, parking_total: l.parkingTotal ?? null,
+      zoning: l.zoning ?? null, number_of_units: l.numberOfUnits ?? null, lot_frontage: l.lotFrontage ?? null, business_type: l.businessType ?? null,
       modification_timestamp: l.modificationTimestamp, inactive_at: null, raw_data: l.raw ?? {}, updated_at: new Date().toISOString(),
     };
     // Was it already present? (to count created vs updated)
@@ -101,7 +102,9 @@ export async function communityFromSlug(tenantId: string, municipality: string, 
 }
 
 // ── read (display) ────────────────────────────────────────────────────────────
-export interface ListingFilter { city?: string; municipality?: string; community?: string; propertyClass?: string; transactionType?: string; maxFee?: number; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number }
+export interface ListingFilter { city?: string; municipality?: string; community?: string; propertyClass?: string; transactionType?: string; maxFee?: number; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number;
+  // commercial filters
+  propertyUse?: string; minSqft?: number; minLot?: number; minUnits?: number; zoning?: string }
 export async function listPropertyClasses(tenantId: string): Promise<{ name: string; count: number }[]> {
   const { data, error } = await svc().rpc("idx_property_classes", { p_tenant: tenantId });
   if (error) return [];
@@ -125,6 +128,12 @@ export async function listListings(tenantId: string, f: ListingFilter = {}): Pro
   if (f.baths != null) q = q.gte("bathrooms", f.baths);
   if (f.maxFee != null) q = q.lte("association_fee", f.maxFee);
   if (f.propertyType) q = q.eq("property_type", f.propertyType);
+  // commercial
+  if (f.propertyUse) q = q.ilike("property_type", `%${f.propertyUse}%`);
+  if (f.minSqft != null) q = q.gte("sqft_total", f.minSqft);
+  if (f.minLot != null) q = q.gte("lot_size_sqft", f.minLot);
+  if (f.minUnits != null) q = q.gte("number_of_units", f.minUnits);
+  if (f.zoning) q = q.ilike("zoning", `%${f.zoning}%`);
   q = q.order("modification_timestamp", { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
   const { data, count, error } = await q;
   if (error) return { rows: [], total: 0 };

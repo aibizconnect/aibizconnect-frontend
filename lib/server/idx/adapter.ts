@@ -36,6 +36,10 @@ export interface NormalizedListing {
   propertySubType?: string | null;
   associationFee?: number | null;     // condo/maintenance fee
   parkingTotal?: number | null;
+  zoning?: string | null;             // commercial: RESO Zoning
+  numberOfUnits?: number | null;      // commercial: RESO NumberOfUnitsTotal
+  lotFrontage?: number | null;        // commercial/land: RESO FrontageLength
+  businessType?: string | null;       // commercial: RESO BusinessType
   photosCount?: number | null;
   moreInfoUrl?: string | null;        // RESO MoreInformationLink (realtor.ca)
   modificationTimestamp: string;     // RESO ModificationTimestamp (ISO) — replication cursor
@@ -130,6 +134,10 @@ export function mapResoRecord(r: Record<string, any>): NormalizedListing {
     propertySubType: text(r.PropertySubType ?? r.ArchitecturalStyle),
     associationFee: num(r.AssociationFee),
     parkingTotal: num(r.ParkingTotal),
+    zoning: text(r.Zoning),
+    numberOfUnits: num(r.NumberOfUnitsTotal),
+    lotFrontage: num(r.FrontageLength) ?? firstNum(r.LotFrontage),
+    businessType: text(r.BusinessType),
     photosCount: num(r.PhotosCount),
     moreInfoUrl: text(r.MoreInformationLink),
     modificationTimestamp: toIso(r.ModificationTimestamp) ?? new Date(0).toISOString(),

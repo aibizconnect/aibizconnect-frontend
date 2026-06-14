@@ -498,6 +498,27 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     }],
   },
 
+  // ── REAL ESTATE (seller lead capture — every realtor site needs one) ─────────────
+  {
+    id: "home-valuation", name: "Home Valuation — What's It Worth?", category: "Conversion", icon: "🏡",
+    blurb: "Seller-lead capture: address + contact",
+    sections: [{
+      type: "contact-form",
+      heading: "What's Your Home Worth?",
+      subheading: "Get a free, no-obligation valuation based on real recent sales on your street — not an online guess. We'll be in touch within one business day.",
+      fields: [
+        { name: "address", label: "Property Address", type: "text" },
+        { name: "name", label: "Your Name", type: "text" },
+        { name: "email", label: "Email Address", type: "email" },
+        { name: "phone", label: "Phone", type: "tel" },
+        { name: "details", label: "Beds / baths / anything we should know", type: "text" },
+        { name: "timeframe", label: "When are you thinking of selling?", type: "textarea" },
+      ],
+      submitLabel: "Get My Free Valuation",
+      successMessage: "Thanks! We'll prepare your valuation and be in touch within one business day.",
+    }],
+  },
+
   // ── IMAGE-LED + THEMED LOOKS (image slots auto-filled from your Media Library) ─────
   heroEditable("hero-image", "Hero — Image Background", "Faded full-bleed photo hero", {
     p: PAL.light, image: true, eyebrow: "Welcome",

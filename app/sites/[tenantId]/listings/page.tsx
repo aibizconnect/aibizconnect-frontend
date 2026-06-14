@@ -20,7 +20,11 @@ export default async function PublicListings({ params, searchParams }: { params:
     propertyClass: sp.class || undefined, transactionType: sp.t || undefined, city: sp.city || undefined,
     minPrice: sp.min ? Number(sp.min) : undefined, maxPrice: sp.max ? Number(sp.max) : undefined,
     beds: sp.beds ? Number(sp.beds) : undefined, baths: sp.baths ? Number(sp.baths) : undefined,
-    maxFee: sp.fee ? Number(sp.fee) : undefined, page: sp.page ? Number(sp.page) : 0,
+    maxFee: sp.fee ? Number(sp.fee) : undefined,
+    // commercial
+    propertyUse: sp.use || undefined, minSqft: sp.sqft ? Number(sp.sqft) : undefined,
+    minLot: sp.lot ? Number(sp.lot) : undefined, minUnits: sp.units ? Number(sp.units) : undefined, zoning: sp.zoning || undefined,
+    page: sp.page ? Number(sp.page) : 0,
   };
   const [{ rows, total }, brand] = await Promise.all([listListings(tenantId, filter), getBlogBrand(tenantId).catch(() => ({ businessName: "Listings", accent: "#1e3a8a" }))]);
 

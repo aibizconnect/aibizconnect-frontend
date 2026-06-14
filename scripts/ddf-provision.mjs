@@ -40,6 +40,7 @@ function mapRow(r) {
     year_built: num(r.YearBuilt), public_remarks: txt(r.PublicRemarks), listing_brokerage_name: txt(r.ListOfficeName), listing_agent_name: txt(r.ListAgentFullName),
     community, transaction_type: lease ? "For Lease" : "For Sale", photos_count: num(r.PhotosCount), more_info_url: txt(r.MoreInformationLink),
     property_class: derivePropertyClass(r.PropertyType, r.OwnershipType), ownership_type: txt(r.OwnershipType), property_sub_type: txt(r.PropertySubType ?? r.ArchitecturalStyle), association_fee: num(r.AssociationFee), parking_total: num(r.ParkingTotal),
+    zoning: txt(r.Zoning), number_of_units: num(r.NumberOfUnitsTotal), lot_frontage: num(r.FrontageLength) ?? firstNum(r.LotFrontage), business_type: txt(r.BusinessType),
     modification_timestamp: (() => { const d = new Date(String(r.ModificationTimestamp)); return isNaN(d) ? new Date().toISOString() : d.toISOString(); })(),
     raw_data: { PhotosChangeTimestamp: r.PhotosChangeTimestamp ?? null, PhotosCount: r.PhotosCount ?? null }, updated_at: new Date().toISOString(),
   };

@@ -16,6 +16,7 @@ import type { TriggerLink } from "@/lib/server/trigger-links";
 import type { SocialAccountView } from "@/lib/server/social";
 import SocialPlanner from "@/components/marketing/SocialPlanner";
 import { confirmDialog, notify } from "@/lib/ui/dialogs";
+import { REALTOR_EMAIL_PRESETS, REALTOR_SMS_PRESETS } from "@/lib/marketing/realtor-presets";
 
 /**
  * MARKETING hub (D-280). Email campaigns end-to-end under the DRAFTS-ONLY law:
@@ -176,6 +177,19 @@ function SmsTab({ tenantId, status }: { tenantId: string; status: MarketingStatu
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><b>Texting isn&apos;t connected yet.</b> You can build & AI-draft SMS now; to send, connect Twilio in Settings → Integrations.</div>
       )}
       <button onClick={() => setEditing(newSms())} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white">+ New SMS</button>
+
+      {/* Real-estate SMS starters */}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+        <div className="mb-1 text-sm font-semibold text-slate-800">🏡 Real-estate text starters</div>
+        <p className="mb-3 text-xs text-slate-500">Tap one to start a draft. Edit the <code>[bracketed]</code> bits; “Reply STOP to opt out” is appended automatically.</p>
+        <div className="flex flex-wrap gap-2">
+          {REALTOR_SMS_PRESETS.map((p) => (
+            <button key={p.name} onClick={() => setEditing({ ...newSms(), name: p.name, body: p.body })}
+              title={p.body} className="rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">{p.name}</button>
+          ))}
+        </div>
+      </div>
+
       {list === null ? <p className="py-8 text-center text-sm text-slate-400">Loading…</p> : list.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-400">No SMS campaigns yet — create one and let the AI draft it.</p>
       ) : list.map((c) => (
@@ -471,10 +485,38 @@ function TemplatesTab({ tenantId, onUse }: { tenantId: string; onUse: (t: EmailT
       </div>
     );
   }
+  async function savePreset(p: typeof REALTOR_EMAIL_PRESETS[number]) {
+    const t: EmailTemplate = { id: crypto.randomUUID(), name: p.name, subject: p.subject, preheader: p.preheader, body: p.body, updatedAt: "" };
+    const r = await saveTemplateAction(tenantId, t);
+    if (r.ok) { setTemplates((prev) => [...(prev ?? []).filter((x) => x.id !== t.id), t].sort((a, b) => a.name.localeCompare(b.name))); notify(`Saved "${p.name}" to your templates ✓`); }
+    else notify(r.message ?? "Could not save.");
+  }
   return (
     <div className="mt-5 space-y-3">
       <button onClick={() => setEditing(blank())} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white">+ New template</button>
-      {templates.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No templates yet — save a reusable subject + body once, start campaigns from it forever.</p>}
+
+      {/* Real-estate starter library (built-in presets) */}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+        <div className="mb-1 text-sm font-semibold text-slate-800">🏡 Real-estate starter templates</div>
+        <p className="mb-3 text-xs text-slate-500">Ready-to-edit emails for realtors. <b>Use in campaign</b> prefills a new draft; <b>Save</b> adds it to your templates. Fill in the <code>[bracketed]</code> details and review before sending.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {REALTOR_EMAIL_PRESETS.map((p) => (
+            <div key={p.name} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-white p-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-slate-900">{p.name}</div>
+                <div className="truncate text-xs text-slate-500">{p.subject}</div>
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button onClick={() => onUse({ id: crypto.randomUUID(), name: p.name, subject: p.subject, preheader: p.preheader, body: p.body, updatedAt: "" })} className="rounded-lg bg-[#1e3a8a] px-2.5 py-1.5 text-xs font-medium text-white">Use</button>
+                <button onClick={() => savePreset(p)} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:border-[#1e3a8a] hover:text-[#1e3a8a]">Save</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="pt-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Your templates</div>
+      {templates.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No saved templates yet — save a reusable subject + body once, start campaigns from it forever.</p>}
       {templates.map((t) => (
         <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
           <div className="min-w-0">
