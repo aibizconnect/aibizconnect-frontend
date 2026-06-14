@@ -25,7 +25,7 @@ export async function requestPortalLink(tenantId: string, email: string): Promis
   return { ok: true, message: GENERIC };
 }
 
-export async function logoutPortal(tenantId: string): Promise<void> {
+export async function logoutPortal(_tenantId: string): Promise<void> {
   const store = await cookies();
-  store.delete("abizportal");
+  store.delete({ name: "abizportal", path: "/" } as { name: string; path: string });
 }

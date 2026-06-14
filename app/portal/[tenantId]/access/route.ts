@@ -13,6 +13,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if (!v) { dash.searchParams.set("e", "invalid"); return NextResponse.redirect(dash); }
   const fresh = issuePortalToken(tenantId, v.contactId, v.email) ?? token;
   const res = NextResponse.redirect(dash);
-  res.cookies.set("abizportal", fresh, { httpOnly: true, secure: true, sameSite: "lax", path: `/portal/${tenantId}`, maxAge: 30 * 24 * 60 * 60 });
+  res.cookies.set("abizportal", fresh, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 30 * 24 * 60 * 60 });
   return res;
 }

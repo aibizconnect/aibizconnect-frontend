@@ -1,8 +1,34 @@
 "use server";
 
-import { listCourses, getCourse, createCourse, setCourseStatus, deleteCourse, addLesson, updateLesson, deleteLesson, generateCourse, type Course } from "@/lib/memberships";
+import { requireTenantAccess } from "@/lib/auth/tenant-access";
+import {
+  listCourses, getCourse, createCourse, updateCourse, setCourseStatus, deleteCourse,
+  addLesson, updateLesson, deleteLesson, generateCourse,
+  listEnrollments, enrollContact, removeEnrollment,
+  type Course, type Enrollment,
+} from "@/lib/memberships";
 
 export async function listCoursesAction(tenantId: string): Promise<Course[]> { return listCourses(tenantId); }
+
+export async function updateCourseAction(tenantId: string, id: string, patch: { title?: string; description?: string; priceCents?: number; currency?: string; coverImageUrl?: string | null }): Promise<Course | null> {
+  await requireTenantAccess(tenantId);
+  await updateCourse(tenantId, id, patch);
+  return getCourse(tenantId, id);
+}
+export async function listEnrollmentsAction(tenantId: string, courseId: string): Promise<Enrollment[]> {
+  await requireTenantAccess(tenantId);
+  return listEnrollments(tenantId, courseId);
+}
+export async function enrollByEmailAction(tenantId: string, courseId: string, email: string): Promise<{ ok: boolean; error?: string; enrollments: Enrollment[] }> {
+  await requireTenantAccess(tenantId);
+  const r = await enrollContact(tenantId, courseId, { email, source: "manual" });
+  return { ok: r.ok, error: r.error, enrollments: await listEnrollments(tenantId, courseId) };
+}
+export async function removeEnrollmentAction(tenantId: string, courseId: string, id: string): Promise<Enrollment[]> {
+  await requireTenantAccess(tenantId);
+  await removeEnrollment(tenantId, id);
+  return listEnrollments(tenantId, courseId);
+}
 
 export async function createCourseAction(tenantId: string, title: string): Promise<Course[]> {
   await createCourse(tenantId, title);

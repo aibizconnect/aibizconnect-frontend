@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { readPortalToken, getPortalData } from "@/lib/server/portal";
+import { listEnrolledCourses } from "@/lib/memberships";
 import { getBlogBrand } from "@/lib/server/blog";
 import PortalLogin from "@/components/portal/PortalLogin";
 import { logoutPortal } from "./actions";
@@ -21,7 +22,10 @@ export default async function PortalPage({ params, searchParams }: { params: Pro
   const sess = token ? readPortalToken(token, tenantId) : null;
   if (!sess) return <PortalLogin tenantId={tenantId} businessName={brand.businessName} accent={brand.accent} invalid={e === "invalid"} />;
 
-  const data = await getPortalData(tenantId, sess.contactId, sess.email);
+  const [data, courses] = await Promise.all([
+    getPortalData(tenantId, sess.contactId, sess.email),
+    listEnrolledCourses(tenantId, sess.email).catch(() => []),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -58,6 +62,15 @@ export default async function PortalPage({ params, searchParams }: { params: Pro
           {data.appointments.map((a) => (
             <Row key={a.id} left={<><span className="font-medium text-slate-800">{a.title || "Appointment"}</span> <span className={pill(a.status)}>{a.status}</span></>}
               sub={new Date(a.startAt).toLocaleString()} right={null} />
+          ))}
+        </Section>
+
+        <Section title="Your courses" empty="No courses yet.">
+          {courses.map((c) => (
+            <a key={c.id} href={`/learn/${tenantId}/${c.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+              <span className="text-sm font-medium text-slate-800">{c.title}</span>
+              <span className="text-xs font-medium" style={{ color: brand.accent }}>Open →</span>
+            </a>
           ))}
         </Section>
 
