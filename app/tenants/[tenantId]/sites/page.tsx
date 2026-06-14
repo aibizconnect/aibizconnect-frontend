@@ -13,6 +13,7 @@ const TABS = [
   { key: "websites", label: "Websites" },
   { key: "funnels", label: "Funnels" },
   { key: "blogs", label: "Blogs" },
+  { key: "store", label: "Store" },
   { key: "forms", label: "Forms" },
   { key: "redirects", label: "Redirects" },
   { key: "portal", label: "Client Portal" },
@@ -38,6 +39,8 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
             <Link key={t.key} href={`/tenants/${tenantId}/sites/forms`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : t.key === "blogs" ? (
             <Link key={t.key} href={`/tenants/${tenantId}/sites/blog`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
+          ) : t.key === "store" ? (
+            <Link key={t.key} href={`/tenants/${tenantId}/sites/store`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : t.key === "redirects" ? (
             <Link key={t.key} href={`/tenants/${tenantId}/sites/redirects`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : t.key === "portal" ? (
