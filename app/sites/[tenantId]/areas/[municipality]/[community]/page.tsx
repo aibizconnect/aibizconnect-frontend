@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { idxEnabled } from "@/lib/flags";
 import { listListings, municipalityFromSlug, communityFromSlug } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
@@ -21,7 +20,7 @@ export default async function CommunityPage({ params, searchParams }: { params: 
   const { tenantId, municipality, community } = await params;
   const { page } = await searchParams;
   const feed = await getFeed(tenantId).catch(() => null);
-  if (!idxEnabled() || feed?.status !== "active") notFound();
+  if (feed?.status !== "active") notFound();
   const m = await municipalityFromSlug(tenantId, municipality).catch(() => null);
   if (!m) notFound();
   const c = await communityFromSlug(tenantId, m.name, community).catch(() => null);

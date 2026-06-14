@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { idxEnabled } from "@/lib/flags";
 import { getListing } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
@@ -21,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenantId:
 export default async function ListingDetail({ params }: { params: Promise<{ tenantId: string; id: string }> }) {
   const { tenantId, id } = await params;
   const feed = await getFeed(tenantId).catch(() => null);
-  if (!idxEnabled() || feed?.status !== "active") notFound();
+  if (feed?.status !== "active") notFound();
   const [r, brand] = await Promise.all([getListing(tenantId, id), getBlogBrand(tenantId).catch(() => ({ businessName: "Listings", accent: "#1e3a8a" }))]);
   if (!r) notFound();
   const l = r.listing;

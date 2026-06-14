@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { idxEnabled } from "@/lib/flags";
 import { listCommunities, listListings, municipalityFromSlug } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
@@ -18,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenantId:
 export default async function MunicipalityPage({ params }: { params: Promise<{ tenantId: string; municipality: string }> }) {
   const { tenantId, municipality } = await params;
   const feed = await getFeed(tenantId).catch(() => null);
-  if (!idxEnabled() || feed?.status !== "active") notFound();
+  if (feed?.status !== "active") notFound();
   const m = await municipalityFromSlug(tenantId, municipality).catch(() => null);
   if (!m) notFound();
   const [communities, featured, brand] = await Promise.all([

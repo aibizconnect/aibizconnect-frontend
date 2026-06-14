@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { idxEnabled } from "@/lib/flags";
 import { listMunicipalities } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
@@ -16,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenantId:
 export default async function AreasIndex({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const feed = await getFeed(tenantId).catch(() => null);
-  if (!idxEnabled() || feed?.status !== "active") notFound();
+  if (feed?.status !== "active") notFound();
   const [munis, brand] = await Promise.all([listMunicipalities(tenantId), getBlogBrand(tenantId).catch(() => ({ businessName: "Listings", accent: "#1e3a8a" }))]);
 
   return (

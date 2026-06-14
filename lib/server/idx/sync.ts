@@ -1,4 +1,3 @@
-import { idxEnabled } from "@/lib/flags";
 import { listActiveFeeds, getFeedRuntime } from "./feeds";
 import { createDdfAdapter } from "./ddf";
 import { getSyncState, setSyncState, upsertListings, purgeInactive, type SyncCounts } from "./store";
@@ -38,9 +37,8 @@ export async function runTenantSync(tenantId: string, source = "ddf"): Promise<S
   }
 }
 
-/** CRON entry — run every active feed. No-op unless IDX is enabled. */
+/** CRON entry — run every active, terms-accepted feed (the feed-active flag is the gate). */
 export async function runDueIdxSync(): Promise<{ feeds: number; created: number; updated: number; deleted: number; failed: number }> {
-  if (!idxEnabled()) return { feeds: 0, created: 0, updated: 0, deleted: 0, failed: 0 };
   const feeds = await listActiveFeeds();
   let created = 0, updated = 0, deleted = 0, failed = 0;
   for (const f of feeds) {

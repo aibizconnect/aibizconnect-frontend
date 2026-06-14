@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { idxEnabled } from "@/lib/flags";
 import { listListings, type ListingFilter } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
@@ -14,7 +13,7 @@ export default async function PublicListings({ params, searchParams }: { params:
   const { tenantId } = await params;
   const sp = await searchParams;
   const feed = await getFeed(tenantId).catch(() => null);
-  if (!idxEnabled() || feed?.status !== "active") notFound();
+  if (feed?.status !== "active") notFound();
 
   const filter: ListingFilter = {
     city: sp.city || undefined, minPrice: sp.min ? Number(sp.min) : undefined, maxPrice: sp.max ? Number(sp.max) : undefined,
