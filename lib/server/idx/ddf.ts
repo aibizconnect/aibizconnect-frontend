@@ -116,8 +116,9 @@ export function createDdfAdapter(rt: FeedRuntime): FeedAdapter {
       if (!ready) return { listings: [], complete: true }; // flag-safe no-op until wired
       const lg = await login();
       if (!lg.ok) throw new Error(lg.error);
-      const since = sinceIso ?? "1970-01-01T00:00:00Z";
-      const query = `(LastUpdated=${since}+)`; // RETSDateTime, "+" = greater-or-equal
+      // CREA wants RETSDateTime without millis; (LastUpdated=X) means ">= X" (no "+" suffix — that 20206s).
+      const since = (sinceIso ?? "1970-01-01T00:00:00Z").replace(/\.\d{1,3}Z$/, "Z").replace(/(\d{2}:\d{2}:\d{2})$/, "$1Z");
+      const query = `(LastUpdated=${since})`;
       const listings: NormalizedListing[] = [];
       let maxTs = sinceIso ?? null;
       let offset = 1, pages = 0, complete = true;

@@ -46,6 +46,10 @@ create table if not exists public.idx_listings (
   public_remarks          text,
   listing_brokerage_name  text,                               -- RESO ListOfficeName (attribution)
   listing_agent_name      text,                               -- RESO ListAgentFullName
+  community               text,                               -- parsed from City "City (Community)" — powers community search
+  transaction_type        text,                               -- For Sale | For Lease
+  photos_count            int,
+  more_info_url           text,                               -- RESO MoreInformationLink (realtor.ca)
   modification_timestamp  timestamptz not null,               -- RESO ModificationTimestamp (replication cursor)
   inactive_at             timestamptz,                        -- set when it leaves the feed; purge after retention
   raw_data                jsonb not null default '{}'::jsonb,
@@ -55,6 +59,7 @@ create table if not exists public.idx_listings (
 );
 create index if not exists idx_listings_tenant_status_idx on public.idx_listings (tenant_id, status);
 create index if not exists idx_listings_city_idx on public.idx_listings (tenant_id, address_city);
+create index if not exists idx_listings_community_idx on public.idx_listings (tenant_id, community);
 create index if not exists idx_listings_price_idx on public.idx_listings (tenant_id, list_price);
 create index if not exists idx_listings_modts_idx on public.idx_listings (tenant_id, source, modification_timestamp);
 

@@ -29,6 +29,10 @@ export interface NormalizedListing {
   publicRemarks?: string | null;
   listingBrokerageName?: string | null;  // RESO ListOfficeName (attribution)
   listingAgentName?: string | null;
+  community?: string | null;          // parsed from City "City (Community)"
+  transactionType?: string | null;    // For Sale | For Lease
+  photosCount?: number | null;
+  moreInfoUrl?: string | null;        // RESO MoreInformationLink (realtor.ca)
   modificationTimestamp: string;     // RESO ModificationTimestamp (ISO) — replication cursor
   raw?: unknown;
   media?: NormalizedMedia[];
@@ -58,38 +62,58 @@ export interface FeedAdapter {
 }
 
 const num = (v: unknown): number | null => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-const str = (v: unknown): string | null => (v == null ? null : String(v));
+const str = (v: unknown): string | null => { const s = v == null ? null : String(v).trim(); return s && s !== "" && s.toLowerCase() !== "false" ? s : (s === "" ? null : (typeof v === "string" ? String(v).trim() || null : v == null ? null : String(v))); };
+const text = (v: unknown): string | null => { if (v == null) return null; const s = String(v).trim(); return s === "" ? null : s; };
+/** First integer in a string (CREA's BuildingAreaTotal is a range like "3000 - 3500"). */
+const firstNum = (v: unknown): number | null => { const m = String(v ?? "").match(/\d[\d,]*/); return m ? Number(m[0].replace(/,/g, "")) : null; };
+/** Normalize CREA's RFC-2822 ("Tue, 09 Jun 2026 22:37:35 GMT") or other date → ISO. */
+function toIso(v: unknown): string | null { if (!v) return null; const d = new Date(String(v)); return isNaN(d.getTime()) ? null : d.toISOString(); }
+/** "Vaughan (Vellore Village)" → { city: "Vaughan", community: "Vellore Village" }. */
+function splitCity(raw: unknown): { city: string | null; community: string | null } {
+  const s = text(raw); if (!s) return { city: null, community: null };
+  const m = s.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  return m ? { city: m[1].trim(), community: m[2].trim() } : { city: s, community: null };
+}
 
-/** Map a RESO Data Dictionary record → NormalizedListing (D-347). Field names are RESO-standard,
- *  so this is correct ahead of the live DDF wire-up; only the transport/auth differs per feed. */
+/**
+ * Map a CREA DDF / RESO Data Dictionary record → NormalizedListing. Verified against the live CREA
+ * feed (2026-06-14): DDF carries only active listings (no status field), City embeds the community,
+ * BuildingAreaTotal is a range string, dates are RFC-2822. Same mapper serves any RESO feed (TRREB).
+ */
 export function mapResoRecord(r: Record<string, any>): NormalizedListing {
   const media: NormalizedMedia[] = Array.isArray(r.Media)
     ? r.Media.map((m: any, i: number) => ({ url: String(m?.MediaURL ?? m?.Uri ?? m), sortOrder: Number(m?.Order ?? i), kind: "photo" })).filter((m: NormalizedMedia) => m.url && m.url !== "undefined")
     : [];
+  const { city, community } = splitCity(r.City);
+  const lease = text(r.Lease);
   return {
     sourceKey: String(r.ListingKey ?? r.ListingId ?? r.ListingKeyNumeric),
-    mlsNumber: str(r.ListingId ?? r.MlsNumber),
-    status: str(r.StandardStatus ?? r.MlsStatus),
-    propertyType: str(r.PropertyType ?? r.PropertySubType),
-    listPrice: num(r.ListPrice),
-    currency: str(r.Currency) ?? "CAD",
-    addressStreet: str(r.UnparsedAddress ?? ([r.StreetNumber, r.StreetName, r.StreetSuffix].filter(Boolean).join(" ") || null)),
-    addressUnit: str(r.UnitNumber),
-    addressCity: str(r.City),
-    addressProvince: str(r.StateOrProvince),
-    addressPostalCode: str(r.PostalCode),
-    addressCountry: str(r.Country) ?? "CA",
+    mlsNumber: text(r.ListingId ?? r.MlsNumber),
+    status: text(r.StandardStatus ?? r.MlsStatus) ?? "Active", // DDF only distributes active listings
+    propertyType: text(r.PropertyType ?? r.PropertySubType),
+    listPrice: (num(r.ListPrice) || null) ?? firstNum(r.Lease), // leases carry price in Lease, ListPrice="0"
+    currency: text(r.Currency) ?? "CAD",
+    addressStreet: text(r.UnparsedAddress) ?? ([r.StreetNumber, r.StreetName, r.StreetSuffix].map((x) => text(x)).filter(Boolean).join(" ") || null),
+    addressUnit: text(r.UnitNumber),
+    addressCity: city,
+    addressProvince: text(r.StateOrProvince),
+    addressPostalCode: text(r.PostalCode),
+    addressCountry: text(r.Country) ?? "CA",
     latitude: num(r.Latitude),
     longitude: num(r.Longitude),
     bedrooms: num(r.BedroomsTotal),
-    bathrooms: num(r.BathroomsTotalInteger ?? r.BathroomsTotal),
-    sqftTotal: num(r.LivingArea ?? r.BuildingAreaTotal),
-    lotSizeSqft: num(r.LotSizeSquareFeet ?? r.LotSizeArea),
+    bathrooms: num(r.BathroomsTotal ?? r.BathroomsTotalInteger),
+    sqftTotal: firstNum(r.BuildingAreaTotal ?? r.LivingArea),
+    lotSizeSqft: num(r.LotSizeSquareFeet) ?? firstNum(r.LotSizeArea),
     yearBuilt: num(r.YearBuilt),
-    publicRemarks: str(r.PublicRemarks),
-    listingBrokerageName: str(r.ListOfficeName),
-    listingAgentName: str(r.ListAgentFullName),
-    modificationTimestamp: String(r.ModificationTimestamp ?? new Date(0).toISOString()),
+    publicRemarks: text(r.PublicRemarks),
+    listingBrokerageName: text(r.ListOfficeName),
+    listingAgentName: text(r.ListAgentFullName),
+    community,
+    transactionType: lease ? "For Lease" : "For Sale",
+    photosCount: num(r.PhotosCount),
+    moreInfoUrl: text(r.MoreInformationLink),
+    modificationTimestamp: toIso(r.ModificationTimestamp) ?? new Date(0).toISOString(),
     raw: r,
     media,
   };

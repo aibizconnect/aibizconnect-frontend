@@ -35,6 +35,7 @@ export async function upsertListings(tenantId: string, source: string, listings:
       latitude: l.latitude ?? null, longitude: l.longitude ?? null, bedrooms: l.bedrooms ?? null, bathrooms: l.bathrooms ?? null,
       sqft_total: l.sqftTotal ?? null, lot_size_sqft: l.lotSizeSqft ?? null, year_built: l.yearBuilt ?? null,
       public_remarks: l.publicRemarks ?? null, listing_brokerage_name: l.listingBrokerageName ?? null, listing_agent_name: l.listingAgentName ?? null,
+      community: l.community ?? null, transaction_type: l.transactionType ?? null, photos_count: l.photosCount ?? null, more_info_url: l.moreInfoUrl ?? null,
       modification_timestamp: l.modificationTimestamp, inactive_at: null, raw_data: l.raw ?? {}, updated_at: new Date().toISOString(),
     };
     // Was it already present? (to count created vs updated)
