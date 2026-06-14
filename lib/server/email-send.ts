@@ -32,13 +32,15 @@ function unsubscribeUrl(tenantId: string): string {
 }
 
 /** Send one email via Resend on the tenant's behalf. Appends the footer for its kind. */
-export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string; footer?: "setup" | "appointment" }): Promise<{ ok: boolean; id?: string; error?: string }> {
+export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string; footer?: "setup" | "appointment" | "none" }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const ready = await emailReady(tenantId);
   if (!ready.ok || !ready.identity) return { ok: false, error: ready.reason };
   const sec = await getIntegrationSecret(tenantId, "resend").catch(() => null);
   if (!sec?.api_key) return { ok: false, error: "no Resend key" };
 
-  const footer = (msg.footer ?? "setup") === "appointment"
+  const footer = msg.footer === "none"
+    ? ""
+    : (msg.footer ?? "setup") === "appointment"
     ? `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this about your appointment with ${ready.identity.sender_name}.</p>`
     : `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this because you enabled setup reminders. <a href="${unsubscribeUrl(tenantId)}">Unsubscribe</a>.</p>`;
   const from = `${ready.identity.sender_name} <${ready.identity.sender_email}>`;

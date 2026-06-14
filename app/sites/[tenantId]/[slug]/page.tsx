@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, permanentRedirect } from "next/navigation";
+import { resolveRedirect } from "@/lib/server/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionView } from "@/components/sections/registry";
 import AnimateOnView from "@/components/sections/AnimateOnView";
@@ -138,8 +139,11 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     if (b && typeof b === "object" && Object.keys(b).length) perPageBg = b as ElementStyle;
   } catch { /* column not applied yet */ }
 
-  // Only published pages are visible publicly
+  // Only published pages are visible publicly. When no page matches, honor a tenant URL
+  // redirect for this path (D-347) before 404ing.
   if (!page || !page.is_public) {
+    const r = await resolveRedirect(tenantId, slug).catch(() => null);
+    if (r) { if (r.code === 301) permanentRedirect(r.toUrl); redirect(r.toUrl); }
     notFound();
   }
 
