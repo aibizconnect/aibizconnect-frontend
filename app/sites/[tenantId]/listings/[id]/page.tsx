@@ -47,9 +47,13 @@ export default async function ListingDetail({ params }: { params: Promise<{ tena
             <div className="mt-1 text-slate-500">{addr}</div>
             {l.status && <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{l.status}</span>}
             {l.public_remarks && <p className="mt-5 whitespace-pre-wrap leading-relaxed text-slate-700">{l.public_remarks}</p>}
-            <p className="mt-8 border-t border-slate-200 pt-4 text-xs text-slate-400">
-              {ref}{l.listing_brokerage_name ? ` · Listed by ${l.listing_brokerage_name}` : ""}. Data provided by CREA DDF®; deemed reliable but not guaranteed. Last updated {new Date(l.modification_timestamp).toLocaleDateString()}.
-            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4 text-xs text-slate-400">
+              <a href="https://www.realtor.ca/en" target="_blank" rel="noreferrer" aria-label="Powered by REALTOR.ca">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img width={125} src="https://www.realtor.ca/images/en-ca/powered_by_realtor.svg" alt="Powered by REALTOR.ca" />
+              </a>
+              <span>{ref}{l.listing_brokerage_name ? ` · Listed by ${l.listing_brokerage_name}` : ""}. Data provided by CREA DDF®; deemed reliable but not guaranteed. Last updated {new Date(l.modification_timestamp).toLocaleDateString()}.</span>
+            </div>
           </div>
           <div><ListingInquiry tenantId={tenantId} listingRef={ref} accent={brand.accent} /></div>
         </div>

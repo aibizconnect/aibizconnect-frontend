@@ -58,7 +58,13 @@ export default async function PublicListings({ params, searchParams }: { params:
             ))}
           </div>
         )}
-        <p className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-400">Listing data provided by CREA DDF®. Information is deemed reliable but not guaranteed accurate. Listings are owned by the respective listing brokerages.</p>
+        <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4 text-xs text-slate-400">
+          <a href="https://www.realtor.ca/en" target="_blank" rel="noreferrer" aria-label="Powered by REALTOR.ca">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img width={125} src="https://www.realtor.ca/images/en-ca/powered_by_realtor.svg" alt="Powered by REALTOR.ca" />
+          </a>
+          <span>Listing data provided by CREA DDF®. Information is deemed reliable but not guaranteed accurate. Listings are owned by the respective listing brokerages.</span>
+        </div>
       </main>
     </div>
   );

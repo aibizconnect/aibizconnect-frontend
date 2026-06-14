@@ -14,8 +14,8 @@ const lbl = "mb-1 block text-xs font-medium text-slate-600";
 
 export default function IdxFeedAdmin({ tenantId, idxEnabled }: { tenantId: string; idxEnabled: boolean }) {
   const [feed, setFeed] = useState<FeedView | null | undefined>(undefined);
-  const [method, setMethod] = useState("rest");
-  const [endpoint, setEndpoint] = useState("");
+  const [method, setMethod] = useState("rets");
+  const [endpoint, setEndpoint] = useState("https://data.crea.ca");
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -72,8 +72,8 @@ export default function IdxFeedAdmin({ tenantId, idxEnabled }: { tenantId: strin
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <label><span className={lbl}>Method</span>
-            <select value={method} onChange={(e) => setMethod(e.target.value)} className={inp}><option value="rest">DDF REST</option><option value="rets">RETS</option></select></label>
-          <label className="sm:col-span-2"><span className={lbl}>Endpoint / base URL</span><input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://ddfapi.realtor.ca/odata" className={inp} /></label>
+            <select value={method} onChange={(e) => setMethod(e.target.value)} className={inp}><option value="rets">CREA DDF (RETS)</option><option value="rest">RESO Web API (TRREB)</option></select></label>
+          <label className="sm:col-span-2"><span className={lbl}>Endpoint / base URL</span><input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://data.crea.ca" className={inp} /></label>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <label><span className={lbl}>API token {feed?.hasCredentials && <span className="text-emerald-600">(stored)</span>}</span><input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={feed?.hasCredentials ? "•••• stored" : "DDF token"} className={inp} /></label>
