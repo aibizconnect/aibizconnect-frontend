@@ -13,6 +13,8 @@ import {
 import type { EmailCampaign } from "@/lib/server/email-campaigns";
 import type { SmsCampaign } from "@/lib/server/sms-campaigns";
 import type { TriggerLink } from "@/lib/server/trigger-links";
+import type { SocialAccountView } from "@/lib/server/social";
+import SocialPlanner from "@/components/marketing/SocialPlanner";
 import { confirmDialog, notify } from "@/lib/ui/dialogs";
 
 /**
@@ -32,8 +34,8 @@ const newCampaign = (): EmailCampaign => ({
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), sentAt: null,
 });
 
-export default function MarketingHub({ tenantId, initialCampaigns, status }: {
-  tenantId: string; initialCampaigns: EmailCampaign[]; status: MarketingStatus;
+export default function MarketingHub({ tenantId, initialCampaigns, status, socialAccounts }: {
+  tenantId: string; initialCampaigns: EmailCampaign[]; status: MarketingStatus; socialAccounts: SocialAccountView[];
 }) {
   const [tab, setTab] = useState<"campaigns" | "templates" | "sms" | "links" | "social">("campaigns");
   const [campaigns, setCampaigns] = useState(initialCampaigns);
@@ -61,7 +63,7 @@ export default function MarketingHub({ tenantId, initialCampaigns, status }: {
         {tabBtn("templates", "Templates")}
         {tabBtn("sms", "SMS Campaigns")}
         {tabBtn("links", "Trigger Links")}
-        {tabBtn("social", "Social Planner", true)}
+        {tabBtn("social", "Social Planner")}
       </div>
 
       {tab === "campaigns" && !editing && (
@@ -78,9 +80,7 @@ export default function MarketingHub({ tenantId, initialCampaigns, status }: {
           onSaved={(c) => setCampaigns((p) => (p.some((x) => x.id === c.id) ? p.map((x) => (x.id === c.id ? c : x)) : [c, ...p]))} />
       )}
       {tab === "templates" && <TemplatesTab tenantId={tenantId} onUse={(t) => { setEditing({ ...newCampaign(), name: t.name, subject: t.subject, preheader: t.preheader, body: t.body }); setTab("campaigns"); }} />}
-      {tab === "social" && (
-        <SoonCard title="Social Planner" body="Plan and schedule posts to Facebook, Instagram and LinkedIn from one calendar — your connected social accounts are already in Settings. Posting APIs land with the Automations engine." />
-      )}
+      {tab === "social" && <SocialPlanner tenantId={tenantId} accounts={socialAccounts} />}
       {tab === "sms" && <SmsTab tenantId={tenantId} status={status} />}
       {tab === "links" && <LinksTab tenantId={tenantId} status={status} />}
     </div>
@@ -267,15 +267,6 @@ function SmsEditor({ tenantId, campaign, status, onClose, onSaved }: { tenantId:
       ) : (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Sent {c.sentAt ? new Date(c.sentAt).toLocaleString() : ""} — {c.stats.sent} delivered{c.stats.failed ? `, ${c.stats.failed} failed` : ""}.</div>
       )}
-    </div>
-  );
-}
-
-function SoonCard({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="mt-6 max-w-xl rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-      <div className="text-sm font-semibold text-slate-700">{title} <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">Soon</span></div>
-      <p className="mt-1 text-sm text-slate-500">{body}</p>
     </div>
   );
 }

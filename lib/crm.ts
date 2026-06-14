@@ -9,7 +9,12 @@ function service(): SupabaseClient {
 }
 
 export interface Contact { id: string; name: string; email: string; phone: string; tags: string[]; score: number; source: string | null; }
-export interface Opportunity { id: string; name: string; value: number; stage: string; status: "open" | "won" | "lost"; contact_id: string | null; }
+/** Core opportunity + GHL-parity fields (owner/source/lost-reason/close-date — 0064). The
+ *  extended fields are optional so pre-0064 rows and callers stay valid. */
+export interface Opportunity {
+  id: string; name: string; value: number; stage: string; status: "open" | "won" | "lost"; contact_id: string | null;
+  ownerEmail?: string | null; source?: string | null; lostReason?: string | null; expectedCloseDate?: string | null;
+}
 export interface Pipeline { id: string; name: string; stages: string[]; }
 
 /** Full contact (GHL-parity, D-228): adds created/company/owner/DND/custom-field values.
@@ -359,11 +364,32 @@ export async function listAppointmentsByEmail(tenantId: string, email: string): 
   return (data ?? []).map((r: any) => ({ id: r.id, title: r.title ?? null, startAt: r.start_at, endAt: r.end_at ?? null, status: r.status, calendarId: r.calendar_id }));
 }
 
+/** Map a raw opportunity row → Opportunity, tolerating pre-0064 rows (extended cols absent). */
+function rowToOpp(r: any): Opportunity {
+  return {
+    id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id ?? null,
+    ownerEmail: r.owner_email ?? null, source: r.source ?? null, lostReason: r.lost_reason ?? null,
+    expectedCloseDate: r.expected_close_date ?? null,
+  };
+}
+
 /** Opportunities linked to a contact. */
 export async function listOpportunitiesForContact(tenantId: string, contactId: string): Promise<Opportunity[]> {
-  const { data, error } = await service().from("tenant_opportunities").select("id,name,value,stage,status,contact_id").eq("tenant_id", tenantId).eq("contact_id", contactId).order("created_at", { ascending: false });
+  const { data, error } = await service().from("tenant_opportunities").select("*").eq("tenant_id", tenantId).eq("contact_id", contactId).order("created_at", { ascending: false });
   if (error) return [];
-  return (data ?? []).map((r: any) => ({ id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id }));
+  return (data ?? []).map(rowToOpp);
+}
+
+/** One opportunity by id (the detail card). Rich = with contact name. */
+export async function getOpportunity(tenantId: string, id: string): Promise<OpportunityRow | null> {
+  const { data } = await service().from("tenant_opportunities").select("*").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+  if (!data) return null;
+  let contactName = "—";
+  if (data.contact_id) {
+    const { data: c } = await service().from("tenant_contacts").select("name,email,phone").eq("tenant_id", tenantId).eq("id", data.contact_id).maybeSingle();
+    if (c) contactName = c.name || c.email || c.phone || "—";
+  }
+  return { ...rowToOpp(data), contactName, createdAt: data.created_at ?? null };
 }
 
 // ---- pipeline ----
@@ -383,14 +409,19 @@ export async function ensurePipeline(tenantId: string): Promise<Pipeline> {
 
 // ---- opportunities ----
 export async function listOpportunities(tenantId: string, pipelineId: string): Promise<Opportunity[]> {
-  const { data } = await service().from("tenant_opportunities").select("id,name,value,stage,status,contact_id").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
-  return (data ?? []).map((r: any) => ({ id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id }));
+  const { data } = await service().from("tenant_opportunities").select("*").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
+  return (data ?? []).map(rowToOpp);
 }
-export async function createOpportunity(tenantId: string, pipelineId: string, o: { name: string; value?: number; stage: string; contactId?: string | null; status?: "open" | "won" | "lost" }): Promise<{ ok: boolean; error?: string }> {
-  const row: Record<string, unknown> = { tenant_id: tenantId, pipeline_id: pipelineId, name: o.name, value: o.value ?? 0, stage: o.stage };
-  if (o.contactId) row.contact_id = o.contactId;
-  if (o.status) row.status = o.status;
-  const { error } = await service().from("tenant_opportunities").insert(row);
+export async function createOpportunity(tenantId: string, pipelineId: string, o: { name: string; value?: number; stage: string; contactId?: string | null; status?: "open" | "won" | "lost"; ownerEmail?: string | null; source?: string | null; expectedCloseDate?: string | null }): Promise<{ ok: boolean; error?: string }> {
+  const base: Record<string, unknown> = { tenant_id: tenantId, pipeline_id: pipelineId, name: o.name, value: o.value ?? 0, stage: o.stage };
+  if (o.contactId) base.contact_id = o.contactId;
+  if (o.status) base.status = o.status;
+  const extended: Record<string, unknown> = { ...base };
+  if (o.ownerEmail != null) extended.owner_email = o.ownerEmail;
+  if (o.source != null) extended.source = o.source;
+  if (o.expectedCloseDate != null) extended.expected_close_date = o.expectedCloseDate;
+  let { error } = await service().from("tenant_opportunities").insert(extended);
+  if (error && missingColOrTable(error.message)) ({ error } = await service().from("tenant_opportunities").insert(base)); // pre-0064
   return { ok: !error, error: error?.message };
 }
 export async function moveOpportunity(tenantId: string, id: string, stage: string): Promise<void> {
@@ -410,10 +441,39 @@ export async function createPipeline(tenantId: string, name: string, stages?: st
   const { data, error } = await service().from("tenant_pipelines").insert({ tenant_id: tenantId, name: name.trim() || "Pipeline", stages: stages?.length ? stages : DEFAULT_PIPELINE_STAGES }).select("id").single();
   return { ok: !error, id: data?.id, error: error?.message };
 }
+/** Rename a pipeline and/or replace its stage list (the Manage-pipeline editor). When a stage is
+ *  renamed/removed, opportunities sitting on a now-missing stage are repointed to the first stage
+ *  so nothing is orphaned off-board. */
+export async function updatePipeline(tenantId: string, id: string, patch: { name?: string; stages?: string[] }): Promise<{ ok: boolean; error?: string }> {
+  const sb = service();
+  const row: Record<string, unknown> = {};
+  if (patch.name !== undefined) row.name = patch.name.trim() || "Pipeline";
+  if (patch.stages !== undefined) {
+    const stages = patch.stages.map((s) => s.trim()).filter(Boolean);
+    if (!stages.length) return { ok: false, error: "A pipeline needs at least one stage." };
+    row.stages = stages;
+    // Repoint any opp whose stage no longer exists onto the first stage.
+    const { data: opps } = await sb.from("tenant_opportunities").select("id,stage").eq("tenant_id", tenantId).eq("pipeline_id", id);
+    const orphans = (opps ?? []).filter((o: any) => !stages.includes(o.stage)).map((o: any) => o.id);
+    if (orphans.length) await sb.from("tenant_opportunities").update({ stage: stages[0], updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).in("id", orphans);
+  }
+  if (!Object.keys(row).length) return { ok: true };
+  const { error } = await sb.from("tenant_pipelines").update(row).eq("tenant_id", tenantId).eq("id", id);
+  return { ok: !error, error: error?.message };
+}
+/** Delete a pipeline and all its opportunities. Refuses to remove the tenant's last pipeline. */
+export async function deletePipeline(tenantId: string, id: string): Promise<{ ok: boolean; error?: string }> {
+  const sb = service();
+  const { data: all } = await sb.from("tenant_pipelines").select("id").eq("tenant_id", tenantId);
+  if ((all ?? []).length <= 1) return { ok: false, error: "You can't delete your only pipeline." };
+  await sb.from("tenant_opportunities").delete().eq("tenant_id", tenantId).eq("pipeline_id", id);
+  const { error } = await sb.from("tenant_pipelines").delete().eq("tenant_id", tenantId).eq("id", id);
+  return { ok: !error, error: error?.message };
+}
 
 export interface OpportunityRow extends Opportunity { contactName: string; createdAt: string | null }
 export async function listOpportunitiesRich(tenantId: string, pipelineId: string): Promise<OpportunityRow[]> {
-  const { data } = await service().from("tenant_opportunities").select("id,name,value,stage,status,contact_id,created_at").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
+  const { data } = await service().from("tenant_opportunities").select("*").eq("tenant_id", tenantId).eq("pipeline_id", pipelineId).order("created_at", { ascending: false });
   const rows = data ?? [];
   const ids = Array.from(new Set(rows.map((r: any) => r.contact_id).filter(Boolean)));
   const names = new Map<string, string>();
@@ -421,16 +481,29 @@ export async function listOpportunitiesRich(tenantId: string, pipelineId: string
     const { data: cs } = await service().from("tenant_contacts").select("id,name,email,phone").eq("tenant_id", tenantId).in("id", ids);
     (cs ?? []).forEach((c: any) => names.set(c.id, c.name || c.email || c.phone || "—"));
   }
-  return rows.map((r: any) => ({ id: r.id, name: r.name, value: Number(r.value) || 0, stage: r.stage, status: r.status, contact_id: r.contact_id, contactName: r.contact_id ? (names.get(r.contact_id) ?? "—") : "—", createdAt: r.created_at ?? null }));
+  return rows.map((r: any) => ({ ...rowToOpp(r), contactName: r.contact_id ? (names.get(r.contact_id) ?? "—") : "—", createdAt: r.created_at ?? null }));
 }
-export async function updateOpportunity(tenantId: string, id: string, patch: { name?: string; value?: number; stage?: string; status?: "open" | "won" | "lost"; contact_id?: string | null }): Promise<{ ok: boolean; error?: string }> {
-  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) row.name = patch.name;
-  if (patch.value !== undefined) row.value = patch.value;
-  if (patch.stage !== undefined) row.stage = patch.stage;
-  if (patch.status !== undefined) row.status = patch.status;
-  if (patch.contact_id !== undefined) row.contact_id = patch.contact_id;
-  const { error } = await service().from("tenant_opportunities").update(row).eq("tenant_id", tenantId).eq("id", id);
+export interface OpportunityPatch {
+  name?: string; value?: number; stage?: string; status?: "open" | "won" | "lost"; contact_id?: string | null;
+  ownerEmail?: string | null; source?: string | null; lostReason?: string | null; expectedCloseDate?: string | null;
+}
+export async function updateOpportunity(tenantId: string, id: string, patch: OpportunityPatch): Promise<{ ok: boolean; error?: string }> {
+  const core: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) core.name = patch.name;
+  if (patch.value !== undefined) core.value = patch.value;
+  if (patch.stage !== undefined) core.stage = patch.stage;
+  if (patch.status !== undefined) core.status = patch.status;
+  if (patch.contact_id !== undefined) core.contact_id = patch.contact_id;
+  const extended: Record<string, unknown> = { ...core };
+  if (patch.ownerEmail !== undefined) extended.owner_email = patch.ownerEmail;
+  if (patch.source !== undefined) extended.source = patch.source;
+  if (patch.lostReason !== undefined) extended.lost_reason = patch.lostReason;
+  if (patch.expectedCloseDate !== undefined) extended.expected_close_date = patch.expectedCloseDate;
+  let { error } = await service().from("tenant_opportunities").update(extended).eq("tenant_id", tenantId).eq("id", id);
+  if (error && missingColOrTable(error.message)) {
+    // pre-0064: persist the core fields; extended ones are silently dropped (best-effort).
+    ({ error } = await service().from("tenant_opportunities").update(core).eq("tenant_id", tenantId).eq("id", id));
+  }
   return { ok: !error, error: error?.message };
 }
 export async function bulkOpportunity(tenantId: string, ids: string[], op: { stage?: string; status?: "open" | "won" | "lost"; delete?: boolean }): Promise<{ ok: boolean; changed: number; error?: string }> {

@@ -458,6 +458,89 @@ export async function removeWhatsAppNumber(tenantId: string, id: string): Promis
   await sb.from("tenant_social_accounts").delete().eq("tenant_id", tenantId).eq("id", id).eq("provider", "whatsapp");
 }
 
+// ── Social Planner — account listing + publishing (D-344) ─────────────────────
+export interface SocialAccountView {
+  id: string; provider: SocialProvider; accountName: string | null; accountUsername: string | null;
+  avatarUrl: string | null; accountType: string | null; status: string; externalId: string; config: Record<string, unknown>;
+}
+/** Postable networks today. (whatsapp is messaging-only; x/tiktok/youtube need their own publish flows.) */
+const POSTABLE_PROVIDERS: SocialProvider[] = ["facebook", "instagram", "linkedin"];
+
+/** The tenant's connected social accounts, for the Planner's account picker. */
+export async function listSocialAccounts(tenantId: string, opts: { postableOnly?: boolean } = {}): Promise<SocialAccountView[]> {
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("tenant_social_accounts")
+    .select("id,provider,account_name,account_username,avatar_url,account_type,status,external_id,config")
+    .eq("tenant_id", tenantId).order("created_at", { ascending: true });
+  let rows = ((data ?? []) as any[]).filter((r) => r.provider !== "whatsapp");
+  if (opts.postableOnly) rows = rows.filter((r) => POSTABLE_PROVIDERS.includes(r.provider));
+  return rows.map((r) => ({
+    id: r.id, provider: r.provider, accountName: r.account_name ?? null, accountUsername: r.account_username ?? null,
+    avatarUrl: r.avatar_url ?? null, accountType: r.account_type ?? null, status: r.status, externalId: r.external_id, config: r.config ?? {},
+  }));
+}
+export function isPostableProvider(p: string): boolean { return POSTABLE_PROVIDERS.includes(p as SocialProvider); }
+
+/**
+ * Publish one post to one connected account, on the tenant's behalf, using its stored token.
+ * LinkedIn → UGC share (text). Facebook → Page feed (or /photos when an image is attached).
+ * Instagram → image container + publish (IG requires an image). Errors are surfaced, not thrown.
+ */
+export async function publishToSocialAccount(tenantId: string, accountId: string, text: string, mediaUrls: string[] = []): Promise<{ ok: boolean; externalId?: string; error?: string }> {
+  const sb = createSupabaseServiceClient();
+  const { data } = await sb.from("tenant_social_accounts").select("provider,external_id,config").eq("tenant_id", tenantId).eq("id", accountId).maybeSingle();
+  if (!data) return { ok: false, error: "Account not found." };
+  const provider = data.provider as SocialProvider;
+  const tokens = await getSocialTokens(tenantId, accountId);
+  const token = tokens?.access_token;
+  if (!token) return { ok: false, error: "No stored token — reconnect this account in Settings → Integrations." };
+  const body = (text ?? "").trim();
+  if (!body && !mediaUrls.length) return { ok: false, error: "Nothing to post." };
+  const form = (o: Record<string, string>) => new URLSearchParams(o).toString();
+  try {
+    if (provider === "linkedin") {
+      const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Restli-Protocol-Version": "2.0.0" },
+        body: JSON.stringify({
+          author: `urn:li:person:${data.external_id}`,
+          lifecycleState: "PUBLISHED",
+          specificContent: { "com.linkedin.ugc.ShareContent": { shareCommentary: { text: body }, shareMediaCategory: "NONE" } },
+          visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+        }),
+      });
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok || json?.error) return { ok: false, error: json?.message || json?.error || `LinkedIn ${res.status}` };
+      return { ok: true, externalId: json?.id || res.headers.get("x-restli-id") || undefined };
+    }
+    if (provider === "facebook") {
+      const pageId = data.external_id;
+      if (mediaUrls[0]) {
+        const res = await fetch(`${GRAPH}/${pageId}/photos`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form({ url: mediaUrls[0], caption: body, access_token: token }) });
+        const json: any = await res.json().catch(() => ({}));
+        if (!res.ok || json?.error) return { ok: false, error: json?.error?.message || `Facebook ${res.status}` };
+        return { ok: true, externalId: json?.post_id || json?.id };
+      }
+      const res = await fetch(`${GRAPH}/${pageId}/feed`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form({ message: body, access_token: token }) });
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok || json?.error) return { ok: false, error: json?.error?.message || `Facebook ${res.status}` };
+      return { ok: true, externalId: json?.id };
+    }
+    if (provider === "instagram") {
+      const igId = data.external_id;
+      if (!mediaUrls[0]) return { ok: false, error: "Instagram posts require an image." };
+      const cRes = await fetch(`${GRAPH}/${igId}/media`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form({ image_url: mediaUrls[0], caption: body, access_token: token }) });
+      const cJson: any = await cRes.json().catch(() => ({}));
+      if (!cRes.ok || cJson?.error || !cJson?.id) return { ok: false, error: cJson?.error?.message || `Instagram create ${cRes.status}` };
+      const pRes = await fetch(`${GRAPH}/${igId}/media_publish`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form({ creation_id: cJson.id, access_token: token }) });
+      const pJson: any = await pRes.json().catch(() => ({}));
+      if (!pRes.ok || pJson?.error) return { ok: false, error: pJson?.error?.message || `Instagram publish ${pRes.status}` };
+      return { ok: true, externalId: pJson?.id };
+    }
+    return { ok: false, error: `Posting to ${provider} isn't supported yet.` };
+  } catch (e: any) { return { ok: false, error: e?.message ?? "Publish failed." }; }
+}
+
 /** Fetch a lead-ad submission's field values (name/email/phone) using the owning Page's token. */
 export async function fetchLeadAd(leadgenId: string, pageExternalId: string): Promise<{ name?: string; email?: string; phone?: string } | null> {
   const token = await tokenForExternalId(pageExternalId);

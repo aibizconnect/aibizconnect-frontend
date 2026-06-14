@@ -15,6 +15,12 @@ import {
 } from "@/lib/server/trigger-links";
 import { emailReady } from "@/lib/server/email-send";
 import { twilioReady } from "@/lib/server/twilio";
+import {
+  listSocialPosts, saveSocialPost, deleteSocialPost, publishSocialPost, draftSocialPost,
+  type SocialPost, type SocialPostResult,
+} from "@/lib/server/social-planner";
+import { listSocialAccounts, type SocialAccountView } from "@/lib/server/social";
+import { getCurrentUserEmail } from "@/lib/auth/platform-admin";
 
 /** Marketing hub actions (D-280). Auth-gated; sending is explicit-human-only. */
 
@@ -163,4 +169,36 @@ export async function deleteTriggerLinkAction(tenantId: string, id: string): Pro
   await requireTenantAccess(tenantId);
   await deleteTriggerLink(tenantId, id);
   return listTriggerLinks(tenantId);
+}
+
+// ── Social Planner (D-344) ────────────────────────────────────────────────────
+export async function listSocialAccountsAction(tenantId: string): Promise<SocialAccountView[]> {
+  await requireTenantAccess(tenantId);
+  try { return await listSocialAccounts(tenantId, { postableOnly: true }); } catch { return []; }
+}
+export async function listSocialPostsAction(tenantId: string): Promise<SocialPost[]> {
+  await requireTenantAccess(tenantId);
+  try { return await listSocialPosts(tenantId); } catch { return []; }
+}
+export async function saveSocialPostAction(tenantId: string, post: SocialPost): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAccess(tenantId);
+  if (!post?.id) return { ok: false, error: "Bad post." };
+  if (!post.content.trim() && !post.mediaUrls.length) return { ok: false, error: "Add some text or an image." };
+  const by = (await getCurrentUserEmail()) ?? undefined;
+  return saveSocialPost(tenantId, post, by);
+}
+export async function deleteSocialPostAction(tenantId: string, id: string): Promise<{ ok: boolean }> {
+  await requireTenantAccess(tenantId);
+  await deleteSocialPost(tenantId, id);
+  return { ok: true };
+}
+export async function publishSocialPostAction(tenantId: string, id: string): Promise<{ ok: boolean; results: SocialPostResult[]; error?: string }> {
+  await requireTenantAccess(tenantId);
+  return publishSocialPost(tenantId, id);
+}
+export async function draftSocialPostAction(tenantId: string, brief: string, network?: string): Promise<{ ok: boolean; text?: string; message?: string }> {
+  await requireTenantAccess(tenantId);
+  if (!brief.trim()) return { ok: false, message: "Tell the AI what to post about." };
+  const d = await draftSocialPost(tenantId, brief.trim(), network);
+  return d ? { ok: true, text: d.text } : { ok: false, message: "The AI couldn't draft this — try rephrasing." };
 }
