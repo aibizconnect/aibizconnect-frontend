@@ -693,9 +693,12 @@ export function defaultContentFor(type: SectionType): SectionContent {
         type: "contact-form",
         heading: "Contact Us",
         subheading: "",
+        // Every form ships with a comment/note field (Ali) — the multi-line "message" maps
+        // straight to the CRM contact's message on submit.
         fields: [
           { name: "name", label: "Name", type: "text" },
           { name: "email", label: "Email", type: "email" },
+          { name: "message", label: "Message / Comment", type: "textarea" },
         ],
         submitLabel: "Submit",
       };

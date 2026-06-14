@@ -10,7 +10,8 @@ async function check(label, probe) {
   else console.log(`⚠️  ${label} — ${m.slice(0, 80)}`);
 }
 
-await check("0064 tenant_opportunities.owner_email", () => sb.from("tenant_opportunities").select("owner_email").limit(1));
-await check("0064 tenant_opportunities.lost_reason", () => sb.from("tenant_opportunities").select("lost_reason").limit(1));
-await check("0065 tenant_social_posts", () => sb.from("tenant_social_posts").select("id").limit(1));
-await check("0066 tenant_blog_posts", () => sb.from("tenant_blog_posts").select("id").limit(1));
+await check("0067 tenant_url_redirects", () => sb.from("tenant_url_redirects").select("id").limit(1));
+await check("0068 tenant_courses.price_cents", () => sb.from("tenant_courses").select("price_cents").limit(1));
+await check("0068 tenant_courses.cover_image_url", () => sb.from("tenant_courses").select("cover_image_url").limit(1));
+await check("0068 tenant_course_enrollments", () => sb.from("tenant_course_enrollments").select("id").limit(1));
+await check("0069 tenant_store_orders", () => sb.from("tenant_store_orders").select("id").limit(1));
