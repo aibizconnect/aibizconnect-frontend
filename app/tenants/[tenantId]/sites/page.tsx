@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listWebsites } from "../website/website-actions";
 import AddWebsiteButton from "@/components/sites/AddWebsiteButton";
-import { funnelsEnabled } from "@/lib/flags";
+import { funnelsEnabled, idxEnabled } from "@/lib/flags";
 
 /**
  * Sites HUB (Copilot ruling): the canonical entry for the Sites module. A trimmed,
@@ -14,6 +14,7 @@ const TABS = [
   { key: "funnels", label: "Funnels" },
   { key: "blogs", label: "Blogs" },
   { key: "store", label: "Store" },
+  { key: "listings", label: "Listings" },
   { key: "forms", label: "Forms" },
   { key: "redirects", label: "Redirects" },
   { key: "portal", label: "Client Portal" },
@@ -41,6 +42,8 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
             <Link key={t.key} href={`/tenants/${tenantId}/sites/blog`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : t.key === "store" ? (
             <Link key={t.key} href={`/tenants/${tenantId}/sites/store`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
+          ) : t.key === "listings" ? (
+            idxEnabled() ? <Link key={t.key} href={`/tenants/${tenantId}/sites/listings`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link> : null
           ) : t.key === "redirects" ? (
             <Link key={t.key} href={`/tenants/${tenantId}/sites/redirects`} className="pb-2 text-slate-500 hover:text-slate-800">{t.label}</Link>
           ) : t.key === "portal" ? (

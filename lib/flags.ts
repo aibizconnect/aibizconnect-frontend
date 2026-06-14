@@ -13,3 +13,12 @@ function envOff(...vals: (string | undefined)[]): boolean {
 export function funnelsEnabled(): boolean {
   return !envOff(process.env.FUNNELS_ENABLED, process.env.NEXT_PUBLIC_FUNNELS_ENABLED);
 }
+
+/**
+ * IDX/VOW (real-estate listings via CREA DDF). DEFAULT OFF — flips on only when explicitly enabled
+ * AND a tenant has a feed configured with DDF terms accepted. Set IDX_ENABLED=on to surface it.
+ */
+export function idxEnabled(): boolean {
+  const v = (process.env.IDX_ENABLED ?? process.env.NEXT_PUBLIC_IDX_ENABLED ?? "").toLowerCase();
+  return v === "on" || v === "true";
+}
