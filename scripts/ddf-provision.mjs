@@ -26,6 +26,8 @@ const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; 
 const txt = (v) => { if (v == null) return null; const s = String(v).trim(); return s === "" ? null : s; };
 const firstNum = (v) => { const m = String(v ?? "").match(/\d[\d,]*/); return m ? Number(m[0].replace(/,/g, "")) : null; };
 const splitCity = (raw) => { const m = String(raw ?? "").match(/^(.*?)\s*\(([^)]+)\)\s*$/); return m ? { city: m[1].trim(), community: m[2].trim() } : { city: txt(raw), community: null }; };
+const COMMERCIAL = ["retail", "office", "industrial", "business", "multi-family", "multi family", "hospitality", "agriculture"];
+const derivePropertyClass = (pt, ot) => { const t = String(pt ?? "").trim().toLowerCase(); if (COMMERCIAL.includes(t)) return "Commercial"; const condo = /cond|strata/i.test(String(ot ?? "")); if (t === "single family" && !condo) return "Residential"; return "Condo & Other"; };
 function mapRow(r) {
   const { city, community } = splitCity(r.City);
   const lease = txt(r.Lease);
@@ -37,6 +39,7 @@ function mapRow(r) {
     bedrooms: num(r.BedroomsTotal), bathrooms: num(r.BathroomsTotal), sqft_total: firstNum(r.BuildingAreaTotal), lot_size_sqft: firstNum(r.LotSizeArea),
     year_built: num(r.YearBuilt), public_remarks: txt(r.PublicRemarks), listing_brokerage_name: txt(r.ListOfficeName), listing_agent_name: txt(r.ListAgentFullName),
     community, transaction_type: lease ? "For Lease" : "For Sale", photos_count: num(r.PhotosCount), more_info_url: txt(r.MoreInformationLink),
+    property_class: derivePropertyClass(r.PropertyType, r.OwnershipType), ownership_type: txt(r.OwnershipType), property_sub_type: txt(r.PropertySubType ?? r.ArchitecturalStyle), association_fee: num(r.AssociationFee), parking_total: num(r.ParkingTotal),
     modification_timestamp: (() => { const d = new Date(String(r.ModificationTimestamp)); return isNaN(d) ? new Date().toISOString() : d.toISOString(); })(),
     raw_data: { PhotosChangeTimestamp: r.PhotosChangeTimestamp ?? null, PhotosCount: r.PhotosCount ?? null }, updated_at: new Date().toISOString(),
   };

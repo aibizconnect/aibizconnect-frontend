@@ -36,6 +36,7 @@ export async function upsertListings(tenantId: string, source: string, listings:
       sqft_total: l.sqftTotal ?? null, lot_size_sqft: l.lotSizeSqft ?? null, year_built: l.yearBuilt ?? null,
       public_remarks: l.publicRemarks ?? null, listing_brokerage_name: l.listingBrokerageName ?? null, listing_agent_name: l.listingAgentName ?? null,
       community: l.community ?? null, transaction_type: l.transactionType ?? null, photos_count: l.photosCount ?? null, more_info_url: l.moreInfoUrl ?? null,
+      property_class: l.propertyClass ?? null, ownership_type: l.ownershipType ?? null, property_sub_type: l.propertySubType ?? null, association_fee: l.associationFee ?? null, parking_total: l.parkingTotal ?? null,
       modification_timestamp: l.modificationTimestamp, inactive_at: null, raw_data: l.raw ?? {}, updated_at: new Date().toISOString(),
     };
     // Was it already present? (to count created vs updated)
@@ -100,7 +101,12 @@ export async function communityFromSlug(tenantId: string, municipality: string, 
 }
 
 // ── read (display) ────────────────────────────────────────────────────────────
-export interface ListingFilter { city?: string; municipality?: string; community?: string; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number }
+export interface ListingFilter { city?: string; municipality?: string; community?: string; propertyClass?: string; transactionType?: string; maxFee?: number; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number }
+export async function listPropertyClasses(tenantId: string): Promise<{ name: string; count: number }[]> {
+  const { data, error } = await svc().rpc("idx_property_classes", { p_tenant: tenantId });
+  if (error) return [];
+  return (data ?? []).map((r: any) => ({ name: r.property_class, count: Number(r.n) }));
+}
 export interface ListingCard { id: string; mlsNumber: string | null; status: string | null; propertyType: string | null; listPrice: number | null; currency: string; city: string | null; province: string | null; beds: number | null; baths: number | null; sqft: number | null; brokerage: string | null; modifiedAt: string; cover: string | null }
 
 export async function listListings(tenantId: string, f: ListingFilter = {}): Promise<{ rows: ListingCard[]; total: number }> {
@@ -111,10 +117,13 @@ export async function listListings(tenantId: string, f: ListingFilter = {}): Pro
   if (f.municipality) q = q.eq("address_city", f.municipality);
   else if (f.city) q = q.ilike("address_city", `%${f.city}%`);
   if (f.community) q = q.eq("community", f.community);
+  if (f.propertyClass) q = q.eq("property_class", f.propertyClass);
+  if (f.transactionType) q = q.eq("transaction_type", f.transactionType);
   if (f.minPrice != null) q = q.gte("list_price", f.minPrice);
   if (f.maxPrice != null) q = q.lte("list_price", f.maxPrice);
   if (f.beds != null) q = q.gte("bedrooms", f.beds);
   if (f.baths != null) q = q.gte("bathrooms", f.baths);
+  if (f.maxFee != null) q = q.lte("association_fee", f.maxFee);
   if (f.propertyType) q = q.eq("property_type", f.propertyType);
   q = q.order("modification_timestamp", { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
   const { data, count, error } = await q;

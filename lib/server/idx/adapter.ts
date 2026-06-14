@@ -31,6 +31,11 @@ export interface NormalizedListing {
   listingAgentName?: string | null;
   community?: string | null;          // parsed from City "City (Community)"
   transactionType?: string | null;    // For Sale | For Lease
+  propertyClass?: string | null;      // Residential | Condo & Other | Commercial (derived)
+  ownershipType?: string | null;      // RESO OwnershipType
+  propertySubType?: string | null;
+  associationFee?: number | null;     // condo/maintenance fee
+  parkingTotal?: number | null;
   photosCount?: number | null;
   moreInfoUrl?: string | null;        // RESO MoreInformationLink (realtor.ca)
   modificationTimestamp: string;     // RESO ModificationTimestamp (ISO) — replication cursor
@@ -74,6 +79,15 @@ function splitCity(raw: unknown): { city: string | null; community: string | nul
   const m = s.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   return m ? { city: m[1].trim(), community: m[2].trim() } : { city: s, community: null };
 }
+/** Group CREA's coarse PropertyType + OwnershipType into the myRealPage-style search classes. */
+const COMMERCIAL_TYPES = ["retail", "office", "industrial", "business", "multi-family", "multi family", "hospitality", "agriculture"];
+function derivePropertyClass(propertyType: unknown, ownershipType: unknown): string {
+  const pt = String(propertyType ?? "").trim().toLowerCase();
+  if (COMMERCIAL_TYPES.includes(pt)) return "Commercial";
+  const isCondo = /cond|strata/i.test(String(ownershipType ?? ""));
+  if (pt === "single family" && !isCondo) return "Residential";
+  return "Condo & Other"; // condos, vacant land, parking, and anything non-residential/non-commercial
+}
 
 /**
  * Map a CREA DDF / RESO Data Dictionary record → NormalizedListing. Verified against the live CREA
@@ -111,6 +125,11 @@ export function mapResoRecord(r: Record<string, any>): NormalizedListing {
     listingAgentName: text(r.ListAgentFullName),
     community,
     transactionType: lease ? "For Lease" : "For Sale",
+    propertyClass: derivePropertyClass(r.PropertyType, r.OwnershipType),
+    ownershipType: text(r.OwnershipType),
+    propertySubType: text(r.PropertySubType ?? r.ArchitecturalStyle),
+    associationFee: num(r.AssociationFee),
+    parkingTotal: num(r.ParkingTotal),
     photosCount: num(r.PhotosCount),
     moreInfoUrl: text(r.MoreInformationLink),
     modificationTimestamp: toIso(r.ModificationTimestamp) ?? new Date(0).toISOString(),
