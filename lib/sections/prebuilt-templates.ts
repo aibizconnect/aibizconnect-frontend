@@ -367,7 +367,41 @@ const GENERIC_TEMPLATES: PrebuiltTemplate[] = [
   footer("footer-dark", "Footer — Simple, Dark", "Dark brand · links · copyright", PAL.dark),
 ];
 
+// Real-estate header — the "fully editable + wired" reference template (D-368). Native row/header
+// with a logo heading, our Menu element (real nav links + a Listings dropdown), and a wired CTA
+// button. Inserts as editable elements on the canvas; links resolve on the published site.
+const REALTOR_HEADER: PrebuiltTemplate = {
+  id: "realtor-header", name: "Header — Real Estate (logo · menu · CTA)", category: "Headers", icon: "▭",
+  blurb: "Logo, full nav with a Listings dropdown, and a wired Book-a-Call button",
+  sections: [{
+    type: "row", _kind: "header", columns: 3, contentWidth: "boxed", valign: "center", widths: [0.24, 0.54, 0.22],
+    _style: { bg: "#ffffff", pt: 16, pb: 16, paddingX: 24, borderStyle: "solid", borderWidth: 1, borderColor: "#e5e7eb" },
+    colStyles: [{ itemsAlign: "start" }, { itemsAlign: "center" }, { itemsAlign: "end" }] as any,
+    children: [
+      [{ type: "heading", text: "Your Name · REALTOR®", level: "h3", align: "left", color: "#0f172a", fontWeight: "700", letterSpacing: 0.2 } as SectionContent],
+      [{ type: "menu", orientation: "horizontal", align: "center", color: "#0f172a", activeColor: "#1e3a8a", fontFamily: "Inter",
+        submenuBg: "#ffffff", submenuColor: "#0f172a", submenuHoverBg: "#f1f5f9",
+        items: [
+          { label: "Home", href: "/" },
+          { label: "Listings", href: "/listings", children: [
+            { label: "For Sale", href: "/listings?t=For+Sale" },
+            { label: "For Lease", href: "/listings?t=For+Lease" },
+            { label: "Commercial", href: "/listings?class=Commercial" },
+          ] },
+          { label: "Communities", href: "/areas" },
+          { label: "Buying", href: "/buying" },
+          { label: "Selling", href: "/selling" },
+          { label: "About", href: "/about" },
+          { label: "Blog", href: "/blog" },
+          { label: "Contact", href: "/contact" },
+        ] } as SectionContent],
+      [{ type: "button", label: "Book a Call", href: "/contact", align: "right", size: "lg", variant: "solid", bgColor: "#1e3a8a", textColor: "#ffffff", hover: "lift" } as SectionContent],
+    ],
+  }] as SectionContent[],
+};
+
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
+  REALTOR_HEADER,
   ...LUXURY_TEMPLATES,
   ...GENERIC_TEMPLATES,
   // ── HERO (fully editable: rows + elements, not a sealed component) ───────────────
