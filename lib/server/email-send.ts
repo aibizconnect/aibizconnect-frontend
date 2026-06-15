@@ -31,8 +31,10 @@ function unsubscribeUrl(tenantId: string): string {
   return `${base}/api/followups/unsubscribe?token=${unsubscribeToken(tenantId)}`;
 }
 
-/** Send one email via Resend on the tenant's behalf. Appends the footer for its kind. */
-export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string; footer?: "setup" | "appointment" | "none" }): Promise<{ ok: boolean; id?: string; error?: string }> {
+/** Send one email via Resend on the tenant's behalf. Appends the footer for its kind. Optional
+ *  `text` sends a plain-text alternative (multipart) for clients that won't render HTML, and
+ *  `headers` carries extra SMTP headers (e.g. List-Unsubscribe for one-click). */
+export async function sendEmail(tenantId: string, msg: { to: string; subject: string; html: string; text?: string; footer?: "setup" | "appointment" | "none"; headers?: Record<string, string> }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const ready = await emailReady(tenantId);
   if (!ready.ok || !ready.identity) return { ok: false, error: ready.reason };
   const sec = await getIntegrationSecret(tenantId, "resend").catch(() => null);
@@ -45,10 +47,13 @@ export async function sendEmail(tenantId: string, msg: { to: string; subject: st
     : `<hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/><p style="font-size:12px;color:#94a3b8">You're receiving this because you enabled setup reminders. <a href="${unsubscribeUrl(tenantId)}">Unsubscribe</a>.</p>`;
   const from = `${ready.identity.sender_name} <${ready.identity.sender_email}>`;
   try {
+    const body: Record<string, unknown> = { from, to: msg.to, subject: msg.subject, html: msg.html + footer };
+    if (msg.text) body.text = msg.text;
+    if (msg.headers && Object.keys(msg.headers).length) body.headers = msg.headers;
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${String(sec.api_key)}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: msg.to, subject: msg.subject, html: msg.html + footer }),
+      body: JSON.stringify(body),
     });
     const json: any = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, error: json?.message || `Resend ${res.status}` };

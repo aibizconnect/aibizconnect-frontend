@@ -8,8 +8,10 @@ import {
   listSmsCampaignsAction, saveSmsCampaignAction, deleteSmsCampaignAction, smsAudienceCountAction,
   draftSmsCampaignAction, sendSmsTestAction, sendSmsCampaignAction,
   listTriggerLinksAction, saveTriggerLinkAction, deleteTriggerLinkAction,
+  getEmailBrandingAction, saveEmailBrandingAction,
   type MarketingStatus, type EmailTemplate,
 } from "@/app/tenants/[tenantId]/marketing/actions";
+import type { EmailBranding } from "@/lib/server/email-branding";
 import type { EmailCampaign } from "@/lib/server/email-campaigns";
 import type { SmsCampaign } from "@/lib/server/sms-campaigns";
 import type { TriggerLink } from "@/lib/server/trigger-links";
@@ -38,7 +40,7 @@ const newCampaign = (): EmailCampaign => ({
 export default function MarketingHub({ tenantId, initialCampaigns, status, socialAccounts }: {
   tenantId: string; initialCampaigns: EmailCampaign[]; status: MarketingStatus; socialAccounts: SocialAccountView[];
 }) {
-  const [tab, setTab] = useState<"campaigns" | "templates" | "sms" | "links" | "social">("campaigns");
+  const [tab, setTab] = useState<"campaigns" | "templates" | "sms" | "links" | "social" | "branding">("campaigns");
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [editing, setEditing] = useState<EmailCampaign | null>(null);
 
@@ -62,6 +64,7 @@ export default function MarketingHub({ tenantId, initialCampaigns, status, socia
       <div className="mt-4 flex gap-1 border-b border-slate-200">
         {tabBtn("campaigns", "Campaigns")}
         {tabBtn("templates", "Templates")}
+        {tabBtn("branding", "Email Branding")}
         {tabBtn("sms", "SMS Campaigns")}
         {tabBtn("links", "Trigger Links")}
         {tabBtn("social", "Social Planner")}
@@ -81,6 +84,7 @@ export default function MarketingHub({ tenantId, initialCampaigns, status, socia
           onSaved={(c) => setCampaigns((p) => (p.some((x) => x.id === c.id) ? p.map((x) => (x.id === c.id ? c : x)) : [c, ...p]))} />
       )}
       {tab === "templates" && <TemplatesTab tenantId={tenantId} onUse={(t) => { setEditing({ ...newCampaign(), name: t.name, subject: t.subject, preheader: t.preheader, body: t.body }); setTab("campaigns"); }} />}
+      {tab === "branding" && <BrandingTab tenantId={tenantId} />}
       {tab === "social" && <SocialPlanner tenantId={tenantId} accounts={socialAccounts} />}
       {tab === "sms" && <SmsTab tenantId={tenantId} status={status} />}
       {tab === "links" && <LinksTab tenantId={tenantId} status={status} />}
@@ -531,6 +535,48 @@ function TemplatesTab({ tenantId, onUse }: { tenantId: string; onUse: (t: EmailT
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Email branding (D-360): header / HTML+text signature / footer, with a forced unsubscribe ──
+function BrandingTab({ tenantId }: { tenantId: string }) {
+  const [b, setB] = useState<EmailBranding | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getEmailBrandingAction(tenantId).then(setB).catch(() => setB({ header: "", signature: "", signatureText: "", footer: "" })); }, [tenantId]);
+  if (!b) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
+  const set = (k: keyof EmailBranding, v: string) => setB((p) => (p ? { ...p, [k]: v } : p));
+  async function save() {
+    if (!b) return;
+    setBusy(true);
+    try { const r = await saveEmailBrandingAction(tenantId, b); notify(r.ok ? "Email branding saved ✓" : "Could not save."); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div className="mt-5 max-w-2xl space-y-4">
+      <p className="text-sm text-slate-500">Applied to every marketing email. Design a banner in Canva (or anywhere) and paste it as HTML or an <code>&lt;img&gt;</code> tag.</p>
+
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        🔒 <b>Unsubscribe is automatic and permanent.</b> Every recipient gets a personal one-click unsubscribe link (plus a List-Unsubscribe header for Gmail / Apple Mail), inserted between your signature and footer. You don&apos;t add it — and it can&apos;t be removed. Required by CASL / CAN-SPAM.
+      </div>
+
+      <label className="block"><span className={lbl}>Header — HTML (e.g. a Canva banner)</span>
+        <textarea value={b.header} onChange={(e) => set("header", e.target.value)} rows={3} className={`${inp} font-mono text-xs`} placeholder={'<img src="https://…/banner.png" alt="" style="max-width:100%"/>'} /></label>
+
+      <label className="block"><span className={lbl}>Signature — HTML</span>
+        <textarea value={b.signature} onChange={(e) => set("signature", e.target.value)} rows={5} className={`${inp} font-mono text-xs`} placeholder={'Jane Agent<br/>Broker, ABC Realty<br/><a href="tel:+14165551234">(416) 555-1234</a>'} /></label>
+
+      <label className="block"><span className={lbl}>Signature — plain text (shown when the recipient&apos;s app blocks HTML)</span>
+        <textarea value={b.signatureText} onChange={(e) => set("signatureText", e.target.value)} rows={4} className={inp} placeholder={"Jane Agent\nBroker, ABC Realty\n(416) 555-1234"} /></label>
+
+      <label className="block"><span className={lbl}>Footer — HTML (your mailing address etc.)</span>
+        <textarea value={b.footer} onChange={(e) => set("footer", e.target.value)} rows={3} className={`${inp} font-mono text-xs`} placeholder="ABC Realty · 123 Main St, Toronto ON · (416) 555-1234" /></label>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+        <b className="text-slate-600">Order in every email:</b> Header → your message → Signature → <span className="font-semibold text-emerald-700">Unsubscribe (forced)</span> → Footer. Use <b>Send me a test</b> in any campaign to preview it.
+      </div>
+
+      <button onClick={save} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : "Save email branding"}</button>
     </div>
   );
 }

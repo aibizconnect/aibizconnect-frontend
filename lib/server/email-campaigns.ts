@@ -1,6 +1,10 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendEmail, emailReady } from "@/lib/server/email-send";
 import { llm, stripFences } from "@/lib/agent/llm";
+import {
+  getEmailBranding, headerHtml, signatureHtml, complianceFooterHtml, marketingUnsubUrl, stripTags,
+  type EmailBranding,
+} from "@/lib/server/email-branding";
 
 /**
  * EMAIL CAMPAIGNS engine (D-280 — the Marketing menu). DRAFTS-ONLY LAW: nothing here
@@ -114,6 +118,27 @@ export function campaignBodyHtml(body: string, preheader?: string): string {
   return `${pre}<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;padding:8px">${paras}</div>`;
 }
 
+/** Full HTML email: header → body → signature → [forced unsubscribe] → footer. The unsubscribe is
+ *  injected here (per-recipient), so the tenant can't remove it. */
+export function composeCampaignHtml(tenantId: string, contactId: string, c: { body: string; preheader?: string }, b: EmailBranding): string {
+  const pre = c.preheader ? `<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0">${c.preheader}</span>` : "";
+  const paras = c.body.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1f2937">${p.replace(/\n/g, "<br/>")}</p>`).join("");
+  return `${pre}<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;padding:8px">`
+    + `${headerHtml(b)}<div>${paras}</div>${signatureHtml(b)}${complianceFooterHtml(tenantId, contactId, b)}</div>`;
+}
+
+/** Plain-text alternative (multipart) for clients that won't render HTML. Same order; the
+ *  unsubscribe URL is always present. */
+export function composeCampaignText(tenantId: string, contactId: string, c: { body: string }, b: EmailBranding): string {
+  const out: string[] = [];
+  const h = stripTags(b.header); if (h) out.push(h, "");
+  out.push(c.body.trim());
+  const sig = (b.signatureText.trim() || stripTags(b.signature)); if (sig) out.push("", "--", sig);
+  out.push("", `Unsubscribe: ${marketingUnsubUrl(tenantId, contactId)}`);
+  const f = stripTags(b.footer); if (f) out.push("", f);
+  return out.join("\n");
+}
+
 /** AI draft (subject + preheader + body) grounded in the tenant's Business Profile. */
 export async function draftCampaign(tenantId: string, brief: string): Promise<{ subject: string; preheader: string; body: string } | null> {
   const sb = svc();
@@ -141,7 +166,10 @@ export async function draftCampaign(tenantId: string, brief: string): Promise<{ 
 export async function sendCampaignTest(tenantId: string, c: EmailCampaign, to: string): Promise<{ ok: boolean; error?: string }> {
   const ready = await emailReady(tenantId);
   if (!ready.ok) return { ok: false, error: `Email isn't set up yet — ${ready.reason ?? "add a verified sender in Sites → website → Settings → Email sending."}` };
-  const r = await sendEmail(tenantId, { to, subject: `[TEST] ${c.subject || c.name}`, html: campaignBodyHtml(c.body, c.preheader), footer: "setup" });
+  const branding = await getEmailBranding(tenantId);
+  const html = composeCampaignHtml(tenantId, "preview", c, branding);
+  const text = composeCampaignText(tenantId, "preview", c, branding);
+  const r = await sendEmail(tenantId, { to, subject: `[TEST] ${c.subject || c.name}`, html, text, footer: "none", headers: { "List-Unsubscribe": `<${marketingUnsubUrl(tenantId, "preview")}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
   return r.ok ? { ok: true } : { ok: false, error: r.error };
 }
 
@@ -165,10 +193,16 @@ export async function sendCampaign(tenantId: string, campaignId: string): Promis
   log("send.start", `${recipients.length} recipients`);
   await saveCampaign(tenantId, c);
 
-  const html = campaignBodyHtml(c.body, c.preheader);
+  const branding = await getEmailBranding(tenantId);
   let sent = 0, failed = 0;
   for (const r of recipients) {
-    const res = await sendEmail(tenantId, { to: r.email, subject: c.subject, html, footer: "setup" });
+    // Per-recipient: the forced unsubscribe + List-Unsubscribe header are keyed to this contact.
+    const html = composeCampaignHtml(tenantId, r.id, c, branding);
+    const text = composeCampaignText(tenantId, r.id, c, branding);
+    const res = await sendEmail(tenantId, {
+      to: r.email, subject: c.subject, html, text, footer: "none",
+      headers: { "List-Unsubscribe": `<${marketingUnsubUrl(tenantId, r.id)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+    });
     if (res.ok) sent++;
     else { failed++; if (failed <= 10) log("send.fail", `${r.email}: ${res.error}`); }
   }

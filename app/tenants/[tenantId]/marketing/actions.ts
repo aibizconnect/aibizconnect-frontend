@@ -14,6 +14,8 @@ import {
   listTriggerLinks, createTriggerLink, updateTriggerLink, deleteTriggerLink, type TriggerLink,
 } from "@/lib/server/trigger-links";
 import { emailReady } from "@/lib/server/email-send";
+import { getEmailBranding, saveEmailBranding } from "@/lib/server/email-branding";
+import type { EmailBranding } from "@/lib/server/email-branding";
 import { twilioReady } from "@/lib/server/twilio";
 import {
   listSocialPosts, saveSocialPost, deleteSocialPost, publishSocialPost, draftSocialPost,
@@ -114,6 +116,17 @@ export async function marketingStatusAction(tenantId: string): Promise<Marketing
     tags = (data ?? []).map((t: any) => String(t.name));
   } catch { /* empty registry */ }
   return { emailReady: ready.ok, emailReason: ready.reason, smsReady: sms, tags };
+}
+
+// ── Email branding (D-360): tenant header / signature (HTML + text) / footer ──────
+export async function getEmailBrandingAction(tenantId: string): Promise<EmailBranding> {
+  await requireTenantAccess(tenantId);
+  return getEmailBranding(tenantId);
+}
+export async function saveEmailBrandingAction(tenantId: string, b: EmailBranding): Promise<{ ok: boolean }> {
+  await requireTenantAccess(tenantId);
+  await saveEmailBranding(tenantId, b);
+  return { ok: true };
 }
 
 // ── SMS campaigns (D-316..317) — mirrors email, human-approved send only ─────
