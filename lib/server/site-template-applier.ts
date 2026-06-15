@@ -8,7 +8,7 @@ import { createPage, saveDraft, publishPage, setWebsiteChrome, updateBrandColumn
  * NON-DESTRUCTIVE: fresh mode refuses to run on a website that already has content (no clobber).
  */
 
-export interface ApplyOptions { mode?: "fresh" | "merge" }
+export interface ApplyOptions { mode?: "fresh" | "merge" | "replace" }
 export interface ApplyReport { ok: boolean; message: string; pagesCreated: number; errors: string[] }
 
 const svc = () => createSupabaseServiceClient();
@@ -42,6 +42,17 @@ export async function applySiteTemplate(tenantId: string, websiteId: string, tem
   }
 
   const errors: string[] = [];
+
+  // Replace mode (D-364): wipe the website's existing pages (cascade clears sections + block refs),
+  // then rebuild from the template. Keeps the website row + domain. Used to fix an AI/blank build.
+  if (mode === "replace") {
+    const { data: existing } = await svc().from("website_pages").select("id").eq("tenant_id", tenantId).eq("website_id", websiteId);
+    const ids = (existing ?? []).map((p: any) => p.id);
+    if (ids.length) {
+      const { error } = await svc().from("website_pages").delete().in("id", ids);
+      if (error) errors.push(`clear: ${error.message}`);
+    }
+  }
 
   // 1) Brand defaults + central menu + global social (D-365/D-366)
   try {

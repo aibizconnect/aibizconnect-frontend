@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { listSiteTemplatesForTenant, createSiteFromTemplate, type SiteTemplateCard } from "@/app/tenants/[tenantId]/sites/site-template-actions";
+import { listSiteTemplatesForTenant, createSiteFromTemplate, applyTemplateToWebsite, type SiteTemplateCard } from "@/app/tenants/[tenantId]/sites/site-template-actions";
 
 /**
  * "Start from a template" (D-364) — pick a seeded site template, name the site, and we create a
  * new (blank) website + apply the full template (chrome + menu + brand + starter pages), then open
  * the editor. Always operates on a fresh site, so it never clobbers existing content.
  */
-export default function StartFromTemplate({ tenantId }: { tenantId: string }) {
+export default function StartFromTemplate({ tenantId, websites = [] }: { tenantId: string; websites?: { id: string; name: string }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [cards, setCards] = useState<SiteTemplateCard[] | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [target, setTarget] = useState("new"); // "new" | an existing websiteId
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -22,12 +23,19 @@ export default function StartFromTemplate({ tenantId }: { tenantId: string }) {
 
   async function go() {
     if (!picked) { setErr("Pick a template first."); return; }
-    if (!name.trim()) { setErr("Name your new website."); return; }
     setBusy(true); setErr(null);
-    const r = await createSiteFromTemplate(tenantId, name.trim(), picked);
+    let r: { ok: boolean; websiteId?: string; message?: string };
+    if (target === "new") {
+      if (!name.trim()) { setErr("Name your new website."); setBusy(false); return; }
+      r = await createSiteFromTemplate(tenantId, name.trim(), picked);
+    } else {
+      const w = websites.find((x) => x.id === target);
+      if (!confirm(`Rebuild "${w?.name ?? "this site"}" from the template? This deletes its current pages and replaces them.`)) { setBusy(false); return; }
+      r = await applyTemplateToWebsite(tenantId, target, picked);
+    }
     setBusy(false);
     if (r.ok && r.websiteId) router.push(`/tenants/${tenantId}/website/${r.websiteId}`);
-    else setErr(r.message ?? "Could not create the site.");
+    else setErr(r.message ?? "Could not apply the template.");
   }
 
   if (!open) {
@@ -57,9 +65,19 @@ export default function StartFromTemplate({ tenantId }: { tenantId: string }) {
               </button>
             ))}
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New website name (e.g. On Dream Homes)" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
-            <button onClick={go} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Building…" : "Create site"}</button>
+          <div className="mt-4 space-y-2">
+            <label className="block text-xs text-slate-500">Apply to
+              <select value={target} onChange={(e) => setTarget(e.target.value)} className="ml-2 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-700">
+                <option value="new">➕ A new website</option>
+                {websites.map((w) => <option key={w.id} value={w.id}>Rebuild: {w.name.length > 44 ? w.name.slice(0, 44) + "…" : w.name}</option>)}
+              </select>
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {target === "new"
+                ? <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New website name (e.g. On Dream Homes)" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]" />
+                : <span className="flex-1 text-xs text-rose-600">⚠ Replaces all current pages on this website with the template.</span>}
+              <button onClick={go} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Building…" : (target === "new" ? "Create site" : "Rebuild site")}</button>
+            </div>
           </div>
           {err && <div className="mt-2 rounded-md bg-rose-50 px-3 py-1.5 text-xs text-rose-700">{err}</div>}
           <p className="mt-2 text-xs text-slate-400">Creates a new website and applies the template — header/footer chrome, menu, brand, and starter pages — then opens the editor.</p>

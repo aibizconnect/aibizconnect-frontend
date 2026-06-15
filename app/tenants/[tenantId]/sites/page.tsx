@@ -55,8 +55,8 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
         )}
       </div>
 
-      {/* Start a new site from an industry template */}
-      <div className="mb-6"><StartFromTemplate tenantId={tenantId} /></div>
+      {/* Start a new site from an industry template (or rebuild an existing one) */}
+      <div className="mb-6"><StartFromTemplate tenantId={tenantId} websites={websites.map((w) => ({ id: w.id, name: w.name }))} /></div>
 
       {/* Websites list */}
       <div className="mb-4 flex items-center justify-between">
