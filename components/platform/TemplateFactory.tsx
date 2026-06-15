@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { STITCH_PROMPTS } from "@/lib/sections/stitch-prompts";
 import type { SectionTemplate } from "@/lib/server/section-templates";
 import {
   listTemplatesAction, seedPrebuiltsAction, setStatusAction, deleteTemplateAction, importTemplateAction,
+  listSiteTemplatesAction, seedSiteTemplatesAction,
 } from "@/app/platform/template-factory/actions";
+import type { SiteTemplate } from "@/lib/server/site-templates";
 
 /**
  * Section Template Factory admin UI (D-363..367). Three tabs:
@@ -18,7 +20,7 @@ const CATEGORIES = ["Headers", "Hero", "About & Services", "Team", "Features", "
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1e3a8a]";
 
 export default function TemplateFactory({ initial }: { initial: SectionTemplate[] }) {
-  const [tab, setTab] = useState<"library" | "prompts" | "import">("library");
+  const [tab, setTab] = useState<"library" | "prompts" | "import" | "sites">("library");
   const [rows, setRows] = useState<SectionTemplate[]>(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function TemplateFactory({ initial }: { initial: SectionTemplate[
 
       <div className="mt-5 flex gap-1 border-b border-slate-200">
         {tabBtn("library", `Library (${rows.length})`)}
+        {tabBtn("sites", "Site templates")}
         {tabBtn("prompts", `Stitch prompts (${STITCH_PROMPTS.length})`)}
         {tabBtn("import", "Import")}
       </div>
@@ -106,6 +109,40 @@ export default function TemplateFactory({ initial }: { initial: SectionTemplate[
       )}
 
       {tab === "import" && <ImportTab onDone={async (m) => { setMsg(m); setTab("library"); await refresh(); }} />}
+      {tab === "sites" && <SiteTemplatesTab />}
+    </div>
+  );
+}
+
+function SiteTemplatesTab() {
+  const [rows, setRows] = useState<SiteTemplate[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = () => listSiteTemplatesAction().then(setRows).catch(() => setRows([]));
+  useEffect(() => { load(); }, []);
+  async function seed() {
+    setBusy(true); setMsg(null);
+    const r = await seedSiteTemplatesAction();
+    setMsg(r.ok ? `Seeded ${r.inserted} site template(s).` : (r.error ?? "Seed failed."));
+    await load(); setBusy(false);
+  }
+  return (
+    <div className="mt-5 space-y-3">
+      <p className="text-sm text-slate-500">Full industry starter sites — global header/footer chrome + central menu + brand + global social + starter pages. Applied to a <b>blank</b> website (fresh mode) so it never clobbers existing content.</p>
+      <button onClick={seed} disabled={busy} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Seeding…" : "Seed real-estate site templates"}</button>
+      {msg && <div className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">{msg}</div>}
+      {rows === null ? <p className="py-8 text-center text-sm text-slate-400">Loading…</p> : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-slate-400">No site templates yet — seed to populate.</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {rows.map((t) => (
+            <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="text-sm font-medium text-slate-900">{t.name}</div>
+              <div className="text-xs text-slate-400">{t.industry} · {t.pages.length} pages · header+footer chrome</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

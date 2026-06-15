@@ -5,6 +5,8 @@ import {
   listSectionTemplates, setTemplateStatus, deleteSectionTemplate, seedFromPrebuilts, createSectionTemplate,
   type SectionTemplate,
 } from "@/lib/server/section-templates";
+import { listSiteTemplates, seedSiteTemplates, type SiteTemplate } from "@/lib/server/site-templates";
+import { applySiteTemplate, type ApplyReport } from "@/lib/server/site-template-applier";
 
 /** Section Template Factory actions (D-363..367) — platform-admin only. */
 async function gate() { if (!(await isPlatformAdmin())) throw new Error("Platform admin only."); }
@@ -32,4 +34,15 @@ export async function importTemplateAction(input: { name: string; category: stri
   }
   const r = await createSectionTemplate({ tenantId: null, sections, status: "active", manifest: { name: input.name?.trim() || "Imported section", category: input.category || "Content", generatedBy: "import" } });
   return r.ok ? { ok: true } : { ok: false, error: r.error, duplicate: r.duplicate };
+}
+
+// ── Site templates (D-363..368) ───────────────────────────────────────────────
+export async function listSiteTemplatesAction(): Promise<SiteTemplate[]> { await gate(); return listSiteTemplates(); }
+export async function seedSiteTemplatesAction(): Promise<{ ok: boolean; inserted?: number; error?: string }> {
+  await gate(); const r = await seedSiteTemplates();
+  return r.error ? { ok: false, error: r.error } : { ok: true, inserted: r.inserted };
+}
+/** Apply a site template to a blank website (fresh mode). tenant-scoped + admin-gated. */
+export async function applySiteTemplateAction(tenantId: string, websiteId: string, templateId: string, mode: "fresh" | "merge" = "fresh"): Promise<ApplyReport> {
+  await gate(); return applySiteTemplate(tenantId, websiteId, templateId, { mode });
 }

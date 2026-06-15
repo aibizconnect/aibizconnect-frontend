@@ -776,3 +776,38 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
 }
 
 export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Templates", "Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Team", "Content", "Social Proof", "Conversion", "Footers"];
+
+// ── SITE TEMPLATES (D-363..368) — seed for the Site-Template Applier ──────────────
+// A site template = global header/footer chrome + central menu + brand + global social + starter
+// pages. applySiteTemplate() lays this onto a blank website. Composed from the section pieces above.
+export interface SiteTemplateSeed {
+  name: string;
+  industry: string;
+  manifest: { blurb?: string };
+  header: SectionContent;
+  footer: SectionContent;
+  menu: { items: { label: string; link: { url: string } }[] };
+  brand: Record<string, string>;
+  social: Record<string, string>;
+  pages: { slug: string; title: string; seo_title?: string; seo_description?: string; isHome?: boolean; sections: SectionContent[] }[];
+}
+const _reAbout = REALTOR_SET.find((t) => t.id === "realtor-about")!.sections[0];
+const _reTeam = REALTOR_SET.find((t) => t.id === "realtor-team")!.sections;
+const _reCta = REALTOR_SET.find((t) => t.id === "realtor-cta")!.sections[0];
+const _reContact = REALTOR_SET.find((t) => t.id === "realtor-contact")!.sections[0];
+const _reMenu = { items: [{ label: "Home", link: { url: "/" } }, { label: "Listings", link: { url: "/listings" } }, { label: "Communities", link: { url: "/areas" } }, { label: "About", link: { url: "/about" } }, { label: "Contact", link: { url: "/contact" } }] };
+const _reBrand = { primary_color: "#1e3a8a", secondary_color: "#0f172a", accent_color: "#1e3a8a", font_heading: "Playfair Display", font_body: "Inter" };
+const _reSocial = { facebook: "", instagram: "", linkedin: "", youtube: "" };
+const _allListings = (): SectionContent => ({ type: "listings", source: "idx", heading: "All Listings", filter: {}, count: 12, columns: 3, sort: "newest", showSort: true, showPagination: true, showFavorites: true, showBadges: true, showAttribution: true, showDisclaimer: true, ctaLabel: "", items: [] } as SectionContent);
+const _rePages = (homeExtra: SectionContent[]): SiteTemplateSeed["pages"] => ([
+  { slug: "index", title: "Home", isHome: true, seo_title: "Find Your Next Home", sections: [rHero(), rFeatured, ...homeExtra] },
+  { slug: "listings", title: "Listings", seo_title: "All Listings", sections: [_allListings()] },
+  { slug: "about", title: "About", seo_title: "About", sections: [_reAbout, ..._reTeam] },
+  { slug: "contact", title: "Contact", seo_title: "Contact", sections: [_reContact] },
+]);
+export const REAL_ESTATE_SITE_TEMPLATES: SiteTemplateSeed[] = [
+  { name: "Real Estate — Classic", industry: "real_estate", manifest: { blurb: "Light, listings-forward starter site" },
+    header: REALTOR_HEADER.sections[0], footer: rFooter(false), menu: _reMenu, brand: _reBrand, social: _reSocial, pages: _rePages([_reAbout, _reCta]) },
+  { name: "Real Estate — Bold", industry: "real_estate", manifest: { blurb: "Dark, bold starter site" },
+    header: REALTOR_HEADER.sections[0], footer: rFooter(true), menu: _reMenu, brand: _reBrand, social: _reSocial, pages: _rePages([_reCta]) },
+];
