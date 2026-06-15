@@ -7,7 +7,7 @@ import type { SectionContent } from "./schemas";
  * tab as draggable tiles (drag → drop on the canvas) and click-to-insert.
  */
 export type PrebuiltCategory =
-  | "Contemporary Luxury" | "Headers" | "Hero" | "Split / Photo" | "About & Services"
+  | "Templates" | "Contemporary Luxury" | "Headers" | "Hero" | "Split / Photo" | "About & Services"
   | "Team" | "Content" | "Social Proof" | "Conversion" | "Footers";
 
 export interface PrebuiltTemplate {
@@ -445,7 +445,38 @@ const REALTOR_SET: PrebuiltTemplate[] = [
       submitLabel: "Send", successMessage: "Thanks! I'll be in touch within one business day." }] as SectionContent[] },
 ];
 
+// Full real-estate PAGE TEMPLATES (D-370, myRealPage "master" parity) — banner + header + hero +
+// featured listings + footer (social links via the social element + copyright + Powered by AI Biz
+// Connect). Insert onto a fresh page to lay down a complete starter. Light + dark variants.
+const rSocial: SectionContent = { type: "social", links: [{ platform: "facebook", url: "#" }, { platform: "instagram", url: "#" }, { platform: "linkedin", url: "#" }, { platform: "youtube", url: "#" }] } as SectionContent;
+const rBanner = (bg: string): SectionContent => ({ type: "row", columns: 2, contentWidth: "boxed", valign: "center", widths: [0.5, 0.5], _style: { bg, pt: 8, pb: 8, paddingX: 24 }, colStyles: [{ itemsAlign: "start" }, { itemsAlign: "end" }] as any,
+  children: [ [{ type: "text", text: "Sign Up · Log In", align: "left", color: "#e2e8f0", fontSize: 12.5 } as SectionContent], [{ type: "text", text: "(416) 555-1234 · info@youremail.com", align: "right", color: "#e2e8f0", fontSize: 12.5 } as SectionContent] ] } as SectionContent);
+const rHero = (): SectionContent => ({ type: "row", columns: 1, contentWidth: "boxed", gap: 18, valign: "center", widths: [1], minHeight: 520, ...({ _fillBg: true } as Record<string, unknown>),
+  _style: { bg: _P.bg, pt: 120, pb: 120, paddingX: 24, align: "center", minHeight: 520, bgFade: "half", bgImageMode: "full-center" }, _anim: { entrance: "fade-up" },
+  children: [[ gEyebrow("Your trusted local REALTOR®", _P.accent), gH("Find your next home in the GTA", _P.text, "h1"), gT("Search every active MLS® listing and book showings in a click.", _P.sub),
+    { type: "row", columns: 2, contentWidth: "boxed", gap: 14, widths: [0.5, 0.5], children: [[rBtn("Browse Listings", "/listings", { align: "right", bg: _P.accent })], [rBtn("Book a Call", "/contact", { align: "left", variant: "outline", bg: _P.accent, fg: _P.text, hover: "fill" })]] } as SectionContent ]] } as SectionContent);
+const rFeatured: SectionContent = { type: "listings", source: "idx", heading: "Featured Listings", filter: {}, count: 6, columns: 3, sort: "newest", showSort: false, showPagination: false, showFavorites: true, showBadges: true, showAttribution: true, showDisclaimer: true, ctaLabel: "View all listings →", items: [] } as SectionContent;
+const rFooter = (dark: boolean): SectionContent => {
+  const bg = dark ? "#0f172a" : "#f1f5f9", brand = dark ? "#ffffff" : "#0f172a", sub = dark ? "#cbd5e1" : "#475569", hair = dark ? "#1e293b" : "#cbd5e1", mute = dark ? "#94a3b8" : "#64748b";
+  return { type: "row", _kind: "footer", columns: 1, contentWidth: "boxed", gap: 12, valign: "center", widths: [1], _style: { bg, pt: 56, pb: 40, paddingX: 24, align: "center" }, children: [[
+    { type: "heading", text: "Your Name · REALTOR®", level: "h3", align: "center", color: brand, fontWeight: "700" } as SectionContent,
+    { type: "text", text: "Helping you buy & sell across the GTA.", align: "center", color: sub, fontSize: 14 } as SectionContent,
+    { type: "text", text: "(416) 555-1234 · info@youremail.com", align: "center", color: sub, fontSize: 14 } as SectionContent,
+    rSocial,
+    { type: "divider", thickness: 1, color: hair, widthPct: 40 } as SectionContent,
+    { type: "text", text: "© Your Brokerage — All rights reserved.", align: "center", color: mute, fontSize: 13 } as SectionContent,
+    { type: "text", text: "Powered by AI Biz Connect", align: "center", color: mute, fontSize: 12 } as SectionContent,
+  ]] } as SectionContent;
+};
+const REALTOR_TEMPLATES: PrebuiltTemplate[] = [
+  { id: "realtor-template-classic", name: "Real Estate — Classic (full page)", category: "Templates", icon: "🏠", blurb: "Banner · header · hero · featured listings · footer (light)",
+    sections: [rBanner("#0f172a"), ...REALTOR_HEADER.sections, rHero(), rFeatured, rFooter(false)] as SectionContent[] },
+  { id: "realtor-template-bold", name: "Real Estate — Bold (full page)", category: "Templates", icon: "🌆", blurb: "Banner · header · hero · featured listings · footer (dark)",
+    sections: [rBanner("#111827"), ...REALTOR_HEADER.sections, rHero(), rFeatured, rFooter(true)] as SectionContent[] },
+];
+
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
+  ...REALTOR_TEMPLATES,
   REALTOR_HEADER,
   ...REALTOR_SET,
   ...LUXURY_TEMPLATES,
@@ -744,4 +775,4 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
   return sections.map(walk);
 }
 
-export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Team", "Content", "Social Proof", "Conversion", "Footers"];
+export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Templates", "Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Team", "Content", "Social Proof", "Conversion", "Footers"];
