@@ -8,7 +8,7 @@ import type { SectionContent } from "./schemas";
  */
 export type PrebuiltCategory =
   | "Contemporary Luxury" | "Headers" | "Hero" | "Split / Photo" | "About & Services"
-  | "Content" | "Social Proof" | "Conversion" | "Footers";
+  | "Team" | "Content" | "Social Proof" | "Conversion" | "Footers";
 
 export interface PrebuiltTemplate {
   id: string;
@@ -400,8 +400,54 @@ const REALTOR_HEADER: PrebuiltTemplate = {
   }] as SectionContent[],
 };
 
+// Real-estate section set (D-369) — pairs with REALTOR_HEADER; every piece native + wired (real
+// hrefs to /listings, /contact, /about). Image slots auto-fill from the tenant's Media Library.
+const _P = PAL.light;
+const rBtn = (label: string, href: string, o: { align?: Align; bg?: string; fg?: string; variant?: "solid" | "outline"; hover?: string }): SectionContent =>
+  ({ type: "button", label, href, align: o.align ?? "center", size: "lg", variant: o.variant ?? "solid", bgColor: o.bg, textColor: o.fg ?? "#ffffff", hover: o.hover ?? "lift" } as SectionContent);
+const _teamCard = { bg: _P.soft, borderStyle: "solid", borderWidth: 1, borderColor: _P.hair, radius: 14, shadow: "soft", pt: 26, pb: 26, pl: 22, pr: 22 };
+const _member = (name: string, role: string, bio: string): SectionContent[] => ([
+  { type: "image", url: "", alt: name, rounding: 999, objectFit: "cover" } as SectionContent,
+  gH(name, _P.text, "h3", "left"),
+  { type: "text", text: role, align: "left", color: _P.accent, fontSize: 13, fontWeight: "600", letterSpacing: 1.2, textTransform: "uppercase" } as SectionContent,
+  gT(bio, _P.sub, "left"),
+]);
+const REALTOR_SET: PrebuiltTemplate[] = [
+  { id: "realtor-hero", name: "Hero — Real Estate (search CTAs)", category: "Hero", icon: "◧", blurb: "Faded photo, headline + Browse Listings / Book a Call",
+    sections: [{ type: "row", columns: 1, contentWidth: "boxed", gap: 18, valign: "center", widths: [1], minHeight: 540, ...({ _fillBg: true } as Record<string, unknown>),
+      _style: { bg: _P.bg, pt: 130, pb: 130, paddingX: 24, align: "center", minHeight: 540, bgFade: "half", bgImageMode: "full-center" }, _anim: { entrance: "fade-up" },
+      children: [[ gEyebrow("Your trusted local REALTOR®", _P.accent), gH("Find your next home in the GTA", _P.text, "h1"),
+        gT("Browse every active MLS® listing, book private showings, and get expert guidance from first search to closing day.", _P.sub),
+        { type: "row", columns: 2, contentWidth: "boxed", gap: 14, widths: [0.5, 0.5], children: [
+          [rBtn("Browse Listings", "/listings", { align: "right", bg: _P.accent })],
+          [rBtn("Book a Call", "/contact", { align: "left", variant: "outline", bg: _P.accent, fg: _P.text, hover: "fill" })],
+        ] } as SectionContent ]] }] as SectionContent[] },
+  { id: "realtor-about", name: "About — Real Estate (photo + story)", category: "About & Services", icon: "▱", blurb: "Agent photo, story, and a Meet-me link",
+    sections: [{ type: "row", columns: 2, contentWidth: "boxed", gap: 44, valign: "center", widths: [0.5, 0.5], reverseOnMobile: true, _style: { bg: _P.bg, pt: 88, pb: 88, paddingX: 24 }, _anim: { entrance: "fade-up" },
+      children: [ [gImg(16)], [ gEyebrow("About me", _P.accent, "left"), gH("Local expertise you can count on", _P.text, "h2", "left"),
+        gT("With deep roots in the community and years of on-the-ground experience, I help buyers and sellers move with confidence. Every client gets honest advice, sharp negotiation, and a process that feels easy.", _P.sub, "left"),
+        gT("Whether you're buying your first home, selling to move up, or investing for the long term — I'm with you at every step.", _P.sub, "left"),
+        rBtn("Meet me", "/about", { align: "left", bg: _P.accent }) ] ] }] as SectionContent[] },
+  { id: "realtor-team", name: "Meet the Team — 3 members", category: "Team", icon: "▦", blurb: "Three member cards with photo, role, bio",
+    sections: [
+      { type: "row", columns: 1, contentWidth: "boxed", _style: { bg: _P.bg, pt: 84, pb: 28, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" }, children: [[gEyebrow("Our team", _P.accent), gH("Meet the team", _P.text)]] } as SectionContent,
+      { type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [1 / 3, 1 / 3, 1 / 3], _style: { bg: _P.bg, pt: 0, pb: 84, paddingX: 24 }, _anim: { entrance: "fade-up" }, colStyles: [_teamCard, _teamCard, _teamCard] as any,
+        children: [ _member("Jordan Avery", "Founder & Broker", "Leads the team with 15+ years in GTA real estate and a record of homes sold above asking."),
+          _member("Sam Rivera", "Buyer Specialist", "Helps first-time and move-up buyers find the right home and win in competitive offers."),
+          _member("Priya Shah", "Listing Specialist", "Markets and sells listings with sharp pricing, staging, and strong negotiation.") ] } as SectionContent,
+    ] as SectionContent[] },
+  { id: "realtor-cta", name: "CTA — Real Estate (book a consult)", category: "Conversion", icon: "◈", blurb: "Centered band + wired Book-a-consult button",
+    sections: [{ type: "row", columns: 1, contentWidth: "boxed", gap: 16, valign: "center", widths: [1], _style: { bg: _P.soft, pt: 96, pb: 96, paddingX: 24, align: "center" }, _anim: { entrance: "fade-up" },
+      children: [[ gH("Thinking of making a move?", _P.text), gT("Let's talk about your goals — your first consultation is on me, no pressure.", _P.sub), rBtn("Book a free consultation", "/contact", { bg: _P.accent }) ]] }] as SectionContent[] },
+  { id: "realtor-contact", name: "Contact — Real Estate lead form", category: "Conversion", icon: "✉️", blurb: "Name/email/phone + goal + message → your CRM",
+    sections: [{ type: "contact-form", heading: "Let's find your next move", subheading: "Tell me what you're looking for and I'll be in touch within one business day.",
+      fields: [ { name: "name", label: "Your Name", type: "text" }, { name: "email", label: "Email Address", type: "email" }, { name: "phone", label: "Phone", type: "tel" }, { name: "goal", label: "Are you buying, selling, or both?", type: "text" }, { name: "message", label: "Anything I should know?", type: "textarea" } ],
+      submitLabel: "Send", successMessage: "Thanks! I'll be in touch within one business day." }] as SectionContent[] },
+];
+
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   REALTOR_HEADER,
+  ...REALTOR_SET,
   ...LUXURY_TEMPLATES,
   ...GENERIC_TEMPLATES,
   // ── HERO (fully editable: rows + elements, not a sealed component) ───────────────
@@ -698,4 +744,4 @@ export function applyTemplateImages(sections: SectionContent[], urls: string[]):
   return sections.map(walk);
 }
 
-export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Content", "Social Proof", "Conversion", "Footers"];
+export const PREBUILT_CATEGORIES: PrebuiltTemplate["category"][] = ["Contemporary Luxury", "Headers", "Hero", "Split / Photo", "About & Services", "Team", "Content", "Social Proof", "Conversion", "Footers"];
