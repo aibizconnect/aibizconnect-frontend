@@ -104,13 +104,14 @@ export async function communityFromSlug(tenantId: string, municipality: string, 
 // ── read (display) ────────────────────────────────────────────────────────────
 export interface ListingFilter { city?: string; municipality?: string; community?: string; propertyClass?: string; transactionType?: string; maxFee?: number; minPrice?: number; maxPrice?: number; beds?: number; baths?: number; propertyType?: string; status?: string; q?: string; page?: number; pageSize?: number;
   // commercial filters
-  propertyUse?: string; minSqft?: number; minLot?: number; minUnits?: number; zoning?: string }
+  propertyUse?: string; minSqft?: number; minLot?: number; minUnits?: number; zoning?: string;
+  sort?: string }
 export async function listPropertyClasses(tenantId: string): Promise<{ name: string; count: number }[]> {
   const { data, error } = await svc().rpc("idx_property_classes", { p_tenant: tenantId });
   if (error) return [];
   return (data ?? []).map((r: any) => ({ name: r.property_class, count: Number(r.n) }));
 }
-export interface ListingCard { id: string; mlsNumber: string | null; status: string | null; propertyType: string | null; listPrice: number | null; currency: string; city: string | null; province: string | null; beds: number | null; baths: number | null; sqft: number | null; brokerage: string | null; modifiedAt: string; cover: string | null }
+export interface ListingCard { id: string; mlsNumber: string | null; status: string | null; propertyType: string | null; listPrice: number | null; currency: string; city: string | null; province: string | null; community: string | null; address: string | null; transactionType: string | null; beds: number | null; baths: number | null; sqft: number | null; brokerage: string | null; modifiedAt: string; cover: string | null }
 
 export async function listListings(tenantId: string, f: ListingFilter = {}): Promise<{ rows: ListingCard[]; total: number }> {
   const sb = svc();
@@ -134,7 +135,10 @@ export async function listListings(tenantId: string, f: ListingFilter = {}): Pro
   if (f.minLot != null) q = q.gte("lot_size_sqft", f.minLot);
   if (f.minUnits != null) q = q.gte("number_of_units", f.minUnits);
   if (f.zoning) q = q.ilike("zoning", `%${f.zoning}%`);
-  q = q.order("modification_timestamp", { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
+  if (f.sort === "price_asc") q = q.order("list_price", { ascending: true, nullsFirst: false });
+  else if (f.sort === "price_desc") q = q.order("list_price", { ascending: false, nullsFirst: false });
+  else q = q.order("modification_timestamp", { ascending: false });
+  q = q.range(page * pageSize, page * pageSize + pageSize - 1);
   const { data, count, error } = await q;
   if (error) return { rows: [], total: 0 };
   const ids = (data ?? []).map((r: any) => r.id);
@@ -145,7 +149,8 @@ export async function listListings(tenantId: string, f: ListingFilter = {}): Pro
   }
   const rows: ListingCard[] = (data ?? []).map((r: any) => ({
     id: r.id, mlsNumber: r.mls_number, status: r.status, propertyType: r.property_type, listPrice: r.list_price != null ? Number(r.list_price) : null,
-    currency: r.currency ?? "CAD", city: r.address_city, province: r.address_province, beds: r.bedrooms, baths: r.bathrooms != null ? Number(r.bathrooms) : null,
+    currency: r.currency ?? "CAD", city: r.address_city, province: r.address_province, community: r.community ?? null, address: r.address_street ?? null, transactionType: r.transaction_type ?? null,
+    beds: r.bedrooms, baths: r.bathrooms != null ? Number(r.bathrooms) : null,
     sqft: r.sqft_total != null ? Number(r.sqft_total) : null, brokerage: r.listing_brokerage_name, modifiedAt: r.modification_timestamp, cover: covers.get(r.id) ?? null,
   }));
   return { rows, total: count ?? 0 };

@@ -151,6 +151,7 @@ function decomposePricing(c: any): SectionContent {
 
 /** LISTINGS → property/item cards. */
 function decomposeListings(c: any): SectionContent {
+  if (c.source === "idx") return c; // live IDX weblet — keep intact, never flatten to static cards
   const items: any[] = Array.isArray(c.items) ? c.items : [];
   if (items.length > 6) return c;
   const cards = (items.length ? items : [{ title: "Item" }]).map((it: any) => {

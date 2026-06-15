@@ -57,16 +57,49 @@ export const testimonialsSchema = z.object({
 
 export const listingsSchema = z.object({
   type: z.literal("listings"),
-  heading: z.string(),
-  items: z.array(
-    z.object({
-      title: z.string(),
-      price: z.string().optional(),
-      location: z.string().optional(),
-      imageUrl: z.string().optional(),
-      href: z.string().optional(),
+  heading: z.string().default("Featured Listings"),
+  /** "idx" = live MLS grid bound to a saved search; undefined/"manual" = the legacy static items. */
+  source: z.enum(["idx", "manual"]).optional(),
+  /** The saved search this weblet is bound to (myRealPage "Predefined Search"). */
+  filter: z
+    .object({
+      city: z.string().optional(),
+      municipality: z.string().optional(),
+      community: z.string().optional(),
+      propertyClass: z.string().optional(),    // Residential | Condo & Other | Commercial
+      transactionType: z.string().optional(),  // For Sale | For Lease
+      propertyUse: z.string().optional(),       // commercial use
+      minPrice: z.number().optional(),
+      maxPrice: z.number().optional(),
+      beds: z.number().optional(),
+      baths: z.number().optional(),
+      minSqft: z.number().optional(),
     })
-  ),
+    .optional(),
+  count: z.number().optional(),         // listings per page (default 6)
+  columns: z.number().optional(),       // grid columns (default 3)
+  sort: z.string().optional(),          // newest | price_asc | price_desc
+  showSort: z.boolean().optional(),
+  showPagination: z.boolean().optional(),
+  showFavorites: z.boolean().optional(),
+  showBadges: z.boolean().optional(),
+  showAttribution: z.boolean().optional(),
+  showDisclaimer: z.boolean().optional(),
+  ctaLabel: z.string().optional(),      // "View all listings →"
+  ctaHref: z.string().optional(),
+  /** Legacy static cards (manual mode). */
+  items: z
+    .array(
+      z.object({
+        title: z.string(),
+        price: z.string().optional(),
+        location: z.string().optional(),
+        imageUrl: z.string().optional(),
+        href: z.string().optional(),
+      })
+    )
+    .optional()
+    .default([]),
 });
 
 export const contactFormSchema = z.object({
@@ -687,7 +720,8 @@ export function defaultContentFor(type: SectionType): SectionContent {
     case "testimonials":
       return { type: "testimonials", heading: "Testimonials", items: [] };
     case "listings":
-      return { type: "listings", heading: "Listings", items: [] };
+      // Default to the LIVE MLS weblet (D-361) — newest active listings, myRealPage-style.
+      return { type: "listings", source: "idx", heading: "Featured Listings", filter: {}, count: 6, columns: 3, sort: "newest", showSort: true, showPagination: true, showFavorites: true, showBadges: true, showAttribution: true, showDisclaimer: true, ctaLabel: "View all listings →", items: [] };
     case "contact-form":
       return {
         type: "contact-form",

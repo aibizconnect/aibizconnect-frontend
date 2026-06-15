@@ -14,6 +14,7 @@ import { getPageBlocks } from "../../../tenants/[tenantId]/website/actions";
 import SitePopups from "@/components/website/SitePopups";
 import SiteContactForm from "@/components/website/SiteContactForm";
 import SiteSurvey from "@/components/website/SiteSurvey";
+import SiteListings from "@/components/website/SiteListings";
 import BookingWidget from "@/components/calendars/BookingWidget";
 import { listPopups } from "@/lib/popups";
 import type { BrandSettings } from "@/lib/sections/schemas";
@@ -373,6 +374,8 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
               ? renderBooking(s.content, s.id)
               : s.content?.type === "survey"
               ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
+              : s.content?.type === "listings" && s.content?.source === "idx"
+              ? <SiteListings tenantId={tenantId} content={s.content} theme={theme} />
               : isForm
               ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
               : adapted
@@ -392,6 +395,8 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
             ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
             : s.content?.type === "contact-form"
             ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
+            : s.content?.type === "listings" && s.content?.source === "idx"
+            ? <SiteListings key={s.id} tenantId={tenantId} content={s.content} theme={theme} />
             : <SectionView key={s.id} content={s.content} theme={theme} cssSink={cssSink} />
         ))
       )}

@@ -59,7 +59,7 @@ const ELEMENT_GROUPS: Group[] = [
   { group: "Sections", items: [
     { label: "Hero", icon: I.hero, type: "hero" }, { label: "Features", icon: I.grid, type: "features" },
     { label: "Testimonials", icon: I.star, type: "testimonials" },
-    { label: "Listings", icon: I.grid, type: "listings" }, { label: "Pricing Table", icon: I.price, type: "pricing" },
+    { label: "Listings (live MLS)", icon: I.grid, type: "listings" }, { label: "Pricing Table", icon: I.price, type: "pricing" },
     { label: "FAQ", icon: I.faq, type: "faq" }, { label: "Tabs", icon: I.grid, type: "tabs" }, { label: "Call to Action", icon: I.btn, type: "cta" },
   ]},
   { group: "Forms & Surveys", items: [{ label: "Contact Form", icon: I.form, type: "contact-form" }, { label: "Survey", icon: I.form, type: "survey" }] },
