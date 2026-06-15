@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listWebsites } from "../website/website-actions";
 import AddWebsiteButton from "@/components/sites/AddWebsiteButton";
+import StartFromTemplate from "@/components/sites/StartFromTemplate";
 import { funnelsEnabled } from "@/lib/flags";
 
 /**
@@ -53,6 +54,9 @@ export default async function SitesPage({ params }: { params: Promise<{ tenantId
           )
         )}
       </div>
+
+      {/* Start a new site from an industry template */}
+      <div className="mb-6"><StartFromTemplate tenantId={tenantId} /></div>
 
       {/* Websites list */}
       <div className="mb-4 flex items-center justify-between">
