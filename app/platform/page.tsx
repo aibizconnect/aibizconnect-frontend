@@ -61,6 +61,37 @@ export default async function PlatformPanel() {
       </header>
 
       <div className="mx-auto max-w-5xl space-y-8 px-6 py-8">
+        <section>
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Tools</h2>
+          <p className="mb-3 text-sm text-slate-500">Internal utilities — available to every platform team member.</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href="/platform/seo-tools" className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#1e3a8a]/40 hover:shadow">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e3a8a]/10 text-lg text-[#1e3a8a]">⚡</div>
+              <h3 className="mt-3 font-semibold text-slate-800 group-hover:text-[#1e3a8a]">SEO + GEO Analyzer</h3>
+              <p className="mt-1 text-xs text-slate-500">Audit <b>any</b> domain — SEO + AI/answer-engine (GEO) readiness, with a prioritized fix list.</p>
+            </Link>
+          </div>
+        </section>
+
+        {(role === "admin" || role === "superadmin") && (
+          <section>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Administration</h2>
+            <p className="mb-3 text-sm text-slate-500">Manage all tenants and user accounts on the platform.</p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Link href="/platform/tenants" className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#1e3a8a]/40 hover:shadow">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e3a8a]/10 text-lg text-[#1e3a8a]">🏢</div>
+                <h3 className="mt-3 font-semibold text-slate-800 group-hover:text-[#1e3a8a]">Tenants</h3>
+                <p className="mt-1 text-xs text-slate-500">Every workspace — view and delete (the platform tenant is protected).</p>
+              </Link>
+              <Link href="/platform/users" className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#1e3a8a]/40 hover:shadow">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e3a8a]/10 text-lg text-[#1e3a8a]">👤</div>
+                <h3 className="mt-3 font-semibold text-slate-800 group-hover:text-[#1e3a8a]">Users</h3>
+                <p className="mt-1 text-xs text-slate-500">Every sign-in account — ban, reactivate, or delete.</p>
+              </Link>
+            </div>
+          </section>
+        )}
+
         {superadmin && (
           <section>
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Team</h2>

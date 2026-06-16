@@ -49,7 +49,14 @@ export default function LoginPage() {
     setMsg(null);
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        // Route the confirmation link through our callback handler (which exchanges the ?code= for a
+        // session) instead of the project's Site URL root. Origin-relative so it's correct on both
+        // localhost and prod — the matching URLs must also be on Supabase's Redirect-URL allowlist.
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination())}` },
+        });
         if (error) throw error;
         if (data.session) {
           persistToken(data.session.access_token);

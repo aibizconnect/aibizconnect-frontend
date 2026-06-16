@@ -1,0 +1,58 @@
+<!--
+  AI Biz Connect — branded "Confirm signup" template for Supabase Auth.
+  Paste into: Supabase Dashboard → Authentication → Emails → Templates → "Confirm signup" (Source/HTML).
+  Supabase injects {{ .ConfirmationURL }} (and .Email / .SiteURL) at send time.
+  Email-safe: tables + inline styles only; no <style> blocks, no external CSS, no JS.
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;margin:0;padding:32px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:92%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+        <!-- Brand bar -->
+        <tr>
+          <td style="background:#1e3a8a;padding:22px 32px;">
+            <span style="color:#ffffff;font-size:19px;font-weight:bold;letter-spacing:.5px;">AI Biz Connect</span>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 32px 8px 32px;">
+            <h1 style="margin:0 0 14px 0;font-size:22px;line-height:1.25;color:#0f172a;">Confirm your email</h1>
+            <p style="margin:0 0 22px 0;font-size:15px;line-height:1.6;color:#475569;">
+              Welcome aboard. Tap the button below to confirm your email and activate your AI Biz Connect account.
+            </p>
+            <!-- Button -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 26px 0;">
+              <tr>
+                <td align="center" bgcolor="#1e3a8a" style="border-radius:10px;">
+                  <a href="{{ .ConfirmationURL }}" target="_blank"
+                     style="display:inline-block;padding:14px 30px;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;">
+                    Confirm my email
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+              If the button doesn't work, copy and paste this link into your browser:
+            </p>
+            <p style="margin:0 0 22px 0;font-size:13px;line-height:1.6;word-break:break-all;">
+              <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#1e3a8a;">{{ .ConfirmationURL }}</a>
+            </p>
+            <p style="margin:0 0 4px 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+              You're receiving this because an account was created with this email. If that wasn't you, you can safely ignore it.
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="border-top:1px solid #e2e8f0;padding:20px 32px;">
+            <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">
+              AI Biz Connect · Greater Toronto Area, ON<br/>
+              Sent by no-reply@aibizconnect.app — please don't reply to this address.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

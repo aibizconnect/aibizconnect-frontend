@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ali Bolourchi — Luxury Real Estate | GTA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0E0E0F; --ink2:#17171A; --cream:#F6F3EC; --paper:#FFFFFF;
+    --gold:#C9A14A; --gold2:#E2C078; --line:rgba(255,255,255,.16); --muted:#8A8A90;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Montserrat',system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.65;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.06}
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 32px}
+  .eyebrow{font-size:12px;letter-spacing:.32em;text-transform:uppercase;font-weight:600;color:var(--gold)}
+  .btn{display:inline-flex;align-items:center;gap:10px;font-family:'Montserrat';font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;padding:15px 30px;border:1px solid var(--ink);background:var(--ink);color:#fff;transition:.25s;cursor:pointer}
+  .btn:hover{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+  .btn.gold:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+  .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.5)}
+  .btn.ghost:hover{background:#fff;color:var(--ink);border-color:#fff}
+
+  /* top bar */
+  .topbar{background:var(--ink);color:#cfcfd4;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase}
+  .topbar .wrap{display:flex;justify-content:space-between;align-items:center;height:42px}
+  .topbar a:hover{color:var(--gold2)}
+  .topbar .dot{color:var(--gold);margin:0 12px}
+
+  /* header */
+  header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid rgba(14,14,15,.08)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;height:84px}
+  .brand .name{font-family:'Playfair Display';font-weight:800;font-size:23px;letter-spacing:.04em}
+  .brand .sub{font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  nav.main{display:flex;gap:34px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+  nav.main a{position:relative;padding:6px 0;color:#2a2a2e}
+  nav.main a::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1.5px;background:var(--gold);transition:.25s}
+  nav.main a:hover::after{width:100%}
+
+  /* hero */
+  .hero{position:relative;min-height:88vh;display:flex;align-items:center;color:#fff;
+    background:linear-gradient(180deg,rgba(8,8,9,.55) 0%,rgba(8,8,9,.35) 40%,rgba(8,8,9,.82) 100%),
+    #111 url("https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1920&q=80") center/cover no-repeat}
+  .hero .wrap{width:100%;padding-top:70px;padding-bottom:90px}
+  .hero h1{font-size:clamp(40px,6.2vw,86px);font-weight:800;max-width:15ch;margin:18px 0 20px;text-shadow:0 2px 30px rgba(0,0,0,.4)}
+  .hero h1 em{font-style:italic;color:var(--gold2)}
+  .hero p.lede{font-size:clamp(15px,1.5vw,19px);max-width:46ch;color:#e8e6e2;font-weight:300}
+  /* search */
+  .search{margin-top:42px;background:rgba(255,255,255,.97);color:var(--ink);max-width:760px;padding:10px;display:flex;align-items:stretch;gap:8px;border-radius:2px}
+  .search .tabs{display:flex;position:absolute;transform:translateY(-100%);top:0}
+  .searchwrap{position:relative}
+  .stab{font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;padding:11px 22px;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;border:0}
+  .stab.on{background:rgba(255,255,255,.97);color:var(--ink)}
+  .search .field{flex:1;display:flex;flex-direction:column;justify-content:center;padding:8px 16px;border-right:1px solid rgba(14,14,15,.12)}
+  .search .field label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .search .field .val{font-size:14px;font-weight:500;color:#222;margin-top:3px}
+  .search button.go{border:0;background:var(--gold);color:var(--ink);padding:0 30px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:13px;cursor:pointer;transition:.25s;display:flex;align-items:center;gap:9px}
+  .search button.go:hover{background:var(--ink);color:#fff}
+  .fsel{border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:500;color:#222;outline:none;cursor:pointer;width:100%;margin-top:2px}
+  .stab{transition:.2s}
+  .scrollcue{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.7);text-align:center}
+  .scrollcue .ln{display:block;width:1px;height:38px;background:rgba(255,255,255,.5);margin:10px auto 0}
+
+  /* section frame */
+  section.block{padding:96px 0}
+  .seclabel{text-align:center;margin-bottom:54px}
+  .seclabel h2{font-size:clamp(28px,3.6vw,46px);margin-top:12px}
+  .seclabel .rule{width:54px;height:2px;background:var(--gold);margin:18px auto 0}
+
+  /* listings */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+  .card{background:var(--ink);color:#fff;overflow:hidden;transition:.3s}
+  .card:hover{transform:translateY(-6px)}
+  .card .ph{height:250px;background:#1c1c1f center/cover no-repeat;position:relative}
+  .card .tag{position:absolute;top:16px;left:16px;background:var(--gold);color:var(--ink);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:6px 12px}
+  .card .body{padding:22px 24px 26px}
+  .card .price{font-family:'Playfair Display';font-weight:700;font-size:27px;color:var(--gold2)}
+  .card .addr{font-size:14px;color:#d9d9dd;margin-top:4px;font-weight:300}
+  .card .specs{display:flex;gap:20px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#b9b9be}
+  .card .specs b{color:#fff;font-weight:600}
+
+  /* stats */
+  .stats{background:var(--ink);color:#fff;text-align:center}
+  .stats .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:30px}
+  .stats .n{font-family:'Playfair Display';font-weight:700;font-size:clamp(34px,4.4vw,56px);color:var(--gold2)}
+  .stats .k{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#a9a9af;margin-top:8px}
+
+  /* communities — 6 cities, each with its neighbourhoods */
+  .communities{background:var(--cream)}
+  .citygrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .citycard{background:var(--ink);color:#fff;overflow:hidden;display:flex;flex-direction:column;transition:.3s}
+  .citycard:hover{transform:translateY(-5px)}
+  .citycard .top{position:relative;height:158px;background:#1c1c1f center/cover no-repeat;overflow:hidden}
+  .citycard .top .img{position:absolute;inset:0;background-size:cover;background-position:center;transition:.5s}
+  .citycard:hover .top .img{transform:scale(1.06)}
+  .citycard .top .ov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,9,.1) 25%,rgba(8,8,9,.85) 100%)}
+  .citycard .cap{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-end}
+  .citycard .cap .cn{font-family:'Playfair Display';font-weight:700;font-size:25px;line-height:1}
+  .citycard .cap .cc{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold2);font-weight:600}
+  .citycard .hoods{padding:6px 20px 16px}
+  .citycard .hoods a{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:13.5px;font-weight:400;color:#cdcdd2;border-bottom:1px solid var(--line);transition:.2s}
+  .citycard .hoods a:last-child{border-bottom:0}
+  .citycard .hoods a .ar{color:var(--gold);opacity:0;transform:translateX(-4px);transition:.2s}
+  .citycard .hoods a:hover{color:var(--gold2);padding-left:5px}
+  .citycard .hoods a:hover .ar{opacity:1;transform:translateX(0)}
+
+  /* about */
+  .about{display:grid;grid-template-columns:0.9fr 1.1fr;gap:60px;align-items:center}
+  .about .photo{height:540px;background:#1c1c1f center/cover no-repeat}
+  .about h2{font-size:clamp(28px,3.6vw,44px);margin:14px 0 18px}
+  .about p{color:#3a3a3e;font-weight:300;font-size:15.5px;margin-bottom:16px}
+  .creds{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 30px}
+  .creds span{border:1px solid rgba(14,14,15,.2);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:8px 14px;color:#2a2a2e}
+
+  /* cta band */
+  .ctaband{background:#111 url("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1920&q=70") center/cover;position:relative;color:#fff;text-align:center}
+  .ctaband::before{content:"";position:absolute;inset:0;background:rgba(8,8,9,.74)}
+  .ctaband .wrap{position:relative;z-index:2}
+  .ctaband h2{font-size:clamp(28px,4vw,50px);max-width:18ch;margin:14px auto 12px}
+  .ctaband p{color:#ddd;font-weight:300;max-width:50ch;margin:0 auto 30px}
+
+  /* footer */
+  footer{background:#08080A;color:#9a9aa0;font-size:13.5px;padding:74px 0 34px}
+  .fgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px;padding-bottom:48px;border-bottom:1px solid rgba(255,255,255,.1)}
+  footer .name{font-family:'Playfair Display';font-weight:800;font-size:21px;color:#fff;letter-spacing:.04em}
+  footer h4{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#fff;margin-bottom:18px;font-weight:600}
+  footer ul{list-style:none}
+  footer ul li{margin-bottom:11px}
+  footer ul li a:hover{color:var(--gold2)}
+  .social{display:flex;gap:12px;margin-top:20px}
+  .social a{width:38px;height:38px;border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.25s;font-size:14px}
+  .social a:hover{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+  .fbot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-top:26px;font-size:12px;color:#6c6c72}
+  .powered{color:var(--gold2);font-weight:600;letter-spacing:.08em}
+  .disc{font-size:11px;color:#56565c;line-height:1.7;margin-top:18px;max-width:none}
+
+  @media(max-width:980px){
+    nav.main,.topbar .right span.hidem{display:none}
+    .grid3,.stats .grid4,.citygrid{grid-template-columns:repeat(2,1fr)}
+    .about{grid-template-columns:1fr}.about .photo{height:380px}
+    .fgrid{grid-template-columns:1fr 1fr}
+    .search{flex-wrap:wrap}.search button.go{width:100%;padding:14px}
+  }
+  @media(max-width:600px){
+    .wrap{padding:0 20px}.grid3,.stats .grid4,.citygrid,.fgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar"><div class="wrap">
+    <div class="left">Serving the Greater Toronto Area<span class="dot">&bull;</span><span class="hidem">Vaughan &middot; Richmond Hill &middot; Forest Hill</span></div>
+    <div class="right"><a href="tel:9057312000">905&middot;731&middot;2000</a><span class="dot">&bull;</span><a href="#">Sign in</a><span class="dot">&bull;</span><a href="#">Saved homes</a></div>
+  </div></div>
+
+  <header><div class="wrap">
+    <div class="brand"><div class="name">ALI BOLOURCHI</div><div class="sub">Broker &middot; RE/MAX</div></div>
+    <nav class="main">
+      <a href="#listings">Listings</a><a href="#communities">Communities</a>
+      <a href="#about">Buy</a><a href="#cta">Sell</a><a href="#about">About</a>
+    </nav>
+    <a class="btn" href="#cta">Book a Consultation</a>
+  </div></header>
+
+  <div class="searchwrap">
+  <section class="hero">
+    <div class="wrap">
+      <div class="eyebrow">RE/MAX &middot; Luxury Division</div>
+      <h1>Toronto's most <em>distinguished</em> addresses.</h1>
+      <p class="lede">A privately curated portfolio of exceptional homes across Vaughan, Richmond Hill and Forest Hill — represented with discretion and precision.</p>
+
+      <div class="search">
+        <div class="tabs" id="tabs">
+          <button class="stab on" data-st="For Sale">For Sale</button>
+          <button class="stab" data-st="Sold">Sold</button>
+          <button class="stab" data-st="For Lease">For Lease</button>
+        </div>
+        <div class="field"><label>Location</label>
+          <select id="fCity" class="fsel"><option value="">All cities</option><option>Toronto</option><option>Vaughan</option><option>Richmond Hill</option><option>Markham</option><option>Aurora</option><option>King</option></select></div>
+        <div class="field"><label>Price</label>
+          <select id="fPrice" class="fsel"><option value="">Any price</option><option value="0-1000000">Under $1M</option><option value="1000000-2000000">$1M – $2M</option><option value="2000000-4000000">$2M – $4M</option><option value="4000000-99000000">$4M+</option></select></div>
+        <div class="field"><label>Type</label>
+          <select id="fType" class="fsel"><option value="">All homes</option><option>House</option><option>Estate</option><option>Condo</option></select></div>
+        <button class="go" id="goBtn">&#9906; Search</button>
+      </div>
+    </div>
+    <div class="scrollcue">Explore<span class="ln"></span></div>
+  </section>
+  </div>
+
+  <section class="block" id="listings">
+    <div class="wrap">
+      <div class="seclabel">
+        <div class="eyebrow">Featured portfolio</div>
+        <h2 id="resultsHead">Currently Represented</h2>
+        <div class="rule"></div>
+      </div>
+      <div class="grid3" id="resultsGrid"></div>
+      <div style="text-align:center;margin-top:50px"><a class="btn" id="viewAll" href="#listings">View All Listings</a></div>
+    </div>
+  </section>
+
+  <section class="block stats">
+    <div class="wrap"><div class="grid4">
+      <div><div class="n">$2.4B+</div><div class="k">In Career Sales</div></div>
+      <div><div class="n">1,250+</div><div class="k">Families Moved</div></div>
+      <div><div class="n">18</div><div class="k">Years In The GTA</div></div>
+      <div><div class="n">#1</div><div class="k">RE/MAX Vaughan</div></div>
+    </div></div>
+  </section>
+
+  <section class="block communities" id="communities">
+    <div class="wrap">
+      <div class="seclabel"><div class="eyebrow">Where you'll live</div><h2>Curated Communities</h2><div class="rule"></div></div>
+      <div class="citygrid">
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">Toronto</div><div class="cc">214 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">Yorkville<span class="ar">&rarr;</span></a><a href="#">Forest Hill<span class="ar">&rarr;</span></a>
+            <a href="#">Rosedale<span class="ar">&rarr;</span></a><a href="#">The Bridle Path<span class="ar">&rarr;</span></a>
+            <a href="#">Lawrence Park<span class="ar">&rarr;</span></a><a href="#">Hoggs Hollow<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">Vaughan</div><div class="cc">142 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">Kleinburg<span class="ar">&rarr;</span></a><a href="#">Thornhill<span class="ar">&rarr;</span></a>
+            <a href="#">Woodbridge<span class="ar">&rarr;</span></a><a href="#">Maple<span class="ar">&rarr;</span></a>
+            <a href="#">Patterson<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">Richmond Hill</div><div class="cc">118 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">Bayview Hill<span class="ar">&rarr;</span></a><a href="#">Oak Ridges<span class="ar">&rarr;</span></a>
+            <a href="#">Mill Pond<span class="ar">&rarr;</span></a><a href="#">Jefferson<span class="ar">&rarr;</span></a>
+            <a href="#">Westbrook<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">Markham</div><div class="cc">96 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">Unionville<span class="ar">&rarr;</span></a><a href="#">Cachet<span class="ar">&rarr;</span></a>
+            <a href="#">Angus Glen<span class="ar">&rarr;</span></a><a href="#">Berczy<span class="ar">&rarr;</span></a>
+            <a href="#">Cornell<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">Aurora</div><div class="cc">58 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">Aurora Estates<span class="ar">&rarr;</span></a><a href="#">Hills of St. Andrew<span class="ar">&rarr;</span></a>
+            <a href="#">Bayview Wellington<span class="ar">&rarr;</span></a><a href="#">Aurora Village<span class="ar">&rarr;</span></a>
+            <a href="#">Royal Oak<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+        <div class="citycard">
+          <div class="top"><div class="img" style='background-image:url("https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=700&q=80")'></div><div class="ov"></div>
+            <div class="cap"><div class="cn">King</div><div class="cc">41 listings</div></div></div>
+          <div class="hoods">
+            <a href="#">King City<span class="ar">&rarr;</span></a><a href="#">Nobleton<span class="ar">&rarr;</span></a>
+            <a href="#">Schomberg<span class="ar">&rarr;</span></a><a href="#">Kettleby<span class="ar">&rarr;</span></a>
+            <a href="#">Pottageville<span class="ar">&rarr;</span></a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="about">
+    <div class="wrap"><div class="about">
+      <div class="photo" style='background-image:url("https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=80")'></div>
+      <div>
+        <div class="eyebrow">Your advisor</div>
+        <h2>Meet Ali Bolourchi</h2>
+        <p>For nearly two decades, Ali has guided the GTA's most discerning buyers and sellers through their most important moves — pairing deep market intelligence with a quietly relentless standard of service.</p>
+        <p>From first showing to final signature, every detail is handled with the precision and discretion his clients have come to expect.</p>
+        <div class="creds"><span>Broker</span><span>ABR</span><span>PSA</span><span>BSc, MS</span><span>RE/MAX Hall of Fame</span></div>
+        <a class="btn" href="#cta">Start a Conversation</a>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="block ctaband" id="cta">
+    <div class="wrap">
+      <div class="eyebrow">Considering a move?</div>
+      <h2>Discover what your home is truly worth.</h2>
+      <p>Receive a complimentary, no-obligation valuation prepared personally — backed by live GTA market data, not an algorithm.</p>
+      <a class="btn gold" href="#">Request a Complimentary Valuation</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="fgrid">
+        <div>
+          <div class="name">ALI BOLOURCHI</div>
+          <p style="margin-top:14px;max-width:34ch">Broker, RE/MAX<br>8854 Yonge Street, Richmond Hill, ON&nbsp;L4C 0T4</p>
+          <div class="social"><a href="#">f</a><a href="#">&#9826;</a><a href="#">in</a></div>
+        </div>
+        <div><h4>Explore</h4><ul><li><a href="#listings">Listings</a></li><li><a href="#communities">Communities</a></li><li><a href="#">Map Search</a></li><li><a href="#">Sold Prices</a></li></ul></div>
+        <div><h4>Communities</h4><ul><li><a href="#">Vaughan</a></li><li><a href="#">Richmond Hill</a></li><li><a href="#">Forest Hill</a></li><li><a href="#">Yorkville</a></li></ul></div>
+        <div><h4>Contact</h4><ul><li><a href="tel:9057312000">Office 905&middot;731&middot;2000</a></li><li><a href="tel:4168862000">Mobile 416&middot;886&middot;2000</a></li><li><a href="#">Book a consultation</a></li><li><a href="#">Home valuation</a></li></ul></div>
+      </div>
+      <div class="fbot">
+        <div>&copy; 2026 Ali Bolourchi, Broker. Each office independently owned &amp; operated.</div>
+        <div class="powered">Powered by AI Biz Connect</div>
+      </div>
+      <div class="disc">The information provided is for consumers' personal, non-commercial use and may not be used for any purpose other than to identify prospective properties consumers may be interested in purchasing. Listing data courtesy of the Toronto Regional Real Estate Board.</div>
+    </div>
+  </footer>
+
+<script>
+(function(){
+  var IMGS=['1564013799919-ab600027ffc6','1600596542815-ffad4c1539a9','1600585154340-be6161a56a0c','1568605114967-8130f3a36994','1570129477492-45c003edd2be','1580587771525-78b9dba3b914','1512917774080-9991f1c4c750','1600607687939-ce8a6c25118c'];
+  // Sample MLS data — agents build & launch on this, then flip to the live IDX/VOW feed on board approval.
+  var SAMPLE=[
+    {p:6900000,a:'144 Old Forest Hill Rd',city:'Toronto',hood:'Forest Hill',b:6,ba:8,s:9100,t:'Estate',st:'For Sale',tag:'Exclusive',img:0},
+    {p:1895000,a:'88 Yorkville Ave, PH04',city:'Toronto',hood:'Yorkville',b:2,ba:3,s:1720,t:'Condo',st:'For Sale',tag:'Penthouse',img:2},
+    {p:4250000,a:'21 Rosedale Heights Dr',city:'Toronto',hood:'Rosedale',b:5,ba:5,s:5200,t:'House',st:'Sold',tag:'Sold',img:5},
+    {p:4250000,a:'21 Castle Rock Dr',city:'Vaughan',hood:'Kleinburg',b:5,ba:6,s:6400,t:'Estate',st:'For Sale',tag:'New',img:1},
+    {p:2150000,a:'52 Thornhill Woods Dr',city:'Vaughan',hood:'Thornhill',b:4,ba:4,s:3800,t:'House',st:'For Sale',tag:'',img:3},
+    {p:8500,a:'9 Islington Woods Ct',city:'Vaughan',hood:'Woodbridge',b:5,ba:5,s:4600,t:'House',st:'For Lease',tag:'For Lease',img:6},
+    {p:2980000,a:'30 Bayview Hill Cres',city:'Richmond Hill',hood:'Bayview Hill',b:5,ba:5,s:4400,t:'House',st:'For Sale',tag:'',img:4},
+    {p:1750000,a:'12 Oak Ridges Lake Rd',city:'Richmond Hill',hood:'Oak Ridges',b:4,ba:3,s:3100,t:'House',st:'For Sale',tag:'',img:7},
+    {p:3400000,a:'8 Mill Pond Close',city:'Richmond Hill',hood:'Mill Pond',b:5,ba:6,s:5600,t:'Estate',st:'Sold',tag:'Sold',img:0},
+    {p:2490000,a:'45 Old Stone Rd',city:'Markham',hood:'Unionville',b:4,ba:4,s:3900,t:'House',st:'For Sale',tag:'New',img:1},
+    {p:3250000,a:'19 Cachet Pkwy',city:'Markham',hood:'Cachet',b:5,ba:6,s:5100,t:'Estate',st:'For Sale',tag:'',img:5},
+    {p:1990000,a:'77 Angus Glen Blvd',city:'Markham',hood:'Angus Glen',b:4,ba:4,s:3500,t:'House',st:'For Sale',tag:'',img:3},
+    {p:3800000,a:'5 Aurora Estates Dr',city:'Aurora',hood:'Aurora Estates',b:5,ba:6,s:6000,t:'Estate',st:'For Sale',tag:'Exclusive',img:6},
+    {p:1650000,a:'40 Bayview Wellington Ave',city:'Aurora',hood:'Bayview Wellington',b:4,ba:3,s:2900,t:'House',st:'For Sale',tag:'',img:4},
+    {p:12000,a:'14 St Andrews Hill Ct',city:'Aurora',hood:'Hills of St. Andrew',b:5,ba:5,s:5200,t:'House',st:'For Lease',tag:'For Lease',img:7},
+    {p:5400000,a:'2 King Summit Rd',city:'King',hood:'King City',b:6,ba:7,s:8200,t:'Estate',st:'For Sale',tag:'Exclusive',img:0},
+    {p:2750000,a:'33 Nobleton Lakes Dr',city:'King',hood:'Nobleton',b:5,ba:5,s:4700,t:'House',st:'For Sale',tag:'',img:1},
+    {p:1450000,a:'7 Schomberg Main St',city:'King',hood:'Schomberg',b:4,ba:3,s:2600,t:'House',st:'Sold',tag:'Sold',img:2}
+  ];
+  var S={status:'For Sale',city:'',hood:'',type:'',price:''}, ALL=false;
+  function money(n){return '$'+n.toLocaleString('en-CA');}
+  function fmt(l){return l.st==='For Lease'? money(l.p)+'/mo' : money(l.p);}
+  function card(l){
+    var img='https://images.unsplash.com/photo-'+IMGS[l.img]+'?auto=format&fit=crop&w=900&q=80';
+    var tag=l.tag?'<span class="tag">'+l.tag+'</span>':'';
+    return '<div class="card"><div class="ph" style="background-image:url(\''+img+'\')">'+tag+'</div>'
+      +'<div class="body"><div class="price">'+fmt(l)+'</div><div class="addr">'+l.a+', '+l.hood+'</div>'
+      +'<div class="specs"><span><b>'+l.b+'</b> Beds</span><span><b>'+l.ba+'</b> Baths</span><span><b>'+l.s.toLocaleString()+'</b> SqFt</span></div></div></div>';
+  }
+  function apply(scroll){
+    var list=SAMPLE.filter(function(l){return l.st===S.status;});
+    var filtered=!!(S.city||S.hood||S.type||S.price);
+    if(S.city) list=list.filter(function(l){return l.city===S.city;});
+    if(S.hood) list=list.filter(function(l){return l.hood===S.hood;});
+    if(S.type) list=list.filter(function(l){return l.t===S.type;});
+    if(S.price){var pr=S.price.split('-');list=list.filter(function(l){return l.p>=+pr[0]&&l.p<=+pr[1];});}
+    var st=S.status.toLowerCase();
+    var area=S.hood?(' in '+S.hood+', '+S.city):(S.city?(' in '+S.city):'');
+    var noun=(S.status==='Sold')?'sold listings':('homes '+st);
+    var head=(filtered||ALL)?(list.length+' '+noun+area):'Currently Represented';
+    if(!filtered && !ALL) list=list.slice(0,6);
+    document.getElementById('resultsHead').textContent=head;
+    var g=document.getElementById('resultsGrid');
+    g.innerHTML=list.length?list.map(card).join(''):'<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px 0">No '+st+' homes match — try another filter.</p>';
+    if(scroll){var el=document.getElementById('listings');if(el)el.scrollIntoView({behavior:'smooth'});}
+  }
+  // tabs
+  Array.prototype.forEach.call(document.querySelectorAll('#tabs .stab'),function(btn){
+    btn.addEventListener('click',function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#tabs .stab'),function(b){b.classList.remove('on');});
+      btn.classList.add('on'); S.status=btn.getAttribute('data-st'); ALL=false; apply(false);
+    });
+  });
+  // selects
+  document.getElementById('fCity').addEventListener('change',function(e){S.city=e.target.value;S.hood='';ALL=false;});
+  document.getElementById('fType').addEventListener('change',function(e){S.type=e.target.value;ALL=false;});
+  document.getElementById('fPrice').addEventListener('change',function(e){S.price=e.target.value;ALL=false;});
+  document.getElementById('goBtn').addEventListener('click',function(){apply(true);});
+  // neighbourhood links -> filter to that area
+  Array.prototype.forEach.call(document.querySelectorAll('.citycard .hoods a'),function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var cityEl=a.closest('.citycard').querySelector('.cn');
+      S.city=cityEl?cityEl.textContent.trim():''; S.hood=a.childNodes[0].textContent.trim();
+      S.status='For Sale'; S.type=''; S.price=''; ALL=false;
+      var fc=document.getElementById('fCity'); if(fc) fc.value=S.city;
+      var ft=document.getElementById('fType'); if(ft) ft.value='';
+      var fp=document.getElementById('fPrice'); if(fp) fp.value='';
+      Array.prototype.forEach.call(document.querySelectorAll('#tabs .stab'),function(b){b.classList.toggle('on',b.getAttribute('data-st')==='For Sale');});
+      apply(true);
+    });
+  });
+  // view all
+  document.getElementById('viewAll').addEventListener('click',function(e){
+    e.preventDefault(); S.city='';S.hood='';S.type='';S.price='';S.status='For Sale';ALL=true;
+    var fc=document.getElementById('fCity');if(fc)fc.value='';
+    apply(true);
+  });
+  apply(false);
+})();
+</script>
+
+</body>
+</html>
