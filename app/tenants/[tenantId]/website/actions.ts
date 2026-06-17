@@ -217,6 +217,42 @@ export async function rewriteSectionAI(
   return next;
 }
 
+/** P2 (D-382): list swap-in LAYOUTS for the section at this index (the "replace this section" picker). */
+export async function getSectionAlternatives(
+  pageId: string,
+  tenantId: string,
+  sectionIndex: number
+): Promise<import("@/lib/sections/alternatives").SectionAlternative[]> {
+  const { sectionAlternatives } = await import("@/lib/sections/alternatives");
+  const supabase = createSupabaseServiceClient();
+  const base = await loadDraftBase(supabase, tenantId, pageId);
+  const current = base[sectionIndex];
+  if (!current) return [];
+  return sectionAlternatives(current);
+}
+
+/** P2 (D-382): replace the section at this index with a prebuilt LAYOUT (its sections splice in). */
+export async function replaceSectionWithPrebuilt(
+  pageId: string,
+  tenantId: string,
+  sectionIndex: number,
+  prebuiltId: string
+): Promise<any[]> {
+  const { prebuiltById } = await import("@/lib/sections/alternatives");
+  const pb = prebuiltById(prebuiltId);
+  if (!pb) throw new Error("Unknown section layout.");
+  const supabase = createSupabaseServiceClient();
+  const base = await loadDraftBase(supabase, tenantId, pageId);
+  if (sectionIndex < 0 || sectionIndex >= base.length) throw new Error("Section not found.");
+  const next = [...base.slice(0, sectionIndex), ...pb.sections, ...base.slice(sectionIndex + 1)];
+  await supabase
+    .from("website_pages")
+    .update({ draft_sections: next })
+    .eq("tenant_id", tenantId)
+    .eq("id", pageId);
+  return next;
+}
+
 // ---------------------------------------------------------------------------
 // AI SEO / GEO auto-fill (Step 25b) — generate all SEO meta from page content.
 // Uses the shared LLMProvider (BYOK via KeyStore); falls back to deterministic
