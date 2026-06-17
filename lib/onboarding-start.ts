@@ -1,7 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { provisionTenant, type GenesisSummary } from "./onboarding";
-import { applyTemplate, type ApplyTemplateResult } from "./templates-apply";
+import { applyTemplate, applySitemap, type ApplyTemplateResult } from "./templates-apply";
 import { industryKeyForTemplate } from "./server/industry-profiles";
+import { generateSitemap } from "./server/ai-sitemap";
+import { getIndustryTemplate } from "./design/templates";
 
 /**
  * Onboarding "Generate my site" (Branch B, v1 steps 1–3 + generate). Turns a lite intake
@@ -104,8 +106,22 @@ export async function startOnboarding(args: {
     ownerEmail: email,
   });
 
-  // apply the industry template (draft pages + brand)
-  const apply = await applyTemplate({ tenantId, templateKey: args.templateKey, businessName, applyBrand: true });
+  // AI sitemap-first (Builder North-Star P1, D-382): generate an adaptive sitemap for this business
+  // and build the draft pages from it. generateSitemap falls back to the fixed industry template when
+  // the LLM has no key / returns nothing (L-3), so this never breaks. applySitemap mirrors applyTemplate
+  // (drafts, brand, IDX-on-home). On any failure, fall back to the classic template apply.
+  let apply: ApplyTemplateResult;
+  try {
+    const sitemap = await generateSitemap({
+      businessName, templateKey: args.templateKey,
+      industryLabel: getIndustryTemplate(args.templateKey)?.industry,
+      location: args.location, tenantId,
+    });
+    apply = await applySitemap({ tenantId, sitemap, templateKey: args.templateKey, businessName, applyBrand: true });
+    if (!apply.ok) apply = await applyTemplate({ tenantId, templateKey: args.templateKey, businessName, applyBrand: true });
+  } catch {
+    apply = await applyTemplate({ tenantId, templateKey: args.templateKey, businessName, applyBrand: true });
+  }
   if (!apply.ok) return { ok: false, tenantId, slug, error: apply.error ?? "Could not generate your site.", apply, genesis: prov.genesis };
 
   const firstPage = apply.pages[0];
