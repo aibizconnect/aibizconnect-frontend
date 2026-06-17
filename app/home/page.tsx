@@ -15,7 +15,10 @@ export default async function HomeResolver() {
   const tenantId = await resolveDefaultTenantId();
   if (tenantId) redirect(`/tenants/${tenantId}/dashboard`);
 
+  // No workspace yet. Platform team manages the platform (not forced to create a tenant); a regular
+  // signed-in user is sent to onboarding to CREATE their workspace (the real flow, D-378/379).
   const role = await getPlatformRole();
+  if (!role) redirect("/onboarding");
   return (
     <main className="mx-auto max-w-lg px-6 py-24 text-center">
       <h1 className="text-xl font-semibold text-slate-900">No workspace yet</h1>

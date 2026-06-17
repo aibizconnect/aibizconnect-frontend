@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
-import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
-import { listIndustryTemplates } from "@/lib/design/templates";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/platform-admin";
 
-export const metadata: Metadata = {
-  title: "Build my site — AIBizConnect",
-  description: "Answer three quick questions and our supervised AI generates your complete, on-brand website. Review and publish when you're ready.",
-};
-
-export default function StartPage() {
-  const templates = listIndustryTemplates();
-  return <OnboardingWizard templates={templates} />;
+/**
+ * /start — public funnel (D-378). It no longer provisions anything anonymously. A visitor is routed
+ * into the real flow: sign up/in, then the authenticated create-workspace step (/onboarding) which
+ * creates a tenant tied to their account. (Marketing teaser content can live here later.)
+ */
+export default async function StartPage() {
+  const user = await getCurrentUser();
+  redirect(user ? "/onboarding" : "/login?next=/onboarding");
 }

@@ -17,17 +17,17 @@ const COUNTRIES: Record<string, string[]> = {
   "United States": ["Alabama", "Alaska", "Arizona", "California", "Colorado", "Florida", "Georgia", "Illinois", "Massachusetts", "Michigan", "New York", "Ohio", "Texas", "Washington"],
 };
 
-export default function OnboardingWizard({ templates }: { templates: TemplateCard[] }) {
+export default function OnboardingWizard({ templates, defaultEmail, authed }: { templates: TemplateCard[]; defaultEmail?: string; authed?: boolean }) {
   const [step, setStep] = useState(1);
   const [businessName, setBusinessName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(defaultEmail ?? "");
   const [templateKey, setTemplateKey] = useState("");
   const [country, setCountry] = useState("Canada");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ previewPath: string; dashboardPath: string; pages: number } | null>(null);
+  const [result, setResult] = useState<{ previewPath: string; dashboardPath: string; launchpadPath?: string; pages: number } | null>(null);
 
   const selected = templates.find((t) => t.key === templateKey);
   const canNext = step === 1 ? businessName.trim().length >= 2 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) : step === 2 ? !!templateKey : true;
@@ -37,12 +37,13 @@ export default function OnboardingWizard({ templates }: { templates: TemplateCar
     try {
       const r = await fetch("/api/onboarding/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        // userConfirmedNewWorkspace: this click IS the user's explicit ask for a new workspace (D-270).
-        body: JSON.stringify({ businessName, email, templateKey, location: { country, region, city }, userConfirmedNewWorkspace: true }),
+        // The authenticated submit IS the explicit "create my workspace" action; the API ties it to
+        // the signed-in account (owner) — the email comes from the session, not this form.
+        body: JSON.stringify({ businessName, templateKey, location: { country, region, city } }),
       });
       const j = await r.json();
       if (j.status === "ok" && j.result?.ok) {
-        setResult({ previewPath: j.result.previewPath, dashboardPath: j.result.dashboardPath, pages: j.result.apply?.pages?.length ?? 0 });
+        setResult({ previewPath: j.result.previewPath, dashboardPath: j.result.dashboardPath, launchpadPath: j.result.launchpadPath, pages: j.result.apply?.pages?.length ?? 0 });
       } else setError(j.result?.error ?? j.error ?? "Something went wrong. Please try again.");
     } catch (e) { setError((e as Error).message); }
     finally { setGenerating(false); }
@@ -85,8 +86,9 @@ export default function OnboardingWizard({ templates }: { templates: TemplateCar
                   </label>
                   <label className="block">
                     <span className="text-sm text-slate-300">Email</span>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@business.com"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 outline-none focus:border-[var(--a)]" />
+                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@business.com" readOnly={authed}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 outline-none focus:border-[var(--a)] read-only:opacity-70" />
+                    {authed && <span className="mt-1 block text-xs text-slate-500">Creating this workspace under your account.</span>}
                   </label>
                 </div>
               )}
@@ -161,8 +163,8 @@ export default function OnboardingWizard({ templates }: { templates: TemplateCar
                 <h1 className="text-3xl font-semibold tracking-tight">🎉 Your site is ready</h1>
                 <p className="mt-2 text-slate-300">We generated {result.pages} on-brand page{result.pages === 1 ? "" : "s"} for <strong>{businessName}</strong>. It&apos;s a private draft — review it, then publish when it&apos;s perfect.</p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <a href={result.previewPath} target="_blank" rel="noreferrer" className="rounded-lg bg-[var(--p)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90">Preview my site ↗</a>
-                  <Link href={result.dashboardPath} className="rounded-lg border border-white/15 px-6 py-2.5 text-sm font-medium hover:bg-white/5">Go to my dashboard</Link>
+                  <Link href={result.launchpadPath || result.dashboardPath} className="rounded-lg bg-[var(--p)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90">Continue setup →</Link>
+                  <a href={result.previewPath} target="_blank" rel="noreferrer" className="rounded-lg border border-white/15 px-6 py-2.5 text-sm font-medium hover:bg-white/5">Preview my site ↗</a>
                 </div>
                 <p className="mt-4 text-xs text-slate-400">Next: customize in the editor, then publish (our AI quality check runs automatically). Full signup happens at publish.</p>
               </div>

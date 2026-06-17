@@ -34,6 +34,7 @@ export interface OnboardingResult {
   previewPath?: string;
   dashboardPath?: string;
   genesisPath?: string;
+  launchpadPath?: string;
   error?: string;
 }
 
@@ -42,11 +43,21 @@ export async function startOnboarding(args: {
   email: string;
   templateKey: string;
   location?: { country?: string; region?: string; city?: string; area?: string };
+  /** D-378 (re-anchor): tenant creation REQUIRES a signed-up account. The owner's user id links the
+   *  new tenant to its account via tenant_users so resolveDefaultTenantId can find it. No anon creates. */
+  ownerUserId?: string | null;
   /** D-270 (Ali's law): NOTHING creates a tenant without an explicit ask. The signup UI
    *  passes true from the user's deliberate "Generate my site" action; any script, agent,
    *  or test caller without it is refused and the attempt is audited. */
   userConfirmedNewWorkspace?: boolean;
 }): Promise<OnboardingResult> {
+  if (!args.ownerUserId) {
+    try {
+      const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
+      await logPlatformEvent({ action: "tenant.creation_refused", actorEmail: (args.email ?? "").trim() || null, meta: { reason: "no ownerUserId — sign in required (D-378)", businessName: args.businessName } });
+    } catch { /* best effort */ }
+    return { ok: false, error: "Please sign in to create a workspace." };
+  }
   if (args.userConfirmedNewWorkspace !== true) {
     try {
       const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
@@ -75,10 +86,20 @@ export async function startOnboarding(args: {
   if (ins.error) return { ok: false, error: `Could not create your workspace: ${ins.error.message}` };
   const tenantId = ins.data.id as string;
 
+  // Link the creator as the OWNER (D-378). This tenant_users row is what resolveDefaultTenantId reads
+  // to send the user back to THEIR workspace — without it the new tenant is an orphan. Best-effort with
+  // a minimal-columns fallback so a schema variance never blocks creation.
+  {
+    const full = { tenant_id: tenantId, user_id: args.ownerUserId, email, name: businessName, role: "owner", status: "active" };
+    const r = await sb.from("tenant_users").insert(full);
+    if (r.error) await sb.from("tenant_users").insert({ tenant_id: tenantId, user_id: args.ownerUserId, email, role: "owner" });
+  }
+
   // provision (policies + free subdomain + canonical blueprint: modules, CRM customer-contact,
   // sample listings). The template key maps to the industry profile so the right modules turn on.
   const prov = await provisionTenant({
     tenantId,
+    ownerUserId: args.ownerUserId,
     industry: industryKeyForTemplate(args.templateKey),
     ownerEmail: email,
   });
@@ -98,5 +119,6 @@ export async function startOnboarding(args: {
     previewPath: firstPage?.previewPath ?? `/sites/${tenantId}/home?preview=1`,
     dashboardPath: `/tenants/${tenantId}/dashboard`,
     genesisPath: `/tenants/${tenantId}/genesis`,
+    launchpadPath: `/tenants/${tenantId}/launchpad`,
   };
 }

@@ -118,6 +118,14 @@ export async function getCurrentUser(): Promise<{ name: string; email: string } 
   return { name: (raw || "").trim() || email.split("@")[0], email };
 }
 
+/** The REAL signed-in user's id (JWT `sub`) — used to link a created tenant to its owner.
+ *  Not affected by impersonation (governance/creation is never delegated). Null when signed out. */
+export async function getCurrentUserId(): Promise<string | null> {
+  const payload = await jwtPayload();
+  const sub = payload?.sub ?? (payload?.user_id as unknown);
+  return typeof sub === "string" && sub ? sub : null;
+}
+
 /**
  * The caller's EFFECTIVE platform tier. When a superadmin is impersonating, this resolves
  * to the target's tier so the app behaves exactly as that person — use getRealPlatformRole()
