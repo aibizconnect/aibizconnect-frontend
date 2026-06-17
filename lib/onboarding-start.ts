@@ -95,7 +95,7 @@ export async function startOnboarding(args: {
     subdomain: prov.subdomain,
     apply,
     genesis: prov.genesis,
-    previewPath: firstPage?.previewPath ?? `/sites/${tenantId}/home`,
+    previewPath: firstPage?.previewPath ?? `/sites/${tenantId}/home?preview=1`,
     dashboardPath: `/tenants/${tenantId}/dashboard`,
     genesisPath: `/tenants/${tenantId}/genesis`,
   };

@@ -28,15 +28,20 @@ import CookieBanner from "@/components/site/CookieBanner";
 
 interface PublicSitePageProps {
   params: Promise<{ tenantId: string; slug: string }>;
+  searchParams?: Promise<{ preview?: string }>;
 }
+
+const isPreviewFlag = (v?: string) => v === "1" || v === "true";
 
 // Per-page SEO metadata (Step 25). App Router injects these into <head>.
 // Uses generateMetadata (the correct mechanism) rather than raw <title>/<meta>
 // in JSX. Falls back to page.title and omits empty fields; never throws.
 export async function generateMetadata({
   params,
+  searchParams,
 }: PublicSitePageProps): Promise<Metadata> {
   const { tenantId, slug } = await params;
+  const isPreview = isPreviewFlag((await searchParams)?.preview);
   const supabase = await createSupabaseServerClient();
   const { data: page } = await supabase
     .from("website_pages")
@@ -65,7 +70,7 @@ export async function generateMetadata({
   const pageUrl = `/sites/${tenantId}/${slug}`;
   const meta: Metadata = {
     title,
-    robots: { index: !page.noindex && !site?.robotsNoindex, follow: !page.nofollow },
+    robots: { index: !isPreview && !page.noindex && !site?.robotsNoindex, follow: !page.nofollow },
     openGraph: {
       title, type: "website", url: page.canonical_url || pageUrl,
       ...(site?.siteName ? { siteName: site.siteName } : {}),
@@ -105,8 +110,11 @@ export async function generateMetadata({
   return meta;
 }
 
-export default async function PublicSitePage({ params }: PublicSitePageProps) {
+export default async function PublicSitePage({ params, searchParams }: PublicSitePageProps) {
   const { tenantId, slug } = await params;
+  // Draft preview (Ali's ruling: drafts-only law stays — page stays unpublished, but ?preview=1 lets
+  // the owner view the draft before publishing). Renders draft_sections + draft header/footer, noindex.
+  const isPreview = isPreviewFlag((await searchParams)?.preview);
   const supabase = await createSupabaseServerClient();
 
   // Brand settings — multiple rows possible (brand-per-website); .single() throws on >1,
@@ -117,13 +125,14 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     .eq("tenant_id", tenantId);
   const brand = mergeBrandRows(Array.isArray(brandRows) ? brandRows : []);
 
-  // Page (by slug)
-  const { data: page } = await supabase
-    .from("website_pages")
-    .select("id, title, slug, is_public, redirect_url, seo_title, seo_description, seo_image_url, canonical_url, draft_seo")
-    .eq("tenant_id", tenantId)
-    .eq("slug", slug)
-    .single();
+  // Page (by slug). In preview we also pull the draft blueprint to render.
+  const baseCols = "id, title, slug, is_public, redirect_url, seo_title, seo_description, seo_image_url, canonical_url, draft_seo";
+  let page: any = null;
+  {
+    const { data } = await supabase.from("website_pages").select(isPreview ? `${baseCols}, draft_sections` : baseCols)
+      .eq("tenant_id", tenantId).eq("slug", slug).single();
+    page = data;
+  }
 
   // Per-page custom CSS (separate select so a missing column never breaks the page).
   let customCss = "";
@@ -140,9 +149,10 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     if (b && typeof b === "object" && Object.keys(b).length) perPageBg = b as ElementStyle;
   } catch { /* column not applied yet */ }
 
-  // Only published pages are visible publicly. When no page matches, honor a tenant URL
-  // redirect for this path (D-347) before 404ing.
-  if (!page || !page.is_public) {
+  // Only published pages are visible publicly — EXCEPT in ?preview=1, which renders the unpublished
+  // draft (drafts-only law preserved: the page is not published, just previewable). When no page
+  // matches, honor a tenant URL redirect for this path (D-347) before 404ing.
+  if (!page || (!page.is_public && !isPreview)) {
     const r = await resolveRedirect(tenantId, slug).catch(() => null);
     if (r) { if (r.code === 301) permanentRedirect(r.toUrl); redirect(r.toUrl); }
     notFound();
@@ -153,17 +163,21 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     redirect(page.redirect_url);
   }
 
-  // Ordered sections
-  const { data: sectionRows } = page
-    ? await supabase
-        .from("website_page_sections")
-        .select("id, type, content, order_index")
-        .eq("tenant_id", tenantId)
-        .eq("page_id", page.id)
-        .order("order_index")
-    : { data: [] as any[] };
-
-  const sections = sectionRows ?? [];
+  // Ordered sections. PUBLISHED → website_page_sections. PREVIEW → the page's draft_sections
+  // blueprint (the editor's working copy), mapped into the same {id, content} shape.
+  let sections: any[];
+  if (isPreview) {
+    const draft = Array.isArray(page.draft_sections) ? page.draft_sections : [];
+    sections = draft.map((c: any, i: number) => ({ id: `draft-${i}`, type: c?.type, content: c, order_index: i }));
+  } else {
+    const { data: sectionRows } = await supabase
+      .from("website_page_sections")
+      .select("id, type, content, order_index")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", page.id)
+      .order("order_index");
+    sections = sectionRows ?? [];
+  }
   // "Exact copy" pages are a single html/iframe snapshot carrying their own header/footer — don't
   // also render the global Header/Footer blocks (avoids duplicates). Architect D-081/D-083.
   const isExactSnapshot = sections.length === 1 && (sections[0] as any)?.content?.type === "html";
@@ -246,7 +260,7 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
     logoUrl: brand?.logo_url,
   };
   const theme = resolveTheme(brand);
-  const publishedBlocks = await getPageBlocks(page.id, tenantId, false);
+  const publishedBlocks = await getPageBlocks(page.id, tenantId, isPreview);
   // Fonts used by this page (role fonts + element overrides + uploaded customs).
   const pageFonts = collectPageFonts(theme, [...sections.map((s: any) => s.content), ...publishedBlocks.map((b: any) => b.content)]);
 
@@ -310,6 +324,12 @@ export default async function PublicSitePage({ params }: PublicSitePageProps) {
   function renderBody() {
     return (
     <>
+      {/* Draft-preview banner (Ali's ruling): the page is NOT published — this is a private preview. */}
+      {isPreview && (
+        <div className="sticky top-0 z-[60] flex items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
+          🧪 Draft preview — this site isn&apos;t published yet. Publish from your editor to make it live.
+        </div>
+      )}
       {/* Site-wide tracking / integrations (GA4, GTM, Meta Pixel, custom scripts). */}
       {(tracking.ga4Id || tracking.gtmId || tracking.metaPixelId || tracking.headScripts || tracking.footerScripts) && (
         <SiteScripts ga4Id={tracking.ga4Id} gtmId={tracking.gtmId} metaPixelId={tracking.metaPixelId}

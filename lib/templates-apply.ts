@@ -21,6 +21,32 @@ function service(): SupabaseClient {
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** The live IDX listings element (SiteListings weblet) — renders the tenant's real/sample MLS feed. */
+const idxListingsSection = (heading: string): Record<string, any> => ({
+  type: "listings", source: "idx", heading, count: 6, columns: 3, sort: "newest",
+  showSort: true, showPagination: false, showFavorites: true, showBadges: true, showAttribution: true, showDisclaimer: true,
+  ctaLabel: "View all listings →", filter: {},
+});
+
+/**
+ * For real-estate sites, swap the template's static "Featured listings" gallery placeholder for the
+ * LIVE IDX listings element so seeded sample listings (and later the real CREA feed) actually render.
+ * Keeps the design-system component vocabulary clean — `listings(source:idx)` is injected here at
+ * apply-time, not added to the template ComponentType set. No-op for non-real-estate templates.
+ */
+function injectLiveListings(templateKey: string, sections: Array<Record<string, any>>): Array<Record<string, any>> {
+  if (templateKey !== "real-estate") return sections;
+  let swapped = false;
+  const out = sections.map((s) => {
+    if (!swapped && s?.type === "gallery" && /listing/i.test(String(s?.heading ?? ""))) {
+      swapped = true;
+      return idxListingsSection(String(s.heading) || "Featured Listings");
+    }
+    return s;
+  });
+  return out;
+}
+
 export interface ApplyTemplateResult {
   ok: boolean;
   templateKey: string;
@@ -59,7 +85,7 @@ export async function applyTemplate(args: {
   for (let i = 0; i < tpl.pages.length; i++) {
     const p = tpl.pages[i];
     const slug = uniqueSlug(p.slug);
-    const sections = pageToSectionContents(p);
+    const sections = injectLiveListings(args.templateKey, pageToSectionContents(p));
     const draftSeo = { seo_title: p.seo.title, seo_description: p.seo.description };
 
     const { data: row, error } = await sb.from("website_pages").insert({
@@ -76,7 +102,8 @@ export async function applyTemplate(args: {
     }).select("id").single();
 
     if (error) return { ...base, pages, error: `page "${slug}" insert failed: ${error.message}` };
-    pages.push({ id: row.id, slug, title: p.title, sectionCount: sections.length, previewPath: `/sites/${args.tenantId}/${slug}` });
+    // Generated pages are always drafts (is_public=false) → the view link is a draft PREVIEW (?preview=1).
+    pages.push({ id: row.id, slug, title: p.title, sectionCount: sections.length, previewPath: `/sites/${args.tenantId}/${slug}?preview=1` });
   }
 
   // optional: seed brand settings from the template BrandHint (per-tenant only)
