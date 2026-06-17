@@ -11,6 +11,8 @@ const bodySchema = z.object({
   tenantId: z.string().uuid(),
   subdomain: z.string().optional(),
   ownerUserId: z.string().uuid().optional(),
+  industry: z.string().optional(),
+  ownerEmail: z.string().email().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -20,6 +22,6 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     return NextResponse.json({ status: "error", error: "Invalid body", detail: (e as Error).message }, { status: 400 });
   }
-  const result = await provisionTenant({ tenantId: body.tenantId, subdomain: body.subdomain, ownerUserId: body.ownerUserId ?? null });
+  const result = await provisionTenant({ tenantId: body.tenantId, subdomain: body.subdomain, ownerUserId: body.ownerUserId ?? null, industry: body.industry ?? null, ownerEmail: body.ownerEmail ?? null });
   return NextResponse.json({ status: result.ok ? "provisioned" : "partial", result }, { status: result.ok ? 200 : 207 });
 }

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { provisionTenant } from "./onboarding";
+import { provisionTenant, type GenesisSummary } from "./onboarding";
 import { applyTemplate, type ApplyTemplateResult } from "./templates-apply";
+import { industryKeyForTemplate } from "./server/industry-profiles";
 
 /**
  * Onboarding "Generate my site" (Branch B, v1 steps 1–3 + generate). Turns a lite intake
@@ -28,8 +29,11 @@ export interface OnboardingResult {
   slug?: string;
   subdomain?: string | null;
   apply?: ApplyTemplateResult;
+  /** Genesis report (D-380/381): the blueprint modules + customer-contact + sample listings that landed. */
+  genesis?: GenesisSummary;
   previewPath?: string;
   dashboardPath?: string;
+  genesisPath?: string;
   error?: string;
 }
 
@@ -71,12 +75,17 @@ export async function startOnboarding(args: {
   if (ins.error) return { ok: false, error: `Could not create your workspace: ${ins.error.message}` };
   const tenantId = ins.data.id as string;
 
-  // provision (policies + free subdomain)
-  const prov = await provisionTenant({ tenantId });
+  // provision (policies + free subdomain + canonical blueprint: modules, CRM customer-contact,
+  // sample listings). The template key maps to the industry profile so the right modules turn on.
+  const prov = await provisionTenant({
+    tenantId,
+    industry: industryKeyForTemplate(args.templateKey),
+    ownerEmail: email,
+  });
 
   // apply the industry template (draft pages + brand)
   const apply = await applyTemplate({ tenantId, templateKey: args.templateKey, businessName, applyBrand: true });
-  if (!apply.ok) return { ok: false, tenantId, slug, error: apply.error ?? "Could not generate your site.", apply };
+  if (!apply.ok) return { ok: false, tenantId, slug, error: apply.error ?? "Could not generate your site.", apply, genesis: prov.genesis };
 
   const firstPage = apply.pages[0];
   return {
@@ -85,7 +94,9 @@ export async function startOnboarding(args: {
     slug,
     subdomain: prov.subdomain,
     apply,
+    genesis: prov.genesis,
     previewPath: firstPage?.previewPath ?? `/sites/${tenantId}/home`,
     dashboardPath: `/tenants/${tenantId}/dashboard`,
+    genesisPath: `/tenants/${tenantId}/genesis`,
   };
 }

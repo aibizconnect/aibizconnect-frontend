@@ -48,3 +48,7 @@ _*.mjs
 .vercel
 .stitch-out/cron-secret.txt
 .stitch-out/render-token.txt
+
+# grant working folders — contain founder/corporate/financial details; keep local (privacy)
+docs/irap/
+docs/grants/

@@ -28,6 +28,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ tena
     { label: "Opportunities", desc: "Track deals through your pipeline", href: `${base}/pipelines` },
     { label: "Payments", desc: "Invoices, estimates & products", href: `${base}/payments` },
     { label: "Marketing", desc: "Email & SMS campaigns", href: `${base}/marketing` },
+    { label: "Setup report", desc: "What we configured for you", href: `${base}/genesis` },
     { label: "Usage & Costs", desc: "Metered usage by channel", href: `${base}/usage` },
   ];
 
