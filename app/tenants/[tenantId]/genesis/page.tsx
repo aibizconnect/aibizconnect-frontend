@@ -44,6 +44,16 @@ export default async function GenesisPage({ params }: { params: Promise<{ tenant
         </div>
       ) : (
         <>
+          {/* G1-A1: IDX/VOW is on but no live DDF feed → the site is on sample data, not live MLS. */}
+          {report.sampleMode && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <span className="mt-0.5 text-lg leading-none">🧪</span>
+              <div className="text-sm text-amber-800">
+                <span className="font-semibold">Running in sample-data mode.</span> Your listings, search and area pages are live on demo MLS data so you can build and launch now. Live CREA listings activate only after your IDX/VOW board approval and DDF credentials are in place.
+              </div>
+            </div>
+          )}
+
           {/* summary tiles */}
           <div className="grid gap-4 sm:grid-cols-3">
             <Tile label="Features on" value={String(on)} accent="emerald" />
@@ -66,7 +76,7 @@ export default async function GenesisPage({ params }: { params: Promise<{ tenant
                     <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-slate-900">{m.name}</div>
-                      {m.note ? <div className="mt-0.5 text-xs text-slate-500">{m.note}</div> : null}
+                      {m.reason ? <div className="mt-0.5 text-xs text-slate-500">{m.reason}</div> : null}
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${meta.cls}`}>{meta.label}</span>
                   </li>

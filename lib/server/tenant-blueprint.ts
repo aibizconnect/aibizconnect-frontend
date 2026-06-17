@@ -47,8 +47,22 @@ export async function ensureCustomerContact(
 
 const svc = () => createSupabaseServiceClient();
 
-/** A-1 (ratified): per-module outcome recorded in the Genesis Report. */
-export interface GenesisModuleResult { key: ModuleKey; name: string; status: "enabled" | "available" | "needs_action"; note?: string }
+/** A-1 (ratified): per-module outcome recorded in the Genesis Report. G1-A2: every module carries a
+ *  human reason for its status (enabled / available / needs_action). `note` kept as an alias. */
+export interface GenesisModuleResult { key: ModuleKey; name: string; status: "enabled" | "available" | "needs_action"; reason: string; note?: string }
+
+type ModuleStatus = GenesisModuleResult["status"];
+/** G1-A2: the reason a module is in its current state — shown in the Setup Report for support/debug. */
+function moduleReason(key: ModuleKey, status: ModuleStatus): string {
+  const def = MODULES[key];
+  if (status === "needs_action") return def.needsAction ?? "Needs setup before it goes live.";
+  if (status === "available") return "Available for your industry — switch it on when you're ready.";
+  return "Included and active in your plan.";
+}
+function moduleResult(key: ModuleKey, status: ModuleStatus): GenesisModuleResult {
+  const reason = moduleReason(key, status);
+  return { key, name: MODULES[key].name, status, reason, note: reason };
+}
 
 /** Read a tenant's module enablement state. */
 export async function listTenantModules(tenantId: string): Promise<{ moduleKey: string; enabled: boolean }[]> {
@@ -74,17 +88,30 @@ export async function setTenantModule(tenantId: string, moduleKey: ModuleKey, en
 export async function applyTenantBlueprint(tenantId: string, industryKey?: string | null): Promise<{ industry: string; modules: GenesisModuleResult[] }> {
   await ensurePipeline(tenantId); // universal core
   const profile = profileFor(industryKey);
+  // D-388: persist the resolved industry on the tenant so the report reads it directly (best-effort).
+  try { await svc().from("tenants").update({ industry_key: profile.key }).eq("id", tenantId); } catch { /* column 0077 may not be applied yet */ }
   const modules: GenesisModuleResult[] = [];
   for (const key of profile.defaultModules) {
     await setTenantModule(tenantId, key, true);
-    const def = MODULES[key];
-    modules.push({ key, name: def.name, status: def.needsAction ? "needs_action" : "enabled", note: def.needsAction });
+    modules.push(moduleResult(key, MODULES[key].needsAction ? "needs_action" : "enabled"));
   }
   for (const key of profile.recommendedModules) {
     await setTenantModule(tenantId, key, false);
-    modules.push({ key, name: MODULES[key].name, status: "available", note: "Recommended — enable when ready." });
+    modules.push(moduleResult(key, "available"));
   }
   return { industry: profile.key, modules };
+}
+
+/** D-389: record one audit row per provisioning run (best-effort; table 0078 may not be applied). */
+export async function recordGenesisRun(tenantId: string, run: {
+  status: "success" | "partial_success" | "failed"; triggeredBy?: string; report: unknown; errorsSummary?: string | null;
+}): Promise<void> {
+  try {
+    await svc().from("genesis_runs").insert({
+      tenant_id: tenantId, status: run.status, triggered_by: run.triggeredBy ?? null,
+      report: (run.report ?? {}) as Record<string, unknown>, errors_summary: run.errorsSummary ?? null,
+    });
+  } catch { /* audit is best-effort — never blocks provisioning */ }
 }
 
 /** Genesis Report v2 (A-1): the LIVE provisioning state of a tenant, read back from the DB so the
@@ -98,6 +125,10 @@ export interface GenesisReport {
   customerContact: boolean;
   /** false when no `tenant_modules` rows exist yet (blueprint never ran / migration 0076 not applied). */
   provisioned: boolean;
+  /** G1-A1: true once a live CREA DDF feed is active + terms accepted. */
+  ddfConfigured: boolean;
+  /** G1-A1: IDX/VOW is on but DDF isn't configured → the site is on sample data, not live MLS. */
+  sampleMode: boolean;
 }
 
 const STATUS_ORDER: Record<GenesisModuleResult["status"], number> = { enabled: 0, needs_action: 1, available: 2 };
@@ -120,12 +151,11 @@ export async function getGenesisReport(tenantId: string): Promise<GenesisReport>
     const def = MODULES[r.moduleKey as ModuleKey];
     if (!def) continue;
     keySet.add(r.moduleKey);
-    if (r.enabled) modules.push({ key: def.key, name: def.name, status: def.needsAction ? "needs_action" : "enabled", note: def.needsAction });
-    else modules.push({ key: def.key, name: def.name, status: "available", note: "Recommended — enable when ready." });
+    modules.push(moduleResult(def.key, r.enabled ? (def.needsAction ? "needs_action" : "enabled") : "available"));
   }
   modules.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.name.localeCompare(b.name));
 
-  // sample listings + customer-contact (both best-effort; never throw)
+  // sample listings + customer-contact + live-feed status (all best-effort; never throw)
   let sampleListings = 0;
   try {
     const { count } = await sb.from("idx_listings").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("source", "sample");
@@ -138,8 +168,23 @@ export async function getGenesisReport(tenantId: string): Promise<GenesisReport>
       customerContact = (await listContacts(PLATFORM_TENANT_ID)).some((c) => c.source === src);
     } catch { /* best effort */ }
   }
+  // G1-A1: is a live CREA DDF feed actually configured (active + terms accepted)?
+  let ddfConfigured = false;
+  try {
+    const { data } = await sb.from("idx_feeds").select("status, terms_accepted").eq("tenant_id", tenantId).eq("source", "ddf").maybeSingle();
+    ddfConfigured = !!data && data.status === "active" && !!data.terms_accepted;
+  } catch { /* idx_feeds may not exist */ }
 
-  const inferred = inferIndustry(keySet);
+  // D-388: industry is read DIRECTLY from the tenant; fall back to module-set inference for legacy tenants.
+  let industryKey: string | null = null;
+  try {
+    const { data } = await sb.from("tenants").select("industry_key").eq("id", tenantId).maybeSingle();
+    industryKey = (data?.industry_key as string) || null;
+  } catch { /* column 0077 may not be applied */ }
+  const profile = industryKey ? INDUSTRY_PROFILES.find((p) => p.key === industryKey) ?? null : null;
+  const inferred = profile ? { key: profile.key, name: profile.name } : inferIndustry(keySet);
+
+  const idxOrVowOn = modules.some((m) => (m.key === "idx" || m.key === "vow") && m.status !== "available");
   return {
     industry: inferred?.key ?? null,
     industryName: inferred?.name ?? null,
@@ -147,6 +192,8 @@ export async function getGenesisReport(tenantId: string): Promise<GenesisReport>
     sampleListings,
     customerContact,
     provisioned: rows.length > 0,
+    ddfConfigured,
+    sampleMode: idxOrVowOn && !ddfConfigured,
   };
 }
 

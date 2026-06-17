@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { seedTenantPolicies } from "./entitlements";
 import { addSubdomain, listTenantDomains } from "./domains";
-import { applyTenantBlueprint, ensureCustomerContact, PLATFORM_TENANT_ID, type GenesisModuleResult } from "@/lib/server/tenant-blueprint";
+import { applyTenantBlueprint, ensureCustomerContact, recordGenesisRun, PLATFORM_TENANT_ID, type GenesisModuleResult } from "@/lib/server/tenant-blueprint";
 import { seedSampleListings } from "@/lib/server/idx/sample-listings";
 
 /**
@@ -30,24 +30,52 @@ export async function provisionTenant(args: { tenantId: string; subdomain?: stri
 
   // 1.5) canonical blueprint (D-380/381): universal core + the industry profile's modules +
   //       mirror the tenant as a CRM contact in ABC's tenant + (real-estate) seed sample listings.
-  //       BEST-EFFORT — never blocks provisioning (e.g. if migration 0076 isn't applied yet).
+  //       BEST-EFFORT per step — never blocks provisioning (e.g. if migration 0076 isn't applied yet).
+  //       D-389: every run records a genesis_runs audit row so a partial/failed provision isn't silent.
   let genesis: GenesisSummary | undefined;
-  try {
-    const { data: t } = await service().from("tenants").select("name").eq("id", args.tenantId).maybeSingle();
-    const name = (t?.name as string) || "New tenant";
-    const bp = await applyTenantBlueprint(args.tenantId, args.industry);
+  {
+    const errors: string[] = [];
+    let name = "New tenant";
+    try {
+      const { data: t } = await service().from("tenants").select("name").eq("id", args.tenantId).maybeSingle();
+      name = (t?.name as string) || name;
+    } catch (e) { errors.push(`tenant-name: ${(e as Error).message}`); }
+
+    let bp: { industry: string; modules: GenesisModuleResult[] } | null = null;
+    try { bp = await applyTenantBlueprint(args.tenantId, args.industry); }
+    catch (e) { errors.push(`blueprint: ${(e as Error).message}`); }
+
     let customerContact = false;
     if (args.tenantId !== PLATFORM_TENANT_ID) {
-      const cc = await ensureCustomerContact({ id: args.tenantId, name, ownerEmail: args.ownerEmail ?? null }, "trial");
-      customerContact = cc.ok;
+      try {
+        const cc = await ensureCustomerContact({ id: args.tenantId, name, ownerEmail: args.ownerEmail ?? null }, "trial");
+        customerContact = cc.ok;
+        if (!cc.ok && cc.error) errors.push(`customer-contact: ${cc.error}`);
+      } catch (e) { errors.push(`customer-contact: ${(e as Error).message}`); }
     }
+
     let sampleListings = 0;
-    if (bp.modules.some((m) => m.key === "idx")) {
-      const s = await seedSampleListings(args.tenantId, { agent: name });
-      sampleListings = s.created + s.updated;
+    if (bp?.modules.some((m) => m.key === "idx")) {
+      try { const s = await seedSampleListings(args.tenantId, { agent: name }); sampleListings = s.created + s.updated; }
+      catch (e) { errors.push(`sample-listings: ${(e as Error).message}`); }
     }
-    genesis = { industry: bp.industry, modules: bp.modules, customerContact, sampleListings };
-  } catch { /* blueprint is best-effort — apply migration 0076 if module state didn't persist */ }
+
+    if (bp) genesis = { industry: bp.industry, modules: bp.modules, customerContact, sampleListings };
+
+    // audit (D-389): record the run; mirror any failure to the platform audit log. Never throws.
+    const status = errors.length === 0 ? "success" : bp ? "partial_success" : "failed";
+    await recordGenesisRun(args.tenantId, {
+      status, triggeredBy: "signup",
+      report: { industry: bp?.industry ?? args.industry ?? null, modules: bp?.modules ?? [], customerContact, sampleListings },
+      errorsSummary: errors.length ? errors.join(" | ") : null,
+    });
+    if (status !== "success") {
+      try {
+        const { logPlatformEvent } = await import("@/lib/audit/platform-audit");
+        await logPlatformEvent({ action: `tenant.genesis_${status}`, meta: { tenantId: args.tenantId, errors } });
+      } catch { /* best effort */ }
+    }
+  }
 
   // 2) subdomain (skip if the tenant already has one)
   const existing = await listTenantDomains(args.tenantId);

@@ -55,6 +55,16 @@ export async function upsertListings(tenantId: string, source: string, listings:
   return { created, updated, mediaWritten };
 }
 
+/** G1-A3: is IDX in a valid state to render on the public site? True when the tenant has ≥1 active
+ *  listing (sample OR live). Used to gate IDX sections so an unprovisioned/empty tenant never shows a
+ *  bare "Featured Listings" block (SEO contamination + user confusion). Best-effort; defaults open. */
+export async function tenantHasListings(tenantId: string): Promise<boolean> {
+  try {
+    const { count } = await svc().from("idx_listings").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).is("inactive_at", null);
+    return (count ?? 0) > 0;
+  } catch { return true; }
+}
+
 /** Mark listings no longer present in a FULL pull as inactive (set inactive_at). seenKeys = keys in this pull. */
 export async function markInactiveExcept(tenantId: string, source: string, seenKeys: string[]): Promise<number> {
   if (!seenKeys.length) return 0;
