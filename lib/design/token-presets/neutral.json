@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "name": "Neutral — Clean baseline",
+  "colors": {
+    "primary": "#1f2937",
+    "primaryContrast": "#ffffff",
+    "accent": "#3b82f6",
+    "surface": "#f8fafc",
+    "surfaceContrast": "#0f172a",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "muted": "#64748b",
+    "border": "#e2e8f0",
+    "success": "#22c55e",
+    "warning": "#f59e0b",
+    "danger": "#ef4444"
+  },
+  "typography": {
+    "fontHeading": "Inter, system-ui, sans-serif",
+    "fontBody": "Inter, system-ui, sans-serif",
+    "fontDisplayBrand": "Inter, system-ui, sans-serif",
+    "scale": "default",
+    "baseSizePx": 16
+  },
+  "spacing": { "unitPx": 4, "radiusPx": 12, "maxWidthPx": 1200 },
+  "elevation": "soft",
+  "density": "comfortable"
+}

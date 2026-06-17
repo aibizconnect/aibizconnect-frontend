@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "name": "Real Estate — Premium",
+  "colors": {
+    "primary": "#0f2a4a",
+    "primaryContrast": "#ffffff",
+    "accent": "#c8a04e",
+    "surface": "#f6f3ee",
+    "surfaceContrast": "#1a1a1a",
+    "background": "#ffffff",
+    "foreground": "#14202e",
+    "muted": "#6b7280",
+    "border": "#e3ddd0",
+    "success": "#2e7d52",
+    "warning": "#b8860b",
+    "danger": "#b3261e"
+  },
+  "typography": {
+    "fontHeading": "Playfair Display, Georgia, serif",
+    "fontBody": "Inter, system-ui, sans-serif",
+    "fontDisplayBrand": "Playfair Display, Georgia, serif",
+    "scale": "spacious",
+    "baseSizePx": 17
+  },
+  "spacing": { "unitPx": 4, "radiusPx": 6, "maxWidthPx": 1240 },
+  "elevation": "elevated",
+  "density": "comfortable"
+}
