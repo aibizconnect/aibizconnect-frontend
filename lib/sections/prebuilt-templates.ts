@@ -544,6 +544,104 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     }],
   },
 
+  // ── P-B: token-driven, re-skinnable variants (Builder North-Star D-382/388) ──────
+  // Zero hardcoded colors/fonts — text/buttons inherit the theme; section backgrounds use
+  // --abc-* semantic tokens so a preset swap re-skins them. Each group ships 2 variants.
+  {
+    id: "cta-banner", name: "CTA — Banner", category: "Conversion", icon: "📣",
+    blurb: "Full-width primary call-to-action",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 12,
+      _style: { background: "var(--abc-color-primary)", paddingTop: 40, paddingBottom: 40, paddingLeft: 24, paddingRight: 24, borderRadius: 16 },
+      colStyles: [{ itemsAlign: "center" }],
+      children: [[
+        { type: "heading", text: "Ready to get started?", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent,
+        { type: "text", text: "Join today and see results in minutes — no credit card required.", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent,
+        { type: "button", label: "Get Started Free", variant: "solid", align: "center", bgColor: "var(--abc-color-primaryContrast)", textColor: "var(--abc-color-primary)" } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "cta-inline", name: "CTA — Inline Split", category: "Conversion", icon: "➡️",
+    blurb: "Headline left, button right",
+    sections: [{
+      type: "row", columns: 2, contentWidth: "boxed", gap: 24, valign: "center", widths: [0.7, 0.3],
+      _style: { paddingTop: 32, paddingBottom: 32 },
+      colStyles: [{}, { itemsAlign: "end" }],
+      children: [
+        [heading("Let's build something great together", "h3", "left"), text("Talk to our team and get a tailored plan.", "left")],
+        [button("Book a Call", "solid", "right")],
+      ],
+    }],
+  },
+  {
+    id: "hero-split", name: "Hero — Split", category: "Hero", icon: "🪟",
+    blurb: "Copy + dual CTA beside a visual",
+    sections: [{
+      type: "row", columns: 2, contentWidth: "boxed", gap: 40, valign: "center", widths: [0.55, 0.45],
+      _style: { paddingTop: 40, paddingBottom: 40 },
+      children: [
+        [
+          text("Trusted by 500+ clients", "left"),
+          heading("The smarter way to grow your business", "h1", "left"),
+          text("One platform to attract, convert, and delight your customers — beautifully simple.", "left"),
+          { type: "row", columns: 2, gap: 12, widths: [0.5, 0.5], children: [[button("Get Started", "solid", "left")], [button("See How It Works", "outline", "left")]] } as SectionContent,
+        ],
+        [{ type: "image", url: "", alt: "Product preview", rounding: 16, objectFit: "cover" } as SectionContent],
+      ],
+    }],
+  },
+  {
+    id: "about-me", name: "About Me — Bio", category: "About & Services", icon: "👤",
+    blurb: "Personal bio: photo, credentials, CTA",
+    sections: [{
+      type: "row", columns: 2, contentWidth: "boxed", gap: 40, valign: "center", widths: [0.4, 0.6],
+      _style: { paddingTop: 40, paddingBottom: 40 },
+      children: [
+        [{ type: "image", url: "", alt: "Portrait", rounding: 16, objectFit: "cover" } as SectionContent],
+        [
+          text("ABOUT ME", "left"),
+          heading("Hi, I'm your name here", "h2", "left"),
+          text("Tell your story in a sentence or two — who you help, where, and what makes working with you different.", "left"),
+          { type: "bullet-list", bulletStyle: "check", items: [{ text: "250+ clients served" }, { text: "15+ years of experience" }, { text: "Award-winning service" }] } as SectionContent,
+          button("Work With Me", "solid", "left"),
+        ],
+      ],
+    }],
+  },
+  {
+    id: "header-page", name: "Header — Page", category: "Headers", icon: "🔤",
+    blurb: "Centered page / section header",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "medium", gap: 10,
+      _style: { paddingTop: 40, paddingBottom: 20 },
+      colStyles: [{ itemsAlign: "center" }],
+      children: [[
+        text("SECTION LABEL"),
+        heading("A clear, benefit-led page title", "h1"),
+        text("One short sentence that frames the page for the visitor."),
+        { type: "divider", widthPct: 16, thickness: 3, color: "var(--abc-color-accent)" } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "footer-minimal", name: "Footer — Minimal", category: "Footers", icon: "➖",
+    blurb: "Brand + quick links + copyright",
+    sections: [{
+      type: "row", columns: 2, contentWidth: "boxed", gap: 24, valign: "center", widths: [0.5, 0.5],
+      _style: { background: "var(--abc-color-surface)", paddingTop: 32, paddingBottom: 32, paddingLeft: 24, paddingRight: 24 },
+      colStyles: [{}, { itemsAlign: "end" }],
+      children: [
+        [heading("Your Business", "h3", "left"), text("© 2026 Your Business. All rights reserved.", "left")],
+        [
+          { type: "text", text: "Home", href: "/", align: "right" } as SectionContent,
+          { type: "text", text: "About", href: "/about", align: "right" } as SectionContent,
+          { type: "text", text: "Contact", href: "/contact", align: "right" } as SectionContent,
+        ],
+      ],
+    }],
+  },
+
   // ── SOCIAL PROOF (editable quote cards) ─────────────────────────────────────────
   {
     id: "testimonials-3", name: "Testimonials — 3", category: "Social Proof", icon: "💬",

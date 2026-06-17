@@ -39,9 +39,25 @@ export async function applyBrandPreset(tenantId: string, presetKey: string): Pro
   const t = presetTokens(presetKey);
   if (!t) return { ok: false, error: `Unknown preset "${presetKey}"` };
   const sb = createSupabaseServiceClient();
+
+  // The platform has TWO token consumers that BOTH read website_brand_settings:
+  //   1) BrandTokens / --abc-* vars  → color_palette + font_pairing + scalar columns
+  //   2) ThemeTokens (SectionView)   → resolveTheme reads scalar primary/secondary/accent + theme.colors{bg,text}
+  // To re-skin FULLY (not "half-skinned" per H-3) we must feed BOTH — including background/text/secondary,
+  // which only live in theme.colors. Merge theme (preserve site settings/occasions); write everything.
+  const { data: existing } = await sb.from("website_brand_settings").select("theme").eq("tenant_id", tenantId).limit(1).maybeSingle();
+  const theme: any = (existing?.theme && typeof existing.theme === "object") ? { ...existing.theme } : {};
+  theme.colors = {
+    ...(theme.colors ?? {}),
+    primary: t.colors.primary, secondary: t.colors.muted, accent: t.colors.accent,
+    background: t.colors.background, text: t.colors.foreground,
+  };
+  theme.fonts = { ...(theme.fonts ?? {}), heading: t.typography.fontHeading, body: t.typography.fontBody };
+
   const { error } = await sb.from("website_brand_settings").upsert({
     tenant_id: tenantId,
     primary_color: t.colors.primary,
+    secondary_color: t.colors.muted,
     accent_color: t.colors.accent,
     font_heading: t.typography.fontHeading,
     font_body: t.typography.fontBody,
@@ -51,6 +67,7 @@ export async function applyBrandPreset(tenantId: string, presetKey: string): Pro
     },
     font_pairing: { heading: t.typography.fontHeading, body: t.typography.fontBody },
     button_style: { borderRadius: `${t.spacing.radiusPx}px` },
+    theme,
   }, { onConflict: "tenant_id" });
   if (error) return { ok: false, error: error.message };
   return { ok: true, tokens: t };
