@@ -18,8 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Agent Dashboard",
-  description: "Multi-AI orchestration dashboard"
+  title: "AIBizConnect OS",
+  description: "AIBizConnect OS — the AI Business OS for small business: website, CRM, funnels, social and an AI assistant, in one platform.",
+  icons: { icon: "/abc/app-icon.png", shortcut: "/abc/app-icon.png", apple: "/abc/app-icon.png" },
 };
 
 export default function RootLayout({

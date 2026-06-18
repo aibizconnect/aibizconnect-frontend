@@ -148,11 +148,11 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
 
       {/* Tenant chip */}
       <div className={`${pad} pt-3`}>
-        <button title="AI Biz Connect" className={`flex w-full items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] hover:bg-[var(--gray-100)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
+        <button title="AIBizConnect" className={`flex w-full items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] hover:bg-[var(--gray-100)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>AB</span>
           {!collapsed && <>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-[var(--text-strong)]">AI Biz Connect</span>
+              <span className="block truncate text-sm font-medium text-[var(--text-strong)]">AIBizConnect</span>
               <span className="block truncate text-[11px] text-[var(--text-muted)]">{user ? `Signed in: ${user.name}` : "Richmond Hill, Ontario"}</span>
             </span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-[var(--text-muted)]"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
