@@ -52,3 +52,6 @@ _*.mjs
 # grant working folders — contain founder/corporate/financial details; keep local (privacy)
 docs/irap/
 docs/grants/
+
+# Claude Design handoff bundles (local reference; re-extract from the zip)
+design-imports/
