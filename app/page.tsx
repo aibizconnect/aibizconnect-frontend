@@ -42,7 +42,7 @@ const LOGOS = ["Eastside Realty", "Hale Advisory", "Summit Mortgage", "Olive & E
 const TEASER = [
   { name: "Starter", price: "$39", tagline: "For solo pros getting online fast.", highlight: false },
   { name: "Pro", price: "$89", tagline: "For growing teams that sell.", highlight: true },
-  { name: "Agency", price: "$199", tagline: "Manage many clients & brands.", highlight: false },
+  { name: "Agency", price: "$699", tagline: "Manage many clients & brands.", highlight: false },
 ];
 const STEPS = [
   { n: "1", title: "Sign up free", body: "Create your account in seconds — no credit card, no setup call required." },

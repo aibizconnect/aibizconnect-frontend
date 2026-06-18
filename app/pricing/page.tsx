@@ -14,20 +14,21 @@ export const metadata: Metadata = {
 };
 
 const COMPARE = {
-  cols: ["Starter", "Pro", "Agency"],
-  prices: ["$39/mo", "$89/mo", "$199/mo"],
+  cols: ["Starter", "Pro", "Premium", "Agency"],
+  prices: ["$39/mo", "$89/mo", "$399/mo", "$699/mo"],
   rows: [
-    ["AI website & funnel builder", "✓", "✓", "✓"],
-    ["CRM contacts", "1,000", "Unlimited", "Unlimited"],
-    ["Sales pipelines", "1", "Unlimited", "Unlimited"],
-    ["Email & SMS nurture", "✓", "✓", "✓"],
-    ["24/7 AI concierge", "—", "✓", "✓"],
-    ["Automation workflows", "—", "✓", "✓"],
-    ["Payments & invoicing", "—", "✓", "✓"],
-    ["White-label & multi-site", "—", "—", "✓"],
-    ["Client sub-accounts", "—", "—", "Unlimited"],
-    ["User seats", "1", "5", "Unlimited"],
-    ["Support", "Email", "Priority", "Priority + CSM"],
+    ["AI website & funnel builder", "✓", "✓", "✓", "✓"],
+    ["CRM contacts", "1,000", "Unlimited", "Unlimited", "Unlimited"],
+    ["Sales pipelines", "1", "Unlimited", "Unlimited", "Unlimited"],
+    ["Email & SMS nurture", "✓", "✓", "✓", "✓"],
+    ["24/7 AI concierge", "—", "✓", "✓", "✓"],
+    ["Automation workflows", "—", "✓", "✓", "✓"],
+    ["Payments & invoicing", "—", "✓", "✓", "✓"],
+    ["Advanced analytics & reporting", "—", "—", "✓", "✓"],
+    ["White-label & multi-site", "—", "—", "—", "✓"],
+    ["Client sub-accounts", "—", "—", "—", "Unlimited"],
+    ["User seats", "1", "5", "15", "Unlimited"],
+    ["Support", "Email", "Priority", "Priority", "Priority + CSM"],
   ],
 };
 const POWERUPS = [
@@ -55,8 +56,10 @@ export default function PricingPage() {
     <AbcPage>
       {/* HERO + PLANS */}
       <section style={{ background: "radial-gradient(110% 60% at 50% -5%, var(--blue-50) 0%, var(--surface-page) 60%)" }}>
-        <div className={`${CONTAINER}`} style={{ paddingTop: 72, paddingBottom: 80 }}>
-          <SectionHead eyebrow="Simple pricing" title="One plan to run your whole business" sub="Every plan includes your AI-built site, CRM, and concierge. Start free for 14 days — no credit card, cancel anytime." />
+        <div className={`${CONTAINER}`} style={{ paddingTop: 72 }}>
+          <SectionHead eyebrow="Simple pricing" title="A plan for every stage of growth" sub="Every plan includes your AI-built site, CRM, and concierge. Start free for 14 days — no credit card, cancel anytime." />
+        </div>
+        <div className="mx-auto w-full max-w-[1300px] px-6" style={{ paddingBottom: 80 }}>
           <PricingPlans />
         </div>
       </section>
@@ -66,7 +69,7 @@ export default function PricingPage() {
         <div className={`${CONTAINER}`} style={{ paddingTop: 80, paddingBottom: 80 }}>
           <SectionHead eyebrow="Compare plans" title="Everything in every plan, side by side" />
           <div style={{ marginTop: 40, overflowX: "auto", border: `1px solid ${v("--border-subtle")}`, borderRadius: v("--radius-xl") }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620, fontSize: v("--text-sm") }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760, fontSize: v("--text-sm") }}>
               <thead>
                 <tr style={{ background: v("--surface-page") }}>
                   <th style={{ textAlign: "left", padding: "16px 18px", color: v("--text-muted"), fontWeight: 600 }}>Features</th>
