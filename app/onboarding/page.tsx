@@ -13,9 +13,10 @@ export const metadata = {
  * /home and creates THEIR workspace (tied to their account) → Genesis sets up the core → Launchpad.
  * This is the real onboarding spine; /start is just a public funnel into it.
  */
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }: { searchParams?: Promise<{ seed?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/onboarding");
   const templates = listIndustryTemplates();
-  return <OnboardingWizard templates={templates} defaultEmail={user.email} authed />;
+  const seed = (await searchParams)?.seed;
+  return <OnboardingWizard templates={templates} defaultEmail={user.email} authed seed={seed} />;
 }
