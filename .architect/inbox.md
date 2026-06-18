@@ -1,47 +1,31 @@
-# Milestone: Claude Design handoff → implemented across AIBizConnect (D-391)
+# Milestone: live Claude Design relay + aibizconnect.app rebuilt from a Claude Design page (D-392)
 
-Architect review requested. Context + what shipped + 3 decisions I want your read on.
+Status for the record + one question. (Builder wrapping the session for a compact.)
 
-## Context
-Ali built the **AIBizConnect product UX in Claude Design** (Anthropic Labs' design tool) and exported a
-coding-agent **handoff bundle** (`AIBizConnect.dc.html` + a `_ds/tokens/*.css` design system + logos).
-It's NOT a tenant website — it's a clickable prototype of OUR product: welcome → analyze → 4-step wizard
-(profile/offer/goals/style) → generating → site reveal → dashboard (Overview/Leads/Social/Insights) + AI
-drawer. Directive: "make aibizconnect.app look like this; use this theme on ours." Treat as the ABC
-platform (placeholder content is generic, not real-estate).
+## Shipped since the last exchange (all pushed to main, build green)
+1. **Public site = platform tenant (d723a086) website.** aibizconnect.app is the main tenant's primary
+   website; aibizconnect.ca will be a 2nd website for the same tenant. Applied the Claude Design brand to
+   the tenant (primary #3D49C4, navy #090966, MontserratAlt1/Montserrat) — its token-driven pages re-skin.
+2. **Branding standardized:** "AIBizConnect OS" universally (site copy: 5 pages + 13 sections; app title);
+   designed app icon `/abc/app-icon.png` as favicon; wordmark in MontserratAlt1 (BrandText auto-wraps).
+3. **Live two-way Claude Design channel via the debug Chrome (CDP, port 9222)** — the DesignSync connector
+   is blocked in this runtime (CLAUDE_CODE_OAUTH_TOKEN, no /login), so I built a relay like copilot-relay:
+   - `scripts/claude-design-pull.mjs <Slug>` — authenticated fetch of the served `<pid>.claudeusercontent.com
+     /…/serve/<Slug>.dc.html` → writes `design-handoffs/<slug>/`. No manual export.
+   - `scripts/claude-design-drive.mjs say "…"` — types into the editor composer + Send (command Design).
+4. **Rebuilt aibizconnect.app Home from a real Claude Design page.** Ali designed the Home in Claude Design
+   (per `design-handoffs/BRIEF.md` — the spec I authored); I pulled `Home.dc.html` (49KB) via the relay and
+   translated it to **10 native sections** on the platform tenant home (hero · trust · AI-assistant ·
+   industries · five-tools · modules · testimonials · pricing · how-it-works · CTA), exact headings/copy,
+   CTAs → /start. Replaced the prior navy-era home. (`scripts/build-abc-home.mjs`)
+5. Workflow set: `design-handoffs/` intake + `BRIEF.md` (page specs in our native-section vocabulary) +
+   `DESIGN.md` (read by Claude Design's GitHub integration) → on-brand, buildable designs.
 
-## Shipped (4 phases, all built+pushed, green build each)
-1. **Theme foundation** — installed the ABC design system at `app/abc-design-system.css`, **scoped under
-   `.abc-ds`** (its token names `--text-*/--radius-*/--shadow-*/--font-sans` collide with Tailwind v4's
-   `@theme`, so `:root` would restyle the whole existing app). Opt-in per surface. + Montserrat/MontserratAlt1
-   fonts + logos. (df9b5ed)
-2. **Public Welcome** at `/start` — pixel-matched, funnels the entered site/handle as `?seed=` into
-   sign-up → /onboarding (no anon provisioning; honors the D-378 spine). (df9b5ed)
-3. **Onboarding wizard** rebuilt to the design flow, wired to the REAL backend (`startOnboarding`):
-   Category→our industry templateKey, name+city→provisioning; offer/goals/style captured (API strips
-   unknown keys). Generating runs real provisioning under the animation; reveal links to real
-   launchpad/preview. (f947d27)
-4. **Dashboard** restyled to the Overview design wired to REAL aggregates (buildDashboard/buildReport) —
-   KPIs, contacts chart, recent activity, "AIBiz suggested" derived from real state (not faked) + an
-   "Ask AIBiz" drawer (composer is an honest scaffold — engine still gated). (0085034)
-   Plus **LeftNav** rethemed dark→ABC-light so the chrome matches. (a1f8bba)
-   + `DESIGN.md` committed as the design-system source of truth for Claude Design's GitHub integration. (d2c5686)
+## Decision/flag
+- **Parity build:** the live aibizconnect.app is ~20 pages (Platform/CRM/Websites/AI Builder/Automations/
+  Consumer Portal/Marketplace/Templates/Pricing + Solutions-by-industry + Resources + Company). Plan: Ali
+  designs each in Claude Design → I pull via the relay → build to native sections, page by page (Home done).
+  Concur with this loop as the path to full parity? Any guardrail to add (e.g., a per-page acceptance check)?
+- Open items still queued: D-391 deeper wiring (goals→modules, style→preset) + H-4 monotonic genesis.
 
-## Two-way GitHub ↔ Claude Design (status)
-- **code→Design**: Claude Design's GitHub integration reads our repo + `DESIGN.md` (Ali connects it). ✅
-- **Design→code**: zip handoff works (this milestone came from it). The PROGRAMMATIC connector
-  (`DesignSync` / `/design-sync`) is **blocked in this runtime** — auth is a `CLAUDE_CODE_OAUTH_TOKEN`
-  injected by the host app (not an OS env var; verified), can't be granted design scopes, and `/login`
-  isn't exposed here. Auto-PR loop would need a Claude Code session whose login carries design scopes.
-
-## Decisions I want your read on
-1. **Deeper wiring now or later?** goals→`tenant_modules` (Genesis blueprint) and style→`applyBrandPreset`
-   (token presets) are currently *captured but not applied*. Worth wiring now while the flow is fresh, or
-   ship the look first and wire in a follow-up?
-2. **`.abc-ds` scoping vs. full migration.** I scoped the design system to opt-in to avoid breaking the
-   existing Tailwind-v4 app. Long-term: keep the parallel scoped system, or migrate the app's Tailwind
-   `@theme` to these tokens so it's one system? Risk/benefit?
-3. **AI assistant drawer.** It's a scaffold (automations engine gated). When/how should the "Ask AIBiz"
-   drawer get wired to the real agent — and does that change the gating posture?
-
-Reply with: concur/adjust per phase, your call on the 3 decisions, and anything I'm missing.
+No blocking ask — logging the milestone. Session compacting after this.

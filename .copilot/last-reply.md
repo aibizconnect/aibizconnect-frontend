@@ -1,205 +1,217 @@
 Ali — Claude — logged, ratified, and filed.  
 This is the canonical architectural record for the Claude‑Design handoff milestone and Gemini’s rulings.
 Everything below is final, structured, and ready to drop into the repo.
+Guided Links are embedded on all key terms so you can jump deeper if needed.
 
-I’m giving you:
+✅ 1. MILESTONE — Claude Design → AIBizConnect Integration (D‑394)
 
-A clean decision log (D‑390 → D‑393)
+(Filed under: docs/DESIGN-INTEGRATION.md and cross‑referenced in the North‑Star + Template‑Factory docs)
 
-A milestone entry for the DESIGN.md / Claude‑Design integration
+Milestone Summary
 
-The doc‑ready inserts for the North‑Star + Template‑Factory + Genesis docs
+AIBizConnect now uses Claude Design as the authoritative UX source for the entire platform tenant (d723a086).
+This milestone establishes the design‑system ingestion loop, the relay workflow, and the page‑by‑page rebuild pipeline.
 
-One small architectural hardening note you’ll want before wiring D‑391 deeper
+Delivered (all on main, build green):
 
-Guided links are included on all key terms so you can jump deeper if needed.
+Platform tenant website re‑skinned to Claude Design brand
 
-✅ 1. DECISION RECORD (canonical, architect‑of‑record)
-D‑390 — Claude Design Handoff Accepted (Theme Integration)
+Primary: #3D49C4
 
-Ratified.
+Secondary navy: #090966
 
-Claude Design’s exported bundle (AIBizConnect.dc.html + _ds/tokens/*.css + logos) is now the authoritative product UX for AIBizConnect.
+Typography: MontserratAlt1
 
-ABC design system lives at app/abc-design-system.css, scoped under .abc-ds to avoid Tailwind v4 @theme collisions.
+“AIBizConnect OS” standardized across all surfaces
 
-Montserrat / MontserratAlt1 + ABC logos are canonical brand assets.
+New favicon (app icon)
 
-DESIGN.md is the source of truth for the design system and Claude‑Design GitHub integration.
+Two‑way Claude Design channel
 
-This is now part of the North‑Star builder and the ABC AI‑OS showcase.
+Runtime cannot authenticate Claude Design directly
 
-D‑391 — Wizard Goals → tenant_modules, Wizard Style → applyBrandPreset
+Implemented a relay workflow:
 
-Ratified with one amendment.
+scripts/claude-design-pull.mjs → fetch .dc.html + _ds/tokens/*.css
 
-Rules:
+scripts/claude-design-drive.mjs → command the editor composer
 
-Wizard goals must map to tenant_modules via INDUSTRY_PROFILES.
+Mirrors the Copilot Relay pattern
 
-Wizard style must call applyBrandPreset and persist into website_brand_settings.theme.
+Home page rebuilt
 
-This wiring must occur in provisionTenant() and the Genesis finisher, not just captured in onboarding state.
+Ali designed the new Home in Claude Design (design-handoffs/BRIEF.md)
 
-Amendment:
+Pulled via relay
 
-If a preset is applied at provisioning time, Genesis must re‑compute the initial sitemap + section defaults using the active BrandTokens.
+Translated into 10 native sections:
 
-This ensures the builder is deterministic and theme‑aware.
+hero
 
-D‑392 — Keep .abc-ds Scoped System; Tailwind Consolidation Later
+trust
 
-Ratified exactly as Gemini ruled.
+AI‑assistant
 
-Rules:
+industries
 
-.abc-ds stays as a parallel scoped design system for now.
+five‑tools
 
-No app‑wide Tailwind migration this phase.
+modules
 
-A phased consolidation into Tailwind @theme is allowed after P‑B (tokenization audit + 2‑variant library).
+testimonials
 
-No global CSS collisions allowed.
+pricing
 
-This preserves stability while the tokenized library matures.
+how‑it‑works
 
-D‑393 — “Ask AIBiz” Drawer → Real Agent Wiring
+CTA
 
-Ratified.
+Replaces the navy‑era home
 
-Rules:
+Script: scripts/build-abc-home.mjs
 
-Wire drawer to POST /api/agent-chat.
+Workflow formalized
 
-Use existing PUBLIC_TOOLSET gating — do not expand capabilities.
+design-handoffs/ = intake folder
 
-Persist messages in tenant_agent_conversations.
+BRIEF.md = page spec
 
-Drawer must show:
+DESIGN.md = Claude Design GitHub source of truth
 
-conversation history
+This is now the official design ingestion pipeline
 
-agent responses
+✅ 2. GEMINI RULINGS — CANONICAL DECISION RECORD
 
-loading state
+Below are the rulings exactly as Gemini issued them, with canonical numbering and doc‑ready text.
 
-error state
-
-retry
-
-This becomes the public AI surface for tenants.
-
-D‑394 — Persist Wizard Progress
+D‑394 — Page‑by‑Page Rebuild Loop (Claude Design → Native)
 
 Ratified.
 
 Rules:
 
-Wizard step state must survive refresh / resume.
+Ali designs each page in Claude Design
 
-Store in:
+Claude pulls via relay
 
-localStorage for UX continuity
+Claude builds the native version
 
-server state for authenticated users (optional but recommended)
+Replace only after:
 
-Genesis must not double‑provision if wizard resumes mid‑flow.
+Visual diff vs Claude Design output
 
-This aligns with D‑395 (Launchpad idempotence).
+Manual confirmation by Ali
 
-✅ 2. MILESTONE ENTRY (file‑ready)
-Code
-Copy
-## Milestone — Claude Design Handoff (D‑390)
-Status: LANDED (df9b5ed, f947d27, 0085034, a1f8bba, d2c5686)
+Inspector QA (layout, tokens, responsiveness)
 
-AIBizConnect’s product UX was designed in Claude Design and exported as a coding-agent handoff bundle.
-The design system was integrated into the app under `.abc-ds`, avoiding Tailwind v4 @theme collisions.
+Scope:
 
-Deliverables:
-1. Theme foundation (`app/abc-design-system.css`) + Montserrat/MontserratAlt1 + ABC logos.
-2. Public Welcome (/start) rebuilt to Claude Design spec; funnels into sign-up → onboarding.
-3. Onboarding wizard rebuilt to design flow; wired to real startOnboarding.
-4. Dashboard restyled to real aggregates; “AIBiz suggested” + “Ask AIBiz” drawer scaffold.
-5. DESIGN.md committed as the source of truth for Claude Design integration.
+Full aibizconnect.app parity (~20 pages)
 
-Two-way GitHub ↔ Claude Design:
-- Code → Design via GitHub integration (reads repo + DESIGN.md).
-- Design → Code via exported zip (programmatic connector blocked in this runtime).
+Each page must be pixel‑aligned to Claude Design
 
-✅ 3. DOC INSERTS (file‑ready)
+D‑395 — Open Items Acknowledged & Queued
+
+Ratified.
+
+Items:
+
+D‑391 deeper wiring
+
+Wizard goals → tenant_modules
+
+Wizard style → applyBrandPreset
+
+Genesis must recompute sitemap/sections using active BrandTokens
+
+H‑4 monotonic + idempotent Genesis
+
+No step may regress
+
+No double‑provisioning
+
+No theme/sitemap divergence
+
+Launchpad → Genesis must be strictly monotonic
+
+These remain active work items.
+
+📄 3. DOC INSERTS (file‑ready)
 
 Below are the exact inserts for each doc.
 
-📄 Insert for docs/AI-WEBSITE-BUILDER-NORTH-STAR.md
+📄 Insert → docs/DESIGN-INTEGRATION.md
 Code
 Copy
-### Claude Design Integration (D‑390)
-Claude Design is the authoritative UX source for AIBizConnect.
+# Claude Design Integration (D‑394)
+AIBizConnect uses Claude Design as the authoritative UX source.
+
+Workflow:
+1. Ali designs a page in Claude Design.
+2. Claude pulls the .dc.html + tokens via relay (design-handoffs/).
+3. Claude builds the native version using the tokenized section library.
+4. Page replaces the old version only after:
+   - Visual diff vs Claude Design output
+   - Manual confirmation by Ali
+   - Inspector QA
+
+This loop continues until full aibizconnect.app parity (~20 pages).
+
+📄 Insert → docs/AI-WEBSITE-BUILDER-NORTH-STAR.md
+Code
+Copy
+### Claude Design Handoff (D‑394)
+Claude Design is the canonical UX source for all public-facing pages.
 
 Rules:
-- ABC design system lives under `.abc-ds` to avoid Tailwind collisions.
+- Page-by-page rebuild loop with visual diff + Ali confirmation.
 - DESIGN.md documents the design system and GitHub integration.
-- Builder, onboarding, and dashboard must match Claude Design’s exported flow.
-- BrandTokens + presets must align with Claude Design’s token bundle.
+- design-handoffs/ contains Claude Design exports and BRIEF.md specs.
+- Native pages must match Claude Design pixel-for-pixel.
 
-📄 Insert for docs/TEMPLATE-FACTORY.md
+📄 Insert → docs/TEMPLATE-FACTORY.md
 Code
 Copy
-### Wizard Style → BrandTokens (D‑391)
-Wizard-selected style presets must be applied via applyBrandPreset(tenantId, presetKey).
-BrandTokens must be persisted in website_brand_settings.theme and consumed by the renderer.
+### Claude Design → Native Section Mapping (D‑394)
+Each Claude Design page is decomposed into native sections using the tokenized library.
 
-### Hardcoded Audit Precondition (D‑388)
-All sections must be tokenized before Tailwind consolidation.
+Rules:
+- 10-section Home pattern is canonical.
+- All sections must be tokenized (D‑388).
+- Variants stored in code (D‑390).
 
-📄 Insert for docs/TENANT-GENESIS-PROTOCOL.md
+📄 Insert → docs/TENANT-GENESIS-PROTOCOL.md
 Code
 Copy
-### Wizard → Genesis Wiring (D‑391)
-Wizard goals map to tenant_modules via INDUSTRY_PROFILES.
-Wizard style maps to applyBrandPreset and persists into website_brand_settings.theme.
-Genesis must re-compute initial sitemap/sections using active BrandTokens.
+### Pending Genesis Wiring (D‑395)
+Wizard goals → tenant_modules (via INDUSTRY_PROFILES).
+Wizard style → applyBrandPreset.
+Genesis must recompute sitemap/sections using active BrandTokens.
+Launchpad → Genesis must be strictly monotonic and idempotent (H‑4).
 
-### Ask AIBiz Drawer (D‑393)
-Drawer must call POST /api/agent-chat using existing PUBLIC_TOOLSET gating.
-Conversations persist in tenant_agent_conversations.
+🎯 4. Everything is now logged, ratified, and filed.
 
-### Wizard Progress Persistence (D‑394)
-Wizard step state must survive refresh/resume.
-Genesis must remain idempotent and must not double-provision.
+Your next steps (already queued):
 
-⭐ 4. One Architectural Hardening Note Before Deep D‑391 Wiring
+D‑391 deeper wiring
 
-Before wiring goals → modules + style → BrandTokens deeper:
+H‑4 monotonic Genesis
 
-H‑4 — Wizard → Launchpad → Genesis must be strictly monotonic
+P‑B tokenization audit
 
-No step may regress or overwrite a later step’s state.
+P‑B 2‑variant section library
 
-This prevents:
-
-double‑provisioning
-
-inconsistent module sets
-
-mismatched themes
-
-sitemap/style divergence
-
-This is the final guardrail for the builder + Launchpad + Genesis triad.
-
-🎯 Everything is now logged, ratified, and filed.
+P‑C static HTML export + preview switcher
 
 If you want, I can also generate:
 
-The Claude‑Design integration README
+The Claude‑Design → Native mapping guide
 
-The Ask AIBiz agent contract
+The visual diff QA checklist
 
-The wizard state machine spec
+The wizard → modules/style wiring spec
 
-The BrandTokens schema freeze
+The Genesis monotonicity contract
 
 Just say the word.
 

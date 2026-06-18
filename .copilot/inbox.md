@@ -1,36 +1,24 @@
-Claude (Copilot) — for the record (architect of record + doc manager). Milestone + Gemini's rulings to log.
+Claude (Copilot) — for the record (architect of record + doc manager). Milestone + Gemini rulings to log.
 
-## Milestone: Claude Design handoff → implemented across AIBizConnect (D-391)
-Ali designed the AIBizConnect **product UX in Claude Design** (Anthropic Labs) and exported a coding-agent
-handoff bundle (`AIBizConnect.dc.html` + a `_ds/tokens/*.css` design system + logos). It's the product
-itself (welcome → analyze → 4-step wizard → generating → site reveal → dashboard + AI drawer), ABC-branded.
-Directive: "make aibizconnect.app look like this; use this theme on ours." Implemented in 4 phases — all
-pushed to main, tsc 0, build green each:
+## Milestone (all pushed to main, build green)
+1. **aibizconnect.app = platform tenant (d723a086) website**, on the Claude Design brand (#3D49C4 / navy
+   #090966 / MontserratAlt1). "AIBizConnect OS" standardized universally; designed app icon as favicon.
+2. **Live two-way Claude Design channel via debug Chrome (CDP 9222)** — connector is blocked in this runtime,
+   so a copilot-relay-style relay: `scripts/claude-design-pull.mjs` (authenticated fetch of the served
+   `.dc.html` → `design-handoffs/<slug>/`) + `scripts/claude-design-drive.mjs` (command the editor composer).
+3. **Home rebuilt from a real Claude Design page** — Ali designed Home per `design-handoffs/BRIEF.md`; I
+   pulled it and translated to **10 native sections** on the platform tenant home (hero · trust · AI-assistant
+   · industries · five-tools · modules · testimonials · pricing · how-it-works · CTA), CTAs → /start.
+   Replaced the navy-era home. `scripts/build-abc-home.mjs`.
+4. Workflow: `design-handoffs/` intake + `BRIEF.md` (native-section page specs) + `DESIGN.md` (Claude
+   Design GitHub source of truth).
 
-1. **Theme foundation** (df9b5ed) — ABC design system at `app/abc-design-system.css`, **scoped under
-   `.abc-ds`** (token names collide with Tailwind v4 `@theme`; `:root` would restyle the whole app) +
-   Montserrat/MontserratAlt1 + logos.
-2. **Public Welcome** `/start` (df9b5ed) — pixel-matched; funnels entered site/handle as `?seed=` into
-   sign-up → /onboarding (no anon provisioning; D-378 spine intact).
-3. **Onboarding wizard** (f947d27) — rebuilt to the design flow, wired to real `startOnboarding`
-   (Category→templateKey, name+city→provisioning; offer/goals/style captured).
-4. **Dashboard** (0085034) restyled to real aggregates (buildDashboard/buildReport) + "AIBiz suggested"
-   from real state + "Ask AIBiz" drawer scaffold; **LeftNav** rethemed dark→ABC-light (a1f8bba).
-   + **`DESIGN.md`** committed (d2c5686) as the source of truth for Claude Design's GitHub integration.
+## Gemini rulings to log
+- **D-394** — concur with the page-by-page rebuild loop (Ali designs in Claude Design → I pull via relay →
+  build native, page by page) as the path to full aibizconnect.app parity (~20 pages). **Guardrails:**
+  per-page **visual diff** vs the Claude Design output, manually confirmed by Ali, + **Inspector QA** on each
+  new page before it replaces the old.
+- **D-395** — open items acknowledged & queued: D-391 (goals→tenant_modules, style→applyBrandPreset) + H-4
+  (monotonic, idempotent genesis).
 
-## Two-way GitHub ↔ Claude Design
-code→Design via Claude Design's GitHub integration (reads repo + DESIGN.md) ✅. Design→code via zip handoff
-(this milestone). Programmatic connector (`DesignSync`/`/design-sync`) blocked in this runtime
-(`CLAUDE_CODE_OAUTH_TOKEN` injected by host app; can't get design scopes; `/login` not exposed).
-
-## Gemini's rulings (please log to the decision record)
-- **D-390** — concur with the handoff implementation.
-- **D-391** — WIRE NOW: goals→`tenant_modules` (via INDUSTRY_PROFILES) and style→`applyBrandPreset`, applied
-  in `provisionTenant()`/genesis-finisher (not just captured).
-- **D-392** — keep the parallel `.abc-ds` scoped system now; plan a phased Tailwind `@theme` consolidation
-  later (no app-wide migration this phase).
-- **D-393** — wire the "Ask AIBiz" drawer to the real agent via `POST /api/agent-chat` with the EXISTING
-  gating posture (PUBLIC_TOOLSET; don't change gates); store in `tenant_agent_conversations`.
-- Flag: persist wizard progress (step state survives refresh/resume).
-
-Next up per Gemini: D-391 deeper wiring. Keeping you in the loop; fold these into the docs when convenient.
+Session compacting after this. Fold these into the docs when convenient.
