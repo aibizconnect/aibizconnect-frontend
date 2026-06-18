@@ -1,239 +1,310 @@
-Ali — Report #63 is filed, and this becomes the official Blueprint v3.3 — INPUT‑FIRST EDITOR STRATEGY Milestone, completing D‑287 → D‑291 and locking in the new doctrine:
+Ali — Claude — I’ve got the full picture, and this is the moment to lock the architecture into the written record.
+You’ve executed every ruling exactly, and the system is now aligned with the North‑Star builder, the Launchpad doctrine, and the Genesis governance model.
 
-“Don’t touch the editor. Fix the input.”
+You asked for the docs — here they are, fully generated, clean, canonical, and ready to drop into the repo.
 
-This is the first time the platform has a formal import contract, a structured Stitch prompt builder, and a clear path to 100/100 Inspector fidelity without touching the moat.
+Below are all three documents, updated to reflect:
 
-Below is the full milestone record — and the strategic ruling you implicitly made by shipping this direction.
+D‑382 → D‑390
 
-BLUEPRINT v3.3 — INPUT‑FIRST EDITOR STRATEGY (D‑287..D‑291 Filed)
+The tokenized section library (D‑386 → D‑390)
 
-(Commit 4ea9463 — Gemini‑consulted, AST‑preserving, importer‑preserving)
+The Launchpad governance doctrine
 
-1) D‑287 — DESIGN‑IMPORT CONTRACT (SHIPPED)
+The Genesis acceptance model
 
-The new file:
+The Template Factory integration
 
-docs/DESIGN-IMPORT-CONTRACT.md
+The North‑Star builder roadmap
 
-This is now the canonical fidelity contract between:
+The ABC “AI Business OS” showcase
 
-Stitch (design generator)
+The P‑A/P‑B/P‑C phasing
 
-Our importer (translator)
+The hardcode-tokenization audit
 
-Our AST (source of truth)
+The P2 swap engine
 
-Our inspectors (quality guarantees)
+The sitemap-first builder (P1)
 
-Contents:
+Everything is file‑ready.
 
-DO/DON’T table for lossless import
+📄 DOC 1 — docs/TEMPLATE-FACTORY.md (UPDATED)
+Code
+Copy
+# Template Factory — System Templates, Tokens, and Section Library
+Architect of Record: Copilot
+Status: Updated through D‑390
 
-Element vocabulary map → exactly what maps to Section → Row → Column → Element
+## Overview
+The Template Factory is the unified source of:
+- System section templates (code-based)
+- User-saved templates (DB-based)
+- Tokenized styling (BrandTokens → CSS vars)
+- P2 swap engine (replace/regenerate)
+- P‑A/P‑B/P‑C tokenized section library
 
-Rules for:
+System templates live in code.  
+User templates live in DB.  
+Both appear in the same library UI.
 
-Spacing ≤ 40
+---
 
-One gradient
+## D‑386 — tokens.json = Serialized BrandTokens
+BrandTokens fields:
+- colors
+- typography
+- spacing
+- radii
+- shadows
+- breakpoints
 
-WCAG‑AA contrast
+Presets:
+`lib/design/token-presets/{realestate,neutral}.json`
 
-Semantic HTML
+Pipeline:
+BrandTokens → tokensToCssVars → `--abc-*` CSS vars → SectionView.
 
-Recognizer‑friendly structures
+No Tailwind fork.
 
-Theme‑token‑friendly color roles
+---
 
-This is the first time the importer has a formal upstream contract.
+## D‑387 — Presets as Files + applyBrandPreset()
+Presets are JSON files, not DB rows.
 
-Filed under Import Contract v1.
+Server action:
+`applyBrandPreset(tenantId, presetKey)`
 
-2) D‑288 — buildStitchPrompt() (SHIPPED)
+Writes to:
+`website_brand_settings.theme`
 
-The new file:
+Renderer consumes updated BrandTokens via existing CSS var pipeline.
 
-lib/sites/stitch-prompt.ts
+---
 
-Exports buildStitchPrompt(), a structured prompt builder that forces Stitch to design natively in our model.
+## D‑388 — Hardcoded Value Audit (P‑B)
+All native sections must be audited for:
+- hardcoded px
+- hardcoded hex
+- hardcoded font names
+- hardcoded spacing/radius/shadow
 
-Capabilities:
+Replace with token references.
 
-Named‑block sections per page type
+If a section requires a unique visual, add a semantic token (e.g., `--abc-card-bg`).
 
-Palette‑role color constraints (clean theme capture)
+Audit precedes authoring the 2‑variant section set.
 
-WCAG‑AA contrast
+---
 
-≤40 spacing
+## D‑389 — Tokenized Section Library Phasing (P‑A → P‑B → P‑C)
 
-One gradient
+### P‑A — Tokens + Presets + Apply
+- Implement tokens.json + presets
+- Implement applyBrandPreset
+- Verify a preset swap re‑skins one section end‑to‑end
+
+### P‑B — Author 2‑Variant Native Sections + Hardcode Audit
+- Variant A (real estate)
+- Variant B (neutral)
+- Store in code (`prebuilt-templates.ts`)
+- Tokenize all hardcoded values
+
+### P‑C — Static HTML Export + /preview Switcher
+- `renderSectionToHtml()`
+- `/preview` with realestate ↔ neutral toggle
+- README for integrators
+
+---
+
+## D‑390 — System Templates Live in Code
+System templates:
+`lib/sections/prebuilt-templates.ts`
+
+User templates:
+`website_section_templates` (DB)
+
+Both appear in the same library UI.
+
+---
+
+## Integration with P2 Swap Engine
+Swap engine uses:
+- sectionAlternatives
+- replaceSectionWithPrebuilt
+- AI-regenerate (existing)
+
+Editor button pending.
+
+---
+
+## Integration with P1 AI Sitemap-First
+Sitemap defines:
+- pages
+- section outlines
+- section types
+
+Template Factory resolves section types → tokenized templates.
+
+
+📄 DOC 2 — docs/AI-WEBSITE-BUILDER-NORTH-STAR.md (UPDATED)
+Code
+Copy
+# AI Website Builder — North‑Star Specification
+Architect of Record: Copilot
+Status: Updated through D‑382, D‑386 → D‑390
+
+## Vision
+Achieve Relume-level AI website generation using ABC’s native Section→Row→Column→Element model and supervised agent.
+
+Builder must:
+- Generate sitemap from business context
+- Generate pages/sections from tokenized library
+- Apply global AI style guide
+- Support replace/regenerate at any level
+- Be fully agent-editable
+- Export static HTML
+- Support realestate ↔ neutral preview
 
-Semantic HTML
+---
 
-Recognizer‑friendly patterns
+## D‑382 — Builder Phasing (Canonical)
 
-AST‑native layout semantics
+### P1 — AI Sitemap-First Generation
+- Input: business profile, industry, goals
+- Output: sitemap (pages + section outlines)
+- Replaces fixed industry templates
+- Foundation for P2/P3/P4
 
-Zero “imported‑html” fallbacks
+### P2 — Swappable Section Library
+- Replace section
+- Regenerate section
+- 2 polished variants per section
+- Tokenized styling
 
-Zero fidelity drift
+### P3 — AI Style-Guide Generation
+- Colors
+- Typography
+- Spacing
+- Radii
+- Shadows
+- Breakpoints
 
-Outcome:
+### P4 — Expanded Supervised Agent Tools (Genesis G2)
+- Funnels
+- CRM edits
+- Automation creation
+- Multi-page consistency
+- Cross-page refactoring
 
-Stitch now produces our structure, not arbitrary HTML.
+---
 
-Filed under Stitch Prompt Protocol v1.
+## Tokenized Section Library (D‑386 → D‑390)
+- BrandTokens serialized to tokens.json
+- Presets in `lib/design/token-presets`
+- applyBrandPreset writes to website_brand_settings
+- Hardcoded audit required
+- 2 variants per section (realestate/neutral)
+- Static HTML export
+- /preview switcher
 
-3) D‑289 — The INPUT‑FIRST RULING (STRATEGIC)
+---
 
-Ali reframed the editor question:
+## Integration with Launchpad
+Builder runs in the `website` Launchpad step.
 
-“DON’T touch the editor/importer (the moat). Fix the INPUT.”
+Genesis reads:
+- sitemap
+- style guide
+- section templates
 
-This is the correct ruling and now the official doctrine.
+---
 
-Why it matters:
+## ABC as Showcase (D‑383)
+ABC’s site must be:
+- Fully AI-editable
+- Tokenized
+- Built with the same builder
+- The public demonstration of the AI Business OS
 
-The importer is your moat
 
-The AST is your schema moat
+📄 DOC 3 — docs/TENANT-GENESIS-PROTOCOL.md (UPDATED)
+Code
+Copy
+# Tenant Genesis Protocol
+Architect of Record: Copilot
+Status: Updated through D‑395
 
-The inspectors are your quality moat
+## Doctrine
+Launchpad = onboarding spine  
+Genesis = Launchpad completion engine  
+No anonymous provisioning  
+No resource creation for non-accounts
 
-The theme tokens are your design moat
+---
 
-The prebuilts are your speed moat
+## D‑391 — Tenant Creation Requires Authenticated userId
+`provisionTenant()` requires userId.  
+`/start` becomes a marketing teaser only.
 
-Changing the editor would destroy all five.
+---
 
-Changing the input preserves all five.
+## D‑392 — Launchpad is the Authoritative Onboarding Spine
+Structural provisioning at signup.  
+Contextual provisioning maps to Launchpad steps:
+account → brand → website → idx_vow → domain → email → social → ecommerce
 
-Filed under Editor Strategy v3.3.
+Genesis may read Launchpad state but must not write outside its step.
 
-4) D‑290 — NEXT STEPS (Awaiting Ali’s Greenlight)
+---
 
-Once Ali greenlights wiring:
+## D‑393 — No Resource Creation for Non-Accounts
+No subdomains, listings, CRM contacts, or DB rows until a real user exists.
 
-Pipeline becomes:
+---
 
-buildStitchPrompt()
+## D‑394 — Purge Anonymous Soft Tenants
+Purge all pre-account-gating tenants with full cleanup + audit.
 
-→ Stitch MCP
+---
 
-→ HTML output
+## D‑395 — Launchpad State Must Be Idempotent + Resumable
+Launchpad must resume cleanly after refresh/close.  
+Genesis must not double-seed or double-provision.
 
-→ Importer
+---
 
-→ AST
+## D‑384 — Sample-Listing Seed at Signup (Real Estate Only)
+18 sample listings with:
+- source="sample"
+- seed_version=1
 
-→ Inspector 100
+---
 
-→ Editable page
+## G1 Acceptance (Real Estate Tenant)
+1. genesis_runs row exists  
+2. tenant_modules correct  
+3. 18 sample listings  
+4. CRM mirror contact  
+5. Homepage IDX in sample mode only  
+6. Genesis Report banner  
+7. Header/Footer applied
 
-QA requirement:
+G1 = PASS when all seven checks pass.
 
-generate → import → Inspector 100 with zero html/imported-html fallbacks
 
-This is the first deterministic design → import → edit loop in the platform’s history.
+🎯 Everything is now filed, canonical, and ready to merge.
 
-Filed under Stitch Integration v2.
+If you want, I can also generate:
 
-5) D‑291 — Peer Consult Rulings (FUNNELS + EMAIL) — PARKED
+The hardcode-tokenization audit checklist
 
-Gemini + Ali produced rulings for:
+The section variant authoring guide
 
-Funnels
+The AI sitemap-first prompt spec
 
-Pages + react‑flow graph
+The static HTML export contract
 
-Step settings
-
-Reuse the page editor
-
-New table: tenant_funnel_steps
-
-Email
-
-react-email
-
-Custom block builder
-
-AST‑like block model
-
-No MJML
-
-No GrapesJS
-
-No Unlayer
-
-Status:
-
-Parked behind INPUT‑FIRST priority  
-(Your ruling: fix import fidelity before building editors.)
-
-Filed under Funnels v1 Planning and Email Builder v1 Planning.
-
-6) Resend Email — NOW LIVE (FILED)
-
-The send channel is fully active:
-
-Verified domain
-
-Verified DKIM
-
-Verified sender
-
-Marketing v1
-
-Booking confirmations
-
-Agent booking emails
-
-Reminder emails
-
-Filed under Send Channel Live.
-
-Platform State — The Editor Moat Is Preserved, The Input Is Fixed
-
-You now have:
-
-A formal import contract
-
-A structured Stitch prompt builder
-
-A deterministic design → import → edit loop
-
-Zero editor rewrites
-
-Zero importer rewrites
-
-Zero AST rewrites
-
-Zero inspector rewrites
-
-Zero theme rewrites
-
-Zero moat damage
-
-This is the correct strategic direction.
-
-Filed under Blueprint v3.3 Completion Ledger.
-
-Ali — I need your greenlight on one thing:
-Do you want me to wire buildStitchPrompt() into the Stitch pipeline + the Website Wizard now?
-
-Once you say yes, I will proceed to:
-
-Integrate the prompt builder
-
-Run full QA
-
-Guarantee Inspector 100
-
-Ship the deterministic loop
-
-Just say “Greenlight” and I’ll move.
+Just say the word.
 
 Edit in a page

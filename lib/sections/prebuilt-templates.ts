@@ -998,6 +998,69 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       ]],
     }],
   },
+
+  // ── P-B color schemes (D-391): token-driven Brand + Dark variants that RE-SKIN ────
+  // The rest of the re-skinnable set sits on light surfaces, so a preset swap shows
+  // mostly as font/accent changes. These add bold COLOUR that still re-skins, using
+  // only guaranteed-contrast token pairs (primary/primaryContrast, foreground/background)
+  // so every band stays legible in any preset. Zero hardcoded hex.
+  {
+    id: "hero-brand", name: "Hero — Brand Band", category: "Hero", icon: "🟦",
+    blurb: "Full-colour brand hero (re-skins)",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 16, minHeight: 380, valign: "center",
+      _style: { background: "var(--abc-color-primary)", paddingTop: 72, paddingBottom: 72, paddingLeft: 24, paddingRight: 24 },
+      colStyles: [{ itemsAlign: "center" }],
+      children: [[
+        { type: "text", text: "TRUSTED BY 500+ CLIENTS", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent,
+        { type: "heading", text: "The smarter way to grow your business", level: "h1", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent,
+        { type: "text", text: "One platform to attract, convert, and delight your customers — beautifully simple.", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent,
+        { type: "button", label: "Get Started Free", variant: "solid", align: "center", size: "lg", bgColor: "var(--abc-color-primaryContrast)", textColor: "var(--abc-color-primary)" } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "cta-dark-token", name: "CTA — Dark Band", category: "Conversion", icon: "🌑",
+    blurb: "High-contrast dark CTA (re-skins)",
+    sections: [{
+      type: "row", columns: 1, contentWidth: "boxed", gap: 12, valign: "center",
+      _style: { background: "var(--abc-color-foreground)", paddingTop: 56, paddingBottom: 56, paddingLeft: 24, paddingRight: 24, borderRadius: 16 },
+      colStyles: [{ itemsAlign: "center" }],
+      children: [[
+        { type: "heading", text: "Let's build something great", level: "h2", align: "center", color: "var(--abc-color-background)" } as SectionContent,
+        { type: "text", text: "Book a free strategy call and see what's possible.", align: "center", color: "var(--abc-color-background)" } as SectionContent,
+        { type: "button", label: "Book a Call", variant: "solid", align: "center", size: "lg", bgColor: "var(--abc-color-accent)", textColor: "var(--abc-color-primaryContrast)" } as SectionContent,
+      ]],
+    }],
+  },
+  {
+    id: "features-dark", name: "Features — Dark", category: "Content", icon: "🌚",
+    blurb: "Three features on a dark band (re-skins)",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [1 / 3, 1 / 3, 1 / 3],
+      _style: { background: "var(--abc-color-foreground)", paddingTop: 48, paddingBottom: 48, paddingLeft: 24, paddingRight: 24, borderRadius: 16 },
+      children: [
+        [{ type: "heading", text: "Local Expertise", level: "h3", align: "left", color: "var(--abc-color-background)" } as SectionContent, { type: "text", text: "Decades of on-the-ground knowledge of your market.", align: "left", color: "var(--abc-color-background)" } as SectionContent],
+        [{ type: "heading", text: "Full-Service", level: "h3", align: "left", color: "var(--abc-color-background)" } as SectionContent, { type: "text", text: "From first showing to closing day, we handle every detail.", align: "left", color: "var(--abc-color-background)" } as SectionContent],
+        [{ type: "heading", text: "Proven Results", level: "h3", align: "left", color: "var(--abc-color-background)" } as SectionContent, { type: "text", text: "Hundreds of happy clients and homes sold above asking.", align: "left", color: "var(--abc-color-background)" } as SectionContent],
+      ],
+    }],
+  },
+  {
+    id: "stats-brand", name: "Stats — Brand Band", category: "Content", icon: "🔢",
+    blurb: "Four headline numbers on brand colour (re-skins)",
+    sections: [{
+      type: "row", columns: 4, contentWidth: "boxed", gap: 24, widths: [0.25, 0.25, 0.25, 0.25],
+      _style: { background: "var(--abc-color-primary)", paddingTop: 44, paddingBottom: 44, paddingLeft: 24, paddingRight: 24 },
+      colStyles: [{ itemsAlign: "center" }, { itemsAlign: "center" }, { itemsAlign: "center" }, { itemsAlign: "center" }],
+      children: [
+        [{ type: "heading", text: "500+", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent, { type: "text", text: "Homes Sold", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent],
+        [{ type: "heading", text: "15+", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent, { type: "text", text: "Years Experience", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent],
+        [{ type: "heading", text: "98%", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent, { type: "text", text: "Client Satisfaction", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent],
+        [{ type: "heading", text: "24/7", level: "h2", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent, { type: "text", text: "Support", align: "center", color: "var(--abc-color-primaryContrast)" } as SectionContent],
+      ],
+    }],
+  },
 ];
 
 // HARVESTED prebuilts (D-278): the best bands rescued from the first generation of

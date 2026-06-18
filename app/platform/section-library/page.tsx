@@ -23,6 +23,8 @@ const RESKINNABLE = new Set([
   "form-contact", "form-lead", "booking-inline", "booking-intro", "survey-single", "survey-multi",
   "pricing-3", "pricing-2", "faq-short", "faq-detailed", "testimonials-grid", "testimonials-carousel",
   "footer-minimal", "footer-full",
+  // D-391 colour-scheme variants (bold Brand/Dark bands that re-skin)
+  "hero-brand", "cta-dark-token", "features-dark", "stats-brand",
 ]);
 
 function brandTokensToTheme(t: BrandTokens): ThemeTokens {
@@ -64,7 +66,14 @@ export default async function SectionLibraryPage() {
 
   const re = presetTokens("realestate")!;
   const nu = presetTokens("neutral")!;
-  const items = PREBUILT_TEMPLATES.filter((p) => RESKINNABLE.has(p.id)).map((p) => ({ id: p.id, name: p.name, category: p.category, sections: p.sections }));
+  // Bold colour-scheme bands first, so the re-skin is obvious at the top of the page.
+  const COLOUR_FIRST = ["hero-brand", "stats-brand", "cta-dark-token", "features-dark", "cta-banner"];
+  const items = PREBUILT_TEMPLATES.filter((p) => RESKINNABLE.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name, category: p.category, sections: p.sections }))
+    .sort((a, b) => {
+      const ai = COLOUR_FIRST.indexOf(a.id), bi = COLOUR_FIRST.indexOf(b.id);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
 
   return (
     <div>
