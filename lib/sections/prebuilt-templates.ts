@@ -642,6 +642,189 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     }],
   },
 
+  // ── P-B batch 2: Nav, Forms, Footer-full (token-driven, re-skinnable) ────────────
+  {
+    id: "nav-simple", name: "Nav — Simple", category: "Headers", icon: "🧭",
+    blurb: "Logo + horizontal menu (auto mobile drawer)",
+    sections: [{
+      type: "row", columns: 2, contentWidth: "wide", valign: "center", gap: 16, widths: [0.3, 0.7],
+      _kind: "header",
+      _style: { background: "var(--abc-color-background)", paddingTop: 14, paddingBottom: 14, paddingLeft: 24, paddingRight: 24 },
+      children: [
+        [{ type: "heading", text: "Your Business", level: "h3", align: "left" } as SectionContent],
+        [{ type: "menu", orientation: "horizontal", align: "right", items: [
+          { label: "Home", href: "/" }, { label: "About", href: "/about" }, { label: "Services", href: "/services" }, { label: "Contact", href: "/contact" },
+        ] } as SectionContent],
+      ],
+    }],
+  },
+  {
+    id: "nav-cta", name: "Nav — With CTA", category: "Headers", icon: "🧭",
+    blurb: "Logo + menu + call-to-action",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "wide", valign: "center", gap: 16, widths: [0.26, 0.54, 0.2],
+      _kind: "header",
+      _style: { background: "var(--abc-color-background)", paddingTop: 14, paddingBottom: 14, paddingLeft: 24, paddingRight: 24 },
+      children: [
+        [{ type: "heading", text: "Your Business", level: "h3", align: "left" } as SectionContent],
+        [{ type: "menu", orientation: "horizontal", align: "center", items: [
+          { label: "Home", href: "/" }, { label: "Services", href: "/services" }, { label: "Pricing", href: "/pricing" }, { label: "About", href: "/about" },
+        ] } as SectionContent],
+        [{ type: "button", label: "Get Started", variant: "solid", align: "right" } as SectionContent],
+      ],
+    }],
+  },
+  {
+    id: "form-contact", name: "Form — Contact", category: "Conversion", icon: "✉️",
+    blurb: "Simple contact form → CRM",
+    sections: [{
+      type: "contact-form", heading: "Get in touch", subheading: "We'll get back to you within one business day.",
+      fields: [
+        { name: "name", label: "Your name", type: "text" },
+        { name: "email", label: "Email", type: "email" },
+        { name: "message", label: "How can we help?", type: "textarea" },
+      ],
+      submitLabel: "Send message",
+    } as SectionContent],
+  },
+  {
+    id: "form-lead", name: "Form — Lead Capture", category: "Conversion", icon: "🎯",
+    blurb: "Multi-field lead form → CRM",
+    sections: [{
+      type: "contact-form", heading: "Request a free consultation", subheading: "Tell us a bit about your project and we'll prepare a tailored plan.",
+      fields: [
+        { name: "name", label: "Full name", type: "text" },
+        { name: "email", label: "Email", type: "email" },
+        { name: "phone", label: "Phone", type: "tel" },
+        { name: "message", label: "What are you looking for?", type: "textarea" },
+      ],
+      submitLabel: "Request consultation",
+    } as SectionContent],
+  },
+  {
+    id: "footer-full", name: "Footer — Full Sitemap", category: "Footers", icon: "🗂️",
+    blurb: "Brand + social + 3 link columns",
+    sections: [{
+      type: "row", columns: 4, contentWidth: "wide", gap: 24, widths: [0.4, 0.2, 0.2, 0.2],
+      _kind: "footer",
+      _style: { background: "var(--abc-color-surface)", paddingTop: 40, paddingBottom: 32, paddingLeft: 24, paddingRight: 24 },
+      children: [
+        [
+          heading("Your Business", "h3", "left"),
+          text("A short tagline about what you do and who you help.", "left"),
+          { type: "social", links: [{ platform: "facebook", url: "#" }, { platform: "instagram", url: "#" }, { platform: "linkedin", url: "#" }] } as SectionContent,
+        ],
+        [
+          { type: "heading", text: "Company", level: "h5", align: "left" } as SectionContent,
+          { type: "text", text: "About", href: "/about", align: "left" } as SectionContent,
+          { type: "text", text: "Services", href: "/services", align: "left" } as SectionContent,
+          { type: "text", text: "Pricing", href: "/pricing", align: "left" } as SectionContent,
+        ],
+        [
+          { type: "heading", text: "Resources", level: "h5", align: "left" } as SectionContent,
+          { type: "text", text: "Blog", href: "/blog", align: "left" } as SectionContent,
+          { type: "text", text: "FAQ", href: "/faq", align: "left" } as SectionContent,
+          { type: "text", text: "Contact", href: "/contact", align: "left" } as SectionContent,
+        ],
+        [
+          { type: "heading", text: "Get started", level: "h5", align: "left" } as SectionContent,
+          { type: "text", text: "Book a call", href: "/contact", align: "left" } as SectionContent,
+          { type: "text", text: "© 2026 Your Business", align: "left" } as SectionContent,
+        ],
+      ],
+    }],
+  },
+
+  // ── P-B batch 3: Pricing, FAQ, Testimonials, About-Us, Calendar, Survey ──────────
+  {
+    id: "pricing-3", name: "Pricing — 3 Tiers", category: "Conversion", icon: "💳", blurb: "Three-plan pricing table",
+    sections: [{ type: "pricing", plans: [
+      { name: "Starter", price: "$29", period: "/mo", features: [{ text: "Core features" }, { text: "Email support" }, { text: "1 user" }], ctaLabel: "Choose Starter", ctaHref: "#" },
+      { name: "Pro", price: "$79", period: "/mo", features: [{ text: "Everything in Starter" }, { text: "Priority support" }, { text: "5 users" }, { text: "Advanced analytics" }], ctaLabel: "Choose Pro", ctaHref: "#" },
+      { name: "Enterprise", price: "Custom", features: [{ text: "Everything in Pro" }, { text: "Dedicated manager" }, { text: "Unlimited users" }], ctaLabel: "Contact sales", ctaHref: "#" },
+    ] } as SectionContent],
+  },
+  {
+    id: "pricing-2", name: "Pricing — 2 Tiers", category: "Conversion", icon: "💳", blurb: "Two-plan pricing table",
+    sections: [{ type: "pricing", plans: [
+      { name: "Monthly", price: "$49", period: "/mo", features: [{ text: "All features" }, { text: "Cancel anytime" }], ctaLabel: "Start monthly", ctaHref: "#" },
+      { name: "Annual", price: "$39", period: "/mo", features: [{ text: "All features" }, { text: "2 months free" }, { text: "Priority support" }], ctaLabel: "Start annual", ctaHref: "#" },
+    ] } as SectionContent],
+  },
+  {
+    id: "faq-short", name: "FAQ — Essentials", category: "Content", icon: "❓", blurb: "Three common questions",
+    sections: [{ type: "faq", items: [
+      { q: "How does it work?", a: "Sign up, set things up in minutes, and you're live." },
+      { q: "Can I cancel anytime?", a: "Yes — no contracts, cancel whenever you like." },
+      { q: "Do you offer support?", a: "Yes, our team is here to help every step of the way." },
+    ] } as SectionContent],
+  },
+  {
+    id: "faq-detailed", name: "FAQ — Detailed", category: "Content", icon: "❓", blurb: "Six questions, fuller answers",
+    sections: [{ type: "faq", items: [
+      { q: "What's included?", a: "Everything you need to launch and grow — website, CRM, booking, and marketing in one place." },
+      { q: "Do I need technical skills?", a: "No. Describe what you want and the AI builds and edits it for you." },
+      { q: "Can I use my own domain?", a: "Yes. Connect a custom domain in a few clicks, or start free on a subdomain." },
+      { q: "Is my data secure?", a: "Your workspace is isolated by design — your data stays yours." },
+      { q: "How fast can I launch?", a: "Most businesses are live the same day they sign up." },
+      { q: "What if I need help?", a: "Reach our team by chat or email — we respond fast." },
+    ] } as SectionContent],
+  },
+  {
+    id: "testimonials-grid", name: "Testimonials — Grid", category: "Social Proof", icon: "⭐", blurb: "Three quote cards",
+    sections: [{ type: "testimonials", heading: "What our clients say", layout: "grid", items: [
+      { name: "Sarah M.", role: "Homeowner", quote: "They made the whole process simple and stress-free — sold above asking in under two weeks." },
+      { name: "David K.", role: "Investor", quote: "One platform replaced four tools I was paying for. Couldn't be happier." },
+      { name: "Priya S.", role: "First-time buyer", quote: "Patient, knowledgeable, and always available. Highly recommend." },
+    ] } as SectionContent],
+  },
+  {
+    id: "testimonials-carousel", name: "Testimonials — Carousel", category: "Social Proof", icon: "⭐", blurb: "Rotating quotes",
+    sections: [{ type: "testimonials", heading: "Loved by clients", layout: "carousel", items: [
+      { name: "Marcus T.", role: "Seller", quote: "Professional from start to finish — I felt looked after the entire way." },
+      { name: "Elena R.", role: "Buyer", quote: "Found us the perfect home and negotiated a great price. Five stars." },
+    ] } as SectionContent],
+  },
+  {
+    id: "about-team", name: "About Us — Team", category: "Team", icon: "👥", blurb: "Three team member cards",
+    sections: [{
+      type: "row", columns: 3, contentWidth: "boxed", gap: 24, widths: [0.333, 0.333, 0.334],
+      _style: { paddingTop: 40, paddingBottom: 40 },
+      colStyles: [{ itemsAlign: "center" }, { itemsAlign: "center" }, { itemsAlign: "center" }],
+      children: [
+        [{ type: "image", url: "", alt: "Team member", rounding: 9999, objectFit: "cover", width: 120 } as SectionContent, heading("Alex Carter", "h3"), text("Founder & Lead Agent")],
+        [{ type: "image", url: "", alt: "Team member", rounding: 9999, objectFit: "cover", width: 120 } as SectionContent, heading("Jordan Lee", "h3"), text("Client Success")],
+        [{ type: "image", url: "", alt: "Team member", rounding: 9999, objectFit: "cover", width: 120 } as SectionContent, heading("Sam Rivera", "h3"), text("Marketing")],
+      ],
+    }],
+  },
+  {
+    id: "booking-inline", name: "Calendar — Booking", category: "Conversion", icon: "📅", blurb: "Embed your booking calendar",
+    sections: [{ type: "booking", calendarSlug: "", heading: "Book a time", subheading: "Pick a slot that works for you.", height: 760 } as SectionContent],
+  },
+  {
+    id: "booking-intro", name: "Calendar — Booking + Intro", category: "Conversion", icon: "📆", blurb: "Heading + copy above the calendar",
+    sections: [
+      { type: "row", columns: 1, contentWidth: "medium", gap: 8, colStyles: [{ itemsAlign: "center" }], _style: { paddingTop: 40, paddingBottom: 8 },
+        children: [[text("SCHEDULE"), heading("Let's find a time that works", "h2"), text("Choose a slot below and you'll get an instant confirmation.")]] } as SectionContent,
+      { type: "booking", calendarSlug: "", heading: "", height: 720 } as SectionContent,
+    ],
+  },
+  {
+    id: "survey-single", name: "Survey — Single Question", category: "Conversion", icon: "📝", blurb: "One quick question → CRM",
+    sections: [{ type: "survey", heading: "Quick question", submitLabel: "Submit", successMessage: "Thanks!", questions: [
+      { label: "How did you hear about us?", kind: "single", options: [{ text: "Search" }, { text: "Social media" }, { text: "Referral" }, { text: "Other" }] },
+    ] } as SectionContent],
+  },
+  {
+    id: "survey-multi", name: "Survey — Multi-Question", category: "Conversion", icon: "🗒️", blurb: "Multi-step questionnaire → CRM",
+    sections: [{ type: "survey", heading: "Tell us about your needs", submitLabel: "Send", successMessage: "Thanks for your response!", questions: [
+      { label: "What are you looking for?", kind: "single", options: [{ text: "Buying" }, { text: "Selling" }, { text: "Renting" }, { text: "Just browsing" }] },
+      { label: "What matters most to you?", kind: "multiple", options: [{ text: "Price" }, { text: "Location" }, { text: "Size" }, { text: "Schools" }] },
+      { label: "Your email", kind: "email", options: [], required: true },
+    ] } as SectionContent],
+  },
+
   // ── SOCIAL PROOF (editable quote cards) ─────────────────────────────────────────
   {
     id: "testimonials-3", name: "Testimonials — 3", category: "Social Proof", icon: "💬",
