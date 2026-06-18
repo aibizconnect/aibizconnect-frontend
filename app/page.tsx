@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AbcPage, CtaBand, SectionHead, Eyebrow, Check, CONTAINER, v, btnPrimary, btnGhost, card } from "@/components/marketing/abc/Shell";
+import PricingPlans from "@/components/marketing/abc/PricingPlans";
 
 /**
  * Public marketing home for aibizconnect.app — a faithful build of the Claude Design "Home"
@@ -39,11 +40,6 @@ const TESTIMONIALS = [
   { initials: "PA", quote: "We run six client brands from one login. White-label sub-accounts are a game changer for our agency.", name: "Priya Anand", role: "Founder · Northbeam Agency" },
 ];
 const LOGOS = ["Eastside Realty", "Hale Advisory", "Summit Mortgage", "Olive & Ember", "Northbeam"];
-const TEASER = [
-  { name: "Starter", price: "$39", tagline: "For solo pros getting online fast.", highlight: false },
-  { name: "Pro", price: "$89", tagline: "For growing teams that sell.", highlight: true },
-  { name: "Agency", price: "$699", tagline: "Manage many clients & brands.", highlight: false },
-];
 const STEPS = [
   { n: "1", title: "Sign up free", body: "Create your account in seconds — no credit card, no setup call required." },
   { n: "2", title: "AI builds your OS", body: "Answer a few questions and AI generates your site, CRM, funnels, and automations." },
@@ -161,24 +157,13 @@ export default function MarketingHome() {
         </div>
       </section>
 
-      {/* PRICING TEASER */}
+      {/* PRICING (shared component → always matches /pricing) */}
       <section id="pricing" style={{ background: v("--surface-card") }}>
-        <div className={`${CONTAINER}`} style={{ paddingTop: 88, paddingBottom: 88 }}>
+        <div className={`${CONTAINER}`} style={{ paddingTop: 88 }}>
           <SectionHead eyebrow="Simple pricing" title="Plans that grow with you" sub="Every plan includes your AI-built site, CRM, and concierge. Start free for 14 days." />
-          <div className="grid gap-6 md:grid-cols-3" style={{ marginTop: 48, alignItems: "start" }}>
-            {TEASER.map((t) => (
-              <div key={t.name} style={{ ...card, padding: 28, position: "relative", border: t.highlight ? `2px solid ${v("--border-brand")}` : `1px solid ${v("--border-subtle")}`, boxShadow: t.highlight ? v("--shadow-lg") : v("--shadow-xs") }}>
-                {t.highlight && <span style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", background: v("--color-primary"), color: v("--white"), borderRadius: v("--radius-pill"), padding: "4px 14px", fontSize: v("--text-xs"), fontWeight: 700 }}>Most popular</span>}
-                <h3 style={{ fontSize: v("--text-xl"), color: v("--text-strong") }}>{t.name}</h3>
-                <p style={{ marginTop: 6, fontSize: v("--text-sm"), color: v("--text-muted") }}>{t.tagline}</p>
-                <div style={{ marginTop: 16, display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span style={{ fontFamily: v("--font-display"), fontSize: v("--text-4xl"), fontWeight: 700, color: v("--text-strong") }}>{t.price}</span>
-                  <span style={{ color: v("--text-muted"), fontSize: v("--text-sm") }}>/mo</span>
-                </div>
-                <Link href="/pricing" style={{ ...(t.highlight ? btnPrimary : btnGhost), marginTop: 20, width: "100%" }}>See plan</Link>
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="mx-auto w-full max-w-[1300px] px-6" style={{ paddingBottom: 88 }}>
+          <PricingPlans />
           <div style={{ textAlign: "center", marginTop: 32 }}>
             <Link href="/pricing" style={{ fontSize: v("--text-sm"), fontWeight: 600, color: v("--color-primary") }}>Compare all features &amp; plans →</Link>
           </div>

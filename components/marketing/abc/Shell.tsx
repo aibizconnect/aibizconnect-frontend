@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
+import MobileNav from "./MobileNav";
 
 /**
  * Shared chrome + primitives for the AIBizConnect OS marketing site, built to the Claude Design
@@ -46,7 +47,7 @@ export function SectionHead({ eyebrow, title, sub, onDark }: { eyebrow: string; 
   );
 }
 
-const NAV = [
+export const NAV = [
   { href: "/platform", label: "Platform" }, { href: "/solutions", label: "Solutions" },
   { href: "/pricing", label: "Pricing" }, { href: "/resources", label: "Resources" }, { href: "/about", label: "Company" },
 ];
@@ -68,9 +69,10 @@ export function AbcNav() {
         <div className="hidden items-center gap-8 md:flex" style={{ fontSize: v("--text-sm"), fontWeight: 500, color: v("--text-body") }}>
           {NAV.map((n) => <Link key={n.label} href={n.href} className="abc-navlink" style={{ color: "inherit", textDecoration: "none" }}>{n.label}</Link>)}
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="hidden sm:inline" style={{ fontSize: v("--text-sm"), fontWeight: 500, color: v("--text-body"), textDecoration: "none" }}>Log in</Link>
-          <Link href="/start" style={btnPrimary}>Start free</Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/login" className="hidden md:inline" style={{ fontSize: v("--text-sm"), fontWeight: 500, color: v("--text-body"), textDecoration: "none" }}>Log in</Link>
+          <Link href="/start" style={{ ...btnPrimary, padding: "0 16px" }}>Start free</Link>
+          <MobileNav />
         </div>
       </nav>
     </header>
