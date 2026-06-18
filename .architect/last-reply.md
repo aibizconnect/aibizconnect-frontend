@@ -1,34 +1,34 @@
 ### CONTROL RULING: STATUS ACKNOWLEDGED
 
-The Builder's report confirms a significant milestone: the successful implementation of the Claude Design relay and the rebuilding of `aibizconnect.app`'s homepage from a real Claude Design page. This validates the end-to-end design-to-code pipeline.
+The Builder's report confirms successful implementation of the custom-domain "switch" capability, addressing the critical Vercel attachment gap. This is a significant infrastructure milestone.
 
 **Status Summary:**
 
-*   **Platform Identity:** `aibizconnect.app` is now the flagship website for the platform tenant, with its branding standardized.
-*   **Claude Design Integration:** A live two-way channel via debug Chrome (CDP) is established, enabling programmatic pull of Claude Design HTML.
-*   **Homepage Rebuild:** The `aibizconnect.app` homepage has been successfully rebuilt from a Claude Design export into 10 native sections, demonstrating the pipeline's fidelity.
-*   **Workflow:** A clear workflow for design intake and build is established.
+*   **Vercel Integration:** A robust Vercel Domains client is implemented, enabling programmatic attachment, verification, and removal of domains.
+*   **Domain Management:** `domain-actions.ts` now orchestrates DNS (Cloudflare API) and Vercel attachment for platform domains.
+*   **Infrastructure:** Middleware for canonical `www` redirect and a `domain-switch.mjs` script are in place.
+*   **Platform UI:** A platform admin console for domain management is ready.
+*   **Documentation:** A `DOMAIN-SWITCH-RUNBOOK.md` is committed.
 
 ---
-### 1. Parity Build
+### 1. Design Question: Default Tenant Custom Domain Flow
 
-**RULING 394: Concur with Page-by-Page Rebuild Loop for Full Parity.**
+**RULING 396: Default Tenant Custom Domain Flow: Registrar Records (CNAME/A).**
 
-*   **Decision:** The proposed loop (Ali designs each page in Claude Design → Builder pulls via relay → builds to native sections, page by page) is **APPROVED** as the path to full parity for `aibizconnect.app`.
-*   **Rationale:** This iterative approach allows for continuous validation of the design-to-code pipeline, ensures high fidelity, and manages complexity by breaking down the large task into manageable units.
-*   **Guardrail:**
-    *   **Per-Page Acceptance Check:** Before replacing any existing page, a **visual diff (pixel-based)** against the original Claude Design output (or a screenshot of the original) must be performed and manually confirmed by Ali. This ensures the "native sections only" translation maintains visual fidelity.
-    *   **Inspector QA:** The Inspector (D-206) must run on each newly built page to catch structural and content issues.
-*   **Action:** Proceed with this page-by-page rebuild loop.
+*   **Decision:** The default tenant flow for custom domains will be **registrar records (CNAME/A)** pointing to Vercel, with us attaching on Vercel (TXT-verify ownership).
+*   **Rationale:**
+    *   **Less Intrusive:** This approach is less intrusive for the tenant. They retain control of their DNS provider, which is often preferred for existing businesses with established email, subdomains, or other DNS records.
+    *   **Lower Barrier to Entry:** It's typically simpler for a tenant to add a CNAME or A record than to change nameservers, which can impact all their existing DNS services.
+    *   **Support:** While NS delegation (Option b) reduces *our* support tickets for DNS issues, it increases the *initial barrier* for the tenant and centralizes more control with us, which might not be desired by all.
+*   **Action:**
+    1.  The primary UI flow for adding a custom domain will guide the tenant to update CNAME/A records at their registrar.
+    2.  Our system will then perform TXT verification of ownership via Vercel's API.
+    3.  **Advanced/Managed Option:** Nameserver delegation to our Cloudflare account (we manage their DNS) will be offered as an "Advanced" or "Managed DNS" option, clearly explaining the benefits (e.g., "we handle all your DNS, including email records, for you") and the implications.
+*   **Files to Change:** `domain-actions.ts` (for the primary flow logic), Custom Domain UI components.
 
 ---
-### 2. Open Items
-
-**RULING 395: Acknowledge Open Items.**
-
-*   **Decision:** The open items (D-391 deeper wiring for `goals`→`tenant_modules` and `style`→`applyBrandPreset`, and H-4 monotonic genesis) are **ACKNOWLEDGED** and remain queued.
+**Note:** The `tenant_domains` column overlap is acknowledged. The plan to retire legacy helpers later is confirmed.
 
 ---
 DECISION-LOG
-[D-394] concur_page_by_page_rebuild_loop_full_parity — Concurred with page-by-page rebuild loop for full parity of `aibizconnect.app` (status: concurred)
-[D-395] acknowledge_open_items — Acknowledged open items (D-391 and H-4 monotonic genesis) (status: acknowledged)
+[D-396] rule_default_tenant_custom_domain_flow_registrar_records — Ruled default tenant custom domain flow: registrar records (CNAME/A) (status: ruled)

@@ -1,61 +1,64 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import MarketingShell from "@/components/marketing/MarketingShell";
+import { AbcPage, CtaBand, SectionHead, Eyebrow, CONTAINER, v, card } from "@/components/marketing/abc/Shell";
 
 export const metadata: Metadata = {
-  title: "Why AIBizConnect — Supervised AI for real businesses",
-  description: "We believe AI should do the work and you should stay in control. Brand-first, safety-gated, and built for businesses of every size.",
+  title: "About — AIBizConnect OS",
+  description: "AIBizConnect is the AI Business OS for small business — one platform that builds your site, fills your CRM, and markets for you, so owners can spend their time selling.",
 };
 
-const PILLARS = [
-  { title: "Supervised AI, not chaos", body: "Every change passes a quality critic and a human-approval gate. The AI proposes; you decide. Spend, send, and publish always wait for your yes." },
-  { title: "Brand-first by design", body: "Brand tokens drive everything — your colors, type, and voice carry across your website, email, and social automatically. Re-theme by swapping tokens, not rewriting content." },
-  { title: "Built for real businesses", body: "Free subdomain on day one. Custom domains with real DNS verification. Entitlements, templates, and multi-channel campaigns — all wired and ready to grow." },
-];
-
 const STATS = [
-  { value: "12", label: "Industry templates" },
-  { value: "6", label: "Agent domains" },
-  { value: "100%", label: "Pages quality-gated" },
-  { value: "0", label: "Surprise actions" },
+  { n: "4,000+", l: "businesses run on AIBizConnect" },
+  { n: "5+", l: "tools replaced by one OS" },
+  { n: "8+ hrs", l: "saved per week, on average" },
+  { n: "1 day", l: "from sign-up to live" },
+];
+const VALUES = [
+  { icon: "🤝", title: "Owners first", body: "Built for solo pros and small teams — not enterprises. Power without the complexity." },
+  { icon: "🤖", title: "AI that does the work", body: "Not another dashboard to manage. The AI answers, qualifies, books, and follows up for you." },
+  { icon: "🧩", title: "One place, not five", body: "Site, CRM, funnels, calendar, and marketing share one record — no stitching tools together." },
+  { icon: "🚀", title: "Live in minutes", body: "Answer a few questions and your whole platform is generated, on-brand, ready to publish." },
 ];
 
 export default function AboutPage() {
   return (
-    <MarketingShell>
-      <section className="mx-auto max-w-4xl px-6 py-20 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">AI should do the work. <span className="bg-gradient-to-r from-[var(--abc-color-primary)] to-[var(--abc-color-accent)] bg-clip-text text-transparent">You should stay in control.</span></h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--abc-color-muted)]">AIBizConnect is a supervised AI platform that builds world-class websites and runs multi-channel campaigns for businesses of every size — without ever taking an action you didn't approve.</p>
-      </section>
-
-      <section className="mx-auto max-w-5xl px-6 pb-8">
-        <div className="grid gap-6 md:grid-cols-3">
-          {PILLARS.map((p) => (
-            <div key={p.title} className="rounded-2xl border border-[var(--abc-color-border)] bg-[var(--abc-color-surface)]/50 p-6">
-              <div className="h-1.5 w-12 rounded-full bg-[var(--abc-color-accent)]" />
-              <h3 className="mt-4 text-lg font-medium">{p.title}</h3>
-              <p className="mt-2 text-sm text-[var(--abc-color-muted)]">{p.body}</p>
-            </div>
-          ))}
+    <AbcPage>
+      <section style={{ background: "radial-gradient(110% 60% at 50% -5%, var(--blue-50) 0%, var(--surface-page) 60%)" }}>
+        <div className={`${CONTAINER}`} style={{ paddingTop: 80, paddingBottom: 56, textAlign: "center" }}>
+          <Eyebrow>Our mission</Eyebrow>
+          <h1 style={{ fontSize: "clamp(34px,4.6vw,56px)", color: v("--text-strong"), maxWidth: 820, margin: "0 auto" }}>Run your whole business from one platform</h1>
+          <p style={{ margin: "20px auto 0", fontSize: v("--text-lg"), color: v("--text-body"), maxWidth: 640, lineHeight: 1.6 }}>
+            Small businesses shouldn&apos;t need five tools and a tech team to compete. AIBizConnect OS gives every owner an AI that builds the website, fills the CRM, books the calendar, and markets — so they can spend their time selling, not juggling software.
+          </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-16">
-        <div className="grid grid-cols-2 gap-6 rounded-3xl border border-[var(--abc-color-border)] bg-[var(--abc-color-surface)]/30 p-10 sm:grid-cols-4">
+      <section style={{ background: v("--surface-card") }}>
+        <div className={`${CONTAINER} grid gap-6 sm:grid-cols-2 lg:grid-cols-4`} style={{ paddingTop: 52, paddingBottom: 52, textAlign: "center" }}>
           {STATS.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="text-3xl font-semibold text-[var(--abc-color-accent)]">{s.value}</div>
-              <div className="mt-1 text-xs uppercase tracking-wide text-[var(--abc-color-muted)]">{s.label}</div>
+            <div key={s.l}>
+              <div style={{ fontFamily: v("--font-display"), fontWeight: 700, fontSize: v("--text-3xl"), color: v("--color-primary") }}>{s.n}</div>
+              <p style={{ marginTop: 6, fontSize: v("--text-sm"), color: v("--text-muted") }}>{s.l}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-6 pb-20 text-center">
-        <h2 className="text-3xl font-semibold tracking-tight">A whole AI team, one platform</h2>
-        <p className="mx-auto mt-4 max-w-2xl text-[var(--abc-color-muted)]">Brand, content, UX, SEO, navigation, social, email, and more — agents that collaborate to produce cohesive, premium output across every channel, all coordinated and quality-checked.</p>
-        <Link href="/start" className="mt-8 inline-block rounded-xl bg-[var(--abc-color-primary)] px-8 py-3.5 text-sm font-medium text-white transition hover:opacity-90">Build my site free</Link>
+      <section style={{ background: v("--surface-page") }}>
+        <div className={`${CONTAINER}`} style={{ paddingTop: 80, paddingBottom: 80 }}>
+          <SectionHead eyebrow="What we believe" title="Built around how owners actually work" />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" style={{ marginTop: 48 }}>
+            {VALUES.map((val) => (
+              <div key={val.title} style={card}>
+                <div style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: v("--radius-lg"), background: v("--blue-50"), fontSize: 22 }}>{val.icon}</div>
+                <h3 style={{ marginTop: 16, fontSize: v("--text-lg"), color: v("--text-heading") }}>{val.title}</h3>
+                <p style={{ marginTop: 8, fontSize: v("--text-sm"), color: v("--text-body"), lineHeight: 1.6 }}>{val.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
-    </MarketingShell>
+
+      <CtaBand heading="Ready to run your business on AIBizConnect OS?" sub="Start free in minutes. Your AI gets to work immediately." note="14-day free trial · no credit card required" />
+    </AbcPage>
   );
 }

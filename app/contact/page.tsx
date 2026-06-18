@@ -1,42 +1,43 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import MarketingShell from "@/components/marketing/MarketingShell";
+import { AbcPage, SectionHead, CONTAINER, v, card } from "@/components/marketing/abc/Shell";
+import ContactForm from "@/components/marketing/abc/ContactForm";
 
 export const metadata: Metadata = {
-  title: "Contact — AIBizConnect",
-  description: "Talk to us about building your site, custom domains, or agency and white-label plans.",
+  title: "Contact — AIBizConnect OS",
+  description: "Talk to the AIBizConnect team — or start free and let AI build your platform in minutes.",
 };
 
-const REASONS = [
-  { title: "Build my site", body: "Ready to launch? Pick a template and get a free draft in minutes.", href: "/login", cta: "Get started" },
-  { title: "Agency & white-label", body: "Multi-tenant, multiple brands, per-seat billing — let's talk about your setup.", href: "mailto:hello@aibizconnect.app?subject=Agency%20plan", cta: "Email us" },
-  { title: "Custom domains", body: "Point a domain you own or buy one through us, with real DNS verification.", href: "/pricing", cta: "See pricing" },
+const WAYS = [
+  { icon: "💬", title: "Chat with sales", body: "Questions about plans, migration, or agencies? We'll help you find the right fit." },
+  { icon: "🚀", title: "Start free instead", body: "Skip the call — answer a few questions and AI builds your platform in minutes.", href: "/start" },
+  { icon: "📚", title: "Browse resources", body: "Guides, webinars, and playbooks to get the most out of your OS.", href: "/resources" },
 ];
 
 export default function ContactPage() {
   return (
-    <MarketingShell>
-      <section className="mx-auto max-w-3xl px-6 py-20 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Let's talk</h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--abc-color-muted)]">Whether you're launching your first site or rolling out hundreds across a franchise, we'd love to help.</p>
-        <a href="mailto:hello@aibizconnect.app" className="mt-8 inline-block rounded-xl bg-[var(--abc-color-primary)] px-8 py-3.5 text-sm font-medium text-white transition hover:opacity-90">hello@aibizconnect.app</a>
-      </section>
-
-      <section className="mx-auto max-w-5xl px-6 pb-24">
-        <div className="grid gap-6 md:grid-cols-3">
-          {REASONS.map((r) => (
-            <div key={r.title} className="flex flex-col rounded-2xl border border-[var(--abc-color-border)] bg-[var(--abc-color-surface)]/50 p-6">
-              <h3 className="text-lg font-medium">{r.title}</h3>
-              <p className="mt-2 flex-1 text-sm text-[var(--abc-color-muted)]">{r.body}</p>
-              {r.href.startsWith("mailto:") ? (
-                <a href={r.href} className="mt-5 block rounded-xl border border-[var(--abc-color-border)] px-4 py-2 text-center text-sm font-medium transition hover:bg-[var(--abc-color-bg)]">{r.cta}</a>
-              ) : (
-                <Link href={r.href} className="mt-5 block rounded-xl border border-[var(--abc-color-border)] px-4 py-2 text-center text-sm font-medium transition hover:bg-[var(--abc-color-bg)]">{r.cta}</Link>
-              )}
-            </div>
-          ))}
+    <AbcPage>
+      <section style={{ background: "radial-gradient(110% 60% at 50% -5%, var(--blue-50) 0%, var(--surface-page) 60%)" }}>
+        <div className={`${CONTAINER}`} style={{ paddingTop: 72, paddingBottom: 40 }}>
+          <SectionHead eyebrow="Contact" title="Let's talk about your business" sub="Tell us what you're working on and we'll point you to the fastest path — or start free and your AI gets to work immediately." />
         </div>
       </section>
-    </MarketingShell>
+      <section style={{ background: v("--surface-page") }}>
+        <div className={`${CONTAINER} grid gap-10 lg:grid-cols-[1.2fr_0.8fr]`} style={{ paddingBottom: 80 }}>
+          <ContactForm />
+          <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
+            {WAYS.map((w) => {
+              const inner = (
+                <div style={{ ...card, height: "100%" }}>
+                  <div style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: v("--radius-lg"), background: v("--blue-50"), fontSize: 20 }}>{w.icon}</div>
+                  <h3 style={{ marginTop: 14, fontSize: v("--text-md"), color: v("--text-strong") }}>{w.title}</h3>
+                  <p style={{ marginTop: 6, fontSize: v("--text-sm"), color: v("--text-body"), lineHeight: 1.55 }}>{w.body}</p>
+                </div>
+              );
+              return w.href ? <a key={w.title} href={w.href} style={{ textDecoration: "none" }}>{inner}</a> : <div key={w.title}>{inner}</div>;
+            })}
+          </div>
+        </div>
+      </section>
+    </AbcPage>
   );
 }

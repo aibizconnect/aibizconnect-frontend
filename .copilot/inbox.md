@@ -1,24 +1,36 @@
-Claude (Copilot) — for the record (architect of record + doc manager). Milestone + Gemini rulings to log.
+Claude (Copilot) — milestone for the record (architect of record + doc manager). Public-site rebuild.
 
-## Milestone (all pushed to main, build green)
-1. **aibizconnect.app = platform tenant (d723a086) website**, on the Claude Design brand (#3D49C4 / navy
-   #090966 / MontserratAlt1). "AIBizConnect OS" standardized universally; designed app icon as favicon.
-2. **Live two-way Claude Design channel via debug Chrome (CDP 9222)** — connector is blocked in this runtime,
-   so a copilot-relay-style relay: `scripts/claude-design-pull.mjs` (authenticated fetch of the served
-   `.dc.html` → `design-handoffs/<slug>/`) + `scripts/claude-design-drive.mjs` (command the editor composer).
-3. **Home rebuilt from a real Claude Design page** — Ali designed Home per `design-handoffs/BRIEF.md`; I
-   pulled it and translated to **10 native sections** on the platform tenant home (hero · trust · AI-assistant
-   · industries · five-tools · modules · testimonials · pricing · how-it-works · CTA), CTAs → /start.
-   Replaced the navy-era home. `scripts/build-abc-home.mjs`.
-4. Workflow: `design-handoffs/` intake + `BRIEF.md` (native-section page specs) + `DESIGN.md` (Claude
-   Design GitHub source of truth).
+## Context
+Ali: the apex switch mechanism is ready but "the website is not ready — build it, THEN switch," and "redo
+the design, this is not right, use the latest design instructions." Then: "ask design to build pages, put the
+instructions in the local folder, give command using the browser, take back the result in the local folder,
+take over the build, and report to Copilot." So we built the **autonomous design→build pipeline**.
 
-## Gemini rulings to log
-- **D-394** — concur with the page-by-page rebuild loop (Ali designs in Claude Design → I pull via relay →
-  build native, page by page) as the path to full aibizconnect.app parity (~20 pages). **Guardrails:**
-  per-page **visual diff** vs the Claude Design output, manually confirmed by Ali, + **Inspector QA** on each
-  new page before it replaces the old.
-- **D-395** — open items acknowledged & queued: D-391 (goals→tenant_modules, style→applyBrandPreset) + H-4
-  (monotonic, idempotent genesis).
+## Shipped (typechecks; production build green; NOT pushed)
+1. **Autonomous Claude Design pipeline** (no manual clicks/paste):
+   - Instructions live in `design-handoffs/BRIEF.md` (full spec + send order) + `DESIGN.md` (system).
+   - `scripts/design-build.mjs <Slug>` — commands Claude Design via the debug-Chrome relay (composer),
+     polls the served doc until it settles, switches the editor to it, saves the SOURCE locally.
+   - `scripts/claude-design-capture.mjs <Slug>` — captures the RENDERED DOM (expanded, not `{{ }}` source)
+     by attaching to the design preview's cross-origin OOPIF CDP target (raw `/json/list` → iframe
+     webSocketDebuggerUrl → Runtime.evaluate). Playwright can't see the OOPIF; raw CDP can.
+   - Loop: BRIEF (local) → command (browser) → pull rendered+source (local) → I build native.
+2. **Home REDONE high-fidelity** (`app/page.tsx`) — faithful to the Claude Design Home (the earlier generic
+   translation was rejected as "ugly"). Reproduces the bespoke **navy AI-concierge chat card** + dashboard
+   mock + the navy "Inside the platform" band, exact copy, all 9 bands.
+3. **Pricing BUILT** (`app/pricing/page.tsx`) from the freshly-designed `Pricing.dc.html` — 4 tiers + working
+   billing toggle, full compare table, power-ups, trust strip, FAQ accordion, CTA.
+4. **Shared chrome** `components/marketing/abc/Shell.tsx` (AbcNav/AbcFooter/AbcPage/CtaBand/SectionHead +
+   primitives) so every page is cohesive; `PricingPlans.tsx` + `Faq.tsx` client islands. The old dark-navy
+   `MarketingShell` is retired from these pages. Tokens come from `app/abc-design-system.css` (`.abc-ds`).
 
-Session compacting after this. Fold these into the docs when convenient.
+## Decision to log
+- **D-396 (Gemini ratified):** default tenant custom-domain flow = registrar CNAME/A + Vercel TXT-verify;
+  NS-delegation is the "advanced/managed" option. (From the domain-switch capability built earlier this session.)
+
+## Next (send order)
+Platform → Solutions hub + Real Estate → feature pages (CRM, AI Builder, Websites & Funnels, Automations,
+Consumer Portal, Marketplace, Templates) → About/Contact → Resources (Blog/Guides/Webinars). Each via the
+loop, built on the shared shell. THEN flip the apex switch (capability already built & waiting on tokens).
+
+Guardrail held: per-page visual diff (Ali views each in his debug Chrome — he can't see screenshots).

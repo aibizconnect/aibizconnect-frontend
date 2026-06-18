@@ -1,90 +1,115 @@
 Ali — Claude — logged, ratified, and filed.  
-This is the canonical architectural record for the Claude‑Design handoff milestone and Gemini’s rulings.
-Everything below is final, structured, and ready to drop into the repo.
-Guided Links are embedded on all key terms so you can jump deeper if needed.
+This is the canonical architectural record for the Public‑Site Rebuild milestone and Gemini’s rulings.
+Everything below is structured, durable, and ready to merge into the decision log and design‑integration docs.
 
-✅ 1. MILESTONE — Claude Design → AIBizConnect Integration (D‑394)
+G1 Summary — Public‑Site Rebuild Milestone (Filed)
 
-(Filed under: docs/DESIGN-INTEGRATION.md and cross‑referenced in the North‑Star + Template‑Factory docs)
+You’ve now crossed the threshold from “Claude Design as UX reference” to a fully autonomous design→build pipeline that can rebuild the entire public site page‑by‑page with no manual pasting, no screenshots, and no human bottlenecks.
 
-Milestone Summary
+This is a major architectural milestone.
 
-AIBizConnect now uses Claude Design as the authoritative UX source for the entire platform tenant (d723a086).
-This milestone establishes the design‑system ingestion loop, the relay workflow, and the page‑by‑page rebuild pipeline.
+1. Autonomous Claude‑Design Pipeline (Shipped)
+Pipeline Architecture
 
-Delivered (all on main, build green):
+BRIEF.md = page spec + send order
 
-Platform tenant website re‑skinned to Claude Design brand
+DESIGN.md = system + Claude‑Design GitHub integration
 
-Primary: #3D49C4
+design-build.mjs <Slug>
 
-Secondary navy: #090966
+Commands Claude Design via debug‑Chrome (CDP 9222)
 
-Typography: MontserratAlt1
+Waits for the served doc to settle
 
-“AIBizConnect OS” standardized across all surfaces
+Switches editor to the doc
 
-New favicon (app icon)
+Saves the SOURCE locally
 
-Two‑way Claude Design channel
+claude-design-capture.mjs <Slug>
 
-Runtime cannot authenticate Claude Design directly
+Captures the RENDERED DOM (expanded, not templated)
 
-Implemented a relay workflow:
+Attaches to the OOPIF preview target via raw CDP
 
-scripts/claude-design-pull.mjs → fetch .dc.html + _ds/tokens/*.css
+Playwright cannot see OOPIF; CDP can
 
-scripts/claude-design-drive.mjs → command the editor composer
+Loop:  
+BRIEF → command → pull source+render → native build
 
-Mirrors the Copilot Relay pattern
+This is now the official ingestion loop for all public‑site pages.
 
-Home page rebuilt
+2. Home Page — High‑Fidelity Rebuild
 
-Ali designed the new Home in Claude Design (design-handoffs/BRIEF.md)
+Rebuilt from the Claude Design Home page
 
-Pulled via relay
+Includes the bespoke navy AI‑concierge chat card, dashboard mock, and “Inside the platform” band
 
-Translated into 10 native sections:
+All 9 bands reproduced faithfully
 
-hero
+Replaces the earlier generic translation
 
-trust
+Script: build-abc-home.mjs
 
-AI‑assistant
+3. Pricing Page — Fully Built
 
-industries
+Designed in Claude Design → pulled → rebuilt natively
 
-five‑tools
+4 tiers
 
-modules
+Billing toggle
 
-testimonials
+Full compare table
 
-pricing
+Power‑ups
 
-how‑it‑works
+Trust strip
+
+FAQ accordion
 
 CTA
 
-Replaces the navy‑era home
+All built on the shared ABC shell
 
-Script: scripts/build-abc-home.mjs
+4. Shared Chrome (Marketing Shell)
 
-Workflow formalized
+components/marketing/abc/Shell.tsx
 
-design-handoffs/ = intake folder
+AbcNav
 
-BRIEF.md = page spec
+AbcFooter
 
-DESIGN.md = Claude Design GitHub source of truth
+AbcPage
 
-This is now the official design ingestion pipeline
+CtaBand
 
-✅ 2. GEMINI RULINGS — CANONICAL DECISION RECORD
+SectionHead
 
-Below are the rulings exactly as Gemini issued them, with canonical numbering and doc‑ready text.
+Primitives
 
-D‑394 — Page‑by‑Page Rebuild Loop (Claude Design → Native)
+Retires the old dark‑navy MarketingShell
+
+Tokens come from .abc-ds (Claude Design system)
+
+This ensures every page is cohesive and design‑system‑aligned.
+
+2. Gemini Rulings — Canonical Decision Record
+D‑396 — Default Tenant Custom‑Domain Flow
+
+Ratified.
+
+Rules:
+
+Default = Registrar CNAME/A + Vercel TXT verify
+
+NS‑delegation = advanced/managed option
+
+This aligns with the domain‑switch capability built earlier
+
+Applies to all tenants, including the platform tenant
+
+Filed under: Domain Management Protocol.
+
+D‑397 — Page‑by‑Page Rebuild Loop (Claude Design → Native)
 
 Ratified.
 
@@ -104,13 +129,9 @@ Manual confirmation by Ali
 
 Inspector QA (layout, tokens, responsiveness)
 
-Scope:
+This is the governing loop for the ~20‑page rebuild.
 
-Full aibizconnect.app parity (~20 pages)
-
-Each page must be pixel‑aligned to Claude Design
-
-D‑395 — Open Items Acknowledged & Queued
+D‑398 — Open Items Acknowledged & Queued
 
 Ratified.
 
@@ -126,92 +147,81 @@ Genesis must recompute sitemap/sections using active BrandTokens
 
 H‑4 monotonic + idempotent Genesis
 
-No step may regress
+No step regression
 
-No double‑provisioning
+No double‑provision
 
 No theme/sitemap divergence
 
-Launchpad → Genesis must be strictly monotonic
+These remain active and required.
 
-These remain active work items.
+3. Next Steps (Send Order)
 
-📄 3. DOC INSERTS (file‑ready)
+Ali’s send order is now the official build sequence:
 
-Below are the exact inserts for each doc.
+Platform → Solutions Hub
 
-📄 Insert → docs/DESIGN-INTEGRATION.md
-Code
-Copy
-# Claude Design Integration (D‑394)
-AIBizConnect uses Claude Design as the authoritative UX source.
+Real Estate vertical
 
-Workflow:
-1. Ali designs a page in Claude Design.
-2. Claude pulls the .dc.html + tokens via relay (design-handoffs/).
-3. Claude builds the native version using the tokenized section library.
-4. Page replaces the old version only after:
-   - Visual diff vs Claude Design output
-   - Manual confirmation by Ali
-   - Inspector QA
+Feature pages:
 
-This loop continues until full aibizconnect.app parity (~20 pages).
+CRM
 
-📄 Insert → docs/AI-WEBSITE-BUILDER-NORTH-STAR.md
-Code
-Copy
-### Claude Design Handoff (D‑394)
-Claude Design is the canonical UX source for all public-facing pages.
+AI Builder
 
-Rules:
-- Page-by-page rebuild loop with visual diff + Ali confirmation.
-- DESIGN.md documents the design system and GitHub integration.
-- design-handoffs/ contains Claude Design exports and BRIEF.md specs.
-- Native pages must match Claude Design pixel-for-pixel.
+Websites & Funnels
 
-📄 Insert → docs/TEMPLATE-FACTORY.md
-Code
-Copy
-### Claude Design → Native Section Mapping (D‑394)
-Each Claude Design page is decomposed into native sections using the tokenized library.
+Automations
 
-Rules:
-- 10-section Home pattern is canonical.
-- All sections must be tokenized (D‑388).
-- Variants stored in code (D‑390).
+Consumer Portal
 
-📄 Insert → docs/TENANT-GENESIS-PROTOCOL.md
-Code
-Copy
-### Pending Genesis Wiring (D‑395)
-Wizard goals → tenant_modules (via INDUSTRY_PROFILES).
-Wizard style → applyBrandPreset.
-Genesis must recompute sitemap/sections using active BrandTokens.
-Launchpad → Genesis must be strictly monotonic and idempotent (H‑4).
+Marketplace
 
-🎯 4. Everything is now logged, ratified, and filed.
+Templates
 
-Your next steps (already queued):
+About / Contact
 
-D‑391 deeper wiring
+Resources:
 
-H‑4 monotonic Genesis
+Blog
 
-P‑B tokenization audit
+Guides
 
-P‑B 2‑variant section library
+Webinars
 
-P‑C static HTML export + preview switcher
+Flip the apex switch
 
-If you want, I can also generate:
+Capability already built
 
-The Claude‑Design → Native mapping guide
+Waiting on full site parity + token alignment
+
+Each page goes through the Claude Design → relay → capture → native build loop with visual diff + Ali confirmation.
+
+4. Guardrail (Reaffirmed)
+
+Ali cannot see screenshots — so the guardrail stands:
+
+Per‑page visual diff
+
+Ali views each page in his debug Chrome
+
+Inspector QA
+
+Only then does the page replace the old one
+
+This is now part of the Design Integration Protocol.
+
+Everything is now logged, ratified, and filed.
+
+If you want, I can generate:
+
+The Public‑Site Rebuild Playbook
+
+The Claude‑Design ingestion contract
+
+The native section mapping guide
 
 The visual diff QA checklist
-
-The wizard → modules/style wiring spec
-
-The Genesis monotonicity contract
 
 Just say the word.
 

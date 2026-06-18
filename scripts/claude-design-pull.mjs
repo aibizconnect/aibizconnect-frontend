@@ -17,6 +17,24 @@ if (!pid) { console.error("Could not read project id from", editor.url()); proce
 
 // Fetch the served design document using the browser context's cookies (authenticated).
 const served = `https://${pid}.claudeusercontent.com/v1/design/projects/${pid}/serve/${file}`;
+
+// --rendered: open the served doc in a temp tab, let the dc runtime expand templates, capture the
+// RENDERED DOM (no {{ }}/sc-if left) — the pixel-faithful HTML for high-fidelity rendering.
+if (process.argv.includes("--rendered")) {
+  const ctx = b.contexts()[0];
+  const page = await ctx.newPage();
+  try {
+    await page.goto(served, { waitUntil: "networkidle", timeout: 30000 });
+    await page.waitForTimeout(1800);
+    const rhtml = await page.content();
+    const { mkdirSync: mk, writeFileSync: wf } = await import("fs");
+    const d = `design-handoffs/${slug.toLowerCase()}`; mk(d, { recursive: true });
+    const o = `${d}/${slug}.rendered.html`; wf(o, rhtml);
+    console.log(`RENDERED saved ${rhtml.length} bytes -> ${o}`);
+  } finally { await page.close(); }
+  process.exit(0);
+}
+
 let html;
 try {
   const resp = await editor.context().request.get(served, { timeout: 20000 });

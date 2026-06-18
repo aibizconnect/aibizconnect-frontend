@@ -3,9 +3,11 @@
 import crypto from "node:crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
-import { createCname, verifyDnsRecord, EDGE_TARGET } from "@/lib/server/cloudflare";
+import { createCname, createARecord, verifyDnsRecord, EDGE_TARGET, isPlatformApex, isInPlatformZone, cloudflareReady } from "@/lib/server/cloudflare";
+import { addProjectDomain, getProjectDomain, recommendedVercelDns, vercelReady } from "@/lib/server/vercel";
 
 const SUBDOMAIN_BASE = "aibizconnect.app";
+const PLATFORM_TENANT_ID = "d723a086-eac0-4b61-8742-25313370d0b7";
 
 async function requireAdminWrite(): Promise<void> {
   const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
@@ -87,7 +89,16 @@ export async function verifyCustomDomain(tenantId: string, domainId: string): Pr
   return { ok: okTxt, status, message: okTxt ? undefined : "TXT record not found yet — DNS can take a few minutes." };
 }
 
-/** PUBLISH-time DNS: create the CNAME on the platform zone (admin). Subdomain or verified custom. */
+/**
+ * GO-LIVE (admin): attach the host to the deployment AND create its DNS, then mark active.
+ *
+ * Two providers, one button:
+ *  1. Vercel — register the hostname on the project so the deployment actually serves it
+ *     (DNS alone is not enough; an unregistered host returns DEPLOYMENT_NOT_FOUND).
+ *  2. Cloudflare — for hosts inside a zone we control, create the record: an A record for the
+ *     apex (can't be a CNAME), a CNAME for a subdomain. External custom domains live in the
+ *     customer's own zone, so we skip Cloudflare and rely on the records returned at add-time.
+ */
 export async function publishDomainDns(tenantId: string, domainId: string): Promise<{ ok: boolean; message?: string }> {
   await requireTenantAccess(tenantId);
   await requireAdminWrite();
@@ -95,13 +106,140 @@ export async function publishDomainDns(tenantId: string, domainId: string): Prom
   const { data: row } = await supabase.from("tenant_domains").select("*").eq("tenant_id", tenantId).eq("id", domainId).single();
   if (!row) return { ok: false, message: "Domain not found." };
   if (row.type === "custom" && row.status !== "verified") return { ok: false, message: "Verify the custom domain first." };
-  const name = row.type === "subdomain" ? row.subdomain : row.domain_name;
-  const res = await createCname(name);
-  if (!res.ok) return { ok: false, message: res.error };
-  const created = Array.isArray(row.cloudflare_dns_records_created) ? row.cloudflare_dns_records_created : [];
+
+  const host: string = row.type === "subdomain" ? `${row.subdomain}.${SUBDOMAIN_BASE}` : row.domain_name;
+  const created: any[] = Array.isArray(row.cloudflare_dns_records_created) ? row.cloudflare_dns_records_created : [];
+
+  // 1) Attach to Vercel (skips silently if no token — DNS still gets created and you can register later).
+  let vercelNote = "";
+  if (await vercelReady()) {
+    const v = await addProjectDomain(host);
+    if (!v.ok) return { ok: false, message: `Vercel: ${v.error}` };
+    created.push({ provider: "vercel", host, verified: v.verified });
+  } else {
+    vercelNote = " (Vercel token not set — host not yet attached to the deployment)";
+  }
+
+  // 2) Create DNS for hosts inside a zone we control.
+  if (isPlatformApex(host)) {
+    const a = await createARecord(host);
+    if (!a.ok) return { ok: false, message: a.error };
+    created.push({ id: a.recordId, type: "A", name: host });
+  } else if (isInPlatformZone(host)) {
+    const name = row.type === "subdomain" ? row.subdomain : host;
+    const c = await createCname(name);
+    if (!c.ok) return { ok: false, message: c.error };
+    created.push({ id: c.recordId, type: "CNAME", name });
+  }
+
   await supabase.from("tenant_domains").update({
-    status: "active", cloudflare_dns_records_created: [...created, { id: res.recordId, type: "CNAME", name }], updated_at: new Date().toISOString(),
+    status: "active", cloudflare_dns_records_created: created, updated_at: new Date().toISOString(),
   }).eq("id", domainId).eq("tenant_id", tenantId);
-  await audit("domain.publish_dns", { tenantId, domain: row.domain_name, recordId: res.recordId });
-  return { ok: true };
+  await audit("domain.publish_dns", { tenantId, domain: row.domain_name, host });
+  return { ok: true, message: `Live on ${host}${vercelNote}` };
+}
+
+export interface DomainHealthStep { label: string; state: "ok" | "pending" | "fail" | "unknown"; detail?: string }
+export interface DomainHealth { host: string; ready: boolean; steps: DomainHealthStep[] }
+
+/**
+ * Full readiness of a host across all three layers — DNS, Vercel attach, and our own routing —
+ * as a checklist the UI (and the preflight script) can render. Read-only; safe to call anytime.
+ */
+export async function domainHealth(tenantId: string, domainId: string): Promise<DomainHealth | null> {
+  await requireTenantAccess(tenantId);
+  const supabase = createSupabaseServiceClient();
+  const { data: row } = await supabase.from("tenant_domains").select("*").eq("tenant_id", tenantId).eq("id", domainId).single();
+  if (!row) return null;
+  const host: string = row.type === "subdomain" ? `${row.subdomain}.${SUBDOMAIN_BASE}` : row.domain_name;
+  const steps: DomainHealthStep[] = [];
+
+  // DNS points at us?
+  const want = isPlatformApex(host) ? "76.76.21.21" : (isInPlatformZone(host) ? EDGE_TARGET : recommendedVercelDns(host).value);
+  const dnsType = isPlatformApex(host) ? "A" : "CNAME";
+  const dnsOk = await verifyDnsRecord(host, dnsType as "A" | "CNAME", want);
+  steps.push({ label: `DNS ${dnsType} ${host} → ${want}`, state: dnsOk ? "ok" : "pending", detail: dnsOk ? undefined : "Record not visible yet (DNS can take minutes)." });
+
+  // Attached + configured on Vercel?
+  if (await vercelReady()) {
+    const v = await getProjectDomain(host);
+    steps.push({ label: "Attached to deployment (Vercel)", state: v.registered ? "ok" : "fail", detail: v.error });
+    steps.push({ label: "Vercel ownership verified", state: v.verified ? "ok" : "pending", detail: v.verified ? undefined : "Add the DNS/verification record, then verify." });
+    if (v.misconfigured === true) steps.push({ label: "Vercel DNS configuration", state: "pending", detail: "Vercel can't see correct DNS yet." });
+  } else {
+    steps.push({ label: "Attached to deployment (Vercel)", state: "unknown", detail: "VERCEL_API_TOKEN not set — can't check/attach." });
+  }
+
+  // Our routing
+  steps.push({ label: `Routing status: ${row.status}`, state: row.status === "active" ? "ok" : "pending" });
+
+  const ready = steps.every((s) => s.state === "ok");
+  return { host, ready, steps };
+}
+
+/**
+ * THE SWITCH (platform-admin): make `aibizconnect.app` + `www.aibizconnect.app` serve OUR
+ * deployment. Records the apex as the platform tenant's primary domain, attaches both hosts to
+ * Vercel, and (in-zone) creates the apex A record + the www CNAME. The apex itself is a
+ * PLATFORM_HOST in middleware, so it renders the marketing home directly — no tenant rewrite.
+ * Idempotent. Returns a per-host result; requires the Vercel + Cloudflare tokens to fully apply.
+ */
+export async function claimPlatformApex(): Promise<{ ok: boolean; results: { host: string; ok: boolean; message: string }[] }> {
+  await requireAdminWrite();
+  const supabase = createSupabaseServiceClient();
+  const results: { host: string; ok: boolean; message: string }[] = [];
+
+  for (const host of ["aibizconnect.app", "www.aibizconnect.app"]) {
+    let msg = "";
+    let ok = true;
+    // Attach to Vercel.
+    if (await vercelReady()) {
+      const v = await addProjectDomain(host);
+      ok = v.ok;
+      msg = v.ok ? (v.verified ? "attached + verified" : "attached (verify DNS)") : `Vercel: ${v.error}`;
+    } else {
+      ok = false; msg = "VERCEL_API_TOKEN not set";
+    }
+    // Create DNS in our zone.
+    if (isPlatformApex(host)) {
+      const a = await createARecord(host);
+      msg += a.ok ? " · A→76.76.21.21" : ` · Cloudflare: ${a.error}`;
+      ok = ok && a.ok;
+    } else {
+      const c = await createCname("www", "cname.vercel-dns.com", false); // DNS-only: Vercel issues the cert
+      msg += c.ok ? " · www CNAME" : ` · Cloudflare: ${c.error}`;
+      ok = ok && c.ok;
+    }
+    results.push({ host, ok, message: msg });
+  }
+
+  // Record the apex as the platform tenant's primary custom domain (routing/bookkeeping).
+  try {
+    await supabase.from("tenant_domains").upsert(
+      { tenant_id: PLATFORM_TENANT_ID, domain_name: "aibizconnect.app", custom_domain: "aibizconnect.app", type: "custom", status: "active", is_primary: true, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id,domain_name" }
+    );
+  } catch { /* bookkeeping only */ }
+
+  await audit("domain.claim_platform_apex", { results });
+  return { ok: results.every((r) => r.ok), results };
+}
+
+export interface PlatformApexStatus {
+  vercelConfigured: boolean;
+  cloudflareConfigured: boolean;
+  hosts: { host: string; registered: boolean; verified: boolean; misconfigured?: boolean; note?: string }[];
+}
+
+/** Live status of the platform hosts for the admin console (read-only). */
+export async function platformApexStatus(): Promise<PlatformApexStatus> {
+  await requireAdminWrite();
+  const [vc, cf] = await Promise.all([vercelReady(), cloudflareReady()]);
+  const hosts: PlatformApexStatus["hosts"] = [];
+  for (const host of ["aibizconnect.app", "www.aibizconnect.app", "app.aibizconnect.app"]) {
+    if (!vc) { hosts.push({ host, registered: false, verified: false, note: "VERCEL_API_TOKEN not set" }); continue; }
+    const v = await getProjectDomain(host);
+    hosts.push({ host, registered: v.registered, verified: v.verified, misconfigured: v.misconfigured, note: v.error });
+  }
+  return { vercelConfigured: vc, cloudflareConfigured: cf, hosts };
 }

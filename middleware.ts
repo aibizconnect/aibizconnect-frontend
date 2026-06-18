@@ -57,7 +57,19 @@ async function resolveTenant(host: string, sub: string | null): Promise<string |
   }
 }
 
+const WWW_REDIRECT = new Set(["www.aibizconnect.app", "www.aibizconnect.ca"]);
+
 export async function middleware(req: NextRequest) {
+  // Canonicalize www -> apex for our own domains (308 preserves method). The apex is the
+  // canonical marketing home; www just forwards. Runs before any tenant/auth logic.
+  const rawHost = (req.headers.get("host") ?? "").toLowerCase();
+  if (WWW_REDIRECT.has(rawHost)) {
+    const url = req.nextUrl.clone();
+    url.hostname = rawHost.slice(4); // drop "www."
+    url.port = "";
+    return NextResponse.redirect(url, 308);
+  }
+
   // Forward Supabase auth codes that land on the site root (email confirm / magic
   // link / reset) to the callback route that exchanges them for a session.
   if (req.nextUrl.pathname === "/" && req.nextUrl.searchParams.has("code")) {
