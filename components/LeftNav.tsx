@@ -114,14 +114,14 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
     const base = `group flex items-center gap-3 rounded-lg py-2 text-sm transition ${collapsed ? "justify-center px-2" : "px-3"}`;
     if (item.soon) {
       return (
-        <div className={`${base} cursor-default text-slate-500`} title={collapsed ? `${item.label} — coming soon` : "Coming soon"}>
+        <div className={`${base} cursor-default text-[var(--gray-400)]`} title={collapsed ? `${item.label} — coming soon` : "Coming soon"}>
           <Icon k={item.key} />
-          {!collapsed && <><span className="flex-1">{item.label}</span><span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-slate-400">soon</span></>}
+          {!collapsed && <><span className="flex-1">{item.label}</span><span className="rounded bg-[var(--gray-100)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--gray-500)]">soon</span></>}
         </div>
       );
     }
     return (
-      <Link href={href} title={collapsed ? item.label : undefined} className={`${base} ${active ? "bg-[#1e3a8a] font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+      <Link href={href} title={collapsed ? item.label : undefined} className={`${base} ${active ? "bg-[var(--blue-50)] font-semibold text-[var(--color-primary)]" : "text-[var(--gray-600)] hover:bg-[var(--gray-50)] hover:text-[var(--navy-900)]"}`}>
         <Icon k={item.key} />
         {!collapsed && <span>{item.label}</span>}
       </Link>
@@ -130,52 +130,55 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
   const pad = collapsed ? "px-2" : "px-3";
 
   return (
-    <aside className={`fixed left-0 top-0 z-40 flex h-screen flex-col bg-[#0a1628] text-slate-200 transition-[width] duration-200 ${collapsed ? "w-[72px]" : "w-[248px]"}`}>
+    <aside className={`abc-ds fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-body)] transition-[width] duration-200 ${collapsed ? "w-[72px]" : "w-[248px]"}`}>
       {/* Brand + collapse toggle */}
-      <div className={`flex items-center border-b border-white/5 py-4 ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
+      <div className={`flex items-center border-b border-[var(--border-subtle)] py-4 ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
         {!collapsed && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src="/logos/wordmark-white.png" alt="AIBizConnect" className="h-6 w-auto" />
+          <span className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/abc/app-icon.png" alt="AIBizConnect" className="h-7 w-7" />
+            <span style={{ fontFamily: "var(--font-display)" }} className="text-[18px] font-semibold text-[var(--navy-900)]">AIBiz<span className="text-[var(--color-primary)]">Connect</span></span>
+          </span>
         )}
         <button onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Expand menu" : "Collapse menu"}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white">
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--gray-500)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 transition-transform ${collapsed ? "rotate-180" : ""}`}><path d="M15 18l-6-6 6-6" /></svg>
         </button>
       </div>
 
       {/* Tenant chip */}
       <div className={`${pad} pt-3`}>
-        <button title="AI Biz Connect" className={`flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#2563eb] to-[#22d3ee] text-[11px] font-bold text-white">AB</span>
+        <button title="AI Biz Connect" className={`flex w-full items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] hover:bg-[var(--gray-100)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>AB</span>
           {!collapsed && <>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-white">AI Biz Connect</span>
-              <span className="block truncate text-[11px] text-slate-400">{user ? `Signed in: ${user.name}` : "Richmond Hill, Ontario"}</span>
+              <span className="block truncate text-sm font-medium text-[var(--text-strong)]">AI Biz Connect</span>
+              <span className="block truncate text-[11px] text-[var(--text-muted)]">{user ? `Signed in: ${user.name}` : "Richmond Hill, Ontario"}</span>
             </span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-slate-400"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-[var(--text-muted)]"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
           </>}
         </button>
       </div>
 
       {/* Search */}
       <div className={`${pad} pt-3`}>
-        <div title="Search" className={`flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 text-slate-400 ${collapsed ? "justify-center p-2" : "px-3 py-2 text-sm"}`}>
+        <div title="Search" className={`flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] text-[var(--text-muted)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-sm"}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-          {!collapsed && <><span className="flex-1">Search</span><span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">ctrlK</span></>}
+          {!collapsed && <><span className="flex-1">Search</span><span className="rounded bg-[var(--gray-100)] px-1.5 py-0.5 text-[10px] text-[var(--gray-500)]">ctrlK</span></>}
         </div>
       </div>
 
       {/* Nav */}
       <nav className={`mt-3 flex-1 space-y-0.5 overflow-y-auto pb-4 ${pad}`}>
         {GROUP_1.map((i) => <Row key={i.key} item={i} />)}
-        <div className="my-2 border-t border-white/5" />
+        <div className="my-2 border-t border-[var(--border-subtle)]" />
         {GROUP_2.map((i) => <Row key={i.key} item={i} />)}
-        <div className="my-2 border-t border-white/5" />
+        <div className="my-2 border-t border-[var(--border-subtle)]" />
         {canImpersonate && <Row item={{ label: "Team", key: "contacts", route: "team" }} />}
         {isPlatformAdmin && (
-          <Link href="/platform" title="Platform admin panel" className={`group flex items-center gap-3 rounded-lg py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white ${collapsed ? "justify-center px-2" : "px-3"}`}>
+          <Link href="/platform" title="Platform admin panel" className={`group flex items-center gap-3 rounded-lg py-2 text-sm text-[var(--gray-600)] transition hover:bg-[var(--gray-50)] hover:text-[var(--navy-900)] ${collapsed ? "justify-center px-2" : "px-3"}`}>
             <Icon k="settings" />
-            {!collapsed && <><span className="flex-1">Platform</span><span className="rounded bg-violet-500/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-violet-200">admin</span></>}
+            {!collapsed && <><span className="flex-1">Platform</span><span className="rounded bg-[var(--blue-100)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--blue-600)]">admin</span></>}
           </Link>
         )}
         <Row item={{ label: "Settings", key: "settings", route: "settings" }} />
@@ -183,21 +186,21 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
 
       {/* Superadmin: act as another team member (hidden when collapsed) */}
       {canImpersonate && !actingAs && !collapsed && (
-        <div className="border-t border-white/5 px-3 py-2">
+        <div className="border-t border-[var(--border-subtle)] px-3 py-2">
           {actOpen ? (
             <form onSubmit={beginActAs} className="space-y-1.5">
               <input
                 autoFocus value={actEmail} onChange={(e) => setActEmail(e.target.value)}
                 placeholder="admin@aibizconnect.app" type="email"
-                className="w-full rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white placeholder:text-slate-500" />
-              {actErr && <p className="text-[11px] text-rose-300">{actErr}</p>}
+                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] px-2 py-1.5 text-xs text-[var(--text-strong)] placeholder:text-[var(--text-muted)]" />
+              {actErr && <p className="text-[11px] text-[var(--danger)]">{actErr}</p>}
               <div className="flex gap-1.5">
-                <button type="submit" disabled={actBusy} className="flex-1 rounded-md bg-amber-500/90 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50">{actBusy ? "…" : "Act as"}</button>
-                <button type="button" onClick={() => { setActOpen(false); setActErr(null); }} className="rounded-md px-2 py-1 text-xs text-slate-400 hover:text-white">Cancel</button>
+                <button type="submit" disabled={actBusy} className="flex-1 rounded-md bg-[var(--warning)] px-2 py-1 text-xs font-medium text-white hover:brightness-95 disabled:opacity-50">{actBusy ? "…" : "Act as"}</button>
+                <button type="button" onClick={() => { setActOpen(false); setActErr(null); }} className="rounded-md px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--navy-900)]">Cancel</button>
               </div>
             </form>
           ) : (
-            <button onClick={() => setActOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white" title="Superadmin: act as an admin/staff member">
+            <button onClick={() => setActOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--gray-600)] transition hover:bg-[var(--gray-50)] hover:text-[var(--navy-900)]" title="Superadmin: act as an admin/staff member">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6" /></svg>
               Act as user
             </button>
@@ -206,33 +209,33 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
       )}
 
       {/* Signed-in user (or a sign-in prompt when no session) */}
-      <div className={`border-t border-white/5 py-3 ${pad}`}>
+      <div className={`border-t border-[var(--border-subtle)] py-3 ${pad}`}>
         {user ? (
           collapsed ? (
             <div className="flex flex-col items-center gap-2">
-              <Link href={`/tenants/${tenantId}/account`} title={`${user.name} — account`} className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[11px] font-bold text-white">{initials(user.name)}</Link>
+              <Link href={`/tenants/${tenantId}/account`} title={`${user.name} — account`} className="grid h-8 w-8 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>{initials(user.name)}</Link>
               <form action="/auth/signout" method="post">
-                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
                 </button>
               </form>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[11px] font-bold text-white">{initials(user.name)}</Link>
+              <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>{initials(user.name)}</Link>
               <Link href={`/tenants/${tenantId}/account`} title="Account & password" className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-white hover:underline">{user.name}</span>
-                <span className="block truncate text-[11px] text-slate-400">{user.email}</span>
+                <span className="block truncate text-sm font-medium text-[var(--text-strong)] hover:underline">{user.name}</span>
+                <span className="block truncate text-[11px] text-[var(--text-muted)]">{user.email}</span>
               </Link>
               <form action="/auth/signout" method="post">
-                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
                 </button>
               </form>
             </div>
           )
         ) : (
-          <Link href="/login" title="Sign in" className={`flex items-center justify-center gap-2 rounded-lg bg-white/10 py-2 text-sm font-medium text-white transition hover:bg-white/20 ${collapsed ? "px-2" : "px-3"}`}>
+          <Link href="/login" title="Sign in" className={`flex items-center justify-center gap-2 rounded-lg bg-[var(--blue-50)] py-2 text-sm font-medium text-[var(--color-primary)] transition hover:bg-[var(--blue-100)] ${collapsed ? "px-2" : "px-3"}`}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" /></svg>
             {!collapsed && "Sign in"}
           </Link>
