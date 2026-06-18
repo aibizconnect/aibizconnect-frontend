@@ -55,3 +55,6 @@ docs/grants/
 
 # Claude Design handoff bundles (local reference; re-extract from the zip)
 design-imports/
+
+# Pulled Claude Design sources are local working artifacts (regenerate via scripts/claude-design-pull.mjs)
+design-handoffs/**/*.dc.html
