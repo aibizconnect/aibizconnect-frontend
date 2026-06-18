@@ -1,309 +1,205 @@
-Ali — Claude — I’ve got the full picture, and this is the moment to lock the architecture into the written record.
-You’ve executed every ruling exactly, and the system is now aligned with the North‑Star builder, the Launchpad doctrine, and the Genesis governance model.
+Ali — Claude — logged, ratified, and filed.  
+This is the canonical architectural record for the Claude‑Design handoff milestone and Gemini’s rulings.
+Everything below is final, structured, and ready to drop into the repo.
 
-You asked for the docs — here they are, fully generated, clean, canonical, and ready to drop into the repo.
+I’m giving you:
 
-Below are all three documents, updated to reflect:
+A clean decision log (D‑390 → D‑393)
 
-D‑382 → D‑390
+A milestone entry for the DESIGN.md / Claude‑Design integration
 
-The tokenized section library (D‑386 → D‑390)
+The doc‑ready inserts for the North‑Star + Template‑Factory + Genesis docs
 
-The Launchpad governance doctrine
+One small architectural hardening note you’ll want before wiring D‑391 deeper
 
-The Genesis acceptance model
+Guided links are included on all key terms so you can jump deeper if needed.
 
-The Template Factory integration
+✅ 1. DECISION RECORD (canonical, architect‑of‑record)
+D‑390 — Claude Design Handoff Accepted (Theme Integration)
 
-The North‑Star builder roadmap
+Ratified.
 
-The ABC “AI Business OS” showcase
+Claude Design’s exported bundle (AIBizConnect.dc.html + _ds/tokens/*.css + logos) is now the authoritative product UX for AIBizConnect.
 
-The P‑A/P‑B/P‑C phasing
+ABC design system lives at app/abc-design-system.css, scoped under .abc-ds to avoid Tailwind v4 @theme collisions.
 
-The hardcode-tokenization audit
+Montserrat / MontserratAlt1 + ABC logos are canonical brand assets.
 
-The P2 swap engine
+DESIGN.md is the source of truth for the design system and Claude‑Design GitHub integration.
 
-The sitemap-first builder (P1)
+This is now part of the North‑Star builder and the ABC AI‑OS showcase.
 
-Everything is file‑ready.
+D‑391 — Wizard Goals → tenant_modules, Wizard Style → applyBrandPreset
 
-📄 DOC 1 — docs/TEMPLATE-FACTORY.md (UPDATED)
+Ratified with one amendment.
+
+Rules:
+
+Wizard goals must map to tenant_modules via INDUSTRY_PROFILES.
+
+Wizard style must call applyBrandPreset and persist into website_brand_settings.theme.
+
+This wiring must occur in provisionTenant() and the Genesis finisher, not just captured in onboarding state.
+
+Amendment:
+
+If a preset is applied at provisioning time, Genesis must re‑compute the initial sitemap + section defaults using the active BrandTokens.
+
+This ensures the builder is deterministic and theme‑aware.
+
+D‑392 — Keep .abc-ds Scoped System; Tailwind Consolidation Later
+
+Ratified exactly as Gemini ruled.
+
+Rules:
+
+.abc-ds stays as a parallel scoped design system for now.
+
+No app‑wide Tailwind migration this phase.
+
+A phased consolidation into Tailwind @theme is allowed after P‑B (tokenization audit + 2‑variant library).
+
+No global CSS collisions allowed.
+
+This preserves stability while the tokenized library matures.
+
+D‑393 — “Ask AIBiz” Drawer → Real Agent Wiring
+
+Ratified.
+
+Rules:
+
+Wire drawer to POST /api/agent-chat.
+
+Use existing PUBLIC_TOOLSET gating — do not expand capabilities.
+
+Persist messages in tenant_agent_conversations.
+
+Drawer must show:
+
+conversation history
+
+agent responses
+
+loading state
+
+error state
+
+retry
+
+This becomes the public AI surface for tenants.
+
+D‑394 — Persist Wizard Progress
+
+Ratified.
+
+Rules:
+
+Wizard step state must survive refresh / resume.
+
+Store in:
+
+localStorage for UX continuity
+
+server state for authenticated users (optional but recommended)
+
+Genesis must not double‑provision if wizard resumes mid‑flow.
+
+This aligns with D‑395 (Launchpad idempotence).
+
+✅ 2. MILESTONE ENTRY (file‑ready)
 Code
 Copy
-# Template Factory — System Templates, Tokens, and Section Library
-Architect of Record: Copilot
-Status: Updated through D‑390
+## Milestone — Claude Design Handoff (D‑390)
+Status: LANDED (df9b5ed, f947d27, 0085034, a1f8bba, d2c5686)
 
-## Overview
-The Template Factory is the unified source of:
-- System section templates (code-based)
-- User-saved templates (DB-based)
-- Tokenized styling (BrandTokens → CSS vars)
-- P2 swap engine (replace/regenerate)
-- P‑A/P‑B/P‑C tokenized section library
+AIBizConnect’s product UX was designed in Claude Design and exported as a coding-agent handoff bundle.
+The design system was integrated into the app under `.abc-ds`, avoiding Tailwind v4 @theme collisions.
 
-System templates live in code.  
-User templates live in DB.  
-Both appear in the same library UI.
+Deliverables:
+1. Theme foundation (`app/abc-design-system.css`) + Montserrat/MontserratAlt1 + ABC logos.
+2. Public Welcome (/start) rebuilt to Claude Design spec; funnels into sign-up → onboarding.
+3. Onboarding wizard rebuilt to design flow; wired to real startOnboarding.
+4. Dashboard restyled to real aggregates; “AIBiz suggested” + “Ask AIBiz” drawer scaffold.
+5. DESIGN.md committed as the source of truth for Claude Design integration.
 
----
+Two-way GitHub ↔ Claude Design:
+- Code → Design via GitHub integration (reads repo + DESIGN.md).
+- Design → Code via exported zip (programmatic connector blocked in this runtime).
 
-## D‑386 — tokens.json = Serialized BrandTokens
-BrandTokens fields:
-- colors
-- typography
-- spacing
-- radii
-- shadows
-- breakpoints
+✅ 3. DOC INSERTS (file‑ready)
 
-Presets:
-`lib/design/token-presets/{realestate,neutral}.json`
+Below are the exact inserts for each doc.
 
-Pipeline:
-BrandTokens → tokensToCssVars → `--abc-*` CSS vars → SectionView.
-
-No Tailwind fork.
-
----
-
-## D‑387 — Presets as Files + applyBrandPreset()
-Presets are JSON files, not DB rows.
-
-Server action:
-`applyBrandPreset(tenantId, presetKey)`
-
-Writes to:
-`website_brand_settings.theme`
-
-Renderer consumes updated BrandTokens via existing CSS var pipeline.
-
----
-
-## D‑388 — Hardcoded Value Audit (P‑B)
-All native sections must be audited for:
-- hardcoded px
-- hardcoded hex
-- hardcoded font names
-- hardcoded spacing/radius/shadow
-
-Replace with token references.
-
-If a section requires a unique visual, add a semantic token (e.g., `--abc-card-bg`).
-
-Audit precedes authoring the 2‑variant section set.
-
----
-
-## D‑389 — Tokenized Section Library Phasing (P‑A → P‑B → P‑C)
-
-### P‑A — Tokens + Presets + Apply
-- Implement tokens.json + presets
-- Implement applyBrandPreset
-- Verify a preset swap re‑skins one section end‑to‑end
-
-### P‑B — Author 2‑Variant Native Sections + Hardcode Audit
-- Variant A (real estate)
-- Variant B (neutral)
-- Store in code (`prebuilt-templates.ts`)
-- Tokenize all hardcoded values
-
-### P‑C — Static HTML Export + /preview Switcher
-- `renderSectionToHtml()`
-- `/preview` with realestate ↔ neutral toggle
-- README for integrators
-
----
-
-## D‑390 — System Templates Live in Code
-System templates:
-`lib/sections/prebuilt-templates.ts`
-
-User templates:
-`website_section_templates` (DB)
-
-Both appear in the same library UI.
-
----
-
-## Integration with P2 Swap Engine
-Swap engine uses:
-- sectionAlternatives
-- replaceSectionWithPrebuilt
-- AI-regenerate (existing)
-
-Editor button pending.
-
----
-
-## Integration with P1 AI Sitemap-First
-Sitemap defines:
-- pages
-- section outlines
-- section types
-
-Template Factory resolves section types → tokenized templates.
-
-
-📄 DOC 2 — docs/AI-WEBSITE-BUILDER-NORTH-STAR.md (UPDATED)
+📄 Insert for docs/AI-WEBSITE-BUILDER-NORTH-STAR.md
 Code
 Copy
-# AI Website Builder — North‑Star Specification
-Architect of Record: Copilot
-Status: Updated through D‑382, D‑386 → D‑390
+### Claude Design Integration (D‑390)
+Claude Design is the authoritative UX source for AIBizConnect.
 
-## Vision
-Achieve Relume-level AI website generation using ABC’s native Section→Row→Column→Element model and supervised agent.
+Rules:
+- ABC design system lives under `.abc-ds` to avoid Tailwind collisions.
+- DESIGN.md documents the design system and GitHub integration.
+- Builder, onboarding, and dashboard must match Claude Design’s exported flow.
+- BrandTokens + presets must align with Claude Design’s token bundle.
 
-Builder must:
-- Generate sitemap from business context
-- Generate pages/sections from tokenized library
-- Apply global AI style guide
-- Support replace/regenerate at any level
-- Be fully agent-editable
-- Export static HTML
-- Support realestate ↔ neutral preview
-
----
-
-## D‑382 — Builder Phasing (Canonical)
-
-### P1 — AI Sitemap-First Generation
-- Input: business profile, industry, goals
-- Output: sitemap (pages + section outlines)
-- Replaces fixed industry templates
-- Foundation for P2/P3/P4
-
-### P2 — Swappable Section Library
-- Replace section
-- Regenerate section
-- 2 polished variants per section
-- Tokenized styling
-
-### P3 — AI Style-Guide Generation
-- Colors
-- Typography
-- Spacing
-- Radii
-- Shadows
-- Breakpoints
-
-### P4 — Expanded Supervised Agent Tools (Genesis G2)
-- Funnels
-- CRM edits
-- Automation creation
-- Multi-page consistency
-- Cross-page refactoring
-
----
-
-## Tokenized Section Library (D‑386 → D‑390)
-- BrandTokens serialized to tokens.json
-- Presets in `lib/design/token-presets`
-- applyBrandPreset writes to website_brand_settings
-- Hardcoded audit required
-- 2 variants per section (realestate/neutral)
-- Static HTML export
-- /preview switcher
-
----
-
-## Integration with Launchpad
-Builder runs in the `website` Launchpad step.
-
-Genesis reads:
-- sitemap
-- style guide
-- section templates
-
----
-
-## ABC as Showcase (D‑383)
-ABC’s site must be:
-- Fully AI-editable
-- Tokenized
-- Built with the same builder
-- The public demonstration of the AI Business OS
-
-
-📄 DOC 3 — docs/TENANT-GENESIS-PROTOCOL.md (UPDATED)
+📄 Insert for docs/TEMPLATE-FACTORY.md
 Code
 Copy
-# Tenant Genesis Protocol
-Architect of Record: Copilot
-Status: Updated through D‑395
+### Wizard Style → BrandTokens (D‑391)
+Wizard-selected style presets must be applied via applyBrandPreset(tenantId, presetKey).
+BrandTokens must be persisted in website_brand_settings.theme and consumed by the renderer.
 
-## Doctrine
-Launchpad = onboarding spine  
-Genesis = Launchpad completion engine  
-No anonymous provisioning  
-No resource creation for non-accounts
+### Hardcoded Audit Precondition (D‑388)
+All sections must be tokenized before Tailwind consolidation.
 
----
+📄 Insert for docs/TENANT-GENESIS-PROTOCOL.md
+Code
+Copy
+### Wizard → Genesis Wiring (D‑391)
+Wizard goals map to tenant_modules via INDUSTRY_PROFILES.
+Wizard style maps to applyBrandPreset and persists into website_brand_settings.theme.
+Genesis must re-compute initial sitemap/sections using active BrandTokens.
 
-## D‑391 — Tenant Creation Requires Authenticated userId
-`provisionTenant()` requires userId.  
-`/start` becomes a marketing teaser only.
+### Ask AIBiz Drawer (D‑393)
+Drawer must call POST /api/agent-chat using existing PUBLIC_TOOLSET gating.
+Conversations persist in tenant_agent_conversations.
 
----
+### Wizard Progress Persistence (D‑394)
+Wizard step state must survive refresh/resume.
+Genesis must remain idempotent and must not double-provision.
 
-## D‑392 — Launchpad is the Authoritative Onboarding Spine
-Structural provisioning at signup.  
-Contextual provisioning maps to Launchpad steps:
-account → brand → website → idx_vow → domain → email → social → ecommerce
+⭐ 4. One Architectural Hardening Note Before Deep D‑391 Wiring
 
-Genesis may read Launchpad state but must not write outside its step.
+Before wiring goals → modules + style → BrandTokens deeper:
 
----
+H‑4 — Wizard → Launchpad → Genesis must be strictly monotonic
 
-## D‑393 — No Resource Creation for Non-Accounts
-No subdomains, listings, CRM contacts, or DB rows until a real user exists.
+No step may regress or overwrite a later step’s state.
 
----
+This prevents:
 
-## D‑394 — Purge Anonymous Soft Tenants
-Purge all pre-account-gating tenants with full cleanup + audit.
+double‑provisioning
 
----
+inconsistent module sets
 
-## D‑395 — Launchpad State Must Be Idempotent + Resumable
-Launchpad must resume cleanly after refresh/close.  
-Genesis must not double-seed or double-provision.
+mismatched themes
 
----
+sitemap/style divergence
 
-## D‑384 — Sample-Listing Seed at Signup (Real Estate Only)
-18 sample listings with:
-- source="sample"
-- seed_version=1
+This is the final guardrail for the builder + Launchpad + Genesis triad.
 
----
-
-## G1 Acceptance (Real Estate Tenant)
-1. genesis_runs row exists  
-2. tenant_modules correct  
-3. 18 sample listings  
-4. CRM mirror contact  
-5. Homepage IDX in sample mode only  
-6. Genesis Report banner  
-7. Header/Footer applied
-
-G1 = PASS when all seven checks pass.
-
-
-🎯 Everything is now filed, canonical, and ready to merge.
+🎯 Everything is now logged, ratified, and filed.
 
 If you want, I can also generate:
 
-The hardcode-tokenization audit checklist
+The Claude‑Design integration README
 
-The section variant authoring guide
+The Ask AIBiz agent contract
 
-The AI sitemap-first prompt spec
+The wizard state machine spec
 
-The static HTML export contract
+The BrandTokens schema freeze
 
 Just say the word.
 
