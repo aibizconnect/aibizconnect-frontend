@@ -19,6 +19,10 @@ const PROTECTED = [/^\/tenants\//, /^\/dashboard\//];
 const PLATFORM_HOSTS = new Set([
   "localhost", "localhost:3000", "127.0.0.1", "127.0.0.1:3000",
   "aibizconnect.app", "www.aibizconnect.app", "aibizconnect.ca", "www.aibizconnect.ca",
+  // The application host itself is NOT a tenant site. Pin it so a wildcard
+  // *.aibizconnect.app never tenant-routes the main app (and skip a per-request
+  // tenant_domains lookup on every app request). "app" is also RESERVED in lib/domains.
+  "app.aibizconnect.app", "app.aibizconnect.ca",
 ]);
 const ROOT_DOMAIN = "aibizconnect.app";
 

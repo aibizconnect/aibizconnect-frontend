@@ -21,7 +21,8 @@ needs setup is the custom domain (Cloudflare credentials). Core path works today
 | Edit in builder | ✅ works | — |
 | **Publish** → public URL | ✅ works | — |
 | View live at `/sites/{tenantId}/home` | ✅ works | — |
-| **Custom domain / subdomain** | 🟡 built but OFF | **Cloudflare API token + zone ID** in Vercel env + a **`*.aibizconnect.app` wildcard domain on the Vercel project** |
+| **Subdomain** `{slug}.aibizconnect.app` | 🟡 code ready, infra OFF | One-time **`*.aibizconnect.app` wildcard** on Vercel + DNS-only wildcard CNAME in Cloudflare. **No CF token.** Auto-reserved by the wizard; routes after publish. |
+| **External custom domain** | 🟡 built, out of scope | Entitlement-gated + CF token + per-domain Vercel attach. Follow-up, not tomorrow. |
 
 ---
 
@@ -37,13 +38,16 @@ needs setup is the custom domain (Cloudflare credentials). Core path works today
 3. **Decide the tenant**: this walkthrough **creates a real tenant** (sanctioned by your explicit ask;
    overrides the ONE-TENANT rule for the test). Decide up front whether we **keep** it or **purge** it
    after (we have the `delete_tenant_cascade` RPC + purge script from last time).
-4. **(Stretch — domain only)** If we want to point a domain live, set in **Vercel → Project → Settings →
-   Environment Variables** (Production):
-   - `CLOUDFLARE_API_TOKEN` — token with DNS edit on the `aibizconnect.app` zone
-   - `CLOUDFLARE_ZONE_ID` — zone ID for `aibizconnect.app`
-   And add a **wildcard domain `*.aibizconnect.app`** to the Vercel project, with the matching
-   Cloudflare DNS so subdomains actually reach the app. (See "Custom domain" section — this is the
-   real work; without it the Publish-domain button returns "Cloudflare is not configured.")
+4. **(Subdomain demo)** This is the ONLY infra step, and it's a one-time wildcard setup — **no
+   Cloudflare API token needed** (the token/verify/publish UI is only for *external* custom domains,
+   which are also entitlement-gated). Do both:
+   - **Vercel → Project → Settings → Domains**: add **`*.aibizconnect.app`** (apex is already verified
+     since `app.aibizconnect.app` lives here). Vercel shows a CNAME target (e.g. `cname.vercel-dns.com`).
+   - **Cloudflare (aibizconnect.app zone) → DNS**: add `CNAME  *  →  cname.vercel-dns.com`, **Proxy
+     status = DNS only (grey cloud)** (Cloudflare free doesn't proxy wildcards; grey cloud lets Vercel
+     terminate TLS cleanly). Complete any Vercel verification TXT if prompted.
+   - Test with ONE host before the live run (see "Subdomain demo" below). Best done tonight/early so
+     DNS + Vercel cert are warm.
 
 ---
 
@@ -73,28 +77,32 @@ needs setup is the custom domain (Cloudflare credentials). Core path works today
 
 ---
 
-## CUSTOM DOMAIN (stretch goal) — how it works + what's needed
+## SUBDOMAIN DEMO (the chosen stretch goal) — how it works + what's needed
 
-**It's built, not a fantasy:** there's a `tenant_domains` table, host→tenant middleware routing,
-the add/verify/publish UI (`Settings → Website → Domain`), a Cloudflare API client, and DoH-based
-verification. The middleware already rewrites `{anything}.aibizconnect.app/` → that tenant's `/home`.
+**Verified in code (2026-06-17):**
+- The wizard's `provisionTenant` **auto-reserves `{slug}.aibizconnect.app`** — it inserts a
+  `tenant_domains` row with the bare `subdomain` value (`lib/domains.ts addSubdomain`), `is_primary=true`.
+- `middleware.ts resolveTenant` matches an incoming host's subdomain against that row (**no status gate,
+  no Cloudflare call**) and rewrites `{slug}.aibizconnect.app/` → `/sites/{tenantId}/home`.
+- The anon read the middleware uses was tested live: **HTTP 200** (RLS allows it).
 
-**What's OFF:** Cloudflare credentials aren't set, and the platform doesn't auto-attach hosts to
-Vercel. So the last mile needs one-time infra setup.
+**So with the one-time wildcard infra (pre-flight #4) in place, the subdomain "just works" right after
+the wizard — no in-app Domain step, no Cloudflare token.** The flow:
+1. Pre-flight #4 done: `*.aibizconnect.app` on Vercel + `* CNAME → cname.vercel-dns.com` (DNS-only) in Cloudflare.
+2. Run the wizard (business name → slug). The tenant now owns e.g. `summit-realty.aibizconnect.app`.
+3. **Publish the home page** (Step 11) — required, or the subdomain root hits an unpublished page.
+4. Visit `https://summit-realty.aibizconnect.app` → live tenant home. Done.
 
-**Cleanest demo = a subdomain under our own zone** (`summit.aibizconnect.app`):
-1. Pre-flight #4 done (CF creds in Vercel + `*.aibizconnect.app` wildcard on the Vercel project,
-   wildcard DNS in Cloudflare pointing at Vercel).
-2. In the tenant: **Settings → Website → Domain** → reserve subdomain `summit` → **Publish**.
-   Creates `CNAME summit.aibizconnect.app → edge.aibizconnect.app` (proxied) and flips status `active`.
-3. Visit `https://summit.aibizconnect.app` → middleware routes to the tenant's home. Done.
+> **Pre-test with one host (do this before the live run):** after pre-flight #4, confirm any subdomain
+> reaches the app + serves a cert — e.g. open `https://test.aibizconnect.app` (expect our app's 404/redirect,
+> NOT a Vercel "domain not found" or cert error). If that's clean, the wizard's auto-subdomain will resolve.
 
-**A real external domain** (e.g. `summitrealty.com`) also works via the same UI (CNAME → `edge.aibizconnect.app`
-+ a `_aibizconnect-verify` TXT we check over DoH), **but** the apex must reach Vercel and the host be
-accepted — for a clean live demo prefer the subdomain path above; treat an external apex as a follow-up.
+**External custom domain** (e.g. `summitrealty.com`) is a *separate, heavier* path: it's entitlement-gated
+(`CUSTOM_DOMAIN` feature), uses the add/verify/publish UI + a Cloudflare API token + a `_aibizconnect-verify`
+TXT over DoH, and the apex must be attached to Vercel. **Out of scope for tomorrow** — treat as a follow-up.
 
-> ⚠️ I can't enter the Cloudflare token or change Vercel settings for you (credentials/settings are
-> yours to set). I'll guide it live, or we set it together before we start.
+> ⚠️ I can't change Vercel settings or Cloudflare DNS for you (those are yours to set). I'll give exact
+> values and verify routing the moment a subdomain is up.
 
 ---
 
