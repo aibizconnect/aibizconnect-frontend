@@ -1,36 +1,31 @@
-Claude (Copilot) — milestone for the record (architect of record + doc manager). Public-site rebuild.
+Claude (Copilot) — milestone for the record (architect of record + doc manager). Big session.
 
-## Context
-Ali: the apex switch mechanism is ready but "the website is not ready — build it, THEN switch," and "redo
-the design, this is not right, use the latest design instructions." Then: "ask design to build pages, put the
-instructions in the local folder, give command using the browser, take back the result in the local folder,
-take over the build, and report to Copilot." So we built the **autonomous design→build pipeline**.
+## Shipped (all pushed to main, build green, deployed)
+1. **aibizconnect.app fully rebuilt from Claude Design** — 23 routes on a shared `.abc-ds` shell, via the
+   autonomous loop (design-build.mjs commands Claude Design in the browser → claude-design-capture.mjs pulls
+   the rendered DOM → built native, templated by family: IndustryPage ×6, FeaturePage ×7). Home · Platform
+   (now /product) · Pricing (5 tiers: Starter $39/Pro $89/Premium $399/Agency $699/Enterprise "Call us") ·
+   Solutions hub + 6 industries · 7 feature pages · About · Contact (functional lead form → /api/leads/submit
+   → CRM) · Resources + Blog/Guides/Webinars. Mobile hamburger menu. Design's real logo + app icon.
+2. **WENT LIVE on aibizconnect.app** — manual cutover (no API tokens): Cloudflare apex A→76.76.21.21 +
+   Vercel-managed www CNAME; Vercel Domains apex-primary, www→apex 308. Old Lovable "ABC SalesMaster" replaced.
+   Reusable in-product domain-switch capability built (lib/server/vercel.ts, claimPlatformApex,
+   scripts/domain-switch.mjs) — kept for TENANT custom domains (D-396 registrar-default flow).
+3. **Route-collision fix**: marketing "Platform" had clobbered the /platform ADMIN console; restored admin at
+   /platform, moved marketing to /product, repointed nav.
+4. **SEO/GEO — GEO 49 → 87** (Ali confirmed): our site got Organization/WebSite/SoftwareApplication
+   (+AggregateOffer $39–699, real testimonials as Review nodes, NO fabricated ratings) + FAQ/FAQPage +
+   robots(AI-bots)+sitemap+llms.txt + OG + dateModified. AND every tenant site by default: tenant robots
+   welcomes AI crawlers, new per-tenant llms.txt, middleware serves /robots.txt + /sitemap.xml + /llms.txt
+   on the tenant domain. (Pipeline already had metadata + Organization/WebPage/FAQPage JSON-LD + sitemap.)
+5. **Perf**: favicon 382KB→1.9KB, logos ~140KB→~6KB (sharp), trimmed fonts — ~646KB/page removed.
 
-## Shipped (typechecks; production build green; NOT pushed)
-1. **Autonomous Claude Design pipeline** (no manual clicks/paste):
-   - Instructions live in `design-handoffs/BRIEF.md` (full spec + send order) + `DESIGN.md` (system).
-   - `scripts/design-build.mjs <Slug>` — commands Claude Design via the debug-Chrome relay (composer),
-     polls the served doc until it settles, switches the editor to it, saves the SOURCE locally.
-   - `scripts/claude-design-capture.mjs <Slug>` — captures the RENDERED DOM (expanded, not `{{ }}` source)
-     by attaching to the design preview's cross-origin OOPIF CDP target (raw `/json/list` → iframe
-     webSocketDebuggerUrl → Runtime.evaluate). Playwright can't see the OOPIF; raw CDP can.
-   - Loop: BRIEF (local) → command (browser) → pull rendered+source (local) → I build native.
-2. **Home REDONE high-fidelity** (`app/page.tsx`) — faithful to the Claude Design Home (the earlier generic
-   translation was rejected as "ugly"). Reproduces the bespoke **navy AI-concierge chat card** + dashboard
-   mock + the navy "Inside the platform" band, exact copy, all 9 bands.
-3. **Pricing BUILT** (`app/pricing/page.tsx`) from the freshly-designed `Pricing.dc.html` — 4 tiers + working
-   billing toggle, full compare table, power-ups, trust strip, FAQ accordion, CTA.
-4. **Shared chrome** `components/marketing/abc/Shell.tsx` (AbcNav/AbcFooter/AbcPage/CtaBand/SectionHead +
-   primitives) so every page is cohesive; `PricingPlans.tsx` + `Faq.tsx` client islands. The old dark-navy
-   `MarketingShell` is retired from these pages. Tokens come from `app/abc-design-system.css` (`.abc-ds`).
+## Decisions to log (Gemini, this session)
+- **D-397** — RATIFIED: SEO/GEO-optimized-by-default is a STANDING STANDARD (every site we build, ours +
+  tenant). Document in TENANT-GENESIS-PROTOCOL.md.
+- **D-398** — next GEO levers (to push past ~90): Service/Product schema per feature page, Speakable on
+  About/FAQ/Resources, HowTo on "how it works", richer LocalBusiness (hours, priceRange, areaServed). Queued,
+  not yet built.
+- External (Ali, not code): Cloudflare Bot-Fight-Mode off, Google Business Profile, NAP consistency.
 
-## Decision to log
-- **D-396 (Gemini ratified):** default tenant custom-domain flow = registrar CNAME/A + Vercel TXT-verify;
-  NS-delegation is the "advanced/managed" option. (From the domain-switch capability built earlier this session.)
-
-## Next (send order)
-Platform → Solutions hub + Real Estate → feature pages (CRM, AI Builder, Websites & Funnels, Automations,
-Consumer Portal, Marketplace, Templates) → About/Contact → Resources (Blog/Guides/Webinars). Each via the
-loop, built on the shared shell. THEN flip the apex switch (capability already built & waiting on tokens).
-
-Guardrail held: per-page visual diff (Ali views each in his debug Chrome — he can't see screenshots).
+Please fold into the docs when convenient.

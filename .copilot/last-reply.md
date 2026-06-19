@@ -1,227 +1,226 @@
 Ali — Claude — logged, ratified, and filed.  
 This is the canonical architectural record for the Public‑Site Rebuild milestone and Gemini’s rulings.
-Everything below is structured, durable, and ready to merge into the decision log and design‑integration docs.
+Everything below is structured, durable, and ready to drop into the repo.
 
-G1 Summary — Public‑Site Rebuild Milestone (Filed)
+No decisions are pending — this is pure record‑keeping for the architect‑of‑record.
 
-You’ve now crossed the threshold from “Claude Design as UX reference” to a fully autonomous design→build pipeline that can rebuild the entire public site page‑by‑page with no manual pasting, no screenshots, and no human bottlenecks.
+1. MILESTONE — Full Public‑Site Rebuild (Filed)
 
-This is a major architectural milestone.
+(All pushed to main, build green, deployed to aibizconnect.app)
 
-1. Autonomous Claude‑Design Pipeline (Shipped)
-Pipeline Architecture
+The public site is now fully rebuilt from Claude Design, using the autonomous design→build pipeline and the .abc-ds design system.
 
-BRIEF.md = page spec + send order
+1.1 Site Rebuild (23 routes)
 
-DESIGN.md = system + Claude‑Design GitHub integration
+Rebuilt via the autonomous loop:
 
-design-build.mjs <Slug>
+design-build.mjs → commands Claude Design in browser
 
-Commands Claude Design via debug‑Chrome (CDP 9222)
+claude-design-capture.mjs → pulls rendered DOM (OOPIF CDP)
 
-Waits for the served doc to settle
+Native build → templated by family (IndustryPage ×6, FeaturePage ×7)
 
-Switches editor to the doc
+Pages delivered
 
-Saves the SOURCE locally
+Home
 
-claude-design-capture.mjs <Slug>
+Platform → now /product
 
-Captures the RENDERED DOM (expanded, not templated)
+Pricing (5 tiers: Starter $39 / Pro $89 / Premium $399 / Agency $699 / Enterprise “Call us”)
 
-Attaches to the OOPIF preview target via raw CDP
+Solutions hub
 
-Playwright cannot see OOPIF; CDP can
+6 industries
 
-Loop:  
-BRIEF → command → pull source+render → native build
+7 feature pages
 
-This is now the official ingestion loop for all public‑site pages.
+About
 
-2. Home Page — High‑Fidelity Rebuild
+Contact (functional lead form → /api/leads/submit → CRM)
 
-Rebuilt from the Claude Design Home page
+Resources hub
 
-Includes the bespoke navy AI‑concierge chat card, dashboard mock, and “Inside the platform” band
+Blog / Guides / Webinars
 
-All 9 bands reproduced faithfully
+Mobile hamburger menu
 
-Replaces the earlier generic translation
+Real logo + app icon
 
-Script: build-abc-home.mjs
+This is the complete Claude‑Design parity rebuild.
 
-3. Pricing Page — Fully Built
+1.2 Live Cutover
 
-Designed in Claude Design → pulled → rebuilt natively
+Performed manually (no API tokens):
 
-4 tiers
+Cloudflare apex → A 76.76.21.21
 
-Billing toggle
+Vercel‑managed www CNAME
 
-Full compare table
+Vercel Domains: apex primary, www→apex 308
 
-Power‑ups
+Old Lovable “ABC SalesMaster” removed
 
-Trust strip
+In‑product domain‑switch capability (lib/server/vercel.ts, claimPlatformApex, scripts/domain-switch.mjs) retained for tenant custom domains (D‑396 registrar‑default flow)
 
-FAQ accordion
+1.3 Route Collision Fix
 
-CTA
+Marketing “Platform” had overwritten /platform admin console
 
-All built on the shared ABC shell
+Restored admin at /platform
 
-4. Shared Chrome (Marketing Shell)
+Marketing moved to /product
 
-components/marketing/abc/Shell.tsx
+Nav repointed
 
-AbcNav
+1.4 SEO/GEO Upgrade — GEO 49 → 87
 
-AbcFooter
+Ali confirmed the jump.
 
-AbcPage
+Structured data added
 
-CtaBand
+Organization
 
-SectionHead
+WebSite
 
-Primitives
+SoftwareApplication
 
-Retires the old dark‑navy MarketingShell
+AggregateOffer ($39–699)
 
-Tokens come from .abc-ds (Claude Design system)
+Real testimonials as Review nodes (no fabricated ratings)
 
-This ensures every page is cohesive and design‑system‑aligned.
+FAQ / FAQPage
 
-2. Gemini Rulings — Canonical Decision Record
-D‑396 — Default Tenant Custom‑Domain Flow
+Robots (AI‑bots allowed)
+
+Sitemap
+
+llms.txt
+
+OG
+
+dateModified
+
+Tenant sites
+
+Every tenant site now gets:
+
+robots.txt welcoming AI crawlers
+
+per‑tenant llms.txt
+
+middleware‑served robots/sitemap/llms
+
+JSON‑LD pipeline already included Organization/WebPage/FAQPage + sitemap
+
+1.5 Performance
+
+Favicon: 382 KB → 1.9 KB
+
+Logos: ~140 KB → ~6 KB (sharp)
+
+Trimmed fonts
+
+~646 KB/page removed
+
+2. DECISIONS — Gemini Rulings (Filed)
+D‑397 — SEO/GEO‑Optimized‑By‑Default = Standing Standard
 
 Ratified.
 
-Rules:
+Rule:
 
-Default = Registrar CNAME/A + Vercel TXT verify
+Every site we build — our own and every tenant site — must ship with:
 
-NS‑delegation = advanced/managed option
+robots.txt
 
-This aligns with the domain‑switch capability built earlier
+sitemap.xml
 
-Applies to all tenants, including the platform tenant
+llms.txt
 
-Filed under: Domain Management Protocol.
+JSON‑LD (Organization/WebSite/WebPage/FAQPage/SoftwareApplication/etc.)
 
-D‑397 — Page‑by‑Page Rebuild Loop (Claude Design → Native)
+OG tags
 
-Ratified.
+dateModified
 
-Rules:
+AI‑crawler‑friendly posture
 
-Ali designs each page in Claude Design
+This is now part of the Tenant Genesis Protocol.
 
-Claude pulls via relay
-
-Claude builds the native version
-
-Replace only after:
-
-Visual diff vs Claude Design output
-
-Manual confirmation by Ali
-
-Inspector QA (layout, tokens, responsiveness)
-
-This is the governing loop for the ~20‑page rebuild.
-
-D‑398 — Open Items Acknowledged & Queued
+D‑398 — Next GEO Levers (Queued, not yet built)
 
 Ratified.
 
-Items:
+Next structured‑data expansions:
 
-D‑391 deeper wiring
+Service/Product schema per feature page
 
-Wizard goals → tenant_modules
+Speakable on About / FAQ / Resources
 
-Wizard style → applyBrandPreset
+HowTo on “How it works”
 
-Genesis must recompute sitemap/sections using active BrandTokens
+Richer LocalBusiness (hours, priceRange, areaServed)
 
-H‑4 monotonic + idempotent Genesis
+External (Ali‑side):
 
-No step regression
+Cloudflare Bot‑Fight‑Mode off
 
-No double‑provision
+Google Business Profile
 
-No theme/sitemap divergence
+NAP consistency
 
-These remain active and required.
+These are queued for the next SEO/GEO pass.
 
-3. Next Steps (Send Order)
+3. DOC INSERTS (file‑ready)
 
-Ali’s send order is now the official build sequence:
+Below are the exact inserts for each doc.
 
-Platform → Solutions Hub
+📄 Insert → docs/TENANT-GENESIS-PROTOCOL.md
+Code
+Copy
+### D‑397 — SEO/GEO‑Optimized‑By‑Default (Standing Standard)
+Every site we build — platform and tenant — must ship with:
+- robots.txt (AI‑friendly)
+- sitemap.xml
+- llms.txt
+- JSON‑LD (Organization, WebSite, WebPage, FAQPage, SoftwareApplication, AggregateOffer)
+- OG tags
+- dateModified
 
-Real Estate vertical
+Tenant middleware must serve robots/sitemap/llms on the tenant domain.
 
-Feature pages:
+📄 Insert → docs/AI-WEBSITE-BUILDER-NORTH-STAR.md
+Code
+Copy
+### Public‑Site Rebuild (Claude Design Parity)
+The entire aibizconnect.app public site is rebuilt from Claude Design via the autonomous design→build loop.
+23 routes delivered on the `.abc-ds` shell. This establishes the public-facing showcase for the AI Business OS.
 
-CRM
+📄 Insert → docs/DESIGN-INTEGRATION.md
+Code
+Copy
+### Full Public‑Site Rebuild (Claude Design → Native)
+All public pages (23 routes) rebuilt from Claude Design using:
+- design-build.mjs (commands Claude Design)
+- claude-design-capture.mjs (captures rendered DOM via OOPIF CDP)
+- Native build using IndustryPage/FeaturePage families
 
-AI Builder
+Guardrail:
+- Visual diff vs Claude Design
+- Ali confirmation
+- Inspector QA
 
-Websites & Funnels
+4. Everything is now logged, ratified, and filed.
 
-Automations
+If you want, I can also generate:
 
-Consumer Portal
+The SEO/GEO Playbook
 
-Marketplace
+The Claude‑Design → Native mapping guide
 
-Templates
+The public‑site rebuild manifest
 
-About / Contact
-
-Resources:
-
-Blog
-
-Guides
-
-Webinars
-
-Flip the apex switch
-
-Capability already built
-
-Waiting on full site parity + token alignment
-
-Each page goes through the Claude Design → relay → capture → native build loop with visual diff + Ali confirmation.
-
-4. Guardrail (Reaffirmed)
-
-Ali cannot see screenshots — so the guardrail stands:
-
-Per‑page visual diff
-
-Ali views each page in his debug Chrome
-
-Inspector QA
-
-Only then does the page replace the old one
-
-This is now part of the Design Integration Protocol.
-
-Everything is now logged, ratified, and filed.
-
-If you want, I can generate:
-
-The Public‑Site Rebuild Playbook
-
-The Claude‑Design ingestion contract
-
-The native section mapping guide
-
-The visual diff QA checklist
+The structured‑data expansion plan
 
 Just say the word.
 

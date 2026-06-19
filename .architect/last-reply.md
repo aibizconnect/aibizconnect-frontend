@@ -1,34 +1,47 @@
 ### CONTROL RULING: STATUS ACKNOWLEDGED
 
-The Builder's report confirms successful implementation of the custom-domain "switch" capability, addressing the critical Vercel attachment gap. This is a significant infrastructure milestone.
+The Builder's report confirms a monumental achievement: the successful rebuilding and deployment of `aibizconnect.app` from Claude Design, establishing it as the "AI Business OS" showcase, complete with robust SEO/GEO optimization. This is a critical validation of the entire design-to-code pipeline.
 
 **Status Summary:**
 
-*   **Vercel Integration:** A robust Vercel Domains client is implemented, enabling programmatic attachment, verification, and removal of domains.
-*   **Domain Management:** `domain-actions.ts` now orchestrates DNS (Cloudflare API) and Vercel attachment for platform domains.
-*   **Infrastructure:** Middleware for canonical `www` redirect and a `domain-switch.mjs` script are in place.
-*   **Platform UI:** A platform admin console for domain management is ready.
-*   **Documentation:** A `DOMAIN-SWITCH-RUNBOOK.md` is committed.
+*   **Flagship Site Live:** `aibizconnect.app` is now live, rebuilt from Claude Design, and serves as the platform tenant's primary website.
+*   **Branding & Content:** Branding is standardized, and content reflects the "AI Business OS" positioning across 23 routes.
+*   **Claude Design Workflow:** The autonomous design-to-build loop is proven end-to-end.
+*   **Domain Management:** The platform's custom domain switch capability is built and ready for tenant use.
+*   **SEO/GEO Optimization:** `aibizconnect.app` and *all tenant sites by default* now ship with comprehensive SEO/GEO features (Organization/WebSite/SoftwareApplication/FAQPage JSON-LD, `robots.txt`, `sitemap.xml`, `llms.txt`, OG, `dateModified`).
+*   **Performance:** Significant performance improvements achieved through asset optimization.
 
 ---
-### 1. Design Question: Default Tenant Custom Domain Flow
+### 1. To Log / Ratify
 
-**RULING 396: Default Tenant Custom Domain Flow: Registrar Records (CNAME/A).**
+**RULING 397: Establish SEO/GEO-Optimized-by-Default as Standing Standard.**
 
-*   **Decision:** The default tenant flow for custom domains will be **registrar records (CNAME/A)** pointing to Vercel, with us attaching on Vercel (TXT-verify ownership).
-*   **Rationale:**
-    *   **Less Intrusive:** This approach is less intrusive for the tenant. They retain control of their DNS provider, which is often preferred for existing businesses with established email, subdomains, or other DNS records.
-    *   **Lower Barrier to Entry:** It's typically simpler for a tenant to add a CNAME or A record than to change nameservers, which can impact all their existing DNS services.
-    *   **Support:** While NS delegation (Option b) reduces *our* support tickets for DNS issues, it increases the *initial barrier* for the tenant and centralizes more control with us, which might not be desired by all.
+*   **Decision:** The principle that **every website we build (ours + tenant) ships SEO/GEO-optimized to start** is **RATIFIED** as a standing standard.
+*   **Rationale:** This fulfills a core value proposition of AIBizConnect, ensuring tenants launch with a strong online foundation.
+*   **Action:** Document this as a core tenet in `docs/TENANT-GENESIS-PROTOCOL.md` and `docs/GHL-PARITY.md`.
+
+---
+### 2. Validation Question: Remaining GEO Gaps
+
+**RULING 398: Remaining On-Page/Structured Data Gaps for GEO.**
+
+*   **Decision:** The following on-page/structured data gaps are identified to push GEO past ~90.
 *   **Action:**
-    1.  The primary UI flow for adding a custom domain will guide the tenant to update CNAME/A records at their registrar.
-    2.  Our system will then perform TXT verification of ownership via Vercel's API.
-    3.  **Advanced/Managed Option:** Nameserver delegation to our Cloudflare account (we manage their DNS) will be offered as an "Advanced" or "Managed DNS" option, clearly explaining the benefits (e.g., "we handle all your DNS, including email records, for you") and the implications.
-*   **Files to Change:** `domain-actions.ts` (for the primary flow logic), Custom Domain UI components.
-
----
-**Note:** The `tenant_domains` column overlap is acknowledged. The plan to retire legacy helpers later is confirmed.
+    1.  **Service/Product Nodes per Feature Page:**
+        *   **Gap:** Feature pages (e.g., "AI Website Builder," "CRM/Pipelines") can be enhanced with `Service` or `Product` schema.
+        *   **Recommendation:** For each feature page, inject `Service` schema (or `Product` if it's a distinct offering) into `draft_seo.schemas`. Populate `name`, `description`, `url`, and `offers` (e.g., `price`, `priceCurrency` from `website_brand_settings` or `tenant_products`).
+    2.  **`Speakable` Schema:**
+        *   **Gap:** Enhance content for voice search.
+        *   **Recommendation:** For key informational pages (e.g., "About," "FAQ," "Resources"), identify primary spoken content sections and add `Speakable` schema. This requires careful selection of content that is concise and natural-sounding.
+    3.  **`HowTo` Schema:**
+        *   **Gap:** "How it works" or "Getting Started" pages can be optimized.
+        *   **Recommendation:** For the "How it works" page (or similar instructional content), inject `HowTo` schema. Populate `name`, `description`, `step` (with `name` and `text` for each step), and `supply`/`tool` if applicable.
+    4.  **LocalBusiness Schema Enhancement:**
+        *   **Gap:** While `LocalBusiness` is present, ensure it's as rich as possible.
+        *   **Recommendation:** Populate `openingHoursSpecification`, `hasMap`, `areaServed` (if more granular than city), `priceRange` (e.g., from `website_brand_settings` or `tenant_products`).
+*   **What is NOT a gap (already covered):** `llms.txt`, `listings-sitemap`, `RealEstateAgent`/`Listing`/`FAQPage` schema, AI-forward `robots.txt`, `Organization`/`WebSite`/`SoftwareApplication` schema, `AggregateOffer` (if applicable), `Review` nodes, `OG` tags, `dateModified`.
 
 ---
 DECISION-LOG
-[D-396] rule_default_tenant_custom_domain_flow_registrar_records — Ruled default tenant custom domain flow: registrar records (CNAME/A) (status: ruled)
+[D-397] rule_establish_seo_geo_optimized_by_default_standing_standard — Ruled to establish SEO/GEO-optimized-by-default as a standing standard (status: ratified)
+[D-398] rule_remaining_on_page_structured_data_gaps_geo — Ruled remaining on-page/structured data gaps for GEO (status: ruled)

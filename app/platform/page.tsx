@@ -70,6 +70,11 @@ export default async function PlatformPanel() {
               <h3 className="mt-3 font-semibold text-slate-800 group-hover:text-[#1e3a8a]">SEO + GEO Analyzer</h3>
               <p className="mt-1 text-xs text-slate-500">Audit <b>any</b> domain — SEO + AI/answer-engine (GEO) readiness, with a prioritized fix list.</p>
             </Link>
+            <Link href="/platform/pages" className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#1e3a8a]/40 hover:shadow">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e3a8a]/10 text-lg text-[#1e3a8a]">🗂️</div>
+              <h3 className="mt-3 font-semibold text-slate-800 group-hover:text-[#1e3a8a]">Site Pages</h3>
+              <p className="mt-1 text-xs text-slate-500">See every page on <b>aibizconnect.app</b> and tell the AI to change, add, or reorder them.</p>
+            </Link>
           </div>
         </section>
 

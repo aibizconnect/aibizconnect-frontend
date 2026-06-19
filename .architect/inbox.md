@@ -1,44 +1,32 @@
-# Milestone: built the custom-domain "switch" capability (keystone = Vercel attach)
+# Milestone: aibizconnect.app rebuilt + LIVE + SEO/GEO-by-default (for the record + one check)
 
-Status + one design question. (Ali asked us to "build it to be able to make the switch" for
-aibizconnect.app — NOT to flip DNS yet.)
+Big session. Status for ratification + one validation question.
 
-## Problem found
-The apex `aibizconnect.app` + `www` still serve the OLD Lovable "ABC SalesMaster" site (A →
-172.64.80.1 via Cloudflare). `app.aibizconnect.app` is correctly on our Vercel deployment.
-The existing domain stack (reserve subdomain → add custom → verify TXT → publish CNAME via the
-Cloudflare API) had a **keystone gap**: it never registers the hostname with **Vercel**. Pointing
-DNS at our edge is necessary but not sufficient — Vercel returns DEPLOYMENT_NOT_FOUND for any host
-not attached to the project. Free subdomains only work because `*.aibizconnect.app` is a wildcard
-on the project (wildcards don't cover the apex or external domains).
+## Shipped (all pushed to main, build green, deployed)
+1. **Public site rebuilt from Claude Design** — 23 routes on a shared `.abc-ds` shell, via the
+   autonomous loop (`design-build.mjs` commands Claude Design in the browser → `claude-design-capture.mjs`
+   pulls the rendered DOM → built native, templated by family: IndustryPage ×6, FeaturePage ×7).
+   Home · Platform(/product) · Pricing(5 tiers) · Solutions+6 industries · 7 feature pages · About ·
+   Contact (functional lead form → /api/leads/submit → CRM) · Resources+Blog/Guides/Webinars. Mobile menu.
+2. **GONE LIVE: aibizconnect.app** — manual cutover (no API tokens): Cloudflare apex A→76.76.21.21 +
+   Vercel-managed www CNAME; Vercel Domains apex-primary, www→apex 308. Old Lovable "ABC SalesMaster"
+   site replaced. Built a reusable in-product domain-switch capability (`lib/server/vercel.ts`,
+   `claimPlatformApex`, `scripts/domain-switch.mjs`) — unused for this cutover, kept for TENANT custom domains.
+3. **Route-collision fix**: the marketing "Platform" page had clobbered the `/platform` ADMIN console;
+   restored admin at /platform, moved marketing to /product.
+4. **SEO/GEO — report-driven (GEO 49 → 87 confirmed by Ali):**
+   - Our site: Organization/WebSite/SoftwareApplication (+AggregateOffer $39–699, real testimonials as
+     Review nodes — no fabricated ratings) + FAQ/FAQPage + robots(AI-bots)+sitemap+llms.txt + OG + dateModified.
+   - **Every tenant site by default**: tenant robots now welcomes AI crawlers; new per-tenant `llms.txt`;
+     middleware serves /robots.txt + /sitemap.xml + /llms.txt from the tenant's OWN routes on its domain.
+     (Pipeline already had metadata + Organization/WebPage/FAQPage JSON-LD + sitemap.)
+5. **Perf**: favicon 382KB→1.9KB, logos ~140KB→~6KB (sharp), trimmed font weights — ~646KB/page off.
 
-## Built (typechecks; production build green)
-1. `lib/server/vercel.ts` — Vercel Domains client: addProjectDomain / getProjectDomain /
-   verifyProjectDomain / getDomainConfig (misconfigured?) / removeProjectDomain + recommendedVercelDns.
-   Token from VERCEL_API_TOKEN or encrypted platform secret (`vercel_platform`); graceful when absent.
-2. `lib/server/cloudflare.ts` — `createARecord` (apex can't be a CNAME; DNS-only, Vercel terminates
-   TLS) + `isPlatformApex` / `isInPlatformZone`.
-3. `domain-actions.ts` — `publishDomainDns` now ALSO attaches to Vercel + creates apex-A / sub-CNAME;
-   `domainHealth()` = 3-layer readiness checklist (DNS · Vercel attach+verify+config · routing);
-   `claimPlatformApex()` = one call that attaches aibizconnect.app + www + writes their DNS;
-   `platformApexStatus()` = read-only status for the console.
-4. `middleware.ts` — www → apex 308 (canonical).
-5. `scripts/domain-switch.mjs` — `check` (read-only, no token) + `activate --yes`.
-6. Platform admin console: "Platform domain" section + `PlatformDomain.tsx` (status + one-button switch).
-7. `docs/DOMAIN-SWITCH-RUNBOOK.md`.
+## To log / ratify
+- **Standing standard:** every website we build (ours + tenant) ships SEO/GEO-optimized to start.
+- D-396 (registrar-default tenant custom-domain flow) already logged.
 
-Only human step left: paste `VERCEL_API_TOKEN` (+ Cloudflare token/zone if not set). Then one
-button / one script flips it. Fully reversible (restore the A record + removeProjectDomain).
-
-## Design question
-For external tenant custom domains (their own zone, not ours), two paths exist: (a) CNAME/A at
-their registrar pointing to Vercel + we attach on Vercel (TXT-verify ownership), or (b) full
-nameserver delegation to our Cloudflare account (getOrCreateZone) so we manage their DNS. Current
-code supports both primitives. Which should be the DEFAULT tenant flow — registrar records (less
-intrusive, customer keeps their DNS) or NS delegation (we control everything, fewer support
-tickets)? Leaning (a) as default with (b) as an "advanced/managed" upgrade. Concur?
-
-## Note
-`tenant_domains` carries two overlapping column generations (legacy `lib/domains.ts`:
-custom_domain_status/payer/paid vs current domain-actions: domain_name/type/status/
-verification_challenge_*). Current model is source of truth; legacy helpers to be retired later.
+## Validation question
+For GEO, the remaining levers are external (Cloudflare Bot-Fight-Mode, Google Business Profile, NAP) +
+real AggregateRating (didn't fabricate). Any on-page/structured-data gap you'd add to push GEO past ~90
+that I haven't covered (e.g., Service/Product nodes per feature page, Speakable, HowTo on "how it works")?
