@@ -9,6 +9,8 @@ import { jsonLdScript } from "@/lib/seo/structured-data";
 import SiteScripts from "@/components/site/SiteScripts";
 import SiteOccasions from "@/components/site/SiteOccasions";
 import AnimateOnView from "@/components/sections/AnimateOnView";
+import SitePricing from "@/components/website/SitePricing";
+import { getTenantPlanTiers } from "@/lib/marketing/pricing";
 
 /**
  * Shared draft-preview document. Renders a page's DRAFT state (header/footer global
@@ -49,6 +51,10 @@ export default async function SitePreviewDocument({
       .order("order_index");
     sections = (sectionRows ?? []).map((r: any) => ({ content: r.content }));
   }
+
+  // Live pricing in the preview too (editor = public): a "pricing" section shows the tenant's plans.
+  const hasPricing = sections.some((s) => s.content?.type === "pricing");
+  const pricingTiers = hasPricing ? await getTenantPlanTiers(tenantId).catch(() => []) : [];
 
   const previewTitle = page?.draft_title ?? page?.title;
   const draftSlugDiffers = page?.draft_slug && page.draft_slug !== page.slug;
@@ -163,7 +169,9 @@ export default async function SitePreviewDocument({
         <h1 className="sr-only">{previewTitle}</h1>
 
         {sections.map((s, i) => (
-          <SectionView key={i} content={s.content} theme={theme} cssSink={cssSink} />
+          s.content?.type === "pricing" && pricingTiers.length
+            ? <SitePricing key={i} tiers={pricingTiers} heading={s.content?.heading} subheading={s.content?.subheading} />
+            : <SectionView key={i} content={s.content} theme={theme} cssSink={cssSink} />
         ))}
 
         {/* Global Footer (draft) — below the body. */}

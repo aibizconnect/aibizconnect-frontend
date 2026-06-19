@@ -15,6 +15,8 @@ import SitePopups from "@/components/website/SitePopups";
 import SiteContactForm from "@/components/website/SiteContactForm";
 import SiteSurvey from "@/components/website/SiteSurvey";
 import SiteListings from "@/components/website/SiteListings";
+import SitePricing from "@/components/website/SitePricing";
+import { getTenantPlanTiers } from "@/lib/marketing/pricing";
 import BookingWidget from "@/components/calendars/BookingWidget";
 import { listPopups } from "@/lib/popups";
 import type { BrandSettings } from "@/lib/sections/schemas";
@@ -203,6 +205,12 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
       }
     } catch { /* calendars unavailable */ }
   }
+  // Live pricing: a "pricing" section renders the tenant's own plan list (Payments → Subscriptions).
+  // Resolve once (all pricing sections on the page show the same plans); empty → fall back to the
+  // section's manual content so nothing breaks for tenants who haven't set up plans.
+  const hasPricingSection = sections.some((s: any) => s?.content?.type === "pricing");
+  const pricingTiers = hasPricingSection ? await getTenantPlanTiers(tenantId).catch(() => []) : [];
+
   const renderBooking = (c: any, key: string) => {
     const cal = bookingData[String(c.calendarSlug || "")];
     return (
@@ -402,6 +410,8 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
             const isForm = adapted?.type === "contact-form" || s.content?.type === "contact-form";
             const node = s.content?.type === "booking"
               ? renderBooking(s.content, s.id)
+              : s.content?.type === "pricing" && pricingTiers.length
+              ? <SitePricing tiers={pricingTiers} heading={s.content?.heading} subheading={s.content?.subheading} />
               : s.content?.type === "survey"
               ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
               : s.content?.type === "listings" && s.content?.source === "idx"
@@ -421,6 +431,8 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
         sections.map((s: any) => (
           s.content?.type === "booking"
             ? renderBooking(s.content, s.id)
+            : s.content?.type === "pricing" && pricingTiers.length
+            ? <SitePricing key={s.id} tiers={pricingTiers} heading={s.content?.heading} subheading={s.content?.subheading} />
             : s.content?.type === "survey"
             ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
             : s.content?.type === "contact-form"

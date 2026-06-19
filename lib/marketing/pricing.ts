@@ -11,11 +11,12 @@ import { DEFAULT_TIERS, type Tier } from "./pricing-tiers";
 export const PLATFORM_TENANT = "d723a086-eac0-4b61-8742-25313370d0b7";
 export type { Tier } from "./pricing-tiers";
 
-async function build(tenantId: string): Promise<Tier[]> {
+/** Map a tenant's public plans → pricing tiers. Returns [] when they have none (no fallback). */
+export async function getTenantPlanTiers(tenantId: string): Promise<Tier[]> {
   let plans;
-  try { plans = await listPlans(tenantId); } catch { return DEFAULT_TIERS; }
+  try { plans = await listPlans(tenantId); } catch { return []; }
   const pub = plans.filter((p) => p.isActive && p.isPublic);
-  if (pub.length === 0) return DEFAULT_TIERS;
+  if (pub.length === 0) return [];
   const anyFeatured = pub.some((p) => p.isFeatured);
   return pub.map((p, i, arr) => {
     const m = p.amountCents > 0 ? Math.round(p.amountCents / 100) : null;            // $0 ⇒ custom ("Call us")
@@ -34,7 +35,9 @@ async function build(tenantId: string): Promise<Tier[]> {
   });
 }
 
-/** Public pricing for a tenant (defaults to the platform tenant = aibizconnect.app). */
-export function getPublicPricing(tenantId: string = PLATFORM_TENANT): Promise<Tier[]> {
-  return build(tenantId);
+/** Public pricing for OUR marketing site — the platform tenant's plans, with the DEFAULT_TIERS
+ *  fallback so aibizconnect.app is never blank. (Tenant sites use getTenantPlanTiers — no fallback.) */
+export async function getPublicPricing(tenantId: string = PLATFORM_TENANT): Promise<Tier[]> {
+  const tiers = await getTenantPlanTiers(tenantId);
+  return tiers.length ? tiers : DEFAULT_TIERS;
 }
