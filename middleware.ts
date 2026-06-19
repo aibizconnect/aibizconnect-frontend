@@ -85,6 +85,22 @@ export async function middleware(req: NextRequest) {
   // /sites path > host resolution > fallback.
   const host = req.headers.get("host") ?? "";
   const path = req.nextUrl.pathname;
+
+  // Per-tenant SEO files: on a tenant host, serve the tenant's OWN robots/sitemap/llms. These
+  // contain a ".", so without this they'd fall through to the platform's root versions. Platform
+  // hosts (and unresolved hosts) keep the root app/robots.ts · app/sitemap.ts · public/llms.txt.
+  if (path === "/robots.txt" || path === "/sitemap.xml" || path === "/llms.txt") {
+    const isPlatformHost = PLATFORM_HOSTS.has(host) || PLATFORM_HOSTS.has(host.split(":")[0].toLowerCase());
+    if (!isPlatformHost) {
+      const tenantId = await resolveTenant(host, tenantSubdomain(host));
+      if (tenantId) {
+        const url = req.nextUrl.clone();
+        url.pathname = `/sites/${tenantId}${path}`;
+        return NextResponse.rewrite(url);
+      }
+    }
+  }
+
   const isInfraPath = path.startsWith("/_next") || path.startsWith("/api") || path.startsWith("/sites") || path.startsWith("/auth") || path.startsWith("/login") || path.includes(".");
   if (!isInfraPath) {
     const sub = tenantSubdomain(host);
