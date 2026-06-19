@@ -66,7 +66,7 @@ export function AbcNav() {
       <nav className={`${CONTAINER} flex items-center justify-between`} style={{ height: 68 }}>
         <Link href="/" className="flex items-center gap-2" style={{ textDecoration: "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/AIBizConnect-logo-primary.png" alt="AIBizConnect" style={{ height: 30, width: "auto", display: "block" }} />
+          <img src="/brand/AIBizConnect-logo-primary-sm.png" alt="AIBizConnect" width={120} height={30} style={{ height: 30, width: "auto", display: "block" }} />
         </Link>
         <div className="hidden items-center gap-8 md:flex" style={{ fontSize: v("--text-sm"), fontWeight: 500, color: v("--text-body") }}>
           {NAV.map((n) => <Link key={n.label} href={n.href} className="abc-navlink" style={{ color: "inherit", textDecoration: "none" }}>{n.label}</Link>)}
@@ -87,7 +87,7 @@ export function AbcFooter() {
       <div className={`${CONTAINER} grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]`} style={{ paddingTop: 64, paddingBottom: 40 }}>
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/AIBizConnect-logo-white.png" alt="AIBizConnect" style={{ height: 28, width: "auto", display: "block" }} />
+          <img src="/brand/AIBizConnect-logo-white-sm.png" alt="AIBizConnect" width={112} height={28} style={{ height: 28, width: "auto", display: "block" }} />
           <p style={{ marginTop: 14, maxWidth: 240, fontSize: v("--text-sm"), color: v("--blue-200") }}>The AI Business OS for small business.</p>
         </div>
         {(Object.keys(FOOT) as (keyof typeof FOOT)[]).map((group) => (

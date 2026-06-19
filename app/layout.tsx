@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   applicationName: "AIBizConnect OS",
   keywords: ["AI business platform", "AI website builder", "CRM", "marketing automation", "AI concierge", "small business software", "all-in-one business OS"],
   authors: [{ name: "AIBizConnect" }],
-  icons: { icon: "/abc/app-icon.png", shortcut: "/abc/app-icon.png", apple: "/abc/app-icon.png" },
+  icons: { icon: "/abc/favicon-48.png", shortcut: "/abc/favicon-48.png", apple: "/abc/icon-192.png" },
   openGraph: {
     type: "website",
     siteName: "AIBizConnect OS",
@@ -58,7 +58,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         {/* ABC design-system fonts (Claude Design handoff): Montserrat body + Roboto Mono. MontserratAlt1 display is @font-face'd in globals.css. */}
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body>
         <ThemeWrapper>
