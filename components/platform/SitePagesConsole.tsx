@@ -11,7 +11,20 @@ const KINDS: { value: SiteRequestKind; label: string; ph: string }[] = [
   { value: "reorder", label: "Reorder / nav", ph: "e.g. In the top nav, move Pricing before Solutions. In the footer Product column, put AI Builder first." },
 ];
 
-export default function SitePagesConsole({ pages, groups, initial }: { pages: MarketingPage[]; groups: string[]; initial: SiteRequest[] }) {
+/** One-tap capability prompts — wire forms, calendars, bots, media, brand, SEO into the site via the AI. */
+const CAP_PROMPTS: { label: string; text: string }[] = [
+  { label: "+ Form", text: "Add a lead/contact form to this page that saves submissions to the CRM." },
+  { label: "+ Calendar", text: "Add a booking calendar to this page so visitors can schedule a meeting." },
+  { label: "+ AI assistant / bot", text: "Add the AI chat assistant to the site so it answers visitors and qualifies leads 24/7." },
+  { label: "+ Slideshow / gallery", text: "Add an image slideshow / gallery to this page." },
+  { label: "+ Photos / video", text: "Add photos and a short video to this page (from the Media Library)." },
+  { label: "Fonts / logo / colors", text: "Update the brand on the site — fonts, logo, and colors." },
+  { label: "Improve SEO / GEO", text: "Improve SEO/GEO on this page — titles, meta, structured data, and an FAQ." },
+];
+
+export interface SiteTool { label: string; href: string; icon: string; desc: string; external?: boolean }
+
+export default function SitePagesConsole({ pages, groups, initial, tools }: { pages: MarketingPage[]; groups: string[]; initial: SiteRequest[]; tools: SiteTool[] }) {
   const [kind, setKind] = useState<SiteRequestKind>("change");
   const [route, setRoute] = useState<string>("/");
   const [text, setText] = useState("");
@@ -35,6 +48,21 @@ export default function SitePagesConsole({ pages, groups, initial }: { pages: Ma
 
   return (
     <div className="space-y-8">
+      {/* Tools — the builders behind the site */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Tools</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {tools.map((t) => (
+            <a key={t.label} href={t.href} target={t.external ? "_blank" : undefined} rel={t.external ? "noreferrer" : undefined}
+              className="group rounded-xl border border-slate-200 bg-white p-4 transition hover:border-[#1e3a8a]/40 hover:shadow">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#1e3a8a]/10 text-base">{t.icon}</div>
+              <h4 className="mt-2 text-sm font-semibold text-slate-800 group-hover:text-[#1e3a8a]">{t.label}{t.external ? " ↗" : ""}</h4>
+              <p className="mt-0.5 text-xs text-slate-500">{t.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* Ask the AI */}
       <div ref={panelRef} className="rounded-xl border border-slate-200 bg-white p-5">
         <h3 className="text-sm font-semibold text-slate-900">Ask the AI</h3>
@@ -43,6 +71,13 @@ export default function SitePagesConsole({ pages, groups, initial }: { pages: Ma
           {KINDS.map((k) => (
             <button key={k.value} type="button" onClick={() => setKind(k.value)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium ${kind === k.value ? "bg-[#1e3a8a] text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"}`}>{k.label}</button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-slate-400">Quick:</span>
+          {CAP_PROMPTS.map((c) => (
+            <button key={c.label} type="button" onClick={() => { setKind("change"); setText(c.text); setMsg(null); }}
+              className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600 hover:border-[#1e3a8a]/40 hover:text-[#1e3a8a]">{c.label}</button>
           ))}
         </div>
         {kind === "change" && (
