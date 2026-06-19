@@ -10,6 +10,11 @@
 export const SITE_URL = "https://aibizconnect.app";
 const abs = (p: string) => (p.startsWith("http") ? p : `${SITE_URL}${p}`);
 
+/** Content-freshness signal (report task: AI retrieval favors recently-updated content). Bump on
+ * meaningful content updates. ISO for schema dateModified; label for the visible footer line. */
+export const SITE_UPDATED = "2026-06-18";
+export const SITE_UPDATED_LABEL = "June 2026";
+
 const ORG_DESC =
   "AIBizConnect OS is the AI Business OS for small business — one platform that builds your website, fills your CRM, books your calendar, and markets for you, with a 24/7 AI concierge that answers, qualifies, and books for you.";
 
@@ -54,6 +59,7 @@ export function siteGraph() {
         description: ORG_DESC,
         publisher: { "@id": `${SITE_URL}#organization` },
         inLanguage: "en",
+        dateModified: SITE_UPDATED,
       },
       {
         "@type": "SoftwareApplication",

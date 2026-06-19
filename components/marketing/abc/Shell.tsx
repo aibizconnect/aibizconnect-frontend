@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import MobileNav from "./MobileNav";
 import JsonLd from "./JsonLd";
-import { siteGraph } from "@/lib/marketing/seo";
+import { siteGraph, SITE_UPDATED_LABEL } from "@/lib/marketing/seo";
 
 /**
  * Shared chrome + primitives for the AIBizConnect OS marketing site, built to the Claude Design
@@ -103,7 +103,7 @@ export function AbcFooter() {
       </div>
       <div style={{ borderTop: "1px solid rgba(255,255,255,.10)" }}>
         <div className={`${CONTAINER} flex flex-wrap items-center justify-between gap-3`} style={{ paddingTop: 20, paddingBottom: 28, fontSize: v("--text-xs"), color: v("--blue-300") }}>
-          <span>© 2026 AIBizConnect. All rights reserved.</span>
+          <span>© 2026 AIBizConnect. All rights reserved. · Updated {SITE_UPDATED_LABEL}</span>
           <span>Run your whole business from one platform.</span>
         </div>
       </div>
