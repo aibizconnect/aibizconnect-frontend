@@ -217,6 +217,37 @@ export async function rewriteSectionAI(
   return next;
 }
 
+/**
+ * Page-level AI edit (AI Studio): a natural-language instruction picks the most relevant draft/
+ * published section and rewrites it (or adds a new section if the page is empty). Returns the
+ * updated section list + which index changed so the studio can refresh the preview.
+ */
+export async function editPageAI(pageId: string, tenantId: string, instruction: string): Promise<{ ok: boolean; index: number; sections: any[] }> {
+  const text = (instruction || "").trim();
+  if (!text) throw new Error("Tell the AI what to change.");
+  const supabase = createSupabaseServiceClient();
+  const { data: pg } = await supabase.from("website_pages").select("draft_sections").eq("tenant_id", tenantId).eq("id", pageId).maybeSingle();
+  let base: any[] = Array.isArray((pg as any)?.draft_sections) ? (pg as any).draft_sections : [];
+  if (!base.length) {
+    const { data: pub } = await supabase.from("website_page_sections").select("content, order_index").eq("tenant_id", tenantId).eq("page_id", pageId).order("order_index", { ascending: true });
+    base = (pub ?? []).map((r: any) => r.content);
+  }
+  if (!base.length) {
+    const sections = await generateSectionAI(pageId, tenantId, text);
+    return { ok: true, index: sections.length - 1, sections };
+  }
+  // Choose the section whose content best matches the instruction (keyword overlap; default hero/0).
+  const words = text.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  let bestIdx = 0, bestScore = -1;
+  base.forEach((s, i) => {
+    const blob = JSON.stringify(s).toLowerCase();
+    const score = words.reduce((n, w) => n + (blob.includes(w) ? 1 : 0), 0);
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  });
+  const sections = await rewriteSectionAI(pageId, tenantId, bestIdx, text);
+  return { ok: true, index: bestIdx, sections };
+}
+
 /** P2 (D-382): list swap-in LAYOUTS for the section at this index (the "replace this section" picker). */
 export async function getSectionAlternatives(
   pageId: string,

@@ -28,10 +28,14 @@ export default async function WebsiteByIdPage({
           <Link href={`/tenants/${tenantId}/sites`} className="text-sm text-[#1e3a8a] hover:underline">← Back to Sites</Link>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{site?.name ?? "Website"}</h1>
         </div>
-        <a href={`/sites/${tenantId}`} target="_blank" rel="noreferrer"
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-          Open live site ↗
-        </a>
+        <div className="flex items-center gap-2">
+          <Link href={`/tenants/${tenantId}/website/${websiteId}/studio`}
+            className="rounded-lg bg-[#1e3a8a] px-3 py-2 text-sm font-medium text-white hover:opacity-90">✨ AI Studio</Link>
+          <a href={`/sites/${tenantId}`} target="_blank" rel="noreferrer"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Open live site ↗
+          </a>
+        </div>
       </div>
 
       <WebsiteWorkspace tenantId={tenantId} websiteId={websiteId} pages={pages} websiteName={site?.name}
