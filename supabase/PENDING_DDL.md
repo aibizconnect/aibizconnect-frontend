@@ -65,12 +65,14 @@ Confirmed applied by Ali as of STEP 33:
 
 > Fastest path for the items below: run **`supabase/APPLY_0079_0080.sql`** (idempotent).
 
-- [ ] `0079_tenant_billing.sql` — platform SUBSCRIBER billing on `tenants`: adds
+- [x] `0079_tenant_billing.sql` — platform SUBSCRIBER billing on `tenants`: adds
       `billing_status`, `trial_ends_at`, `current_period_end`, `monthly_amount_cents` (+ backfills
       14-day trials and comps the platform tenant). Powers /platform → Subscribers.
-- [ ] `0080_subscriptions.sql` — general tenant SUBSCRIPTIONS: new tables `subscription_plans`
+      **✅ APPLIED 2026-06-19 (Ali ran it — verified live).**
+- [x] `0080_subscriptions.sql` — general tenant SUBSCRIPTIONS: new tables `subscription_plans`
       (per-tenant plan levels) + `tenant_subscriptions` (a contact on a plan). Powers Payments →
       Subscriptions/Orders/Recurring. (Coupons uses the existing `tenant_coupons` from 0058.)
+      **✅ APPLIED 2026-06-19 (Ali ran it — verified live).**
 
 ---
 
