@@ -30,6 +30,20 @@ export async function resolveDefaultTenantId(): Promise<string | null> {
   const env = process.env.DEFAULT_TENANT_ID || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID;
   if (env) return env;
 
-  // 3) no workspace → caller routes to onboarding
+  // 3) platform admins / sysadmins must never dead-end: land them in the platform (primary) tenant
+  // even without an explicit membership. (ONE-TENANT: d723a086 is THE tenant.)
+  try {
+    const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
+    if (await isPlatformAdmin()) {
+      const sb = createSupabaseServiceClient();
+      const PLATFORM_TENANT = "d723a086-eac0-4b61-8742-25313370d0b7";
+      const { data: pinned } = await sb.from("tenants").select("id").eq("id", PLATFORM_TENANT).maybeSingle();
+      if (pinned?.id) return pinned.id as string;
+      const { data: first } = await sb.from("tenants").select("id").order("created_at", { ascending: true }).limit(1);
+      if (first?.[0]?.id) return first[0].id as string;
+    }
+  } catch { /* fall through to onboarding */ }
+
+  // 4) no workspace → caller routes to onboarding
   return null;
 }
