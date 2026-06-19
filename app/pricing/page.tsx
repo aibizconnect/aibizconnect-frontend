@@ -54,6 +54,9 @@ const FAQ = [
   { q: "What happens to my data if I cancel?", a: "Your data is yours. Export contacts, content, and site files anytime — there's no lock-in and no cancellation fee." },
 ];
 
+// Read pricing from the DB per request so plan edits show immediately (no static caching).
+export const dynamic = "force-dynamic";
+
 export default async function PricingPage() {
   const tiers = await getPublicPricing();
   return (

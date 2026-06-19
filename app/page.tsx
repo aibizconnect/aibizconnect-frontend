@@ -50,6 +50,10 @@ const STEPS = [
   { n: "3", title: "Publish & grow", body: "Go live the same day and let your AI fill the pipeline while you focus on selling." },
 ];
 
+// Pricing is read from the DB (subscription_plans) — render per request so plan edits
+// in Payments → Subscriptions show immediately (otherwise the page is statically cached).
+export const dynamic = "force-dynamic";
+
 export default async function MarketingHome() {
   const tiers = await getPublicPricing();
   return (
