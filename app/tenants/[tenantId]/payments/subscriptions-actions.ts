@@ -2,7 +2,7 @@
 
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import {
-  listPlans, upsertPlan, deletePlan,
+  listPlans, upsertPlan, deletePlan, reorderPlans,
   listSubscriptions, createSubscription, activateSubscription, renewSubscription,
   extendSubscriptionTrial, compSubscription, setSubscriptionStatus, changeSubscriptionPlan,
   setSubscriptionAmount, deleteSubscription,
@@ -16,6 +16,9 @@ export async function savePlanAction(tenantId: string, input: PlanInput & { id?:
 }
 export async function deletePlanAction(tenantId: string, id: string): Promise<SubscriptionPlan[]> {
   await requireTenantAccess(tenantId); await deletePlan(tenantId, id); return listPlans(tenantId);
+}
+export async function reorderPlansAction(tenantId: string, orderedIds: string[]): Promise<SubscriptionPlan[]> {
+  await requireTenantAccess(tenantId); await reorderPlans(tenantId, orderedIds); return listPlans(tenantId);
 }
 
 // ── Subscriptions (Orders + Recurring tabs) ──────────────────────────────────

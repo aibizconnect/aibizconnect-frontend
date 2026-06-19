@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  savePlanAction, deletePlanAction,
+  savePlanAction, deletePlanAction, reorderPlansAction,
   createSubscriptionAction, activateSubscriptionAction, renewSubscriptionAction,
   extendTrialAction, compSubscriptionAction, subscriptionStatusAction, changePlanAction, deleteSubscriptionAction,
   saveCouponAction, deleteCouponAction,
@@ -50,6 +50,17 @@ export function SubscriptionsTab({ tenantId, plans, onChange }: { tenantId: stri
     setBusy(null);
   }
 
+  async function move(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= plans.length) return;
+    const next = [...plans];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next); // optimistic — reflects instantly
+    setBusy("reorder");
+    onChange(await reorderPlansAction(tenantId, next.map((p) => p.id)));
+    setBusy(null);
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
@@ -60,14 +71,20 @@ export function SubscriptionsTab({ tenantId, plans, onChange }: { tenantId: stri
         <Empty title="No subscription levels yet" sub="Create your tiers — name, price, billing cadence and an optional free trial." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {plans.map((p) => (
+          {plans.map((p, i) => (
             <div key={p.id} className={`rounded-xl border bg-white p-4 ${p.isActive ? "border-slate-200" : "border-slate-200 opacity-60"}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-semibold text-slate-800">{p.name}</div>
                   <div className="text-sm text-slate-500">{m(p.amountCents, p.currency)}<span className="text-slate-400">{per(p.interval)}</span></div>
                 </div>
-                {!p.isActive && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">inactive</span>}
+                <div className="flex items-center gap-1">
+                  {!p.isActive && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">inactive</span>}
+                  <button title="Move earlier" disabled={i === 0 || busy === "reorder"} onClick={() => move(i, -1)}
+                    className="grid h-6 w-6 place-items-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">←</button>
+                  <button title="Move later" disabled={i === plans.length - 1 || busy === "reorder"} onClick={() => move(i, 1)}
+                    className="grid h-6 w-6 place-items-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">→</button>
+                </div>
               </div>
               {p.trialDays > 0 && <div className="mt-1 text-[11px] text-sky-600">{p.trialDays}-day free trial</div>}
               {p.description && <p className="mt-2 text-xs text-slate-500">{p.description}</p>}

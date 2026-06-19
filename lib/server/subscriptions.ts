@@ -143,6 +143,15 @@ export async function upsertPlan(tenantId: string, input: PlanInput & { id?: str
   if (error) throw new Error(error.message);
 }
 
+/** Reorder levels: set sort_order = position for each id (drives display order everywhere). */
+export async function reorderPlans(tenantId: string, orderedIds: string[]): Promise<void> {
+  const sb = createSupabaseServiceClient();
+  const now = new Date().toISOString();
+  await Promise.all(orderedIds.map((id, i) =>
+    sb.from("subscription_plans").update({ sort_order: i, updated_at: now }).eq("id", id).eq("tenant_id", tenantId)
+  ));
+}
+
 export async function deletePlan(tenantId: string, id: string): Promise<void> {
   const sb = createSupabaseServiceClient();
   const { error } = await sb.from("subscription_plans").delete().eq("id", id).eq("tenant_id", tenantId);
