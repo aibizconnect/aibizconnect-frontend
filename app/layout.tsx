@@ -18,9 +18,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AIBizConnect OS",
-  description: "AIBizConnect OS — the AI Business OS for small business: website, CRM, funnels, social and an AI assistant, in one platform.",
+  metadataBase: new URL("https://aibizconnect.app"),
+  title: { default: "AIBizConnect OS — run your entire business with AI", template: "%s · AIBizConnect OS" },
+  description: "AIBizConnect OS — the AI Business OS for small business: website, CRM, funnels, email & social, and a 24/7 AI concierge, in one platform. Live the same day.",
+  applicationName: "AIBizConnect OS",
+  keywords: ["AI business platform", "AI website builder", "CRM", "marketing automation", "AI concierge", "small business software", "all-in-one business OS"],
+  authors: [{ name: "AIBizConnect" }],
   icons: { icon: "/abc/app-icon.png", shortcut: "/abc/app-icon.png", apple: "/abc/app-icon.png" },
+  openGraph: {
+    type: "website",
+    siteName: "AIBizConnect OS",
+    url: "https://aibizconnect.app",
+    title: "AIBizConnect OS — run your entire business with AI",
+    description: "One platform that builds your website, fills your CRM, books your calendar, and markets for you — with a 24/7 AI concierge.",
+    images: [{ url: "/brand/AIBizConnect-logo-primary.png", width: 2505, height: 624, alt: "AIBizConnect OS" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AIBizConnect OS — run your entire business with AI",
+    description: "The AI Business OS for small business. Website, CRM, funnels, marketing, and a 24/7 AI concierge in one platform.",
+    images: ["/brand/AIBizConnect-logo-primary.png"],
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({

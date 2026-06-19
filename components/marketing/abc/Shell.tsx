@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import MobileNav from "./MobileNav";
+import JsonLd from "./JsonLd";
+import { siteGraph } from "@/lib/marketing/seo";
 
 /**
  * Shared chrome + primitives for the AIBizConnect OS marketing site, built to the Claude Design
@@ -113,6 +115,7 @@ export function AbcFooter() {
 export function AbcPage({ children }: { children: ReactNode }) {
   return (
     <div className="abc-ds" style={{ background: v("--surface-page"), color: v("--text-body"), minHeight: "100vh" }}>
+      <JsonLd data={siteGraph()} />
       <AbcNav />
       {children}
       <AbcFooter />

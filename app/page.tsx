@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AbcPage, CtaBand, SectionHead, Eyebrow, Check, CONTAINER, v, btnPrimary, btnGhost, card } from "@/components/marketing/abc/Shell";
 import PricingPlans from "@/components/marketing/abc/PricingPlans";
+import Faq from "@/components/marketing/abc/Faq";
+import JsonLd from "@/components/marketing/abc/JsonLd";
+import { HOME_FAQ, faqPageGraph } from "@/lib/marketing/seo";
 
 /**
  * Public marketing home for aibizconnect.app — a faithful build of the Claude Design "Home"
@@ -185,6 +188,15 @@ export default function MarketingHome() {
           </div>
         </div>
       </section>
+
+      {/* FAQ (+ FAQPage schema for AI/GEO) */}
+      <section style={{ background: v("--surface-card") }}>
+        <div className={`${CONTAINER}`} style={{ paddingTop: 88, paddingBottom: 88 }}>
+          <SectionHead eyebrow="FAQ" title="Questions, answered" />
+          <Faq items={HOME_FAQ} />
+        </div>
+      </section>
+      <JsonLd data={faqPageGraph(HOME_FAQ)} />
 
       <CtaBand heading="Ready to run your business on AIBizConnect OS?" sub="Start free in minutes. Your AI gets to work immediately." note="14-day free trial · no credit card required" />
     </AbcPage>

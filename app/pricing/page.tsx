@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AbcPage, CtaBand, SectionHead, CONTAINER, v, card } from "@/components/marketing/abc/Shell";
 import PricingPlans from "@/components/marketing/abc/PricingPlans";
 import Faq from "@/components/marketing/abc/Faq";
+import JsonLd from "@/components/marketing/abc/JsonLd";
+import { faqPageGraph } from "@/lib/marketing/seo";
 
 /**
  * Pricing — built faithfully from the Claude Design "Pricing" page (design-handoffs/pricing/),
@@ -133,6 +135,7 @@ export default function PricingPage() {
           <Faq items={FAQ} />
         </div>
       </section>
+      <JsonLd data={faqPageGraph(FAQ)} />
 
       <CtaBand heading="Start free. Upgrade when you're ready." sub="14 days on us — your AI gets to work the moment you sign up." note="No credit card required · cancel anytime" />
     </AbcPage>
