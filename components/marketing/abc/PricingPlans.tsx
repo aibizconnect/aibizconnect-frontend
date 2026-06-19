@@ -3,22 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { v, btnPrimary, btnGhost, Check } from "./Shell";
+import { DEFAULT_TIERS, type Tier } from "@/lib/marketing/pricing-tiers";
 
-/** Billing toggle + the four pricing tiers (Claude Design Pricing). Annual = 20% off. */
-const TIERS = [
-  { name: "Starter", tagline: "For solo pros getting online fast.", m: 39, a: 31, cta: "Start free", href: "/start",
-    head: "Includes", feats: ["AI website & funnels", "CRM up to 1,000 contacts", "Email & SMS nurture", "Online booking & calendar", "1 user seat"], highlight: false },
-  { name: "Pro", tagline: "For growing teams that sell.", m: 89, a: 71, cta: "Start free", href: "/start",
-    head: "Everything in Starter, plus", feats: ["Unlimited contacts & pipelines", "24/7 AI concierge", "Automation workflows", "Payments & invoicing", "Up to 5 user seats"], highlight: true },
-  { name: "Premium", tagline: "For high-volume teams scaling fast.", m: 399, a: 319, cta: "Start free", href: "/start",
-    head: "Everything in Pro, plus", feats: ["Higher limits & priority AI", "Advanced analytics & reporting", "Custom integrations", "Up to 15 user seats", "Priority support"], highlight: false },
-  { name: "Agency", tagline: "Manage many clients & brands.", m: 699, a: 559, cta: "Start free", href: "/start",
-    head: "Everything in Premium, plus", feats: ["Multi-site & white-label", "Unlimited client sub-accounts", "Team roles & permissions", "API & advanced integrations", "Dedicated success manager"], highlight: false },
-  { name: "Enterprise", tagline: "For larger orgs with custom needs.", m: null, a: null, cta: "Contact sales", href: "/contact",
-    head: "Everything in Agency, plus", feats: ["Custom contracts & SLA", "SSO & advanced security", "Onboarding & migration", "Volume pricing", "Dedicated team"], highlight: false },
-];
-
-export default function PricingPlans() {
+/** Billing toggle + pricing tiers. Tiers come from the DB (Payments → Subscriptions) via the
+ *  `tiers` prop; defaults to DEFAULT_TIERS so the component still renders standalone. Annual = 20% off. */
+export default function PricingPlans({ tiers = DEFAULT_TIERS }: { tiers?: Tier[] }) {
+  const TIERS = tiers;
   const [annual, setAnnual] = useState(false);
   const seg = (active: boolean): React.CSSProperties => ({
     borderRadius: v("--radius-pill"), padding: "8px 18px", fontSize: v("--text-sm"), fontWeight: 600, cursor: "pointer", border: "none",

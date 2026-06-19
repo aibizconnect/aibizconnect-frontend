@@ -5,6 +5,7 @@ import PricingPlans from "@/components/marketing/abc/PricingPlans";
 import Faq from "@/components/marketing/abc/Faq";
 import JsonLd from "@/components/marketing/abc/JsonLd";
 import { HOME_FAQ, faqPageGraph } from "@/lib/marketing/seo";
+import { getPublicPricing } from "@/lib/marketing/pricing";
 
 /**
  * Public marketing home for aibizconnect.app — a faithful build of the Claude Design "Home"
@@ -49,7 +50,8 @@ const STEPS = [
   { n: "3", title: "Publish & grow", body: "Go live the same day and let your AI fill the pipeline while you focus on selling." },
 ];
 
-export default function MarketingHome() {
+export default async function MarketingHome() {
+  const tiers = await getPublicPricing();
   return (
     <AbcPage>
       {/* HERO */}
@@ -166,7 +168,7 @@ export default function MarketingHome() {
           <SectionHead eyebrow="Simple pricing" title="Plans that grow with you" sub="Every plan includes your AI-built site, CRM, and concierge. Start free for 14 days." />
         </div>
         <div className="mx-auto w-full max-w-[1300px] px-6" style={{ paddingBottom: 88 }}>
-          <PricingPlans />
+          <PricingPlans tiers={tiers} />
           <div style={{ textAlign: "center", marginTop: 32 }}>
             <Link href="/pricing" style={{ fontSize: v("--text-sm"), fontWeight: 600, color: v("--color-primary") }}>Compare all features &amp; plans →</Link>
           </div>

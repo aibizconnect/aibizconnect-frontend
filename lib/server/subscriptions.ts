@@ -16,6 +16,10 @@ export interface SubscriptionPlan {
   id: string; name: string; description: string | null;
   amountCents: number; currency: string; interval: SubInterval;
   trialDays: number; features: string[]; isActive: boolean; sortOrder: number;
+  // Public-pricing presentation (optional columns; default safely when absent so the
+  // public site renders before any presentation migration is applied).
+  isFeatured: boolean; isPublic: boolean; annualAmountCents: number | null;
+  ctaLabel: string | null; ctaHref: string | null;
 }
 export interface PlanInput {
   name: string; description?: string | null; amountCents?: number; currency?: string;
@@ -77,6 +81,8 @@ function mapPlan(r: any): SubscriptionPlan {
     id: r.id, name: r.name ?? "(unnamed)", description: r.description ?? null,
     amountCents: r.amount_cents ?? 0, currency: r.currency ?? "USD", interval: (r.interval ?? "month") as SubInterval,
     trialDays: r.trial_days ?? 0, features: toFeatures(r.features), isActive: r.is_active !== false, sortOrder: r.sort_order ?? 0,
+    isFeatured: r.is_featured === true, isPublic: r.is_public !== false, annualAmountCents: r.annual_amount_cents ?? null,
+    ctaLabel: r.cta_label ?? null, ctaHref: r.cta_href ?? null,
   };
 }
 

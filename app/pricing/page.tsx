@@ -4,6 +4,7 @@ import PricingPlans from "@/components/marketing/abc/PricingPlans";
 import Faq from "@/components/marketing/abc/Faq";
 import JsonLd from "@/components/marketing/abc/JsonLd";
 import { faqPageGraph } from "@/lib/marketing/seo";
+import { getPublicPricing } from "@/lib/marketing/pricing";
 
 /**
  * Pricing — built faithfully from the Claude Design "Pricing" page (design-handoffs/pricing/),
@@ -53,7 +54,8 @@ const FAQ = [
   { q: "What happens to my data if I cancel?", a: "Your data is yours. Export contacts, content, and site files anytime — there's no lock-in and no cancellation fee." },
 ];
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const tiers = await getPublicPricing();
   return (
     <AbcPage>
       {/* HERO + PLANS */}
@@ -62,7 +64,7 @@ export default function PricingPage() {
           <SectionHead eyebrow="Simple pricing" title="A plan for every stage of growth" sub="Every plan includes your AI-built site, CRM, and concierge. Start free for 14 days — no credit card, cancel anytime." />
         </div>
         <div className="mx-auto w-full max-w-[1300px] px-6" style={{ paddingBottom: 80 }}>
-          <PricingPlans />
+          <PricingPlans tiers={tiers} />
         </div>
       </section>
 
