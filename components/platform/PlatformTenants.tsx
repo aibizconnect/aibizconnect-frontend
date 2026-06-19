@@ -35,6 +35,7 @@ const STATE_BADGE: Record<Subscriber["state"], { label: string; cls: string }> =
 const money = (cents: number | null) =>
   cents === null ? "Custom" : `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}/mo`;
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—");
+const fmtNum = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n));
 
 export default function PlatformTenants({ initial }: { initial: Subscriber[] }) {
   const router = useRouter();
@@ -156,6 +157,17 @@ export default function PlatformTenants({ initial }: { initial: Subscriber[] }) 
                     <div className="font-medium text-slate-800">{s.name}</div>
                     <div className="font-mono text-[11px] text-slate-400">{s.slug ? `/${s.slug}` : s.id.slice(0, 8)} · {s.members} member{s.members === 1 ? "" : "s"}</div>
                     <a href={`/tenants/${s.id}/dashboard`} className="text-[11px] text-[#1e3a8a] hover:underline">Open workspace ↗</a>
+                    {s.usage.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {s.usage.map((u) => (
+                          <span key={u.key}
+                            title={`${u.label}: ${u.used}${u.included > 0 ? ` / ${u.included} ${u.unit}` : ` ${u.unit}`}${u.over ? " — over limit" : ""}`}
+                            className={`rounded px-1.5 py-0.5 text-[10px] ${u.over ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"}`}>
+                            {u.label} {fmtNum(u.used)}{u.included > 0 ? `/${fmtNum(u.included)}` : ""}{u.over ? " ⚠" : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-4 py-3">

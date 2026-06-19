@@ -44,6 +44,10 @@ export async function listContacts(tenantId: string): Promise<Contact[]> {
   return (data ?? []).map((r: any) => ({ id: r.id, name: r.name ?? "", email: r.email ?? "", phone: r.phone ?? "", tags: r.tags ?? [], score: r.score ?? 0, source: r.source }));
 }
 export async function createContact(tenantId: string, c: { name?: string; email?: string; phone?: string; source?: string; tags?: string[]; company?: string }): Promise<{ ok: boolean; error?: string }> {
+  // Entitlement gate (Phase 2): only blocks when the plan sets contacts to "block" and the tenant is at cap.
+  const { assertWithinLimit } = await import("@/lib/server/entitlements");
+  const gate = await assertWithinLimit(tenantId, "contacts");
+  if (!gate.ok) return { ok: false, error: gate.message };
   const base: Record<string, unknown> = { tenant_id: tenantId, name: c.name ?? "", email: c.email ?? "", phone: c.phone ?? "", source: c.source ?? "manual", ...(c.tags?.length ? { tags: c.tags } : {}) };
   let { error } = await service().from("tenant_contacts").insert(c.company ? { ...base, company: c.company } : base);
   if (error && c.company && /column .* does not exist|could not find|schema cache/i.test(error.message)) {

@@ -1,4 +1,5 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getUsageOverview, type UsageStatusItem } from "@/lib/server/entitlements";
 
 /**
  * Platform admin directory (D-375) — read + manage ALL tenants and ALL users.
@@ -47,6 +48,7 @@ export interface Subscriber {
   state: "paying" | "trial" | "trial_expired" | "due" | "comp" | "canceled";
   members: number;              // active workspace members
   schemaReady: boolean;         // false until migration 0079 is applied (writes will fail)
+  usage: UsageStatusItem[];     // current usage vs plan limits (contacts/seats/AI/sites)
 }
 
 const PLATFORM_TENANT = "d723a086-eac0-4b61-8742-25313370d0b7";
@@ -101,7 +103,7 @@ export async function listSubscribers(): Promise<Subscriber[]> {
     }
   }
 
-  return rows.map((t) => {
+  return Promise.all(rows.map(async (t) => {
     const plan = (t.plan ?? "free") as string;
     const cat = PLAN_CATALOG[plan] ?? { label: plan, cents: null };
     const isProtected = PROTECTED_TENANT_IDS.includes(t.id);
@@ -124,8 +126,9 @@ export async function listSubscribers(): Promise<Subscriber[]> {
       monthlyCents, monthlyOverride: override,
       dueDate, daysLeft: daysBetween(dueDate), state,
       members: counts.get(t.id) ?? 0, schemaReady,
+      usage: await getUsageOverview(t.id),
     } satisfies Subscriber;
-  });
+  }));
 }
 
 /** Friendly error when the 0079 billing columns aren't applied yet. */
