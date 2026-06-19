@@ -116,7 +116,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
       return (
         <div className={`${base} cursor-default text-[var(--gray-400)]`} title={collapsed ? `${item.label} — coming soon` : "Coming soon"}>
           <Icon k={item.key} />
-          {!collapsed && <><span className="flex-1">{item.label}</span><span className="rounded bg-[var(--gray-100)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--gray-500)]">soon</span></>}
+          {!collapsed && <><span className="flex-1">{item.label}</span><span className="rounded bg-[var(--gray-300)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--gray-600)]">soon</span></>}
         </div>
       );
     }
@@ -130,7 +130,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
   const pad = collapsed ? "px-2" : "px-3";
 
   return (
-    <aside className={`abc-ds fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-body)] transition-[width] duration-200 ${collapsed ? "w-[72px]" : "w-[248px]"}`}>
+    <aside className={`abc-ds fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[var(--border-default)] bg-[var(--gray-200)] text-[var(--text-body)] transition-[width] duration-200 ${collapsed ? "w-[72px]" : "w-[248px]"}`}>
       {/* Brand + collapse toggle */}
       <div className={`flex items-center border-b border-[var(--border-subtle)] py-4 ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
         {!collapsed && (
@@ -141,14 +141,14 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
           </span>
         )}
         <button onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Expand menu" : "Collapse menu"}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--gray-500)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--gray-500)] transition hover:bg-[var(--gray-300)] hover:text-[var(--navy-900)]">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 transition-transform ${collapsed ? "rotate-180" : ""}`}><path d="M15 18l-6-6 6-6" /></svg>
         </button>
       </div>
 
       {/* Tenant chip */}
       <div className={`${pad} pt-3`}>
-        <button title="AIBizConnect" className={`flex w-full items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] hover:bg-[var(--gray-100)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
+        <button title="AIBizConnect" className={`flex w-full items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--gray-50)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-left"}`}>
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>AB</span>
           {!collapsed && <>
             <span className="min-w-0 flex-1">
@@ -162,7 +162,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
 
       {/* Search */}
       <div className={`${pad} pt-3`}>
-        <div title="Search" className={`flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-page)] text-[var(--text-muted)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-sm"}`}>
+        <div title="Search" className={`flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-muted)] ${collapsed ? "justify-center p-2" : "px-3 py-2 text-sm"}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           {!collapsed && <><span className="flex-1">Search</span><span className="rounded bg-[var(--gray-100)] px-1.5 py-0.5 text-[10px] text-[var(--gray-500)]">ctrlK</span></>}
         </div>
@@ -192,7 +192,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
               <input
                 autoFocus value={actEmail} onChange={(e) => setActEmail(e.target.value)}
                 placeholder="admin@aibizconnect.app" type="email"
-                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] px-2 py-1.5 text-xs text-[var(--text-strong)] placeholder:text-[var(--text-muted)]" />
+                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] px-2 py-1.5 text-xs text-[var(--text-strong)] placeholder:text-[var(--text-muted)]" />
               {actErr && <p className="text-[11px] text-[var(--danger)]">{actErr}</p>}
               <div className="flex gap-1.5">
                 <button type="submit" disabled={actBusy} className="flex-1 rounded-md bg-[var(--warning)] px-2 py-1 text-xs font-medium text-white hover:brightness-95 disabled:opacity-50">{actBusy ? "…" : "Act as"}</button>
@@ -215,7 +215,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
             <div className="flex flex-col items-center gap-2">
               <Link href={`/tenants/${tenantId}/account`} title={`${user.name} — account`} className="grid h-8 w-8 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--gradient-brand)" }}>{initials(user.name)}</Link>
               <form action="/auth/signout" method="post">
-                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-300)] hover:text-[var(--navy-900)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
                 </button>
               </form>
@@ -228,7 +228,7 @@ export default function LeftNav({ tenantId, user = null, canImpersonate = false,
                 <span className="block truncate text-[11px] text-[var(--text-muted)]">{user.email}</span>
               </Link>
               <form action="/auth/signout" method="post">
-                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-100)] hover:text-[var(--navy-900)]">
+                <button type="submit" title="Sign out" className="rounded-md p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--gray-300)] hover:text-[var(--navy-900)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
                 </button>
               </form>

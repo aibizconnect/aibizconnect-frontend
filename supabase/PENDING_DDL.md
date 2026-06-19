@@ -61,10 +61,16 @@ Confirmed applied by Ali as of STEP 33:
 ## DDL QUEUE (awaiting apply) — added after STEP 33
 ## =========================================================
 ## New DDL from future steps lands here as unchecked items. Nothing below is
-## assumed applied. (Empty right now — nothing generated since the STEP 33
-## confirmation.)
+## assumed applied.
 
-_(none queued)_
+> Fastest path for the items below: run **`supabase/APPLY_0079_0080.sql`** (idempotent).
+
+- [ ] `0079_tenant_billing.sql` — platform SUBSCRIBER billing on `tenants`: adds
+      `billing_status`, `trial_ends_at`, `current_period_end`, `monthly_amount_cents` (+ backfills
+      14-day trials and comps the platform tenant). Powers /platform → Subscribers.
+- [ ] `0080_subscriptions.sql` — general tenant SUBSCRIPTIONS: new tables `subscription_plans`
+      (per-tenant plan levels) + `tenant_subscriptions` (a contact on a plan). Powers Payments →
+      Subscriptions/Orders/Recurring. (Coupons uses the existing `tenant_coupons` from 0058.)
 
 ---
 

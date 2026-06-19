@@ -9,21 +9,28 @@ import {
   type ContactLite,
 } from "@/app/tenants/[tenantId]/payments/actions";
 import type { Product, Invoice, Estimate, Transaction, LineItem } from "@/lib/server/billing";
+import type { SubscriptionPlan, SubscriptionRow } from "@/lib/server/subscriptions";
+import type { Coupon } from "@/lib/server/coupons";
+import { SubscriptionsTab, OrdersTab, RecurringTab, CouponsTab } from "./SubscriptionTabs";
 
 /**
- * Payments hub (D-302..306) — GHL parity. Invoices · Estimates · Products · Transactions live;
- * Subscriptions/Recurring/Coupons/Orders are honest "soon". Invoices/estimates are records with
- * line items + live totals; "Send" emails the customer (transactional), "Pay link" generates a
- * customer-initiated Stripe checkout URL (we never charge), "Mark paid" logs a manual payment.
+ * Payments hub (D-302..306) — GHL parity. Invoices · Estimates · Products · Transactions, then the
+ * subscription flow: Subscriptions (define levels) → Orders (new orders/trials) → Recurring
+ * (converted, paying clients) → Coupons. Invoices/estimates are records with line items + live
+ * totals; "Send" emails the customer, "Pay link" generates a customer-initiated Stripe URL (we
+ * never charge), "Mark paid" logs a manual payment. Subscription tabs ride the subscriptions engine.
  */
 
-type Bootstrap = { products: Product[]; invoices: Invoice[]; estimates: Estimate[]; transactions: Transaction[]; contacts: ContactLite[]; stripeOn: boolean };
-type TabKey = "invoices" | "estimates" | "products" | "transactions" | "subscriptions" | "recurring" | "coupons" | "orders";
+type Bootstrap = {
+  products: Product[]; invoices: Invoice[]; estimates: Estimate[]; transactions: Transaction[]; contacts: ContactLite[]; stripeOn: boolean;
+  plans: SubscriptionPlan[]; subscriptions: SubscriptionRow[]; coupons: Coupon[];
+};
+type TabKey = "invoices" | "estimates" | "products" | "transactions" | "subscriptions" | "orders" | "recurring" | "coupons";
 const TABS: { key: TabKey; label: string; soon?: boolean }[] = [
   { key: "invoices", label: "Invoices" }, { key: "estimates", label: "Estimates" },
   { key: "products", label: "Products" }, { key: "transactions", label: "Transactions" },
-  { key: "subscriptions", label: "Subscriptions", soon: true }, { key: "recurring", label: "Recurring", soon: true },
-  { key: "coupons", label: "Coupons", soon: true }, { key: "orders", label: "Orders", soon: true },
+  { key: "subscriptions", label: "Subscriptions" }, { key: "orders", label: "Orders" },
+  { key: "recurring", label: "Recurring" }, { key: "coupons", label: "Coupons" },
 ];
 
 const money = (n: number, ccy = "USD") => new Intl.NumberFormat("en-US", { style: "currency", currency: ccy || "USD" }).format(n || 0);
@@ -41,6 +48,9 @@ export default function PaymentsHub({ tenantId, initial }: { tenantId: string; i
   const [invoices, setInvoices] = useState<Invoice[]>(initial.invoices);
   const [estimates, setEstimates] = useState<Estimate[]>(initial.estimates);
   const [transactions] = useState<Transaction[]>(initial.transactions);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>(initial.plans);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initial.subscriptions);
+  const [coupons, setCoupons] = useState<Coupon[]>(initial.coupons);
   const [editor, setEditor] = useState<{ kind: "invoice" | "estimate"; id?: string } | null>(null);
   const [productModal, setProductModal] = useState<Product | "new" | null>(null);
 
@@ -80,6 +90,10 @@ export default function PaymentsHub({ tenantId, initial }: { tenantId: string; i
       )}
       {tab === "products" && <ProductsTab products={products} onNew={() => setProductModal("new")} onEdit={(p) => setProductModal(p)} onDelete={async (id) => setProducts(await deleteProductAction(tenantId, id))} />}
       {tab === "transactions" && <TransactionsTab rows={transactions} />}
+      {tab === "subscriptions" && <SubscriptionsTab tenantId={tenantId} plans={plans} onChange={setPlans} />}
+      {tab === "orders" && <OrdersTab tenantId={tenantId} subscriptions={subscriptions} plans={plans} contacts={initial.contacts} onChange={setSubscriptions} />}
+      {tab === "recurring" && <RecurringTab tenantId={tenantId} subscriptions={subscriptions} plans={plans} onChange={setSubscriptions} />}
+      {tab === "coupons" && <CouponsTab tenantId={tenantId} coupons={coupons} onChange={setCoupons} />}
 
       {editor && (
         <DocEditor tenantId={tenantId} kind={editor.kind} id={editor.id} products={products} contacts={initial.contacts}

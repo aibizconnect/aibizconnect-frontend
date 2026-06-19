@@ -11,23 +11,29 @@ import {
   listTransactions,
   type Product, type Invoice, type InvoiceFull, type InvoiceInput, type Estimate, type EstimateFull, type Transaction,
 } from "@/lib/server/billing";
+import { listPlans, listSubscriptions, type SubscriptionPlan, type SubscriptionRow } from "@/lib/server/subscriptions";
+import { listCoupons, type Coupon } from "@/lib/server/coupons";
 
 export interface ContactLite { id: string; name: string; email: string }
 
 export async function paymentsBootstrap(tenantId: string): Promise<{
   products: Product[]; invoices: Invoice[]; estimates: Estimate[]; transactions: Transaction[]; contacts: ContactLite[]; stripeOn: boolean;
+  plans: SubscriptionPlan[]; subscriptions: SubscriptionRow[]; coupons: Coupon[];
 }> {
   await requireTenantAccess(tenantId);
-  const [products, invoices, estimates, transactions, contactsRaw, stripeOn] = await Promise.all([
+  const [products, invoices, estimates, transactions, contactsRaw, stripeOn, plans, subscriptions, coupons] = await Promise.all([
     listProducts(tenantId).catch(() => []),
     listInvoices(tenantId).catch(() => []),
     listEstimates(tenantId).catch(() => []),
     listTransactions(tenantId).catch(() => []),
     listContacts(tenantId).catch(() => []),
     stripeReady(tenantId).catch(() => false),
+    listPlans(tenantId).catch(() => []),
+    listSubscriptions(tenantId).catch(() => []),
+    listCoupons(tenantId).catch(() => []),
   ]);
   const contacts = contactsRaw.map((c) => ({ id: c.id, name: c.name || c.email || c.phone || "—", email: c.email }));
-  return { products, invoices, estimates, transactions, contacts, stripeOn };
+  return { products, invoices, estimates, transactions, contacts, stripeOn, plans, subscriptions, coupons };
 }
 
 // products
