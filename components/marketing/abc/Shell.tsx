@@ -48,11 +48,11 @@ export function SectionHead({ eyebrow, title, sub, onDark }: { eyebrow: string; 
 }
 
 export const NAV = [
-  { href: "/platform", label: "Platform" }, { href: "/solutions", label: "Solutions" },
+  { href: "/product", label: "Platform" }, { href: "/solutions", label: "Solutions" },
   { href: "/pricing", label: "Pricing" }, { href: "/resources", label: "Resources" }, { href: "/about", label: "Company" },
 ];
 const FOOT = {
-  PRODUCT: [["Platform", "/platform"], ["CRM", "/crm"], ["Websites & Funnels", "/websites-funnels"], ["AI Builder", "/ai-builder"], ["Automations", "/automations"], ["Consumer Portal", "/consumer-portal"], ["Marketplace", "/marketplace"], ["Templates", "/templates"]],
+  PRODUCT: [["Platform", "/product"], ["CRM", "/crm"], ["Websites & Funnels", "/websites-funnels"], ["AI Builder", "/ai-builder"], ["Automations", "/automations"], ["Consumer Portal", "/consumer-portal"], ["Marketplace", "/marketplace"], ["Templates", "/templates"]],
   SOLUTIONS: [["Real Estate", "/solutions/real-estate"], ["Mortgage", "/solutions/mortgage"], ["Insurance", "/solutions/insurance"], ["Legal", "/solutions/legal"], ["Coaching", "/solutions/coaching"], ["Agencies", "/solutions/agencies"]],
   COMPANY: [["About", "/about"], ["Partners", "/contact"], ["Careers", "/about"], ["Blog", "/blog"], ["Guides", "/guides"], ["Webinars", "/webinars"]],
   LEGAL: [["Privacy", "/privacy"], ["Terms", "/terms"], ["Security", "/privacy"]],
