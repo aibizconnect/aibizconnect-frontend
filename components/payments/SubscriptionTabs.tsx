@@ -96,6 +96,10 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
   const [features, setFeatures] = useState((initial?.features ?? []).join("\n"));
   const [active, setActive] = useState(initial?.isActive ?? true);
   const [ents, setEnts] = useState<Entitlement[]>(initial?.entitlements ?? []);
+  const [annual, setAnnual] = useState(initial?.annualAmountCents != null ? String(initial.annualAmountCents / 100) : "");
+  const [ctaLabel, setCtaLabel] = useState(initial?.ctaLabel ?? "");
+  const [ctaHref, setCtaHref] = useState(initial?.ctaHref ?? "");
+  const [inheritLower, setInheritLower] = useState(initial?.inheritLower ?? false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -108,21 +112,31 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
         amountCents: Math.round((Number(amount) || 0) * 100), interval, trialDays: Math.round(Number(trial) || 0),
         features: features.split("\n").map((f) => f.trim()).filter(Boolean), isActive: active,
         entitlements: ents.filter((e) => e.key && e.label),
+        annualAmountCents: annual.trim() === "" ? null : Math.round((Number(annual) || 0) * 100),
+        ctaLabel: ctaLabel.trim() || null, ctaHref: ctaHref.trim() || null, inheritLower,
       });
       onSaved(list);
     } catch (e: any) { setErr(e?.message ?? "Save failed."); } finally { setBusy(false); }
   }
 
   return (
-    <Modal title={initial ? "Edit level" : "New subscription level"} onClose={onClose}>
+    <Modal title={initial ? "Edit level" : "New subscription level"} onClose={onClose} max="max-w-2xl">
       <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pro" className={inputCls} /></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Price"><input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="49" type="number" className={inputCls} /></Field>
-        <Field label="Billing"><select value={interval} onChange={(e) => setInterval(e.target.value as SubInterval)} className={inputCls}><option value="month">Monthly</option><option value="year">Yearly</option><option value="week">Weekly</option></select></Field>
+        <Field label="Price ($ / month)"><input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="49" type="number" className={inputCls} /></Field>
+        <Field label="Annual price ($ / mo, billed yearly)"><input value={annual} onChange={(e) => setAnnual(e.target.value)} placeholder="auto −20%" type="number" className={inputCls} /></Field>
       </div>
-      <Field label="Free trial (days, 0 = none)"><input value={trial} onChange={(e) => setTrial(e.target.value)} type="number" className={inputCls} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Billing"><select value={interval} onChange={(e) => setInterval(e.target.value as SubInterval)} className={inputCls}><option value="month">Monthly</option><option value="year">Yearly</option><option value="week">Weekly</option></select></Field>
+        <Field label="Free trial (days, 0 = none)"><input value={trial} onChange={(e) => setTrial(e.target.value)} type="number" className={inputCls} /></Field>
+      </div>
       <Field label="Description"><input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="For growing teams" className={inputCls} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Button text"><input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder='e.g. "Start Free" / "Start Now"' className={inputCls} /></Field>
+        <Field label="Button link"><input value={ctaHref} onChange={(e) => setCtaHref(e.target.value)} placeholder="/start" className={inputCls} /></Field>
+      </div>
       <Field label="Features (one per line)"><textarea value={features} onChange={(e) => setFeatures(e.target.value)} rows={4} className={inputCls} /></Field>
+      <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={inheritLower} onChange={(e) => setInheritLower(e.target.checked)} /> Include the tier below (show &ldquo;Everything in …, plus&rdquo;)</label>
       <EntitlementsEditor ents={ents} setEnts={setEnts} />
       <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Active (offered to customers)</label>
       {err && <p className="text-xs text-rose-600">{err}</p>}
@@ -386,11 +400,11 @@ function EntitlementsEditor({ ents, setEnts }: { ents: Entitlement[]; setEnts: (
       <div className="mb-1 text-xs font-medium text-slate-500">Limits &amp; entitlements <span className="font-normal text-slate-400">— what this level grants</span></div>
       {ents.length > 0 && (
         <div className="space-y-1.5">
-          <div className="grid grid-cols-[1fr_64px_60px_72px_70px_20px] items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-400">
+          <div className="grid grid-cols-[minmax(110px,1fr)_70px_64px_80px_84px_24px] items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-400">
             <span>Limit</span><span>Included</span><span>Unit</span><span>Overage $</span><span>At cap</span><span />
           </div>
           {ents.map((e, i) => (
-            <div key={i} className="grid grid-cols-[1fr_64px_60px_72px_70px_20px] items-center gap-1.5">
+            <div key={i} className="grid grid-cols-[minmax(110px,1fr)_70px_64px_80px_84px_24px] items-center gap-1.5">
               <input value={e.label} onChange={(ev) => update(i, { label: ev.target.value })} placeholder="Limit name" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
               <input value={e.included} onChange={(ev) => update(i, { included: Number(ev.target.value) || 0 })} type="number" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
               <input value={e.unit} onChange={(ev) => update(i, { unit: ev.target.value })} placeholder="unit" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
@@ -422,10 +436,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Stat({ k, v, tone }: { k: string; v: string; tone?: "rose" }) {
   return <div className="rounded-xl border border-slate-200 bg-white px-4 py-3"><div className="text-[11px] uppercase tracking-wide text-slate-400">{k}</div><div className={`mt-0.5 text-xl font-semibold ${tone === "rose" ? "text-rose-600" : "text-slate-900"}`}>{v}</div></div>;
 }
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function Modal({ title, onClose, children, max = "max-w-md" }: { title: string; onClose: () => void; children: ReactNode; max?: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-5 shadow-xl ${max}`} onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between"><h3 className="text-base font-semibold text-slate-900">{title}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button></div>
         <div className="space-y-3">{children}</div>
       </div>

@@ -31,12 +31,13 @@ export interface SubscriptionPlan {
   // Public-pricing presentation (optional columns; default safely when absent so the
   // public site renders before any presentation migration is applied).
   isFeatured: boolean; isPublic: boolean; annualAmountCents: number | null;
-  ctaLabel: string | null; ctaHref: string | null;
+  ctaLabel: string | null; ctaHref: string | null; inheritLower: boolean;
 }
 export interface PlanInput {
   name: string; description?: string | null; amountCents?: number; currency?: string;
   interval?: SubInterval; trialDays?: number; features?: string[]; isActive?: boolean; sortOrder?: number;
   entitlements?: Entitlement[];
+  annualAmountCents?: number | null; ctaLabel?: string | null; ctaHref?: string | null; inheritLower?: boolean;
 }
 
 // Which Payments tab a status belongs to.
@@ -102,7 +103,7 @@ function mapPlan(r: any): SubscriptionPlan {
     trialDays: r.trial_days ?? 0, features: toFeatures(r.features), isActive: r.is_active !== false, sortOrder: r.sort_order ?? 0,
     entitlements: toEntitlements(r.entitlements),
     isFeatured: r.is_featured === true, isPublic: r.is_public !== false, annualAmountCents: r.annual_amount_cents ?? null,
-    ctaLabel: r.cta_label ?? null, ctaHref: r.cta_href ?? null,
+    ctaLabel: r.cta_label ?? null, ctaHref: r.cta_href ?? null, inheritLower: r.inherit_lower === true,
   };
 }
 
@@ -122,15 +123,21 @@ export async function upsertPlan(tenantId: string, input: PlanInput & { id?: str
     interval: input.interval ?? "month", trial_days: Math.max(0, Math.round(input.trialDays ?? 0)),
     features: input.features ?? [], is_active: input.isActive ?? true, sort_order: input.sortOrder ?? 0,
     entitlements: input.entitlements ?? [],
+    annual_amount_cents: input.annualAmountCents ?? null,
+    cta_label: input.ctaLabel ?? null, cta_href: input.ctaHref ?? null,
+    inherit_lower: input.inheritLower ?? false,
     updated_at: new Date().toISOString(),
   };
-  // Persist; if the `entitlements` column isn't there yet (pre-0081), retry without it so saving still works.
+  // Persist; if any optional column isn't there yet (pre-migration), drop the optional set and retry
+  // so saving the core plan always works.
+  const OPTIONAL = ["entitlements", "annual_amount_cents", "cta_label", "cta_href", "inherit_lower"];
   const write = async (r: Record<string, unknown>) => input.id
     ? sb.from("subscription_plans").update(r).eq("id", input.id).eq("tenant_id", tenantId)
     : sb.from("subscription_plans").insert(r);
   let { error } = await write(row);
-  if (error && /column .*entitlements/i.test(error.message)) {
-    const { entitlements, ...rest } = row; void entitlements;
+  if (error && new RegExp(`column .*(${OPTIONAL.join("|")})`, "i").test(error.message)) {
+    const rest = { ...row };
+    for (const k of OPTIONAL) delete rest[k];
     ({ error } = await write(rest));
   }
   if (error) throw new Error(error.message);

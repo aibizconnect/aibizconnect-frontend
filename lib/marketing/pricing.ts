@@ -26,11 +26,14 @@ export async function getTenantPlanTiers(tenantId: string): Promise<Tier[]> {
       name: p.name,
       tagline: p.description ?? "",
       m, a,
-      cta: p.ctaLabel ?? (m === null ? "Contact sales" : "Start free"),
-      href: p.ctaHref ?? (m === null ? "/contact" : "/start"),
-      head: i === 0 ? "Includes" : `Everything in ${arr[i - 1].name}, plus`,
+      // CTA: tenant's label wins; else trial ⇒ "Start free", custom/$0 ⇒ "Contact sales", else "Get started".
+      cta: (p.ctaLabel && p.ctaLabel.trim()) || (m === null ? "Contact sales" : p.trialDays > 0 ? "Start free" : "Get started"),
+      href: (p.ctaHref && p.ctaHref.trim()) || (m === null ? "/contact" : "/start"),
+      // Header: tenant's "include lower tier" toggle drives the "Everything in <lower>, plus" line.
+      head: p.inheritLower && arr[i - 1] ? `Everything in ${arr[i - 1].name}, plus` : "Includes",
       feats: p.features,
       highlight: p.isFeatured || (!anyFeatured && i === 1),                          // explicit, else feature the 2nd tier
+      trialDays: p.trialDays,
     };
   });
 }

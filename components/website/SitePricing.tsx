@@ -47,6 +47,7 @@ export default function SitePricing({ tiers, heading, subheading }: { tiers: Tie
                 : <><span className="text-4xl font-bold text-slate-900">${annual && t.a !== null ? t.a : t.m}</span><span className="text-sm text-slate-500">/mo</span></>}
             </div>
             <span className="mt-1 block text-xs text-slate-400">{t.m === null ? "custom pricing" : annual ? "billed annually" : "billed monthly"}</span>
+            {t.trialDays ? <span className="mt-1 block text-xs font-semibold" style={{ color: primary }}>{t.trialDays}-day free trial</span> : null}
             <a href={t.href || "#"} className="mt-5 block rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition"
               style={t.highlight ? { background: primary, color: "#fff" } : { border: `1px solid ${primary}`, color: primary }}>{t.cta || "Get started"}</a>
             {t.head && <div className="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">{t.head}</div>}

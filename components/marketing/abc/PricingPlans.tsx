@@ -35,6 +35,7 @@ export default function PricingPlans({ tiers = DEFAULT_TIERS }: { tiers?: Tier[]
                 : <><span style={{ fontFamily: v("--font-display"), fontSize: v("--text-3xl"), fontWeight: 700, color: v("--text-strong") }}>${annual ? t.a : t.m}</span><span style={{ color: v("--text-muted"), fontSize: v("--text-sm") }}>/mo</span></>}
             </div>
             <span style={{ display: "block", fontSize: v("--text-xs"), color: v("--text-muted"), minHeight: 16 }}>{t.m === null ? "custom pricing" : annual ? "billed annually" : "billed monthly"}</span>
+            {t.trialDays ? <span style={{ display: "block", marginTop: 4, fontSize: v("--text-xs"), fontWeight: 700, color: v("--color-primary") }}>{t.trialDays}-day free trial</span> : null}
             <Link href={t.href} style={{ ...(t.highlight ? btnPrimary : btnGhost), marginTop: 18, width: "100%" }}>{t.cta}</Link>
             <div style={{ marginTop: 22, fontSize: v("--text-xs"), fontWeight: 700, letterSpacing: v("--tracking-caps"), textTransform: "uppercase", color: v("--text-muted") }}>{t.head}</div>
             <ul style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gap: 11 }}>

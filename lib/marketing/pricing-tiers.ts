@@ -6,12 +6,13 @@
 export interface Tier {
   name: string; tagline: string; m: number | null; a: number | null;
   cta: string; href: string; head: string; feats: string[]; highlight: boolean;
+  trialDays?: number;
 }
 
 /** Shown only when the tenant has no plans yet (or pre-DB). Mirrors the original Claude Design tiers. */
 export const DEFAULT_TIERS: Tier[] = [
   { name: "Starter", tagline: "For solo pros getting online fast.", m: 39, a: 31, cta: "Start free", href: "/start",
-    head: "Includes", feats: ["AI website & funnels", "CRM up to 1,000 contacts", "Email & SMS nurture", "Online booking & calendar", "1 user seat"], highlight: false },
+    head: "Includes", feats: ["AI website & funnels", "CRM up to 1,000 contacts", "Email & SMS nurture", "Online booking & calendar", "1 user seat"], highlight: false, trialDays: 14 },
   { name: "Pro", tagline: "For growing teams that sell.", m: 89, a: 71, cta: "Start free", href: "/start",
     head: "Everything in Starter, plus", feats: ["Unlimited contacts & pipelines", "24/7 AI concierge", "Automation workflows", "Payments & invoicing", "Up to 5 user seats"], highlight: true },
   { name: "Premium", tagline: "For high-volume teams scaling fast.", m: 399, a: 319, cta: "Start free", href: "/start",
