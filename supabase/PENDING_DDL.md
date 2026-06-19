@@ -73,6 +73,11 @@ Confirmed applied by Ali as of STEP 33:
       (per-tenant plan levels) + `tenant_subscriptions` (a contact on a plan). Powers Payments →
       Subscriptions/Orders/Recurring. (Coupons uses the existing `tenant_coupons` from 0058.)
       **✅ APPLIED 2026-06-19 (Ali ran it — verified live).**
+- [ ] `0081_plan_entitlements.sql` — adds `subscription_plans.entitlements jsonb` (per-level limits:
+      contacts/seats/AI credits/websites/custom → included qty, unit, overage $/unit, enforce
+      off|warn|block). Phase 1 of usage limits/metering. Code saves limits only AFTER this is applied
+      (it degrades gracefully — saving a plan still works pre-apply, just drops the limits).
+      → run `supabase/APPLY_0081.sql`.
 
 ---
 

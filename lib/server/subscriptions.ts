@@ -12,10 +12,22 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 export type SubInterval = "month" | "year" | "week";
 export type SubStatus = "pending" | "trialing" | "active" | "past_due" | "comp" | "canceled";
 
+/** A metered limit a plan grants. enforce: 'off' = track only, 'warn' = allow + flag, 'block' = hard cap. */
+export type EnforceMode = "off" | "warn" | "block";
+export interface Entitlement {
+  key: string;            // 'contacts' | 'seats' | 'ai_credits' | 'websites' | custom
+  label: string;          // human label shown in UI
+  included: number;       // quantity included in the plan
+  unit: string;           // e.g. "contacts", "seats", "credits/mo"
+  overageCents: number | null; // price per extra unit when over (null = not billable)
+  enforce: EnforceMode;
+}
+
 export interface SubscriptionPlan {
   id: string; name: string; description: string | null;
   amountCents: number; currency: string; interval: SubInterval;
   trialDays: number; features: string[]; isActive: boolean; sortOrder: number;
+  entitlements: Entitlement[];
   // Public-pricing presentation (optional columns; default safely when absent so the
   // public site renders before any presentation migration is applied).
   isFeatured: boolean; isPublic: boolean; annualAmountCents: number | null;
@@ -24,6 +36,7 @@ export interface SubscriptionPlan {
 export interface PlanInput {
   name: string; description?: string | null; amountCents?: number; currency?: string;
   interval?: SubInterval; trialDays?: number; features?: string[]; isActive?: boolean; sortOrder?: number;
+  entitlements?: Entitlement[];
 }
 
 // Which Payments tab a status belongs to.
@@ -75,12 +88,19 @@ function rollUp(status: SubStatus, trialEndsAt: string | null, currentPeriodEnd:
 }
 
 const toFeatures = (v: unknown): string[] => Array.isArray(v) ? v.map(String) : [];
+const toEntitlements = (v: unknown): Entitlement[] => Array.isArray(v) ? v.map((e: any) => ({
+  key: String(e?.key ?? ""), label: String(e?.label ?? e?.key ?? ""),
+  included: Number(e?.included ?? 0), unit: String(e?.unit ?? ""),
+  overageCents: e?.overageCents == null ? null : Number(e.overageCents),
+  enforce: (["off", "warn", "block"].includes(e?.enforce) ? e.enforce : "off") as EnforceMode,
+})).filter((e) => e.key) : [];
 
 function mapPlan(r: any): SubscriptionPlan {
   return {
     id: r.id, name: r.name ?? "(unnamed)", description: r.description ?? null,
     amountCents: r.amount_cents ?? 0, currency: r.currency ?? "USD", interval: (r.interval ?? "month") as SubInterval,
     trialDays: r.trial_days ?? 0, features: toFeatures(r.features), isActive: r.is_active !== false, sortOrder: r.sort_order ?? 0,
+    entitlements: toEntitlements(r.entitlements),
     isFeatured: r.is_featured === true, isPublic: r.is_public !== false, annualAmountCents: r.annual_amount_cents ?? null,
     ctaLabel: r.cta_label ?? null, ctaHref: r.cta_href ?? null,
   };
@@ -101,21 +121,42 @@ export async function upsertPlan(tenantId: string, input: PlanInput & { id?: str
     amount_cents: Math.max(0, Math.round(input.amountCents ?? 0)), currency: input.currency ?? "USD",
     interval: input.interval ?? "month", trial_days: Math.max(0, Math.round(input.trialDays ?? 0)),
     features: input.features ?? [], is_active: input.isActive ?? true, sort_order: input.sortOrder ?? 0,
+    entitlements: input.entitlements ?? [],
     updated_at: new Date().toISOString(),
   };
-  if (input.id) {
-    const { error } = await sb.from("subscription_plans").update(row).eq("id", input.id).eq("tenant_id", tenantId);
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await sb.from("subscription_plans").insert(row);
-    if (error) throw new Error(error.message);
+  // Persist; if the `entitlements` column isn't there yet (pre-0081), retry without it so saving still works.
+  const write = async (r: Record<string, unknown>) => input.id
+    ? sb.from("subscription_plans").update(r).eq("id", input.id).eq("tenant_id", tenantId)
+    : sb.from("subscription_plans").insert(r);
+  let { error } = await write(row);
+  if (error && /column .*entitlements/i.test(error.message)) {
+    const { entitlements, ...rest } = row; void entitlements;
+    ({ error } = await write(rest));
   }
+  if (error) throw new Error(error.message);
 }
 
 export async function deletePlan(tenantId: string, id: string): Promise<void> {
   const sb = createSupabaseServiceClient();
   const { error } = await sb.from("subscription_plans").delete().eq("id", id).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
+}
+
+// ── Usage metering ───────────────────────────────────────────────────────────
+/** Current usage for a tenant across the metered features (for usage-vs-entitlement views). */
+export interface TenantUsage { contacts: number; seats: number; ai_credits: number; websites: number; }
+export async function getTenantUsage(tenantId: string): Promise<TenantUsage> {
+  const sb = createSupabaseServiceClient();
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const head = { count: "exact" as const, head: true };
+  const [c, s, w, ai] = await Promise.all([
+    sb.from("tenant_contacts").select("id", head).eq("tenant_id", tenantId),
+    sb.from("tenant_users").select("id", head).eq("tenant_id", tenantId),
+    sb.from("websites").select("id", head).eq("tenant_id", tenantId),
+    sb.from("ai_usage_events").select("units").eq("tenant_id", tenantId).gte("created_at", monthStart.toISOString()),
+  ]);
+  const aiUnits = (ai.data ?? []).reduce((n: number, r: any) => n + (r.units ?? 0), 0);
+  return { contacts: c.count ?? 0, seats: s.count ?? 0, websites: w.count ?? 0, ai_credits: aiUnits };
 }
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────

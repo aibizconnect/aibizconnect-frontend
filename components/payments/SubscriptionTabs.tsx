@@ -7,7 +7,7 @@ import {
   extendTrialAction, compSubscriptionAction, subscriptionStatusAction, changePlanAction, deleteSubscriptionAction,
   saveCouponAction, deleteCouponAction,
 } from "@/app/tenants/[tenantId]/payments/subscriptions-actions";
-import type { SubscriptionPlan, SubscriptionRow, SubState, SubInterval } from "@/lib/server/subscriptions";
+import type { SubscriptionPlan, SubscriptionRow, SubState, SubInterval, Entitlement, EnforceMode } from "@/lib/server/subscriptions";
 import type { Coupon, CouponType } from "@/lib/server/coupons";
 import type { ContactLite } from "@/app/tenants/[tenantId]/payments/actions";
 
@@ -95,6 +95,7 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
   const [trial, setTrial] = useState(String(initial?.trialDays ?? 0));
   const [features, setFeatures] = useState((initial?.features ?? []).join("\n"));
   const [active, setActive] = useState(initial?.isActive ?? true);
+  const [ents, setEnts] = useState<Entitlement[]>(initial?.entitlements ?? []);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -106,6 +107,7 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
         id: initial?.id, name: name.trim(), description: desc.trim() || null,
         amountCents: Math.round((Number(amount) || 0) * 100), interval, trialDays: Math.round(Number(trial) || 0),
         features: features.split("\n").map((f) => f.trim()).filter(Boolean), isActive: active,
+        entitlements: ents.filter((e) => e.key && e.label),
       });
       onSaved(list);
     } catch (e: any) { setErr(e?.message ?? "Save failed."); } finally { setBusy(false); }
@@ -121,6 +123,7 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
       <Field label="Free trial (days, 0 = none)"><input value={trial} onChange={(e) => setTrial(e.target.value)} type="number" className={inputCls} /></Field>
       <Field label="Description"><input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="For growing teams" className={inputCls} /></Field>
       <Field label="Features (one per line)"><textarea value={features} onChange={(e) => setFeatures(e.target.value)} rows={4} className={inputCls} /></Field>
+      <EntitlementsEditor ents={ents} setEnts={setEnts} />
       <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Active (offered to customers)</label>
       {err && <p className="text-xs text-rose-600">{err}</p>}
       <div className="mt-2 flex justify-end gap-2"><button className={btn} onClick={onClose}>Cancel</button><button className={primaryBtn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save level"}</button></div>
@@ -360,6 +363,54 @@ function CouponEditor({ tenantId, initial, onClose, onSaved }: { tenantId: strin
       {err && <p className="text-xs text-rose-600">{err}</p>}
       <div className="mt-2 flex justify-end gap-2"><button className={btn} onClick={onClose}>Cancel</button><button className={primaryBtn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save coupon"}</button></div>
     </Modal>
+  );
+}
+
+// ════════════════════════ entitlements editor (plan limits) ════════════════════════
+const KNOWN_ENTS: { key: string; label: string; unit: string }[] = [
+  { key: "contacts", label: "Contacts", unit: "contacts" },
+  { key: "seats", label: "Team seats", unit: "seats" },
+  { key: "ai_credits", label: "AI credits", unit: "credits/mo" },
+  { key: "websites", label: "Websites", unit: "sites" },
+];
+
+function EntitlementsEditor({ ents, setEnts }: { ents: Entitlement[]; setEnts: (e: Entitlement[]) => void }) {
+  const has = (k: string) => ents.some((e) => e.key === k);
+  const add = (key: string, label: string, unit: string) =>
+    setEnts([...ents, { key, label, included: 0, unit, overageCents: null, enforce: "off" }]);
+  const update = (i: number, patch: Partial<Entitlement>) => setEnts(ents.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+  const remove = (i: number) => setEnts(ents.filter((_, j) => j !== i));
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-2.5">
+      <div className="mb-1 text-xs font-medium text-slate-500">Limits &amp; entitlements <span className="font-normal text-slate-400">— what this level grants</span></div>
+      {ents.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-[1fr_64px_60px_72px_70px_20px] items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-400">
+            <span>Limit</span><span>Included</span><span>Unit</span><span>Overage $</span><span>At cap</span><span />
+          </div>
+          {ents.map((e, i) => (
+            <div key={i} className="grid grid-cols-[1fr_64px_60px_72px_70px_20px] items-center gap-1.5">
+              <input value={e.label} onChange={(ev) => update(i, { label: ev.target.value })} placeholder="Limit name" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
+              <input value={e.included} onChange={(ev) => update(i, { included: Number(ev.target.value) || 0 })} type="number" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
+              <input value={e.unit} onChange={(ev) => update(i, { unit: ev.target.value })} placeholder="unit" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
+              <input value={e.overageCents == null ? "" : e.overageCents / 100} onChange={(ev) => update(i, { overageCents: ev.target.value === "" ? null : Math.round(Number(ev.target.value) * 100) })} type="number" placeholder="—" title="Price per extra unit" className="rounded border border-slate-200 px-1.5 py-1 text-xs" />
+              <select value={e.enforce} onChange={(ev) => update(i, { enforce: ev.target.value as EnforceMode })} title="What happens at the cap" className="rounded border border-slate-200 px-1 py-1 text-xs">
+                <option value="off">Track</option><option value="warn">Warn</option><option value="block">Block</option>
+              </select>
+              <button type="button" onClick={() => remove(i)} className="text-slate-400 hover:text-rose-500" title="Remove">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {KNOWN_ENTS.filter((k) => !has(k.key)).map((k) => (
+          <button key={k.key} type="button" onClick={() => add(k.key, k.label, k.unit)} className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50">+ {k.label}</button>
+        ))}
+        <button type="button" onClick={() => add(`custom_${ents.length}`, "", "")} className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[11px] text-slate-500 hover:bg-slate-50">+ Custom</button>
+      </div>
+      <p className="mt-1.5 text-[11px] text-slate-400"><b>At cap:</b> Track = count only · Warn = allow + flag · Block = hard stop. Overage $ bills each extra unit (used in a later step).</p>
+    </div>
   );
 }
 
