@@ -32,12 +32,16 @@ export interface SubscriptionPlan {
   // public site renders before any presentation migration is applied).
   isFeatured: boolean; isPublic: boolean; annualAmountCents: number | null;
   ctaLabel: string | null; ctaHref: string | null; inheritLower: boolean;
+  // Annual discount expressed relative to the monthly price (null kind = auto 20% off).
+  annualDiscountKind: AnnualDiscountKind | null; annualDiscountValue: number | null;
 }
+export type AnnualDiscountKind = "percent" | "amount" | "none";
 export interface PlanInput {
   name: string; description?: string | null; amountCents?: number; currency?: string;
   interval?: SubInterval; trialDays?: number; features?: string[]; isActive?: boolean; sortOrder?: number;
   entitlements?: Entitlement[];
   annualAmountCents?: number | null; ctaLabel?: string | null; ctaHref?: string | null; inheritLower?: boolean;
+  annualDiscountKind?: AnnualDiscountKind | null; annualDiscountValue?: number | null;
 }
 
 // Which Payments tab a status belongs to.
@@ -104,6 +108,8 @@ function mapPlan(r: any): SubscriptionPlan {
     entitlements: toEntitlements(r.entitlements),
     isFeatured: r.is_featured === true, isPublic: r.is_public !== false, annualAmountCents: r.annual_amount_cents ?? null,
     ctaLabel: r.cta_label ?? null, ctaHref: r.cta_href ?? null, inheritLower: r.inherit_lower === true,
+    annualDiscountKind: (["percent", "amount", "none"].includes(r.annual_discount_kind) ? r.annual_discount_kind : null) as AnnualDiscountKind | null,
+    annualDiscountValue: r.annual_discount_value == null ? null : Number(r.annual_discount_value),
   };
 }
 
@@ -126,11 +132,13 @@ export async function upsertPlan(tenantId: string, input: PlanInput & { id?: str
     annual_amount_cents: input.annualAmountCents ?? null,
     cta_label: input.ctaLabel ?? null, cta_href: input.ctaHref ?? null,
     inherit_lower: input.inheritLower ?? false,
+    annual_discount_kind: input.annualDiscountKind ?? null,
+    annual_discount_value: input.annualDiscountValue ?? null,
     updated_at: new Date().toISOString(),
   };
   // Persist; if any optional column isn't there yet (pre-migration), drop the optional set and retry
   // so saving the core plan always works.
-  const OPTIONAL = ["entitlements", "annual_amount_cents", "cta_label", "cta_href", "inherit_lower"];
+  const OPTIONAL = ["entitlements", "annual_amount_cents", "cta_label", "cta_href", "inherit_lower", "annual_discount_kind", "annual_discount_value"];
   const write = async (r: Record<string, unknown>) => input.id
     ? sb.from("subscription_plans").update(r).eq("id", input.id).eq("tenant_id", tenantId)
     : sb.from("subscription_plans").insert(r);

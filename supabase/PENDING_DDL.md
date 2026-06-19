@@ -73,6 +73,9 @@ Confirmed applied by Ali as of STEP 33:
       (per-tenant plan levels) + `tenant_subscriptions` (a contact on a plan). Powers Payments →
       Subscriptions/Orders/Recurring. (Coupons uses the existing `tenant_coupons` from 0058.)
       **✅ APPLIED 2026-06-19 (Ali ran it — verified live).**
+- [ ] `0083_annual_discount.sql` — adds `subscription_plans.annual_discount_kind` ('percent'|'amount'|
+      'none'; null = auto 20% off) + `annual_discount_value` (percent points or $/mo off). The plan
+      editor's "Annual discount" selector. → run `supabase/APPLY_0083.sql`. Degrades gracefully pre-apply.
 - [ ] `0082_plan_pricing_fields.sql` — adds `subscription_plans.annual_amount_cents`, `cta_label`,
       `cta_href`, `inherit_lower` (per-plan: annual price for the Monthly/Annual switch, custom CTA
       text/link, and the "Everything in <lower tier>, plus" header). → run `supabase/APPLY_0082.sql`.

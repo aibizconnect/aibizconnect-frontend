@@ -20,8 +20,15 @@ export async function getTenantPlanTiers(tenantId: string): Promise<Tier[]> {
   const anyFeatured = pub.some((p) => p.isFeatured);
   return pub.map((p, i, arr) => {
     const m = p.amountCents > 0 ? Math.round(p.amountCents / 100) : null;            // $0 ⇒ custom ("Call us")
-    const a = p.annualAmountCents != null ? Math.round(p.annualAmountCents / 100)    // explicit annual…
-      : m !== null ? Math.round(m * 0.8) : null;                                     // …else 20% off
+    // Annual $/mo: discount kind wins (percent / amount / none), else explicit annual, else auto 20% off.
+    let a: number | null = null;
+    if (m !== null) {
+      if (p.annualDiscountKind === "none") a = m;                                    // no annual option
+      else if (p.annualDiscountKind === "percent" && p.annualDiscountValue) a = Math.max(0, Math.round(m * (1 - p.annualDiscountValue / 100)));
+      else if (p.annualDiscountKind === "amount" && p.annualDiscountValue != null) a = Math.max(0, Math.round(m - p.annualDiscountValue));
+      else if (p.annualAmountCents != null) a = Math.round(p.annualAmountCents / 100);
+      else a = Math.round(m * 0.8);                                                  // auto 20% off
+    }
     return {
       name: p.name,
       tagline: p.description ?? "",

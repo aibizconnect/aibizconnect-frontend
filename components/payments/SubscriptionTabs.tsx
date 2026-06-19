@@ -113,7 +113,8 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
   const [features, setFeatures] = useState((initial?.features ?? []).join("\n"));
   const [active, setActive] = useState(initial?.isActive ?? true);
   const [ents, setEnts] = useState<Entitlement[]>(initial?.entitlements ?? []);
-  const [annual, setAnnual] = useState(initial?.annualAmountCents != null ? String(initial.annualAmountCents / 100) : "");
+  const [annKind, setAnnKind] = useState<string>(initial?.annualDiscountKind ?? "");   // "" = auto 20% off
+  const [annVal, setAnnVal] = useState(initial?.annualDiscountValue != null ? String(initial.annualDiscountValue) : "");
   const [ctaLabel, setCtaLabel] = useState(initial?.ctaLabel ?? "");
   const [ctaHref, setCtaHref] = useState(initial?.ctaHref ?? "");
   const [inheritLower, setInheritLower] = useState(initial?.inheritLower ?? false);
@@ -129,7 +130,9 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
         amountCents: Math.round((Number(amount) || 0) * 100), interval, trialDays: Math.round(Number(trial) || 0),
         features: features.split("\n").map((f) => f.trim()).filter(Boolean), isActive: active,
         entitlements: ents.filter((e) => e.key && e.label),
-        annualAmountCents: annual.trim() === "" ? null : Math.round((Number(annual) || 0) * 100),
+        annualAmountCents: null,
+        annualDiscountKind: (annKind || null) as any,
+        annualDiscountValue: (annKind === "percent" || annKind === "amount") && annVal.trim() !== "" ? Number(annVal) : null,
         ctaLabel: ctaLabel.trim() || null, ctaHref: ctaHref.trim() || null, inheritLower,
       });
       onSaved(list);
@@ -141,7 +144,27 @@ function PlanEditor({ tenantId, initial, onClose, onSaved }: { tenantId: string;
       <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pro" className={inputCls} /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Price ($ / month)"><input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="49" type="number" className={inputCls} /></Field>
-        <Field label="Annual price ($ / mo, billed yearly)"><input value={annual} onChange={(e) => setAnnual(e.target.value)} placeholder="auto −20%" type="number" className={inputCls} /></Field>
+        <Field label="Annual discount">
+          <div className="flex gap-2">
+            <select value={annKind} onChange={(e) => setAnnKind(e.target.value)} className={inputCls}>
+              <option value="">Auto (20% off)</option>
+              <option value="percent">% off</option>
+              <option value="amount">$ off / mo</option>
+              <option value="none">No annual option</option>
+            </select>
+            {(annKind === "percent" || annKind === "amount") && (
+              <input value={annVal} onChange={(e) => setAnnVal(e.target.value)} type="number"
+                placeholder={annKind === "percent" ? "20" : "10"} className={`${inputCls} w-24`} />
+            )}
+          </div>
+          {amount && (annKind === "percent" || annKind === "amount") && annVal && (
+            <span className="mt-1 block text-[11px] text-slate-400">
+              = ${annKind === "percent"
+                ? Math.max(0, Math.round(Number(amount) * (1 - Number(annVal) / 100)))
+                : Math.max(0, Math.round(Number(amount) - Number(annVal)))}/mo billed yearly
+            </span>
+          )}
+        </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Billing"><select value={interval} onChange={(e) => setInterval(e.target.value as SubInterval)} className={inputCls}><option value="month">Monthly</option><option value="year">Yearly</option><option value="week">Weekly</option></select></Field>
