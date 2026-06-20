@@ -1,10 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { listDomains, addCustomDomain, verifyCustomDomain, publishDomainDns, type DomainRow } from "../../settings/domain-actions";
-import { getEmailSettings, saveEmailSettings, verifyEmailDns, type EmailSettingsView, type EmailDnsRecord } from "../../settings/email-actions";
+import { getEmailSettings, saveEmailSettings, verifyEmailDns, autoFixEmailDnsOnCloudflare, type EmailSettingsView, type EmailDnsRecord } from "../../settings/email-actions";
+import InfoTip from "@/components/ui/InfoTip";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
+
+/** Plain-language "where do I go / what do I do" help for a DNS record, by type. */
+function recordHelp(r: { type: string; name: string; value: string }): { title: string; body: ReactNode } {
+  const isDkim = /_domainkey/i.test(r.name) || r.value.trim().startsWith("(");
+  const isSpf = /spf1/i.test(r.value);
+  const isDmarc = /_dmarc/i.test(r.name);
+  const where = (
+    <>
+      <b>Where:</b> wherever your domain&apos;s DNS lives — usually your registrar (GoDaddy, Namecheap) or
+      Cloudflare. Open its <b>DNS</b> page and click <b>Add record</b>.<br />
+      <b>How:</b> set <b>Type</b>=<code>{r.type}</code>, <b>Name/Host</b>=<code>{r.name}</code>, <b>Value</b>=the
+      value shown here (use the copy buttons), then Save. DNS can take a few minutes to a few hours.
+    </>
+  );
+  if (isDkim) return {
+    title: "DKIM (value comes from Resend)",
+    body: (
+      <>
+        Proves your email is really from you. Resend generates the value:<br />
+        1. Open <b>resend.com → Domains</b> and add <b>{r.name.replace(/^resend\._domainkey\./i, "")}</b>.<br />
+        2. Resend shows a <b>CNAME value</b> (like <code>…dkim.amazonses.com</code>) — copy it exactly.<br />
+        3. Add a <b>CNAME</b> at your DNS host: Name <code>{r.name}</code>, Value = that.<br />
+        4. Come back and click <b>Verify DNS</b>.
+      </>
+    ),
+  };
+  if (isSpf) return { title: "SPF record", body: <>Lets Resend send email as your domain (keeps it out of spam).<br />{where}</> };
+  if (isDmarc) return { title: "DMARC record", body: <>Tells inboxes how to handle mail that fails checks. <code>p=none</code> only monitors — safe to start with.<br />{where}</> };
+  return { title: `${r.type} record`, body: where };
+}
 
 function Pill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -15,9 +46,10 @@ function Pill({ status }: { status: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${map[status] ?? "bg-slate-100 text-slate-500"}`}>{status.replace(/_/g, " ")}</span>;
 }
 
-/** A copyable DNS record line. */
+/** A copyable DNS record line, with an ⓘ that explains where to add it and what to do. */
 function DnsRow({ r }: { r: { type: string; name: string; value: string; status?: string } }) {
   const copy = (t: string) => { try { navigator.clipboard?.writeText(t); } catch { /* ignore */ } };
+  const help = recordHelp(r);
   return (
     <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs">
       <span className="font-semibold text-slate-500">{r.type}</span>
@@ -25,7 +57,10 @@ function DnsRow({ r }: { r: { type: string; name: string; value: string; status?
         <button type="button" onClick={() => copy(r.name)} title="Copy name" className="block truncate text-left font-mono text-slate-700 hover:underline">{r.name}</button>
         <button type="button" onClick={() => copy(r.value)} title="Copy value" className="block truncate text-left font-mono text-slate-400 hover:underline">{r.value}</button>
       </span>
-      {r.status ? <Pill status={r.status} /> : <span />}
+      <span className="flex items-center gap-1.5">
+        {r.status ? <Pill status={r.status} /> : null}
+        <InfoTip title={help.title} align="right">{help.body}</InfoTip>
+      </span>
     </div>
   );
 }
@@ -99,6 +134,14 @@ export default function DomainEmailSettings({ tenantId, websiteId }: { tenantId:
     setEmailRecords(r.records);
     setMsg(r.ok ? "Email DNS verified ✓" : "Some records aren't visible yet — DNS can take a few minutes.");
   };
+  const autoFixCf = async () => {
+    setBusy("cf"); setErr(null); setMsg(null);
+    const r = await autoFixEmailDnsOnCloudflare(tenantId);
+    setBusy(null);
+    if (r.added.length) setMsg(`${r.message}${r.skipped.length ? ` Still manual: ${r.skipped.join("; ")}.` : ""}`);
+    else setErr(r.message ?? "Couldn't add automatically.");
+    await load();
+  };
 
   return (
     <div className="space-y-6">
@@ -167,8 +210,27 @@ export default function DomainEmailSettings({ tenantId, websiteId }: { tenantId:
 
         {emailRecords && emailRecords.length > 0 && (
           <div className="mt-3 space-y-1.5 rounded-lg border border-slate-200 p-3">
-            <p className="text-xs font-medium text-slate-600">DNS records to add at your domain:</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1 text-xs font-medium text-slate-600">
+                DNS records to add at your domain
+                <InfoTip title="Adding DNS records">
+                  These three records authenticate your email (SPF, DMARC, DKIM). Add each one at your DNS
+                  host, then click <b>Verify DNS</b>. Tap the ⓘ on any row for exact steps. The DKIM value
+                  comes from Resend — that row tells you how to get it.
+                </InfoTip>
+              </p>
+              {email?.cloudflareManaged && (
+                <button type="button" disabled={busy === "cf"} onClick={autoFixCf}
+                  className="flex-none rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+                  title="Your domain is on our Cloudflare — we'll add the records we can for you">
+                  {busy === "cf" ? "Adding…" : "⚡ Add to Cloudflare for me"}
+                </button>
+              )}
+            </div>
             {emailRecords.map((r, i) => <DnsRow key={i} r={r} />)}
+            {email?.cloudflareManaged && (
+              <p className="pt-1 text-[11px] text-slate-400">Your domain runs on our Cloudflare, so we can add SPF/DMARC for you — DKIM still needs its value from Resend (see the ⓘ).</p>
+            )}
           </div>
         )}
       </div>

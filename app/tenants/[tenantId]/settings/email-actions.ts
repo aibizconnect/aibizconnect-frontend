@@ -2,7 +2,7 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
-import { verifyDnsRecord } from "@/lib/server/cloudflare";
+import { verifyDnsRecord, cloudflareReady, isInPlatformZone, createTxtRecord, createCname, listRecords } from "@/lib/server/cloudflare";
 
 async function requireAdminWrite(): Promise<void> {
   const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
@@ -10,7 +10,7 @@ async function requireAdminWrite(): Promise<void> {
 }
 
 export interface EmailDnsRecord { type: string; name: string; value: string; status: string }
-export interface EmailSettingsView { sender_name: string; sender_email: string; esp_provider: string; status: string; dns_records_required: EmailDnsRecord[]; hasSecret: boolean }
+export interface EmailSettingsView { sender_name: string; sender_email: string; esp_provider: string; status: string; dns_records_required: EmailDnsRecord[]; hasSecret: boolean; cloudflareManaged: boolean }
 
 /** The DNS records a domain needs to send email through Resend (SPF + DMARC; DKIM comes from
  *  Resend after the domain is added there). Pure helper. */
@@ -32,7 +32,46 @@ export async function getEmailSettings(tenantId: string): Promise<EmailSettingsV
     supabase.from("tenant_secrets").select("provider").eq("tenant_id", tenantId).eq("provider", "resend").maybeSingle(),
   ]);
   if (!row) return null;
-  return { ...row, dns_records_required: (row.dns_records_required ?? []) as EmailDnsRecord[], hasSecret: !!sec } as EmailSettingsView;
+  // Can WE fix the DNS for them? Only when the sender domain is in a platform Cloudflare zone
+  // AND Cloudflare is connected (Ali: help people fix their DNS when we have Cloudflare access).
+  const domain = (((row as any).sender_email as string)?.split("@")[1] || "").toLowerCase();
+  let cloudflareManaged = false;
+  try { cloudflareManaged = !!domain && isInPlatformZone(domain) && (await cloudflareReady()); } catch { /* ignore */ }
+  return { ...row, dns_records_required: (row.dns_records_required ?? []) as EmailDnsRecord[], hasSecret: !!sec, cloudflareManaged } as EmailSettingsView;
+}
+
+/**
+ * Auto-create the email DNS records on the platform Cloudflare zone (Ali: "when we have access to
+ * Cloudflare, help people fix their DNS"). Only for sender domains inside our zone (isInPlatformZone)
+ * and only records with REAL values — the DKIM CNAME value is provided by Resend and is skipped until
+ * the tenant pastes it. Dedups (a duplicate SPF record breaks email).
+ */
+export async function autoFixEmailDnsOnCloudflare(
+  tenantId: string
+): Promise<{ ok: boolean; added: string[]; skipped: string[]; message?: string }> {
+  await requireTenantAccess(tenantId);
+  if (!(await cloudflareReady())) return { ok: false, added: [], skipped: [], message: "Cloudflare isn't connected on this platform yet." };
+  const supabase = createSupabaseServiceClient();
+  const { data: row } = await supabase.from("tenant_email_settings").select("sender_email, dns_records_required").eq("tenant_id", tenantId).maybeSingle();
+  if (!row) return { ok: false, added: [], skipped: [], message: "Save your email settings first." };
+  const recs = (row.dns_records_required ?? []) as EmailDnsRecord[];
+  const added: string[] = [];
+  const skipped: string[] = [];
+  for (const r of recs) {
+    const isPlaceholder = r.value.trim().startsWith("(");
+    if (!isInPlatformZone(r.name)) { skipped.push(`${r.name} — not on our Cloudflare; add it at your DNS host`); continue; }
+    if (isPlaceholder) { skipped.push(`${r.name} — DKIM value comes from Resend (see the ⓘ), then re-run`); continue; }
+    const existing = await listRecords(r.name).catch(() => []);
+    if (existing.some((x) => x.type === r.type && x.content.replace(/^"|"$/g, "") === r.value)) { skipped.push(`${r.name} — already present`); continue; }
+    const res = r.type === "CNAME" ? await createCname(r.name, r.value, false) : await createTxtRecord(r.name, r.value);
+    if (res.ok) added.push(r.name); else skipped.push(`${r.name} — ${res.error ?? "failed"}`);
+  }
+  return {
+    ok: added.length > 0,
+    added,
+    skipped,
+    message: added.length ? `Added ${added.length} record${added.length > 1 ? "s" : ""} to Cloudflare. Click “Verify DNS” in a minute.` : "Nothing was added automatically — follow the steps in the ⓘ on each record.",
+  };
 }
 
 export async function saveEmailSettings(
