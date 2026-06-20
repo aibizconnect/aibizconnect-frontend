@@ -24,10 +24,12 @@ function recordHelp(r: { type: string; name: string; value: string }): { title: 
     title: "DKIM (value comes from Resend)",
     body: (
       <>
-        Proves your email is really from you. Resend generates the value:<br />
+        Proves your email is really from you. It&apos;s a <b>TXT</b> record holding a long public key —
+        Resend generates the value:<br />
         1. Open <b>resend.com → Domains</b> and add <b>{r.name.replace(/^resend\._domainkey\./i, "")}</b>.<br />
-        2. Resend shows a <b>CNAME value</b> (like <code>…dkim.amazonses.com</code>) — copy it exactly.<br />
-        3. Add a <b>CNAME</b> at your DNS host: Name <code>{r.name}</code>, Value = that.<br />
+        2. On that domain open the <b>Records</b> tab, find the <b>DKIM</b> row (<code>resend._domainkey</code>),
+        and copy its <b>Value</b> (starts with <code>p=…</code>).<br />
+        3. Add a <b>TXT</b> record at your DNS host: Name <code>{r.name}</code>, Value = that.<br />
         4. Come back and click <b>Verify DNS</b>.
       </>
     ),
