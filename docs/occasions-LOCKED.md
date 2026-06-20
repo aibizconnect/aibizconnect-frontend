@@ -12,10 +12,12 @@ placement, and the flying-banner airplane.
 - `lib/occasions.ts` — catalog, windows, config shape, `resolveActive`.
 
 ## Approved values (do not touch)
-- **Flying-banner airplane transform:** `transform: rotate(45deg) scaleY(-1)`.
-  - History: was `rotate(315deg) scaleY(-1)`; **Ali re-approved 2026-06-20** to add **+90° clockwise**
-    (315°→45°, since `R(90)·R(315)=R(45)`) so the nose points the way it flies (right). The
-    `scaleY(-1)` vertical flip stays.
+- **Flying-banner airplane = an SVG, NOT the 🛩️ emoji** (`PLANE_SVG` in SiteOccasions.tsx).
+  - History: started as the 🛩️ emoji with `rotate(315deg) scaleY(-1)`, then `rotate(45deg)`. But the
+    emoji renders as a different glyph at a different base angle on Windows vs iOS vs Android, so no
+    single rotation points "forward" on all of them (Ali: nose-down on desktop, fine on mobile).
+    **Ali-approved 2026-06-20:** replaced with a vector airplane drawn **nose-right** (Bootstrap
+    airplane-fill + inner `rotate(90 8 8)`), fill `#1e3a8a`, ~38px. Deterministic on every device.
 - Plane faces the direction of travel; the cloth banner trails to its left; enters left, exits right.
 
 ## What is allowed without re-opening the lock

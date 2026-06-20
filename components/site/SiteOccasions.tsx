@@ -19,6 +19,13 @@ import {
  */
 const Z = 9998;
 
+// Flying-banner plane as an SVG (NOT the 🛩️ emoji) — emoji glyphs differ per OS (Windows vs iOS vs
+// Android draw a different picture at a different base angle), so no single rotation points "forward"
+// everywhere. This vector is drawn nose-RIGHT (the direction of travel) consistently on every device.
+// Ali-approved 2026-06-20 (replaces the emoji). The inner rotate(90) turns Bootstrap's nose-up
+// airplane to nose-right. See docs/occasions-LOCKED.md.
+const PLANE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 16 16" fill="#1e3a8a"><g transform="rotate(90 8 8)"><path d="M6.428 1.151C6.708.591 7.213 0 8 0s1.292.592 1.572 1.151C9.861 1.73 10 2.431 10 3v3.691l5.17 2.585a1.5 1.5 0 0 1 .83 1.342V12a.5.5 0 0 1-.582.493l-5.507-.918-.375 2.253 1.318 1.318A.5.5 0 0 1 10.5 16h-5a.5.5 0 0 1-.354-.854l1.318-1.318-.375-2.253-5.507.918A.5.5 0 0 1 0 12v-1.382a1.5 1.5 0 0 1 .83-1.342L6 6.691V3c0-.568.14-1.271.428-1.849Z"/></g></svg>`;
+
 const SANTA_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 150" style="width:100%;height:auto;filter:drop-shadow(0 4px 4px rgba(0,0,0,0.3));"><g><g transform="translate(220,60)"><path fill="#8B4513" d="M0,20 Q10,0 30,10 L50,30 L30,40 L10,30 Z"/><circle cx="50" cy="15" r="8" fill="#8B4513"/><path stroke="#5C3317" stroke-width="3" d="M50,15 L55,-5 M48,10 L40,0"/><circle cx="58" cy="15" r="3" fill="red"/><path fill="#8B4513" d="M-60,20 Q-50,0 -30,10 L-10,30 L-30,40 L-50,30 Z"/><circle cx="-10" cy="15" r="8" fill="#8B4513"/><path stroke="#5C3317" stroke-width="3" d="M-10,15 L-5,-5 M-12,10 L-20,0"/></g><path stroke="#FFD700" stroke-width="1" fill="none" d="M110,60 L240,70"/><g transform="translate(10,50)"><path fill="#C21807" d="M20,60 C20,60 100,60 110,40 L100,20 L30,20 C10,20 20,60 20,60 Z"/><path stroke="#A9A9A9" stroke-width="3" fill="none" d="M10,65 C10,65 50,75 120,65"/><circle cx="70" cy="20" r="15" fill="#C21807"/><circle cx="70" cy="10" r="10" fill="#FFCCBC"/><path fill="#FFF" d="M60,10 Q70,25 80,10"/><path fill="#C21807" d="M60,5 Q70,-15 80,5 Z"/><circle cx="80" cy="5" r="3" fill="#FFF"/><rect x="30" y="20" width="20" height="20" fill="#228B22"/></g></g></svg>`;
 
 const KEYFRAMES = `
@@ -234,8 +241,8 @@ function FlyingBanner({ text, bg, color, set }: { text: string; bg?: string; col
         </div>
         {/* tow rope */}
         <div style={{ width: 26, height: 2, background: "rgba(100,116,139,.7)" }} />
-        {/* airplane — facing the direction of travel (nose right). Ali 2026-06-20: rotated +90° CW. */}
-        <span style={{ fontSize: 40, display: "inline-block", transform: "rotate(45deg) scaleY(-1)", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.25))" }}>🛩️</span>
+        {/* airplane — SVG (not emoji) so the nose points forward (right) identically on every device. */}
+        <span aria-hidden style={{ display: "inline-flex", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.25))" }} dangerouslySetInnerHTML={{ __html: PLANE_SVG }} />
       </div>
     </div>
   );
