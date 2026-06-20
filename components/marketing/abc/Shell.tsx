@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import MobileNav from "./MobileNav";
 import JsonLd from "./JsonLd";
+import MarketingOccasions from "./MarketingOccasions";
 import { siteGraph, SITE_UPDATED_LABEL } from "@/lib/marketing/seo";
 
 /**
@@ -116,6 +117,7 @@ export function AbcPage({ children }: { children: ReactNode }) {
   return (
     <div className="abc-ds" style={{ background: v("--surface-page"), color: v("--text-body"), minHeight: "100vh" }}>
       <JsonLd data={siteGraph()} />
+      <MarketingOccasions />
       <AbcNav />
       {children}
       <AbcFooter />
