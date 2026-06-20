@@ -937,11 +937,14 @@ async function readTenantTheme(supabase: any, tenantId: string): Promise<any> {
  */
 async function readScopedTheme(supabase: any, tenantId: string, websiteId?: string | null): Promise<any> {
   if (websiteId) {
-    await ensureBrandRow(tenantId, websiteId);
     const { data } = await supabase
       .from("website_brand_settings").select("theme")
       .eq("tenant_id", tenantId).eq("website_id", websiteId).maybeSingle();
-    return (data?.theme && typeof data.theme === "object") ? data.theme : {};
+    if (data?.theme && typeof data.theme === "object") return data.theme;
+    // No per-website brand row (the table may key ONE row per tenant) → fall back to the tenant's
+    // merged theme so website-scoped reads never come back empty. Single-website tenants share the
+    // one brand row; multi-website tenants get their own once per-website rows exist.
+    return readTenantTheme(supabase, tenantId);
   }
   return readTenantTheme(supabase, tenantId);
 }
@@ -968,9 +971,24 @@ export async function ensureWebsiteWired(tenantId: string, websiteId: string): P
 /** Write the brand `theme` to the EXACT website row (Option A) when websiteId is given,
  *  else the tenant-level row (legacy/admin). Throws on error. */
 async function writeScopedTheme(supabase: any, tenantId: string, websiteId: string | null | undefined, theme: any): Promise<void> {
-  const row = websiteId
-    ? await supabase.from("website_brand_settings").upsert({ tenant_id: tenantId, website_id: websiteId, theme }, { onConflict: "tenant_id,website_id" })
-    : await supabase.from("website_brand_settings").upsert({ tenant_id: tenantId, theme });
+  if (websiteId) {
+    // Update the per-website brand row if it exists…
+    const { data: existing } = await supabase.from("website_brand_settings").select("id").eq("tenant_id", tenantId).eq("website_id", websiteId).maybeSingle();
+    if (existing) {
+      const { error } = await supabase.from("website_brand_settings").update({ theme }).eq("tenant_id", tenantId).eq("website_id", websiteId);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    // …else try to CREATE one. If the table keys one row per tenant (insert collides on the pkey),
+    // fall back to updating the tenant's existing brand row so the save isn't silently lost. This is
+    // why occasions failed to persist after Phase 1 routed saves to a website-scoped row.
+    const ins = await supabase.from("website_brand_settings").insert({ tenant_id: tenantId, website_id: websiteId, theme });
+    if (!ins.error) return;
+    const upd = await supabase.from("website_brand_settings").update({ theme }).eq("tenant_id", tenantId);
+    if (upd.error) throw new Error(upd.error.message);
+    return;
+  }
+  const row = await supabase.from("website_brand_settings").upsert({ tenant_id: tenantId, theme });
   if (row.error) throw new Error(row.error.message);
 }
 
