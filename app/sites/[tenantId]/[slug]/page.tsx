@@ -26,6 +26,7 @@ import { collectPageFonts } from "@/lib/fonts";
 import { jsonLdScript } from "@/lib/seo/structured-data";
 import SiteScripts from "@/components/site/SiteScripts";
 import SiteOccasions from "@/components/site/SiteOccasions";
+import SiteForm from "@/components/site/SiteForm";
 import CookieBanner from "@/components/site/CookieBanner";
 
 interface PublicSitePageProps {
@@ -218,6 +219,15 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
   // section's manual content so nothing breaks for tenants who haven't set up plans.
   const hasPricingSection = sections.some((s: any) => s?.content?.type === "pricing");
   const pricingTiers = hasPricingSection ? await getTenantPlanTiers(tenantId).catch(() => []) : [];
+
+  // Embedded built forms (Ali D-401): a "form" section renders a tenant_forms FormDef by id.
+  const formSectionIds = Array.from(new Set(sections.filter((s: any) => s?.content?.type === "form" && s?.content?.formId).map((s: any) => String(s.content.formId))));
+  const formsById = new Map<string, import("@/lib/server/forms").FormDef>();
+  if (formSectionIds.length) {
+    const { getForm } = await import("@/lib/server/forms");
+    const loaded = await Promise.all(formSectionIds.map((id) => getForm(tenantId, id).catch(() => null)));
+    loaded.forEach((f) => { if (f) formsById.set(f.id, f); });
+  }
 
   const renderBooking = (c: any, key: string) => {
     const cal = bookingData[String(c.calendarSlug || "")];
@@ -434,6 +444,8 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
               ? <SiteSurvey tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
               : s.content?.type === "listings" && s.content?.source === "idx"
               ? (idxValid ? <SiteListings tenantId={tenantId} content={s.content} theme={theme} /> : null)
+              : s.content?.type === "form" && formsById.get(String(s.content?.formId))
+              ? <SiteForm tenantId={tenantId} form={formsById.get(String(s.content.formId))!} heading={s.content?.heading} />
               : isForm
               ? <SiteContactForm tenantId={tenantId} heading={s.content?.heading ?? adapted?.props?.heading} fields={s.content?.fields ?? adapted?.props?.fields} submitLabel={s.content?.submitLabel ?? adapted?.props?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
               : adapted
@@ -455,6 +467,8 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
             ? <SiteSurvey key={s.id} tenantId={tenantId} pageId={page?.id} heading={s.content?.heading} questions={s.content?.questions ?? []} submitLabel={s.content?.submitLabel} successMessage={s.content?.successMessage} />
             : s.content?.type === "contact-form"
             ? <SiteContactForm key={s.id} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
+            : s.content?.type === "form" && formsById.get(String(s.content?.formId))
+            ? <SiteForm key={s.id} tenantId={tenantId} form={formsById.get(String(s.content.formId))!} heading={s.content?.heading} />
             : s.content?.type === "listings" && s.content?.source === "idx"
             ? (idxValid ? <SiteListings key={s.id} tenantId={tenantId} content={s.content} theme={theme} /> : null)
             : <SectionView key={s.id} content={s.content} theme={theme} cssSink={cssSink} />

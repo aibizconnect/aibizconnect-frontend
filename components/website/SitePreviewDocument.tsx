@@ -10,6 +10,8 @@ import SiteScripts from "@/components/site/SiteScripts";
 import SiteOccasions from "@/components/site/SiteOccasions";
 import AnimateOnView from "@/components/sections/AnimateOnView";
 import SitePricing from "@/components/website/SitePricing";
+import SiteContactForm from "@/components/website/SiteContactForm";
+import SiteForm from "@/components/site/SiteForm";
 import { getTenantPlanTiers } from "@/lib/marketing/pricing";
 
 /**
@@ -63,6 +65,15 @@ export default async function SitePreviewDocument({
   // Live pricing in the preview too (editor = public): a "pricing" section shows the tenant's plans.
   const hasPricing = sections.some((s) => s.content?.type === "pricing");
   const pricingTiers = hasPricing ? await getTenantPlanTiers(tenantId).catch(() => []) : [];
+
+  // Embedded built forms (Ali D-401): render a "form" section's FormDef live in the preview too.
+  const formSectionIds = Array.from(new Set(sections.filter((s) => s.content?.type === "form" && s.content?.formId).map((s) => String(s.content.formId))));
+  const formsById = new Map<string, import("@/lib/server/forms").FormDef>();
+  if (formSectionIds.length) {
+    const { getForm } = await import("@/lib/server/forms");
+    const loaded = await Promise.all(formSectionIds.map((id) => getForm(tenantId, id).catch(() => null)));
+    loaded.forEach((f) => { if (f) formsById.set(f.id, f); });
+  }
 
   const previewTitle = page?.draft_title ?? page?.title;
   const draftSlugDiffers = page?.draft_slug && page.draft_slug !== page.slug;
@@ -188,6 +199,10 @@ export default async function SitePreviewDocument({
         {sections.map((s, i) => (
           s.content?.type === "pricing" && pricingTiers.length
             ? <SitePricing key={i} tiers={pricingTiers} heading={s.content?.heading} subheading={s.content?.subheading} />
+            : s.content?.type === "form" && formsById.get(String(s.content?.formId))
+            ? <SiteForm key={i} tenantId={tenantId} form={formsById.get(String(s.content.formId))!} heading={s.content?.heading} />
+            : s.content?.type === "contact-form"
+            ? <SiteContactForm key={i} tenantId={tenantId} heading={s.content?.heading} fields={s.content?.fields} submitLabel={s.content?.submitLabel} submitColor={s.content?.submitColor} submitTextColor={s.content?.submitTextColor} />
             : <SectionView key={i} content={s.content} theme={theme} cssSink={cssSink} />
         ))}
 

@@ -191,6 +191,45 @@ export async function generateSectionAI(
   return next;
 }
 
+/**
+ * Insert a real ARTIFACT as a page section (Ali D-401, Phase 2): the AI Studio "Insert" picker
+ * drops a built form / booking / pricing / listings into the page. Appends to draft_sections
+ * (drafts-only law). The param type is inlined on purpose — never export a type from a 'use
+ * server' file (tsc passes, the Vercel/Turbopack build fails).
+ */
+export async function addArtifactSection(
+  pageId: string,
+  tenantId: string,
+  artifact: { kind: "form" | "contact-form" | "booking" | "pricing" | "listings"; formId?: string; heading?: string; calendarSlug?: string }
+): Promise<any[]> {
+  let content: any;
+  switch (artifact.kind) {
+    case "form":
+      if (!artifact.formId) throw new Error("Pick a form to insert.");
+      content = { type: "form", formId: artifact.formId, heading: artifact.heading ?? "" };
+      break;
+    case "contact-form":
+      content = { type: "contact-form", heading: artifact.heading ?? "Get in touch", submitLabel: "Send" };
+      break;
+    case "booking":
+      content = { type: "booking", calendarSlug: artifact.calendarSlug ?? "", heading: artifact.heading ?? "Book a time" };
+      break;
+    case "pricing":
+      content = { type: "pricing", heading: artifact.heading ?? "Plans & pricing" };
+      break;
+    case "listings":
+      content = { type: "listings", source: "idx", heading: artifact.heading ?? "Featured listings" };
+      break;
+    default:
+      throw new Error("Unknown artifact.");
+  }
+  const supabase = createSupabaseServiceClient();
+  const base = await loadDraftBase(supabase, tenantId, pageId);
+  const next = [...base, content];
+  await supabase.from("website_pages").update({ draft_sections: next }).eq("tenant_id", tenantId).eq("id", pageId);
+  return next;
+}
+
 /** Rewrite an existing draft section with AI; replaces draft_sections[index]. */
 export async function rewriteSectionAI(
   pageId: string,

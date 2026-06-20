@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { editPageAI, generateSectionAI, createPage, type SitePage } from "@/app/tenants/[tenantId]/website/actions";
+import { editPageAI, generateSectionAI, addArtifactSection, createPage, type SitePage } from "@/app/tenants/[tenantId]/website/actions";
+
+type FormChoice = { id: string; name: string; kind: string };
+type Artifact = { kind: "form" | "contact-form" | "booking" | "pricing" | "listings"; formId?: string };
 
 /**
  * AI Studio — a slim, AI-first companion to the full website editor (which it does NOT replace).
@@ -12,8 +15,8 @@ import { editPageAI, generateSectionAI, createPage, type SitePage } from "@/app/
  */
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 
-export default function AiStudio({ tenantId, websiteId, websiteName, websites, pages: initialPages, initialPageId }:
-  { tenantId: string; websiteId: string; websiteName: string; websites: { id: string; name: string }[]; pages: SitePage[]; initialPageId?: string }) {
+export default function AiStudio({ tenantId, websiteId, websiteName, websites, pages: initialPages, initialPageId, forms = [] }:
+  { tenantId: string; websiteId: string; websiteName: string; websites: { id: string; name: string }[]; pages: SitePage[]; initialPageId?: string; forms?: FormChoice[] }) {
   const router = useRouter();
   const [pages, setPages] = useState<SitePage[]>(initialPages);
   // Focus the page we were opened on (PagesGrid "AI Edit" / new page), else home, else first.
@@ -21,7 +24,8 @@ export default function AiStudio({ tenantId, websiteId, websiteName, websites, p
     (initialPageId && initialPages.some((p) => p.id === initialPageId) ? initialPageId : "") ||
     initialPages.find((p) => p.is_home)?.id || initialPages[0]?.id || "");
   const [instruction, setInstruction] = useState("");
-  const [busy, setBusy] = useState<null | "ai" | "add" | "section">(null);
+  const [busy, setBusy] = useState<null | "ai" | "add" | "section" | "insert">(null);
+  const [insertOpen, setInsertOpen] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [k, setK] = useState(0); // preview cache-buster
 
@@ -44,6 +48,14 @@ export default function AiStudio({ tenantId, websiteId, websiteName, websites, p
     setBusy("section"); setMsg(null);
     try { await generateSectionAI(active.id, tenantId, p); setMsg({ ok: true, t: "✓ Section added to the draft." }); refreshPreview(); }
     catch (e: any) { setMsg({ ok: false, t: e?.message ?? "Could not add section." }); }
+    setBusy(null);
+  };
+  // Insert a real artifact (built form / booking / pricing / listings) into the page (Ali D-401).
+  const insert = async (artifact: Artifact) => {
+    if (!active) return;
+    setBusy("insert"); setMsg(null); setInsertOpen(false);
+    try { await addArtifactSection(active.id, tenantId, artifact); setMsg({ ok: true, t: "✓ Inserted into the draft." }); refreshPreview(); }
+    catch (e: any) { setMsg({ ok: false, t: e?.message ?? "Could not insert." }); }
     setBusy(null);
   };
   const addPage = async () => {
@@ -109,9 +121,30 @@ export default function AiStudio({ tenantId, websiteId, websiteName, websites, p
             placeholder="e.g. Make the headline punchier and change the button to “Start free”. Add a testimonial from a happy customer."
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none disabled:bg-slate-50" />
           {msg && <div className={`mt-2 text-xs ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.t}</div>}
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button type="button" onClick={askAI} disabled={!active || busy === "ai" || !instruction.trim()} className="rounded-lg bg-[#1e3a8a] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{busy === "ai" ? "Working…" : "Ask AI"}</button>
             <button type="button" onClick={addSection} disabled={!active || busy === "section"} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">{busy === "section" ? "…" : "+ Add a section"}</button>
+            {/* Insert a real artifact — built form / booking / pricing / listings (Ali D-401). */}
+            <div className="relative">
+              <button type="button" onClick={() => setInsertOpen((o) => !o)} disabled={!active || busy === "insert"}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">{busy === "insert" ? "…" : "+ Insert ▾"}</button>
+              {insertOpen && active && (
+                <div className="absolute left-0 z-20 mt-1 w-60 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Your forms</div>
+                  {forms.length ? forms.map((f) => (
+                    <button key={f.id} type="button" onClick={() => insert({ kind: "form", formId: f.id })}
+                      className="block w-full truncate px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">📋 {f.name}{f.kind === "survey" ? " (survey)" : ""}</button>
+                  )) : (
+                    <a href={`/tenants/${tenantId}/sites/forms`} className="block px-3 py-1.5 text-left text-xs text-[#1e3a8a] hover:underline">No forms yet — create one →</a>
+                  )}
+                  <div className="mt-1 border-t border-slate-100 px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Other</div>
+                  <button type="button" onClick={() => insert({ kind: "contact-form" })} className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">✉️ Contact form</button>
+                  <button type="button" onClick={() => insert({ kind: "pricing" })} className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">💲 Pricing table</button>
+                  <button type="button" onClick={() => insert({ kind: "booking" })} className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">📅 Booking calendar</button>
+                  <button type="button" onClick={() => insert({ kind: "listings" })} className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">🏠 Listings (live)</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
