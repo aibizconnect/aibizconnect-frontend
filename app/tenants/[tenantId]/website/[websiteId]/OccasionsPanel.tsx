@@ -83,7 +83,7 @@ function ShowAs({ fly, onChange }: { fly?: boolean; onChange: (fly: boolean) => 
  * fly-across; ONE shared banner appearance (top). Below: Animations (toggle list), Holiday
  * banners (each = on/off + message + Banner/Fly), and Custom occasions.
  */
-export default function OccasionsPanel({ tenantId }: { tenantId: string }) {
+export default function OccasionsPanel({ tenantId, websiteId }: { tenantId: string; websiteId?: string }) {
   const year = useMemo(() => new Date().getFullYear(), []);
   const groups = useMemo(() => catalogByCategory(year), [year]);
   const [cfg, setCfg] = useState<OccasionsConfig>({ settings: {}, bannerStyle: {}, animations: {}, banners: {}, custom: [] });
@@ -94,13 +94,15 @@ export default function OccasionsPanel({ tenantId }: { tenantId: string }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getSiteSettings(tenantId).then((s) => { setCfg(s.occasions ?? { settings: {}, bannerStyle: {}, animations: {}, banners: {}, custom: [] }); setLoaded(true); }).catch(() => setLoaded(true));
-  }, [tenantId]);
+    // Ali D-400: occasions are chosen PER WEBSITE. websiteId scopes the read/write to that
+    // website's brand row (website_brand_settings). UI/controls unchanged (Occasions lock holds).
+    getSiteSettings(tenantId, websiteId).then((s) => { setCfg(s.occasions ?? { settings: {}, bannerStyle: {}, animations: {}, banners: {}, custom: [] }); setLoaded(true); }).catch(() => setLoaded(true));
+  }, [tenantId, websiteId]);
 
   const persist = (next: OccasionsConfig) => {
     setCfg(next);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { saveSiteSettings(tenantId, { occasions: next }).then(() => setSavedAt(Date.now())).catch(() => {}); }, 500);
+    timer.current = setTimeout(() => { saveSiteSettings(tenantId, { occasions: next }, websiteId).then(() => setSavedAt(Date.now())).catch(() => {}); }, 500);
   };
   const setGlobal = (p: Partial<EffectSettings>) => persist({ ...cfg, settings: { ...(cfg.settings ?? {}), ...p } });
   const setStyle = (p: Partial<BannerSettings>) => persist({ ...cfg, bannerStyle: { ...(cfg.bannerStyle ?? {}), ...p } });

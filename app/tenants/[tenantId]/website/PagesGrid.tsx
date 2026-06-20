@@ -106,6 +106,7 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const wid = websiteId || tenantId;
 
   const refresh = () => start(async () => setPages(await listSitePages(tenantId, websiteId)));
 
@@ -117,12 +118,15 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
       try {
         const p = await createPage(tenantId, { title, slug, websiteId });
         setPages(await listSitePages(tenantId, websiteId));
-        router.push(`/tenants/${tenantId}/website/builder?pageId=${p.id}`);
+        router.push(`/tenants/${tenantId}/website/${wid}/studio?page=${p.id}`);
       } catch (e) { notifyError((e as Error).message); }
     });
   };
 
-  const edit = (id: string) => router.push(`/tenants/${tenantId}/website/builder?pageId=${id}`);
+  // Ali D-399: opening a page lands in AI Studio (top menu + AI assistant). The full block
+  // editor stays available, untouched, as a secondary action (⋮ menu → Full editor).
+  const edit = (id: string) => router.push(`/tenants/${tenantId}/website/${wid}/studio?page=${id}`);
+  const openEditor = (id: string) => { setMenuFor(null); router.push(`/tenants/${tenantId}/website/builder?pageId=${id}`); };
 
   const rename = async (p: SitePage) => {
     const title = await promptDialog("Rename page", { defaultValue: p.title });
@@ -176,7 +180,7 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
 
               {/* actions */}
               <div className="flex items-center justify-between gap-2 p-3">
-                <button onClick={() => edit(p.id)} className="flex-1 rounded-lg bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#1e3a8a]/90">Edit</button>
+                <button onClick={() => edit(p.id)} className="flex-1 rounded-lg bg-[#1e3a8a] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#1e3a8a]/90">✦ AI Edit</button>
                 <a href={`/sites/${tenantId}/${p.slug}`} target="_blank" rel="noreferrer"
                   className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-slate-500 hover:bg-slate-50" title="Open preview">↗</a>
               </div>
@@ -187,6 +191,7 @@ export default function PagesGrid({ tenantId, initial, websiteId }: { tenantId: 
                   <button onClick={() => rename(p)} className="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Rename</button>
                   <button onClick={() => dup(p)} className="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Duplicate</button>
                   {!p.is_home && <button onClick={() => home(p)} className="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Set as home</button>}
+                  <button onClick={() => openEditor(p.id)} className="block w-full border-t border-slate-100 px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Full editor ↗</button>
                   <button onClick={() => del(p)} className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50">Delete</button>
                 </div>
               )}

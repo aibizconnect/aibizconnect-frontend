@@ -151,6 +151,14 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
     if (b && typeof b === "object" && Object.keys(b).length) perPageBg = b as ElementStyle;
   } catch { /* column not applied yet */ }
 
+  // The page's website (Ali D-400: occasions are chosen PER WEBSITE). Separate select so a
+  // missing website_id column never breaks the page.
+  let pageWebsiteId: string | null = null;
+  try {
+    const { data: widRow } = await supabase.from("website_pages").select("website_id").eq("tenant_id", tenantId).eq("slug", slug).single();
+    pageWebsiteId = ((widRow as any)?.website_id as string) ?? null;
+  } catch { /* column not applied yet */ }
+
   // Only published pages are visible publicly — EXCEPT in ?preview=1, which renders the unpublished
   // draft (drafts-only law preserved: the page is not published, just previewable). When no page
   // matches, honor a tenant URL redirect for this path (D-347) before 404ing.
@@ -232,6 +240,16 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
         cookieConsent?: { enabled?: boolean; message?: string; acceptLabel?: string; declineLabel?: string; policyUrl?: string; position?: "bottom" | "bottom-left" | "bottom-right" };
         occasions?: import("@/lib/occasions").OccasionsConfig } | null;
   const cookie = siteSettings?.cookieConsent;
+  // Occasions resolved PER WEBSITE (Ali D-400): prefer the page's own website brand row;
+  // fall back to the merged/tenant occasions for legacy/synthetic sites.
+  const websiteOccasions = pageWebsiteId
+    ? (() => {
+        const row = (Array.isArray(brandRows) ? brandRows : []).find((r: any) => r?.website_id === pageWebsiteId);
+        const site = row?.theme && typeof row.theme === "object" ? (row.theme as any).site : null;
+        return site?.occasions ?? null;
+      })()
+    : null;
+  const occasionsConfig = (websiteOccasions ?? siteSettings?.occasions ?? null) as import("@/lib/occasions").OccasionsConfig | null;
   // Tracking lives ON THE WEBSITE (editor → Settings → Tracking & scripts) — Ali's ruling:
   // it belongs with the site's domain settings, not tenant-wide Settings (tab removed).
   const tracking = {
@@ -451,7 +469,7 @@ export default async function PublicSitePage({ params, searchParams }: PublicSit
       {popups.length > 0 && <SitePopups popups={popups} />}
 
       {/* Occasions Engine — seasonal/holiday effects active for the visitor's local date. */}
-      {siteSettings?.occasions && <SiteOccasions config={siteSettings.occasions} />}
+      {occasionsConfig && <SiteOccasions config={occasionsConfig} />}
 
       {(siteSettings as any)?.siteCustomCss ? <style data-imported dangerouslySetInnerHTML={{ __html: (siteSettings as any).siteCustomCss }} /> : null}
       {customCss ? <style dangerouslySetInnerHTML={{ __html: customCss }} /> : null}

@@ -77,7 +77,7 @@ export default function WebsiteWorkspace({
           </div>
         )
       )}
-      {tab === "Occasions" && <OccasionsPanel tenantId={tenantId} />}
+      {tab === "Occasions" && <OccasionsPanel tenantId={tenantId} websiteId={websiteId} />}
       {tab === "Settings" && <WebsiteSettings tenantId={tenantId} websiteId={websiteId} websiteName={websiteName}
         subdomain={subdomain} isPrimary={isPrimary} websiteCount={websiteCount} />}
     </>

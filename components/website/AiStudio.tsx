@@ -12,11 +12,14 @@ import { editPageAI, generateSectionAI, createPage, type SitePage } from "@/app/
  */
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 
-export default function AiStudio({ tenantId, websiteId, websiteName, websites, pages: initialPages }:
-  { tenantId: string; websiteId: string; websiteName: string; websites: { id: string; name: string }[]; pages: SitePage[] }) {
+export default function AiStudio({ tenantId, websiteId, websiteName, websites, pages: initialPages, initialPageId }:
+  { tenantId: string; websiteId: string; websiteName: string; websites: { id: string; name: string }[]; pages: SitePage[]; initialPageId?: string }) {
   const router = useRouter();
   const [pages, setPages] = useState<SitePage[]>(initialPages);
-  const [activeId, setActiveId] = useState<string>(initialPages.find((p) => p.is_home)?.id || initialPages[0]?.id || "");
+  // Focus the page we were opened on (PagesGrid "AI Edit" / new page), else home, else first.
+  const [activeId, setActiveId] = useState<string>(
+    (initialPageId && initialPages.some((p) => p.id === initialPageId) ? initialPageId : "") ||
+    initialPages.find((p) => p.is_home)?.id || initialPages[0]?.id || "");
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState<null | "ai" | "add" | "section">(null);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);

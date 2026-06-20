@@ -7,8 +7,9 @@ import AiStudio from "@/components/website/AiStudio";
  * AI Studio — a slim, AI-first companion editor (it does NOT replace the full editor at
  * /website/{websiteId}). Multi-website / many-page: a thin rail + live preview + Ask-AI.
  */
-export default async function StudioPage({ params }: { params: Promise<{ tenantId: string; websiteId: string }> }) {
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ tenantId: string; websiteId: string }>; searchParams: Promise<{ page?: string }> }) {
   const { tenantId, websiteId } = await params;
+  const { page: initialPageId } = await searchParams;
   const [pages, websites] = await Promise.all([listSitePages(tenantId, websiteId), listWebsites(tenantId)]);
   const site = websites.find((w) => w.id === websiteId) ?? websites[0];
 
@@ -21,7 +22,7 @@ export default async function StudioPage({ params }: { params: Promise<{ tenantI
         </div>
         <Link href={`/tenants/${tenantId}/website/${websiteId}`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Full editor ↗</Link>
       </div>
-      <AiStudio tenantId={tenantId} websiteId={websiteId} websiteName={site?.name ?? "Website"} websites={websites.map((w) => ({ id: w.id, name: w.name }))} pages={pages} />
+      <AiStudio tenantId={tenantId} websiteId={websiteId} websiteName={site?.name ?? "Website"} websites={websites.map((w) => ({ id: w.id, name: w.name }))} pages={pages} initialPageId={initialPageId} />
     </div>
   );
 }

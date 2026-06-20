@@ -37,6 +37,14 @@ export default async function SitePreviewDocument({
     .eq("id", pageId)
     .single();
 
+  // Per-website occasions (Ali D-400): resolve this page's website so the preview shows the
+  // SAME occasion the public site will. Separate select so a missing column never breaks preview.
+  let pageWebsiteId: string | null = null;
+  try {
+    const { data: widRow } = await supabase.from("website_pages").select("website_id").eq("tenant_id", tenantId).eq("id", pageId).single();
+    pageWebsiteId = ((widRow as any)?.website_id as string) ?? null;
+  } catch { /* column not applied yet */ }
+
   // Preview from draft_sections if present, else the live sections.
   let sections: { content: any }[] = [];
   const draftSections = page?.draft_sections;
@@ -79,6 +87,15 @@ export default async function SitePreviewDocument({
   const siteBg = (brand?.theme && typeof brand.theme === "object" ? (brand.theme as any).pageBackground : null) as ElementStyle | null;
   const site = (brand?.theme && typeof brand.theme === "object" ? (brand.theme as any).site : null) as
     | { ga4Id?: string; gtmId?: string; metaPixelId?: string; headScripts?: string; footerScripts?: string; occasions?: import("@/lib/occasions").OccasionsConfig } | null;
+  // Occasions per website (Ali D-400): prefer this page's website brand row, else merged/tenant.
+  const websiteOccasions = pageWebsiteId
+    ? (() => {
+        const row = (Array.isArray(brandRows) ? brandRows : []).find((r: any) => r?.website_id === pageWebsiteId);
+        const s = row?.theme && typeof row.theme === "object" ? (row.theme as any).site : null;
+        return s?.occasions ?? null;
+      })()
+    : null;
+  const occasionsConfig = websiteOccasions ?? site?.occasions ?? null;
   let perPageBg: ElementStyle | null = null;
   try {
     const { data: bgRow } = await supabase.from("website_pages").select("page_background").eq("tenant_id", tenantId).eq("id", pageId).maybeSingle();
@@ -132,7 +149,7 @@ export default async function SitePreviewDocument({
           <SiteScripts ga4Id={site.ga4Id} gtmId={site.gtmId} metaPixelId={site.metaPixelId} headScripts={site.headScripts} footerScripts={site.footerScripts} />
         )}
         {/* Occasions effects active in the editor Preview too (Ali). */}
-        {!embed && site?.occasions && <SiteOccasions config={site.occasions} />}
+        {!embed && occasionsConfig && <SiteOccasions config={occasionsConfig} />}
         <style>
           {`
             h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading), sans-serif; }
