@@ -108,7 +108,7 @@ export default function AiStudio({ tenantId, websiteId, websiteName, websites, p
           <h2 className="text-lg font-semibold text-slate-900">{active?.title ?? "No page"}</h2>
           {active && (
             <div className="flex items-center gap-3 text-xs">
-              <a href={`/tenants/${tenantId}/website/preview/${active.id}`} target="_blank" rel="noreferrer" className="font-medium text-[#1e3a8a] hover:underline">Preview ↗</a>
+              <a href={`/website-embed/${tenantId}/${active.id}`} target="_blank" rel="noreferrer" className="font-medium text-[#1e3a8a] hover:underline">Preview ↗</a>
               <Link href={`${base}/${websiteId}`} className="text-slate-500 hover:underline">Full editor ↗</Link>
             </div>
           )}
@@ -148,10 +148,11 @@ export default function AiStudio({ tenantId, websiteId, websiteName, websites, p
           </div>
         </div>
 
-        {/* Live preview */}
+        {/* Live preview — chrome-free embed route (NOT the dashboard-wrapped /website/preview) so the
+            tenant sees ONLY their own page + their own site menu, never our platform LeftNav. */}
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
           {active ? (
-            <iframe key={k} src={`/tenants/${tenantId}/website/preview/${active.id}?k=${k}`} title="Page preview" className="w-full" style={{ height: "calc(100vh - 360px)", minHeight: 480 }} />
+            <iframe key={k} src={`/website-embed/${tenantId}/${active.id}?k=${k}`} title="Page preview" className="w-full" style={{ height: "calc(100vh - 360px)", minHeight: 480 }} />
           ) : (
             <div className="p-10 text-center text-sm text-slate-400">Add a page to get started.</div>
           )}
