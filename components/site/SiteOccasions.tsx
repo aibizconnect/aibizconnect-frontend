@@ -8,7 +8,8 @@ import {
 
 /**
  * 🔒 LOCKED (Ali, 2026-06-05) — do NOT change behavior without Ali's explicit say-so.
- * Plane transform `rotate(315deg) scaleY(-1)` is approved — do not touch. See
+ * Plane transform `rotate(45deg) scaleY(-1)` is approved (Ali re-approved 2026-06-20: +90° CW
+ * from the prior 315deg so the nose points the way it flies). Do not touch. See
  * src/docs/occasions-LOCKED.md.
  *
  * Occasions renderer (public site + editor preview). Runs ONE ambient animation using Ali's
@@ -233,8 +234,8 @@ function FlyingBanner({ text, bg, color, set }: { text: string; bg?: string; col
         </div>
         {/* tow rope */}
         <div style={{ width: 26, height: 2, background: "rgba(100,116,139,.7)" }} />
-        {/* airplane — facing the direction of travel (nose right) */}
-        <span style={{ fontSize: 40, display: "inline-block", transform: "rotate(315deg) scaleY(-1)", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.25))" }}>🛩️</span>
+        {/* airplane — facing the direction of travel (nose right). Ali 2026-06-20: rotated +90° CW. */}
+        <span style={{ fontSize: 40, display: "inline-block", transform: "rotate(45deg) scaleY(-1)", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.25))" }}>🛩️</span>
       </div>
     </div>
   );
