@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listSitePages, getSiteSettings } from "../actions";
+import { listSitePages, getSiteSettings, ensureWebsiteWired } from "../actions";
 import { listWebsites } from "../website-actions";
 import WebsiteWorkspace from "./WebsiteWorkspace";
 
@@ -16,6 +16,8 @@ export default async function WebsiteByIdPage({
   params: Promise<{ tenantId: string; websiteId: string }>;
 }) {
   const { tenantId, websiteId } = await params;
+  // Self-heal wiring on open: brand row + attach any orphan pages to this website (Ali).
+  await ensureWebsiteWired(tenantId, websiteId).catch(() => {});
   const [pages, websites, settings] = await Promise.all([listSitePages(tenantId, websiteId), listWebsites(tenantId), getSiteSettings(tenantId)]);
   const site = websites.find((w) => w.id === websiteId) ?? websites[0];
   // The tenant's connected/paid domain — the SEO & GEO analyzer is locked to this.

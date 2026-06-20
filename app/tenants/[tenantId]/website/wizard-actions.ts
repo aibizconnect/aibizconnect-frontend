@@ -2,7 +2,7 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
-import { createPage, saveDraft, setWebsiteChrome } from "./actions";
+import { createPage, saveDraft, setWebsiteChrome, addArtifactSection } from "./actions";
 import { llm, stripFences } from "@/lib/agent/llm";
 import { generatedSectionsFor, extractPageContent, contentToBlocks, type BusinessProfile } from "@/lib/sites/page-generate";
 import { htmlToSections } from "@/lib/sites/html-importer";
@@ -566,6 +566,10 @@ async function scaffoldSkeleton(
     if (page) {
       made++;
       try { await saveDraft(page.id, tenantId, { draft_seo: geoSeoForPage(p.t, wizard) }); } catch { /* non-fatal */ }
+      // Every site lands with the lead-capture goodie: the Contact page gets a real
+      // contact-form (→ /api/leads/submit → CRM). The AI path already adds one; this covers
+      // the AI-off skeleton so no tenant ships a Contact page with no way to capture leads.
+      if (p.s === "contact") { try { await addArtifactSection(page.id, tenantId, { kind: "contact-form", heading: "Get in touch" }); } catch { /* non-fatal */ } }
     }
   }
   return made;

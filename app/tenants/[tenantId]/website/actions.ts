@@ -946,6 +946,25 @@ async function readScopedTheme(supabase: any, tenantId: string, websiteId?: stri
   return readTenantTheme(supabase, tenantId);
 }
 
+/**
+ * Self-heal a tenant's website so the per-website goodies (AI Studio, Occasions, SEO/GEO, the
+ * Insert picker) all work (Ali: "wire the tenants webpages while creating their website"). Ensures
+ * the brand row exists and attaches any legacy ORPHAN pages (website_id IS NULL, non-funnel) to the
+ * tenant's PRIMARY website. Idempotent + best-effort → safe to call on every website open. No-op
+ * for synthetic (pre-0016) sites.
+ */
+export async function ensureWebsiteWired(tenantId: string, websiteId: string): Promise<void> {
+  const supabase = createSupabaseServiceClient();
+  try { await ensureBrandRow(tenantId, websiteId); } catch { /* brand table pre-migration */ }
+  try {
+    const primary = await getPrimaryWebsite(tenantId);
+    if (!primary.synthetic && primary.id === websiteId) {
+      await supabase.from("website_pages").update({ website_id: websiteId })
+        .eq("tenant_id", tenantId).is("website_id", null).is("funnel_id", null);
+    }
+  } catch { /* non-fatal: orphan-attach is a safety net, not required */ }
+}
+
 /** Write the brand `theme` to the EXACT website row (Option A) when websiteId is given,
  *  else the tenant-level row (legacy/admin). Throws on error. */
 async function writeScopedTheme(supabase: any, tenantId: string, websiteId: string | null | undefined, theme: any): Promise<void> {
