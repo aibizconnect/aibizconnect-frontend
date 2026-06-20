@@ -2,7 +2,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendEmail, emailReady } from "@/lib/server/email-send";
 import { llm, stripFences } from "@/lib/agent/llm";
 import {
-  getEmailBranding, headerHtml, signatureHtml, complianceFooterHtml, marketingUnsubUrl, stripTags,
+  getEmailBranding, headerHtml, signatureHtml, socialHtml, socialText, complianceFooterHtml, marketingUnsubUrl, stripTags,
   type EmailBranding,
 } from "@/lib/server/email-branding";
 
@@ -124,7 +124,7 @@ export function composeCampaignHtml(tenantId: string, contactId: string, c: { bo
   const pre = c.preheader ? `<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0">${c.preheader}</span>` : "";
   const paras = c.body.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1f2937">${p.replace(/\n/g, "<br/>")}</p>`).join("");
   return `${pre}<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;padding:8px">`
-    + `${headerHtml(b)}<div>${paras}</div>${signatureHtml(b)}${complianceFooterHtml(tenantId, contactId, b)}</div>`;
+    + `${headerHtml(b)}<div>${paras}</div>${signatureHtml(b)}${socialHtml(b)}${complianceFooterHtml(tenantId, contactId, b)}</div>`;
 }
 
 /** Plain-text alternative (multipart) for clients that won't render HTML. Same order; the
@@ -134,6 +134,7 @@ export function composeCampaignText(tenantId: string, contactId: string, c: { bo
   const h = stripTags(b.header); if (h) out.push(h, "");
   out.push(c.body.trim());
   const sig = (b.signatureText.trim() || stripTags(b.signature)); if (sig) out.push("", "--", sig);
+  const soc = socialText(b); if (soc) out.push("", soc);
   out.push("", `Unsubscribe: ${marketingUnsubUrl(tenantId, contactId)}`);
   const f = stripTags(b.footer); if (f) out.push("", f);
   return out.join("\n");

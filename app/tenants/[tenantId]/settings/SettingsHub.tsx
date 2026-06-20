@@ -22,6 +22,7 @@ import { listCustomValues, createCustomValue, updateCustomValue, deleteCustomVal
 import { getScoring, createScoringRule, updateScoringRule, deleteScoringRule, setHotThreshold, type ScoringView, type ScoringRuleView, type TriggerType } from "./scoring-actions";
 import { listTenantAudit, type TenantAuditEntry } from "./audit-actions";
 import { getEmailSettings, saveEmailSettings, verifyEmailDns, type EmailSettingsView, type EmailDnsRecord } from "./email-actions";
+import EmailBrandingSection from "./EmailBrandingSection";
 
 const inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#1e3a8a] focus:outline-none";
 
@@ -35,7 +36,7 @@ const SOCIAL_META: Record<string, { label: string; accent: string; glyph: string
   x: { label: "X", accent: "#111111", glyph: "𝕏" },
 };
 
-type Tab = "business" | "integrations" | "email" | "phone" | "verification" | "tags" | "fields" | "values" | "scoring" | "audit" | "preferences";
+type Tab = "business" | "integrations" | "email" | "branding" | "phone" | "verification" | "tags" | "fields" | "values" | "scoring" | "audit" | "preferences";
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -94,7 +95,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
   const params = useSearchParams();
   useEffect(() => {
     const t = params.get("tab") as Tab | null;
-    if (t && ["business", "integrations", "email", "phone", "verification", "tags", "fields", "values", "scoring", "audit", "preferences"].includes(t)) setTab(t);
+    if (t && ["business", "integrations", "email", "branding", "phone", "verification", "tags", "fields", "values", "scoring", "audit", "preferences"].includes(t)) setTab(t);
     if (params.get("kyc") === "returned") setNotice("Thanks — your verification was submitted. We'll update the status here once it's reviewed.");
     const connected = params.get("connected");
     const cbError = params.get("error");
@@ -135,7 +136,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       <p className="mb-5 text-sm text-slate-500">Connections here are shared across all your sites, automations, and CRM. A website's own domain &amp; email live in that website's settings.</p>
 
       <div className="mb-6 flex flex-wrap gap-1 border-b border-slate-200">
-        {([["business", "Business Profile"], ["integrations", "Integrations"], ["email", "Email Services"], ["phone", "Phone Numbers"], ["verification", "Verification"], ["tags", "Tags"], ["fields", "Custom Fields"], ["values", "Custom Values"], ["scoring", "Lead Scoring"], ["audit", "Audit Log"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
+        {([["business", "Business Profile"], ["integrations", "Integrations"], ["email", "Email Services"], ["branding", "Email Branding"], ["phone", "Phone Numbers"], ["verification", "Verification"], ["tags", "Tags"], ["fields", "Custom Fields"], ["values", "Custom Values"], ["scoring", "Lead Scoring"], ["audit", "Audit Log"], ["preferences", "Preferences"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${tab === k ? "border-[#1e3a8a] text-[#1e3a8a]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>
         ))}
@@ -147,6 +148,7 @@ export default function SettingsHub({ tenantId, isAdmin }: { tenantId: string; i
       {tab === "business" && <BusinessProfileSection tenantId={tenantId} isAdmin={isAdmin} />}
 
       {tab === "email" && <EmailServicesSection tenantId={tenantId} isAdmin={isAdmin} />}
+      {tab === "branding" && <EmailBrandingSection tenantId={tenantId} onGoEmail={() => setTab("email")} />}
       {tab === "phone" && <PhoneNumbersSection tenantId={tenantId} onManage={() => setTab("integrations")} />}
 
       {tab === "integrations" && (
