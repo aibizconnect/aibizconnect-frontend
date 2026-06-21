@@ -75,8 +75,10 @@ export const BANNER_POSITIONS: BannerPosition[] = [
 
 /** A holiday's banner config (keyed by catalog id) — on/off + message + date override + how to
  *  show it (static banner vs fly-across). `style` optionally OVERRIDES the shared appearance for
- *  just this occasion (any field left unset falls back to the shared bannerStyle). */
-export interface BannerEntry { enabled?: boolean; message?: string; date?: string | null; fly?: boolean; style?: BannerSettings; }
+ *  just this occasion (any field left unset falls back to the shared bannerStyle).
+ *  D-405 (Ali re-open): `startDate`/`endDate` optionally OVERRIDE the catalog show-window so the
+ *  owner can decide exactly when this banner/airplane displays. */
+export interface BannerEntry { enabled?: boolean; message?: string; date?: string | null; fly?: boolean; style?: BannerSettings; startDate?: string | null; endDate?: string | null; }
 
 /** Custom dated banner occasion. */
 export interface CustomBanner { id: string; name: string; startDate: string; endDate?: string | null; enabled: boolean; message?: string; fly?: boolean; style?: BannerSettings; }
@@ -202,6 +204,8 @@ export function resolveActive(cfg: OccasionsConfig | undefined, today: Date): Ac
     if (!b?.enabled) continue;
     let win = occ.window(y);
     if (occ.variable && b.date) win = around(new Date(b.date + "T00:00:00"), 1, 1);
+    // D-405: an explicit start/end show-window overrides the catalog window entirely.
+    if (b.startDate) win = { start: new Date(b.startDate + "T00:00:00"), end: new Date((b.endDate || b.startDate) + "T23:59:59") };
     if (within(today, win.start, win.end)) {
       banners.push({ id: occ.id, name: occ.name, fly: b.fly, banner: { ...style, ...(b.style ?? {}), message: b.message || occ.welcome } });
     }
