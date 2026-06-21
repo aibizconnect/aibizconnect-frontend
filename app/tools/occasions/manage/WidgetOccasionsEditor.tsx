@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { saveWidgetAction } from "./actions";
 import CopyBox from "../snippet/CopyBox";
 import {
-  ANIMATIONS, catalogByCategory, CATEGORY_LABELS, CATEGORY_ORDER,
-  type OccasionsConfig, type AnimationKind, type CustomBanner, type AnimSchedule,
+  ANIMATIONS, catalogByCategory, CATEGORY_LABELS, CATEGORY_ORDER, DEFAULT_EFFECT_SETTINGS,
+  type OccasionsConfig, type AnimationKind, type CustomBanner, type AnimSchedule, type EffectSettings,
 } from "@/lib/occasions";
 
 /**
@@ -28,6 +28,16 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
+function Slider({ label, value, min, max, hint, onChange }: { label: string; value: number; min: number; max: number; hint?: string; onChange: (v: number) => void }) {
+  return (
+    <label className="block">
+      <span className="flex items-center justify-between text-xs font-medium text-slate-600">{label}<span className="font-normal text-slate-400">{value}</span></span>
+      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-1.5 w-full accent-[#1e3a8a]" />
+      {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+    </label>
+  );
+}
+
 export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, initial }: { widgetKey: string; domain: string; snippet: string; initial: OccasionsConfig }) {
   const year = useMemo(() => new Date().getFullYear(), []);
   const groups = useMemo(() => catalogByCategory(year), [year]);
@@ -44,6 +54,8 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const setStyle = (p: Partial<NonNullable<OccasionsConfig["bannerStyle"]>>) => persist({ ...cfg, bannerStyle: { ...(cfg.bannerStyle ?? {}), ...p } });
+  const setSettings = (p: Partial<EffectSettings>) => persist({ ...cfg, settings: { ...(cfg.settings ?? {}), ...p } });
+  const fx = { ...DEFAULT_EFFECT_SETTINGS, ...(cfg.settings ?? {}) };
   const setBanner = (id: string, patch: any) => persist({ ...cfg, banners: { ...(cfg.banners ?? {}), [id]: { ...(cfg.banners?.[id] ?? {}), ...patch } } });
   const setAnim = (k: AnimationKind, patch: Partial<AnimSchedule>) => persist({ ...cfg, animations: { ...(cfg.animations ?? {}), [k]: { ...(cfg.animations?.[k] ?? {}), ...patch } } });
   const addCustom = () => persist({ ...cfg, custom: [...(cfg.custom ?? []), { id: `c${Date.now()}`, name: "New occasion", startDate: today(), endDate: null, enabled: true, message: "Special offer!" }] });
@@ -82,7 +94,20 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
               <select value={cfg.bannerStyle?.pattern ?? "solid"} onChange={(e) => setStyle({ pattern: e.target.value as any })} className={`${inp} capitalize`}>
                 {["solid", "glow", "pulse", "dashed", "neon"].map((p) => <option key={p} value={p}>{p}</option>)}
               </select></label>
+            <label className="flex items-center gap-1.5">Width
+              <input type="number" min={0} step={10} value={cfg.bannerStyle?.widthPx ?? ""} onChange={(e) => setStyle({ widthPx: e.target.value ? Number(e.target.value) : undefined })} placeholder="auto" className={`${inp} w-20`} />px</label>
           </div>
+        </section>
+
+        {/* animation effects (size · speed · density) — drives the falling/floating animations */}
+        <section className={`${card} p-5`}>
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Animation effects</div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Slider label="Speed" value={fx.speed} min={1} max={12} hint="how fast they move" onChange={(v) => setSettings({ speed: v })} />
+            <Slider label="Density" value={fx.density} min={5} max={100} hint="how many on screen" onChange={(v) => setSettings({ density: v })} />
+            <Slider label="Size" value={fx.size} min={10} max={48} hint="how big each one is" onChange={(v) => setSettings({ size: v })} />
+          </div>
+          <p className="mt-3 text-xs text-slate-400">Applies to the falling / floating animations below (snow, hearts, confetti…).</p>
         </section>
 
         {/* holidays */}

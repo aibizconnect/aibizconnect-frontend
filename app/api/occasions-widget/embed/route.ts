@@ -43,11 +43,11 @@ function buildScript(key: string): string {
     var w=b.widthPx?("width:"+b.widthPx+"px;justify-content:center;"):"";
     return "background:"+bg+";color:"+fg+";"+w+extra;
   }
-  function renderBanner(item){
-    var b=item.banner||{}; var fly=item.fly;
+  function renderBanner(item,fx){
+    var b=item.banner||{}; var fly=item.fly; fx=fx||{};
     if(fly){
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly";
-      wrap.style.animationDuration="13s";
+      wrap.style.animationDuration=Math.max(7,22-(fx.speed||5))+"s";
       wrap.innerHTML=PLANE;
       var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b)); bn.textContent=b.message||item.name||"";
       wrap.appendChild(bn);
@@ -78,8 +78,9 @@ function buildScript(key: string): string {
   function render(state){
     if(!state) return;
     injectCSS();
-    (state.banners||[]).forEach(renderBanner);
-    if(state.animation) startParticles(state.animation,state.settings);
+    var fx=state.settings||{};
+    (state.banners||[]).forEach(function(b){renderBanner(b,fx);});
+    if(state.animation) startParticles(state.animation,fx);
   }
   function go(){
     try{
