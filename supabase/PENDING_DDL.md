@@ -73,6 +73,10 @@ Confirmed applied by Ali as of STEP 33:
       (per-tenant plan levels) + `tenant_subscriptions` (a contact on a plan). Powers Payments →
       Subscriptions/Orders/Recurring. (Coupons uses the existing `tenant_coupons` from 0058.)
       **✅ APPLIED 2026-06-19 (Ali ran it — verified live).**
+- [ ] `0084_occasion_widget_sites.sql` — Occasions Widget lead-gen tool: new table
+      `occasion_widget_sites` (key, name, email, domain, occasions jsonb, active, verified, source).
+      External registrants (via the GHL funnel) who embed the occasions widget. → run
+      `supabase/APPLY_0084.sql`. Until applied, register/active/embed endpoints error (gracefully → no render).
 - [ ] `0083_annual_discount.sql` — adds `subscription_plans.annual_discount_kind` ('percent'|'amount'|
       'none'; null = auto 20% off) + `annual_discount_value` (percent points or $/mo off). The plan
       editor's "Annual discount" selector. → run `supabase/APPLY_0083.sql`. Degrades gracefully pre-apply.

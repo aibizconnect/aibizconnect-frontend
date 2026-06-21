@@ -1,0 +1,105 @@
+import { NextResponse } from "next/server";
+
+/**
+ * Occasions Widget embed script (D-401). Served per-key (the snippet is
+ * <script src=".../embed?k=KEY" async>). Returns a self-contained vanilla-JS renderer that fetches
+ * the gated active occasions and injects banners / fly-across airplane / emoji-particle animations
+ * onto the host page. Frameworks not required. v1 supports the emoji animations; santa-sprite /
+ * fireworks / glow are skipped (Gemini D-401).
+ */
+export const runtime = "nodejs";
+
+const APP_BASE = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
+
+function buildScript(key: string): string {
+  const ACTIVE = `${APP_BASE}/api/occasions-widget/active`;
+  // NB: keep the embedded JS backtick-free so this outer template literal stays clean.
+  return `(function(){
+  if (window.__abcOccLoaded) return; window.__abcOccLoaded = true;
+  var KEY=${JSON.stringify(key)}, ACTIVE=${JSON.stringify(ACTIVE)};
+  var GLYPH={snow:"\\u2744\\uFE0F",hearts:"\\u2764\\uFE0F",confetti:"\\uD83C\\uDF8A",lanterns:"\\uD83C\\uDFEE",leaves:"\\uD83C\\uDF42",butterflies:"\\uD83E\\uDD8B",petals:"\\uD83C\\uDF38",shamrocks:"\\u2618\\uFE0F",pumpkins:"\\uD83C\\uDF83"};
+  var RISE={hearts:1,lanterns:1,butterflies:1};
+  var PLANE='<svg viewBox="0 0 16 16" width="34" height="34" style="display:block"><g transform="rotate(90 8 8)"><path fill="#1e3a8a" d="M6.428 1.151C6.708.591 7.213 0 8 0s1.292.592 1.572 1.151C9.861 1.73 10 2.431 10 3v3.691l5.17 2.585a1.5 1.5 0 0 1 .83 1.342V12a.5.5 0 0 1-.582.493l-5.507-.918-.375 2.253 1.318 1.318A.5.5 0 0 1 10.5 16h-5a.5.5 0 0 1-.354-.854l1.319-1.318-.376-2.253-5.507.918A.5.5 0 0 1 0 12v-1.382a1.5 1.5 0 0 1 .83-1.342L6 6.691V3c0-.568.14-1.271.428-1.849Z"/></g></svg>';
+  function injectCSS(){
+    if (document.getElementById("abc-occ-css")) return;
+    var s=document.createElement("style"); s.id="abc-occ-css";
+    s.textContent="@keyframes abcFall{0%{transform:translateY(-10vh) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(110vh) rotate(360deg);opacity:.9}}"
+      +"@keyframes abcRise{0%{transform:translateY(10vh) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(-110vh) rotate(40deg);opacity:.9}}"
+      +"@keyframes abcFly{0%{transform:translateX(-40vw)}100%{transform:translateX(140vw)}}"
+      +"@keyframes abcPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}"
+      +".abc-occ-part{position:fixed;top:0;left:0;pointer-events:none;z-index:2147483000;will-change:transform}"
+      +".abc-occ-banner{position:fixed;z-index:2147483400;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-weight:700;border-radius:10px;padding:9px 16px;box-shadow:0 6px 22px rgba(0,0,0,.18);display:inline-flex;align-items:center;gap:10px;max-width:92vw}"
+      +".abc-occ-x{cursor:pointer;opacity:.7;font-weight:700;margin-left:4px}"
+      +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear infinite}";
+    document.head.appendChild(s);
+  }
+  var POS={"top-left":"top:14px;left:14px","top-center":"top:14px;left:50%;transform:translateX(-50%)","top-right":"top:14px;right:14px","middle-left":"top:50%;left:14px;transform:translateY(-50%)","center":"top:50%;left:50%;transform:translate(-50%,-50%)","middle-right":"top:50%;right:14px;transform:translateY(-50%)","bottom-left":"bottom:14px;left:14px","bottom-center":"bottom:14px;left:50%;transform:translateX(-50%)","bottom-right":"bottom:14px;right:14px"};
+  function styleStr(b){
+    var bg=b.bg||"#1e3a8a", fg=b.textColor||"#ffffff", extra="";
+    if(b.pattern==="glow") extra="box-shadow:0 0 18px "+bg+",0 6px 22px rgba(0,0,0,.18);";
+    else if(b.pattern==="pulse") extra="animation:abcPulse 1.6s ease-in-out infinite;";
+    else if(b.pattern==="dashed") extra="border:2px dashed "+fg+";";
+    else if(b.pattern==="neon") extra="border:2px solid "+fg+";text-shadow:0 0 6px "+fg+";box-shadow:0 0 14px "+bg+";";
+    var w=b.widthPx?("width:"+b.widthPx+"px;justify-content:center;"):"";
+    return "background:"+bg+";color:"+fg+";"+w+extra;
+  }
+  function renderBanner(item){
+    var b=item.banner||{}; var fly=item.fly;
+    if(fly){
+      var wrap=document.createElement("div"); wrap.className="abc-occ-fly";
+      wrap.style.animationDuration="13s";
+      wrap.innerHTML=PLANE;
+      var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b)); bn.textContent=b.message||item.name||"";
+      wrap.appendChild(bn);
+      document.body.appendChild(wrap);
+      return;
+    }
+    var el=document.createElement("div"); el.className="abc-occ-banner";
+    el.setAttribute("style",(POS[b.position]||POS["top-center"])+";"+styleStr(b));
+    var span=document.createElement("span"); span.textContent=b.message||item.name||""; el.appendChild(span);
+    if(b.dismissible!==false){ var x=document.createElement("span"); x.className="abc-occ-x"; x.textContent="\\u00D7"; x.onclick=function(){el.remove();}; el.appendChild(x); }
+    document.body.appendChild(el);
+  }
+  function startParticles(kind,settings){
+    var glyph=GLYPH[kind]; if(!glyph) return; // unsupported animation in v1
+    var s=settings||{}; var size=s.size||22; var speed=s.speed||5; var density=s.density||40; var rise=RISE[kind];
+    var dur=Math.max(4,14-speed); var interval=Math.max(120,1400-density*12);
+    var timer=setInterval(function(){
+      if(document.hidden) return;
+      var p=document.createElement("div"); p.className="abc-occ-part"; p.textContent=glyph;
+      p.style.left=(Math.random()*100)+"vw"; p.style.fontSize=(size*(0.7+Math.random()*0.6))+"px";
+      var d=(dur*(0.7+Math.random()*0.6)).toFixed(2);
+      p.style.animation=(rise?"abcRise ":"abcFall ")+d+"s linear forwards";
+      document.body.appendChild(p);
+      setTimeout(function(){p.remove();},Number(d)*1000+200);
+    },interval);
+    window.addEventListener("pagehide",function(){clearInterval(timer);});
+  }
+  function render(state){
+    if(!state) return;
+    injectCSS();
+    (state.banners||[]).forEach(renderBanner);
+    if(state.animation) startParticles(state.animation,state.settings);
+  }
+  function go(){
+    try{
+      var url=ACTIVE+"?k="+encodeURIComponent(KEY)+"&host="+encodeURIComponent(location.hostname);
+      fetch(url,{mode:"cors"}).then(function(r){return r.json();}).then(render).catch(function(){});
+    }catch(e){}
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",go); else go();
+})();`;
+}
+
+export async function GET(req: Request) {
+  const key = new URL(req.url).searchParams.get("k") || "";
+  const js = key ? buildScript(key) : "/* occasions widget: missing ?k= key */";
+  return new NextResponse(js, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/javascript; charset=utf-8",
+      "Cache-Control": "public, max-age=600",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
