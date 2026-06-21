@@ -38,8 +38,9 @@ const LEADS: Record<AppointmentEmailInput["kind"], string> = {
 };
 
 /** One appointment email (confirmation or reminder) to every recipient. No-op when the
- *  tenant's email identity isn't verified. */
-export async function sendAppointmentEmail(tenantId: string, input: AppointmentEmailInput): Promise<{ sent: number; error?: string }> {
+ *  tenant's email identity isn't verified. `actingUserKey` (D-397) = the calendar's assigned owner
+ *  (an email) so the message carries that agent's From + branding; null → workspace branding. */
+export async function sendAppointmentEmail(tenantId: string, input: AppointmentEmailInput, actingUserKey?: string | null): Promise<{ sent: number; error?: string }> {
   const { sendEmail, emailReady } = await import("./email-send");
   const ready = await emailReady(tenantId);
   if (!ready.ok) return { sent: 0, error: ready.reason };
@@ -56,7 +57,7 @@ export async function sendAppointmentEmail(tenantId: string, input: AppointmentE
 
   let sent = 0;
   for (const to of [...new Set(input.to.filter(Boolean))]) {
-    const r = await sendEmail(tenantId, { to, subject: SUBJECTS[input.kind](input.calendarName), html, footer: "appointment" });
+    const r = await sendEmail(tenantId, { to, subject: SUBJECTS[input.kind](input.calendarName), html, footer: "appointment", actingUserKey: actingUserKey ?? null });
     if (r.ok) sent++;
   }
   return { sent };
@@ -109,8 +110,9 @@ export async function runDueAppointmentReminders(onlyTenantId?: string): Promise
 
   // Calendar prefs (reminders toggles + tz + name) per involved calendar.
   const calIds = [...new Set(appts.map((a) => a.calendar_id))];
-  const { data: cals } = await sb.from("tenant_calendars").select("id, name, timezone, reminders").in("id", calIds);
-  const calById = new Map(((cals ?? []) as any[]).map((c) => [c.id, c]));
+  let cals: any[] | null = (await sb.from("tenant_calendars").select("id, name, timezone, reminders, assigned_to_email").in("id", calIds)).data as any[] | null;
+  if (!cals) cals = (await sb.from("tenant_calendars").select("id, name, timezone, reminders").in("id", calIds)).data as any[] | null; // pre-0044
+  const calById = new Map((cals ?? []).map((c) => [c.id, c]));
 
   let emails = 0, sms = 0;
   for (const a of appts) {
@@ -119,6 +121,7 @@ export async function runDueAppointmentReminders(onlyTenantId?: string): Promise
     const prefs = { enabled: true, dayBefore: true, morningOf: true, hourBeforeSms: true, ...(cal.reminders && typeof cal.reminders === "object" ? cal.reminders : {}) };
     if (!prefs.enabled) continue;
     const tz = cal.timezone || "America/Toronto";
+    const ownerKey = (cal.assigned_to_email ? String(cal.assigned_to_email).toLowerCase() : null); // assigned agent's identity → their From/branding
     const msToStart = new Date(a.start_at).getTime() - now.getTime();
     const recipients = [a.email, ...a.invitees].filter(Boolean) as string[];
     const venueLine = a.venue?.label ? `${a.venue.label}${a.venue.detail ? `: ${a.venue.detail}` : ""}` : null;
@@ -132,13 +135,13 @@ export async function runDueAppointmentReminders(onlyTenantId?: string): Promise
 
     // Day-before: start is 22–26h out.
     if (prefs.dayBefore && !sentMarks.has("day_before") && msToStart >= 22 * 3600_000 && msToStart <= 26 * 3600_000 && recipients.length) {
-      const r = await sendAppointmentEmail(a.tenant_id, emailInput("day_before"));
+      const r = await sendAppointmentEmail(a.tenant_id, emailInput("day_before"), ownerKey);
       if (r.sent) { emails += r.sent; newMarks.push("day_before"); }
       else if (r.error) skipped.push(`email: ${r.error}`);
     }
     // Morning-of: same tz-day, after 7am there, still >90min out.
     if (prefs.morningOf && !sentMarks.has("morning_of") && sameDayInTz(tz, now, new Date(a.start_at)) && hourInTz(tz, now) >= 7 && msToStart > 90 * 60_000 && recipients.length) {
-      const r = await sendAppointmentEmail(a.tenant_id, emailInput("morning_of"));
+      const r = await sendAppointmentEmail(a.tenant_id, emailInput("morning_of"), ownerKey);
       if (r.sent) { emails += r.sent; newMarks.push("morning_of"); }
       else if (r.error) skipped.push(`email: ${r.error}`);
     }

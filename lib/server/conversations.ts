@@ -2,6 +2,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendSms, isE164 } from "./twilio";
 import { sendEmail } from "./email-send";
 import { sendMetaMessage } from "./social";
+import { getCurrentUserId } from "@/lib/auth/current-user";
 
 /**
  * Unified Conversations core (D-297..301) — the GHL "Conversations" inbox.
@@ -405,7 +406,10 @@ export async function replyToThread(
 
   if (channel === "email") {
     if (!comms.email) return { ok: false, error: "No email on this contact." };
-    const res = await sendEmail(tenantId, { to: comms.email, subject: `Re: your message`, html: `<p>${escapeHtml(text)}</p>`, footer: "appointment" });
+    // Send under the replying user's identity (D-404/D-397): their From + signature/branding.
+    // null → workspace branding when the session user can't be resolved.
+    const actingUserKey = (await getCurrentUserId().catch(() => null)) ?? null;
+    const res = await sendEmail(tenantId, { to: comms.email, subject: `Re: your message`, html: `<p>${escapeHtml(text)}</p>`, footer: "appointment", actingUserKey });
     await recordMessage(tenantId, {
       conversationId, channel: "email", direction: "outbound", senderType: "platform_user",
       senderName, body: text, externalMessageId: res.id, status: res.ok ? "sent" : "failed", error: res.error,

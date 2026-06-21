@@ -537,7 +537,7 @@ export async function bookAppointment(tenantId: string, calendarId: string, b: {
       timezone: (cal as any)?.timezone || "America/Toronto",
       startIso: b.startAt, endIso,
       bookerName: b.name, venueLine,
-    });
+    }, ((cal as any)?.assigned_to_email ? String((cal as any).assigned_to_email).toLowerCase() : null));
   } catch { /* email channel not configured → provider invite (if connected) covers it */ }
 
   return { ok: true };

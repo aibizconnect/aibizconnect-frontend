@@ -33,7 +33,9 @@ export async function toolSendEmail(tenantId: string, raw: unknown): Promise<Too
     .split(/\n{2,}/)
     .map((para) => `<p style="margin:0 0 12px">${para.replace(/\n/g, "<br/>")}</p>`)
     .join("");
-  const r = await sendEmail(tenantId, { to: p.data.to, subject: p.data.subject, html, footer: "setup" });
+  // Agent acts on behalf of the workspace → wrap in the workspace email branding (D-397). null =
+  // workspace defaults (header/signature/social/footer + default From).
+  const r = await sendEmail(tenantId, { to: p.data.to, subject: p.data.subject, html, footer: "setup", actingUserKey: null });
   if (!r.ok) return fail(r.error === "no Resend key" || /identity|verified|sender/i.test(r.error ?? "")
     ? "Email sending isn't set up yet — add a verified sender in Sites → your website → Settings → Email sending."
     : r.error ?? "Could not send the email.");

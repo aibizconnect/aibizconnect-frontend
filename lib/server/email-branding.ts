@@ -237,3 +237,28 @@ export function socialText(b: EmailBranding): string {
   if (!links.length) return "";
   return links.map((s) => `${(SOCIAL_META[s.platform]?.label ?? s.platform)}: ${s.url}`).join("\n");
 }
+
+/** True when there's any branding worth wrapping a message in (so unconfigured tenants are untouched). */
+export function hasBranding(b: ResolvedBranding): boolean {
+  return !!(b.header.trim() || b.signature.trim() || b.footer.trim() || (b.social && b.social.length) || b.fromName || b.fromEmail);
+}
+
+/** Wrap a TRANSACTIONAL message body in the resolved branding: header → body → signature → social →
+ *  footer. NOTE: no marketing unsubscribe here — that's injected only for marketing campaigns. */
+export function brandedEmailHtml(b: ResolvedBranding, innerHtml: string): string {
+  const footer = b.footer.trim()
+    ? `<div style="font-size:12px;line-height:1.5;color:#94a3b8;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0">${nl2br(b.footer)}</div>`
+    : "";
+  return `<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif">`
+    + `${headerHtml(b)}<div>${innerHtml}</div>${signatureHtml(b)}${socialHtml(b)}${footer}</div>`;
+}
+/** Plain-text counterpart for the multipart alternative. */
+export function brandedEmailText(b: ResolvedBranding, innerText: string): string {
+  const out: string[] = [];
+  const h = stripTags(b.header); if (h) out.push(h, "");
+  out.push(innerText.trim());
+  const sig = (b.signatureText.trim() || stripTags(b.signature)); if (sig) out.push("", "--", sig);
+  const soc = socialText(b); if (soc) out.push("", soc);
+  const f = stripTags(b.footer); if (f) out.push("", f);
+  return out.join("\n");
+}

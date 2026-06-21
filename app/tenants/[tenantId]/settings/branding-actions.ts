@@ -26,6 +26,15 @@ async function currentUserKey(): Promise<string> {
   return email ? email.toLowerCase() : "self";
 }
 
+/** ALL keys this member should be stored under — uid AND email — so their branding resolves from a
+ *  live session (uid, e.g. Conversations) AND from the calendar's assigned_to_email (appointments). */
+async function memberKeys(): Promise<string[]> {
+  const uid = await getCurrentUserId().catch(() => null);
+  const email = (await getCurrentUserEmail().catch(() => null))?.toLowerCase() || null;
+  const keys = [uid, email].filter(Boolean) as string[];
+  return keys.length ? Array.from(new Set(keys)) : ["self"];
+}
+
 /** May this caller edit the WORKSPACE defaults + locks? */
 async function canEditWorkspace(tenantId: string): Promise<boolean> {
   try { if (await isPlatformStaff()) return true; } catch { /* ignore */ }
@@ -87,20 +96,21 @@ export async function saveWorkspacePolicy(tenantId: string, policy: Partial<Emai
 
 export async function saveMyBranding(tenantId: string, patch: Partial<MemberEmailBranding>): Promise<{ ok: boolean; message?: string }> {
   await requireTenantAccess(tenantId);
-  const userKey = await currentUserKey();
-  // From-email deliverability hint (non-blocking): it must be on the verified workspace domain to send.
+  // D-395 (Gemini): a custom "From" email MUST be on the verified sender domain — block at save with
+  // a clear message rather than silently falling back. (Can't validate until a sender is verified.)
   if (patch.fromEmail && patch.fromEmail.trim()) {
     const ready = await emailReady(tenantId).catch(() => ({ ok: false } as any));
     if (ready.ok && ready.identity) {
       const vd = (ready.identity.sender_email.split("@")[1] || "").toLowerCase();
       const od = (patch.fromEmail.split("@")[1] || "").toLowerCase();
       if (od && od !== vd) {
-        await saveMemberEmailBranding(tenantId, userKey, patch);
-        return { ok: true, message: `Saved. Note: emails will send from ${ready.identity.sender_email} until your “From” address uses the verified domain @${vd}.` };
+        return { ok: false, message: `Your “From” email must be on the verified domain @${vd} (e.g. you@${vd}). Change it, or ask an admin to verify @${od} in Settings → Email Services.` };
       }
     }
   }
-  await saveMemberEmailBranding(tenantId, userKey, patch);
+  // Dual-write under uid + email so the identity resolves from both a live session and the
+  // calendar's assigned_to_email at send time.
+  for (const k of await memberKeys()) await saveMemberEmailBranding(tenantId, k, patch);
   return { ok: true };
 }
 
