@@ -48,9 +48,10 @@ function buildScript(key: string): string {
     if(fly){
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly";
       wrap.style.animationDuration=Math.max(7,22-(fx.speed||5))+"s";
-      wrap.innerHTML=PLANE;
+      // banner first (trails behind), plane last (leads / nose-right) so the plane PULLS the banner.
       var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b)); bn.textContent=b.message||item.name||"";
       wrap.appendChild(bn);
+      wrap.insertAdjacentHTML("beforeend",PLANE);
       document.body.appendChild(wrap);
       return;
     }
@@ -63,12 +64,14 @@ function buildScript(key: string): string {
   function startParticles(kind,settings){
     var glyph=GLYPH[kind]; if(!glyph) return; // unsupported animation in v1
     var s=settings||{}; var size=s.size||22; var speed=s.speed||5; var density=s.density||40; var rise=RISE[kind];
+    var rnd=(s.randomness!=null?s.randomness:60)/100; // 0 = uniform, 1 = very varied
     var dur=Math.max(4,14-speed); var interval=Math.max(120,1400-density*12);
+    function vary(base){ return base*(1+(Math.random()*2-1)*0.5*rnd); }
     var timer=setInterval(function(){
       if(document.hidden) return;
       var p=document.createElement("div"); p.className="abc-occ-part"; p.textContent=glyph;
-      p.style.left=(Math.random()*100)+"vw"; p.style.fontSize=(size*(0.7+Math.random()*0.6))+"px";
-      var d=(dur*(0.7+Math.random()*0.6)).toFixed(2);
+      p.style.left=(Math.random()*100)+"vw"; p.style.fontSize=vary(size).toFixed(1)+"px";
+      var d=Math.max(2,vary(dur)).toFixed(2);
       p.style.animation=(rise?"abcRise ":"abcFall ")+d+"s linear forwards";
       document.body.appendChild(p);
       setTimeout(function(){p.remove();},Number(d)*1000+200);

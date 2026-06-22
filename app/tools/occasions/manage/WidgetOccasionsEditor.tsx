@@ -102,10 +102,11 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
         {/* animation effects (size · speed · density) — drives the falling/floating animations */}
         <section className={`${card} p-5`}>
           <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Animation effects</div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Slider label="Speed" value={fx.speed} min={1} max={12} hint="how fast they move" onChange={(v) => setSettings({ speed: v })} />
             <Slider label="Density" value={fx.density} min={5} max={100} hint="how many on screen" onChange={(v) => setSettings({ density: v })} />
             <Slider label="Size" value={fx.size} min={10} max={48} hint="how big each one is" onChange={(v) => setSettings({ size: v })} />
+            <Slider label="Randomness" value={fx.randomness} min={0} max={100} hint="how varied they look" onChange={(v) => setSettings({ randomness: v })} />
           </div>
           <p className="mt-3 text-xs text-slate-400">Applies to the falling / floating animations below (snow, hearts, confetti…).</p>
         </section>
