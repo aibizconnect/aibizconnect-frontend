@@ -115,11 +115,33 @@ function buildScript(key: string): string {
     burst(); var timer=setInterval(burst,interval);
     window.addEventListener("pagehide",function(){clearInterval(timer);});
   }
+  function startAirplanes(banners,fx){
+    if(!banners || !banners.length) return;
+    var flyBanners=banners.filter(function(b){return b.fly;});
+    if(!flyBanners.length) return;
+    var rnd=(fx.randomness!=null?fx.randomness:60)/100;
+    var baseDur=Math.max(7,22-(fx.speed||5));
+    var interval=Math.max(4000,baseDur*1000*1.5);
+    function launchOne(){
+      if(document.hidden) return;
+      var b=flyBanners[Math.floor(Math.random()*flyBanners.length)];
+      var baseTop=14+Math.random()*40; var topVar=baseTop*(Math.random()*2-1)*0.3*rnd; var top=Math.max(5,Math.min(85,baseTop+topVar));
+      var wrap=document.createElement("div"); wrap.className="abc-occ-fly"; wrap.style.top=top.toFixed(1)+"%";
+      var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd); wrap.style.animationDuration=Math.max(4,dur).toFixed(2)+"s";
+      var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b.banner));
+      bn.textContent=b.banner.message||b.name||""; wrap.appendChild(bn); wrap.insertAdjacentHTML("beforeend",PLANE); document.body.appendChild(wrap);
+      var d=Math.max(4,dur).toFixed(2); setTimeout(function(){wrap.remove();},Number(d)*1000+200);
+    }
+    launchOne(); var timer=setInterval(launchOne,interval);
+    window.addEventListener("pagehide",function(){clearInterval(timer);});
+  }
   function render(state){
     if(!state) return;
     injectCSS();
     var fx=state.settings||{};
-    (state.banners||[]).forEach(function(b){renderBanner(b,fx);});
+    var staticBanners=(state.banners||[]).filter(function(b){return !b.fly;});
+    staticBanners.forEach(function(b){renderBanner(b,fx);});
+    if(state.banners) startAirplanes(state.banners,fx);
     if(state.animation==="fireworks") startFireworks(fx);
     else if(state.animation) startParticles(state.animation,fx);
   }
