@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 export default function WelcomeScreen({ authed }: { authed: boolean }) {
   const router = useRouter();
   const [site, setSite] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const NAV_LINKS: [string, string][] = [["Features", "/#how"], ["Pricing", "/#pricing"], ["Examples", "/#industries"]];
 
   function go(seedValue?: string) {
     const seed = (seedValue ?? site).trim();
@@ -30,13 +32,16 @@ export default function WelcomeScreen({ authed }: { authed: boolean }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "radial-gradient(120% 80% at 50% -10%, var(--blue-50) 0%, var(--surface-page) 55%)" }}>
-      {/* Responsive rules (inline styles can't do media queries): on phones, tighten the bar and
-          hide the secondary section links so the menu never overlaps the logo. Sign in stays. */}
+      {/* Responsive rules (inline styles can't do media queries): show the inline links on desktop,
+          a hamburger + slide-down panel on phones — so the menu never overlaps the logo. */}
       <style>{`
         @media (max-width: 640px) {
-          .abc-start-topbar { padding: 14px 16px !important; gap: 12px; }
-          .abc-start-nav { gap: 16px !important; }
-          .abc-start-navlink { display: none !important; }
+          .abc-start-topbar { padding: 14px 16px !important; }
+          .abc-start-desktop-nav { display: none !important; }
+        }
+        @media (min-width: 641px) {
+          .abc-start-burger { display: none !important; }
+          .abc-start-mobile-panel { display: none !important; }
         }
       `}</style>
       {/* Top bar */}
@@ -48,13 +53,32 @@ export default function WelcomeScreen({ authed }: { authed: boolean }) {
             AIBiz<span style={{ color: "var(--color-primary)" }}>Connect</span>
           </span>
         </div>
-        <div className="abc-start-nav" style={{ display: "flex", alignItems: "center", gap: 22, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" as unknown as number, color: "var(--gray-600)" }}>
-          <a href="/#how" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Features</a>
-          <a href="/#pricing" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Pricing</a>
-          <a href="/#industries" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Examples</a>
+        {/* desktop inline links */}
+        <div className="abc-start-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 22, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" as unknown as number, color: "var(--gray-600)" }}>
+          {NAV_LINKS.map(([label, href]) => <a key={label} href={href} style={{ ...navLink, color: "inherit" }}>{label}</a>)}
           <a href="/login" style={{ color: "var(--color-primary)", cursor: "pointer", whiteSpace: "nowrap" }}>Sign in</a>
         </div>
+        {/* mobile hamburger */}
+        <button className="abc-start-burger" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}
+          style={{ display: "grid", placeItems: "center", width: 42, height: 42, flexShrink: 0, borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" strokeWidth="2" strokeLinecap="round">
+            {menuOpen ? <><path d="M6 6l12 12" /><path d="M18 6L6 18" /></> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}
+          </svg>
+        </button>
       </div>
+
+      {/* mobile slide-down panel */}
+      {menuOpen && (
+        <div className="abc-start-mobile-panel">
+          <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: "62px 0 0", background: "rgba(9,9,102,.18)", zIndex: 40 }} />
+          <div style={{ position: "fixed", top: 62, left: 0, right: 0, zIndex: 41, background: "var(--surface-card)", borderBottom: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-lg)", padding: "8px 16px 18px" }}>
+            {NAV_LINKS.map(([label, href]) => (
+              <a key={label} href={href} onClick={() => setMenuOpen(false)} style={{ display: "block", padding: "13px 8px", fontSize: "var(--text-md)", fontWeight: 600, color: "var(--text-strong)", textDecoration: "none", borderBottom: "1px solid var(--border-subtle)" }}>{label}</a>
+            ))}
+            <a href="/login" onClick={() => setMenuOpen(false)} style={{ display: "block", textAlign: "center", marginTop: 14, padding: "12px", fontSize: "var(--text-sm)", fontWeight: 600, color: "#fff", background: "var(--color-primary)", borderRadius: "var(--radius-md)", textDecoration: "none" }}>Sign in</a>
+          </div>
+        </div>
+      )}
 
       {/* Center */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 24px 70px", textAlign: "center" }}>

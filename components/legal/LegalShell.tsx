@@ -6,9 +6,9 @@ export default function LegalShell({ title, updated, children }: { title: string
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-4">
           <Link href="/" className="text-lg font-semibold tracking-tight text-[#1e3a8a]">AIBizConnect</Link>
-          <nav className="flex gap-4 text-sm text-slate-500">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
             <Link href="/privacy" className="hover:text-slate-800">Privacy</Link>
             <Link href="/terms" className="hover:text-slate-800">Terms</Link>
             <Link href="/data-deletion" className="hover:text-slate-800">Data deletion</Link>

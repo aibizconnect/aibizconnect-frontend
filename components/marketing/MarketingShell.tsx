@@ -1,5 +1,6 @@
 import type { ReactNode, CSSProperties } from "react";
 import Link from "next/link";
+import MarketingMobileNav from "./MarketingMobileNav";
 
 /**
  * Shared chrome for the public marketing site (nav + footer + house theme tokens).
@@ -41,8 +42,9 @@ export default function MarketingShell({ children, cta = "/start" }: { children:
             {NAV.map((n) => <Link key={n.href} href={n.href} className="hover:text-white">{n.label}</Link>)}
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-[var(--abc-color-muted)] hover:text-white">Sign in</Link>
+            <Link href="/login" className="hidden text-sm text-[var(--abc-color-muted)] hover:text-white md:inline">Sign in</Link>
             <Link href={cta} className="rounded-xl bg-[var(--abc-color-primary)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">Build my site</Link>
+            <MarketingMobileNav nav={NAV} cta={cta} />
           </div>
         </nav>
       </header>
