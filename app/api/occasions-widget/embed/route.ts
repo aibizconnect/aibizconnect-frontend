@@ -30,7 +30,9 @@ function buildScript(key: string): string {
       +".abc-occ-part{position:fixed;top:0;left:0;pointer-events:none;z-index:2147483000;will-change:transform}"
       +".abc-occ-banner{position:fixed;z-index:2147483400;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-weight:700;border-radius:10px;padding:9px 16px;box-shadow:0 6px 22px rgba(0,0,0,.18);display:inline-flex;align-items:center;gap:10px;max-width:92vw}"
       +".abc-occ-x{cursor:pointer;opacity:.7;font-weight:700;margin-left:4px}"
-      +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear infinite}";
+      +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear infinite}"
+      +"@keyframes abcFw{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.35);opacity:0}}"
+      +".abc-occ-fw{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:2147483000;will-change:transform,opacity}";
     document.head.appendChild(s);
   }
   var POS={"top-left":"top:14px;left:14px","top-center":"top:14px;left:50%;transform:translateX(-50%)","top-right":"top:14px;right:14px","middle-left":"top:50%;left:14px;transform:translateY(-50%)","center":"top:50%;left:50%;transform:translate(-50%,-50%)","middle-right":"top:50%;right:14px;transform:translateY(-50%)","bottom-left":"bottom:14px;left:14px","bottom-center":"bottom:14px;left:50%;transform:translateX(-50%)","bottom-right":"bottom:14px;right:14px"};
@@ -78,12 +80,36 @@ function buildScript(key: string): string {
     },interval);
     window.addEventListener("pagehide",function(){clearInterval(timer);});
   }
+  function startFireworks(fx){
+    var s=fx||{}; var density=s.density||40; var speed=s.speed||5;
+    var interval=Math.max(450,2800-density*32);
+    var colors=["#ff5252","#ffd740","#40c4ff","#69f0ae","#e040fb","#ff8a65","#ffffff"];
+    function burst(){
+      if(document.hidden) return;
+      var cx=8+Math.random()*84, cy=8+Math.random()*46; // vw / vh
+      var col=colors[Math.floor(Math.random()*colors.length)];
+      var n=16+Math.floor(Math.random()*16); var reach=70+Math.random()*70+speed*3;
+      for(var i=0;i<n;i++){
+        var ang=(Math.PI*2*i)/n + Math.random()*0.2;
+        var p=document.createElement("div"); p.className="abc-occ-fw";
+        p.style.cssText="left:"+cx+"vw;top:"+cy+"vh;background:"+col+";box-shadow:0 0 8px "+col+";";
+        p.style.setProperty("--dx",(Math.cos(ang)*reach).toFixed(0)+"px");
+        p.style.setProperty("--dy",(Math.sin(ang)*reach).toFixed(0)+"px");
+        p.style.animation="abcFw "+(1+Math.random()*0.7).toFixed(2)+"s ease-out forwards";
+        document.body.appendChild(p);
+        (function(el){setTimeout(function(){el.remove();},2000);})(p);
+      }
+    }
+    burst(); var timer=setInterval(burst,interval);
+    window.addEventListener("pagehide",function(){clearInterval(timer);});
+  }
   function render(state){
     if(!state) return;
     injectCSS();
     var fx=state.settings||{};
     (state.banners||[]).forEach(function(b){renderBanner(b,fx);});
-    if(state.animation) startParticles(state.animation,fx);
+    if(state.animation==="fireworks") startFireworks(fx);
+    else if(state.animation) startParticles(state.animation,fx);
   }
   function go(){
     try{

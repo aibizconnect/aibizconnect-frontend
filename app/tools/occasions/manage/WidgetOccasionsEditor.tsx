@@ -4,18 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { saveWidgetAction } from "./actions";
 import CopyBox from "../snippet/CopyBox";
 import {
-  ANIMATIONS, catalogByCategory, CATEGORY_LABELS, CATEGORY_ORDER, DEFAULT_EFFECT_SETTINGS,
+  ANIMATIONS, BANNER_POSITIONS, catalogByCategory, CATEGORY_LABELS, CATEGORY_ORDER, DEFAULT_EFFECT_SETTINGS,
   type OccasionsConfig, type AnimationKind, type CustomBanner, type AnimSchedule, type EffectSettings,
 } from "@/lib/occasions";
 
 /**
  * Compact, public, key-authenticated Occasions configurator for the lead-gen widget. Lighter than
- * the in-app OccasionsPanel: enable holidays (+ message + show-window), add custom sale banners,
- * toggle animations, and set the shared look. Autosaves to occasion_widget_sites.occasions.
+ * the in-app OccasionsPanel: animations first (snow / fireworks / hearts…), shared effect controls
+ * (speed/density/size/randomness), shared banner look, holidays (banner or airplane), and custom
+ * sale banners. Autosaves to occasion_widget_sites.occasions.
  */
 const NAVY = "#1e3a8a";
 const ANIM_GLYPH: Record<string, string> = Object.fromEntries(ANIMATIONS.map((a) => [a.key, a.glyph ?? (a.key === "santa" ? "🎅" : a.key === "fireworks" ? "🎆" : a.key === "sunrays" ? "☀" : "✨")]));
-const V1_ANIMS = new Set(["snow", "hearts", "confetti", "lanterns", "leaves", "butterflies", "petals", "shamrocks", "pumpkins"]); // emoji set the embed renders
+// Animations the vanilla embed renderer supports (emoji particles + fireworks). santa/sunrays = Phase 2.
+const V1_ANIMS = new Set(["snow", "fireworks", "hearts", "confetti", "lanterns", "leaves", "butterflies", "petals", "shamrocks", "pumpkins"]);
 const today = () => new Date().toISOString().slice(0, 10);
 const inp = "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-[#1e3a8a] focus:outline-none focus:ring-1 focus:ring-[#1e3a8a]";
 
@@ -35,6 +37,20 @@ function Slider({ label, value, min, max, hint, onChange }: { label: string; val
       <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-1.5 w-full accent-[#1e3a8a]" />
       {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
     </label>
+  );
+}
+
+/** Per-occasion choice: a static Banner vs the fly-across Airplane (the plane tows the banner). */
+function FlyChoice({ fly, onChange }: { fly: boolean; onChange: (v: boolean) => void }) {
+  const btn = (active: boolean) => `rounded-md px-2.5 py-1 text-xs font-medium transition ${active ? "bg-[#1e3a8a] text-white" : "text-slate-600 hover:bg-slate-100"}`;
+  return (
+    <div className="flex items-center gap-2 text-xs text-slate-600">
+      <span className="font-medium text-slate-500">Show as</span>
+      <div className="inline-flex rounded-lg border border-slate-300 p-0.5">
+        <button type="button" onClick={() => onChange(false)} className={btn(!fly)}>Banner</button>
+        <button type="button" onClick={() => onChange(true)} className={btn(fly)}>✈ Airplane</button>
+      </div>
+    </div>
   );
 }
 
@@ -80,26 +96,39 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
           <CopyBox value={snippet} />
         </section>
 
-        {/* shared look */}
+        {/* animations — the flying effects, first so they're front and centre */}
         <section className={`${card} p-5`}>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Banner look (shared)</div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-            <label className="flex items-center gap-1.5">Background <input type="color" value={cfg.bannerStyle?.bg ?? NAVY} onChange={(e) => setStyle({ bg: e.target.value })} className="h-7 w-9 cursor-pointer rounded border border-slate-300" /></label>
-            <label className="flex items-center gap-1.5">Text <input type="color" value={cfg.bannerStyle?.textColor ?? "#ffffff"} onChange={(e) => setStyle({ textColor: e.target.value })} className="h-7 w-9 cursor-pointer rounded border border-slate-300" /></label>
-            <label className="flex items-center gap-1.5">Position
-              <select value={cfg.bannerStyle?.position ?? "top-center"} onChange={(e) => setStyle({ position: e.target.value as any })} className={inp}>
-                {["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right", "center"].map((p) => <option key={p} value={p}>{p.replace("-", " ")}</option>)}
-              </select></label>
-            <label className="flex items-center gap-1.5">Style
-              <select value={cfg.bannerStyle?.pattern ?? "solid"} onChange={(e) => setStyle({ pattern: e.target.value as any })} className={`${inp} capitalize`}>
-                {["solid", "glow", "pulse", "dashed", "neon"].map((p) => <option key={p} value={p}>{p}</option>)}
-              </select></label>
-            <label className="flex items-center gap-1.5">Width
-              <input type="number" min={0} step={10} value={cfg.bannerStyle?.widthPx ?? ""} onChange={(e) => setStyle({ widthPx: e.target.value ? Number(e.target.value) : undefined })} placeholder="auto" className={`${inp} w-20`} />px</label>
+          <div className="text-sm font-semibold text-slate-800">Animations</div>
+          <p className="mb-3 mt-0.5 text-xs text-slate-500">Ambient flying effects. Toggle any on — one runs at a time (the first enabled).</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ANIMATIONS.filter((a) => V1_ANIMS.has(a.key)).map((an) => {
+              const a = cfg.animations?.[an.key]; const on = !!a?.enabled;
+              return (
+                <div key={an.key} className="rounded-xl border border-slate-200 px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">{ANIM_GLYPH[an.key]} {an.label}</span>
+                    <Switch on={on} onChange={(v) => setAnim(an.key, { enabled: v, always: a?.always ?? true })} />
+                  </div>
+                  {on && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      <span className="font-medium text-slate-500">When</span>
+                      <select value={a?.always === false ? "range" : "always"} onChange={(e) => setAnim(an.key, e.target.value === "always" ? { always: true } : { always: false, startDate: a?.startDate ?? today(), endDate: a?.endDate ?? today() })} className={inp}>
+                        <option value="always">Always</option><option value="range">Dates</option>
+                      </select>
+                      {a?.always === false && <>
+                        <input type="date" value={a?.startDate ?? ""} onChange={(e) => setAnim(an.key, { startDate: e.target.value })} className={inp} />
+                        <span>→</span>
+                        <input type="date" value={a?.endDate ?? ""} onChange={(e) => setAnim(an.key, { endDate: e.target.value })} className={inp} />
+                      </>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* animation effects (size · speed · density) — drives the falling/floating animations */}
+        {/* animation effects (speed · density · size · randomness) */}
         <section className={`${card} p-5`}>
           <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Animation effects</div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -108,7 +137,26 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
             <Slider label="Size" value={fx.size} min={10} max={48} hint="how big each one is" onChange={(v) => setSettings({ size: v })} />
             <Slider label="Randomness" value={fx.randomness} min={0} max={100} hint="how varied they look" onChange={(v) => setSettings({ randomness: v })} />
           </div>
-          <p className="mt-3 text-xs text-slate-400">Applies to the falling / floating animations below (snow, hearts, confetti…).</p>
+          <p className="mt-3 text-xs text-slate-400">Applies to the animations above (snow, hearts, confetti, fireworks…) and the airplane speed.</p>
+        </section>
+
+        {/* shared banner look */}
+        <section className={`${card} p-5`}>
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Banner look (shared)</div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <label className="flex items-center gap-1.5">Background <input type="color" value={cfg.bannerStyle?.bg ?? NAVY} onChange={(e) => setStyle({ bg: e.target.value })} className="h-7 w-9 cursor-pointer rounded border border-slate-300" /></label>
+            <label className="flex items-center gap-1.5">Text <input type="color" value={cfg.bannerStyle?.textColor ?? "#ffffff"} onChange={(e) => setStyle({ textColor: e.target.value })} className="h-7 w-9 cursor-pointer rounded border border-slate-300" /></label>
+            <label className="flex items-center gap-1.5">Position
+              <select value={cfg.bannerStyle?.position ?? "top-center"} onChange={(e) => setStyle({ position: e.target.value as any })} className={`${inp} capitalize`}>
+                {BANNER_POSITIONS.map((p) => <option key={p} value={p}>{p.replace("-", " ")}</option>)}
+              </select></label>
+            <label className="flex items-center gap-1.5">Style
+              <select value={cfg.bannerStyle?.pattern ?? "solid"} onChange={(e) => setStyle({ pattern: e.target.value as any })} className={`${inp} capitalize`}>
+                {["solid", "glow", "pulse", "dashed", "neon"].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select></label>
+            <label className="flex items-center gap-1.5">Width
+              <input type="number" min={0} step={10} value={cfg.bannerStyle?.widthPx ?? ""} onChange={(e) => setStyle({ widthPx: e.target.value ? Number(e.target.value) : undefined })} placeholder="auto" className={`${inp} w-20`} />px</label>
+          </div>
         </section>
 
         {/* holidays */}
@@ -132,13 +180,13 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
                       {on && (
                         <div className="mt-2.5 flex flex-col gap-2 rounded-xl bg-slate-50 p-3">
                           <input value={b?.message ?? occ.welcome} onChange={(e) => setBanner(occ.id, { message: e.target.value })} placeholder={occ.welcome} className={inp} />
+                          <FlyChoice fly={!!b?.fly} onChange={(v) => setBanner(occ.id, { fly: v })} />
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                             <span className="font-medium text-slate-500">Show</span>
                             <label className="flex items-center gap-1">from <input type="date" value={b?.startDate ?? ""} onChange={(e) => setBanner(occ.id, { startDate: e.target.value || null })} className={inp} /></label>
                             <label className="flex items-center gap-1">to <input type="date" value={b?.endDate ?? ""} onChange={(e) => setBanner(occ.id, { endDate: e.target.value || null })} className={inp} /></label>
                             <span className="text-slate-400">blank = default dates</span>
                           </div>
-                          <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={!!b?.fly} onChange={(e) => setBanner(occ.id, { fly: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> ✈ Fly across the screen</label>
                         </div>
                       )}
                     </div>
@@ -165,50 +213,14 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
                   <button onClick={() => delCustom(c.id)} className="rounded p-1.5 text-red-500 hover:bg-red-50">🗑</button>
                 </div>
                 <input value={c.message ?? ""} onChange={(e) => setCustom(c.id, { message: e.target.value })} placeholder="Banner text" className={inp} />
+                <FlyChoice fly={!!c.fly} onChange={(v) => setCustom(c.id, { fly: v })} />
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                   <label className="flex items-center gap-1">From <input type="date" value={c.startDate} onChange={(e) => setCustom(c.id, { startDate: e.target.value })} className={inp} /></label>
                   <label className="flex items-center gap-1">To <input type="date" value={c.endDate ?? ""} onChange={(e) => setCustom(c.id, { endDate: e.target.value || null })} className={inp} /></label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={!!c.fly} onChange={(e) => setCustom(c.id, { fly: e.target.checked })} className="h-4 w-4 accent-[#1e3a8a]" /> ✈ Fly</label>
                 </div>
               </div>
             ))}
           </div>
-        </section>
-
-        {/* animations */}
-        <section className={card}>
-          <button onClick={() => setOpen((o) => ({ ...o, anims: !o.anims }))} className="flex w-full items-center justify-between px-5 py-3.5 text-left">
-            <span className="text-sm font-semibold text-slate-800">Animations</span>
-            <span className="text-slate-400">{open.anims ? "▾" : "▸"}</span>
-          </button>
-          {open.anims && (
-            <div className="border-t border-slate-100">
-              {ANIMATIONS.filter((a) => V1_ANIMS.has(a.key)).map((an) => {
-                const a = cfg.animations?.[an.key]; const on = !!a?.enabled;
-                return (
-                  <div key={an.key} className="border-b border-slate-50 px-5 py-3 last:border-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-700">{ANIM_GLYPH[an.key]} {an.label}</span>
-                      <Switch on={on} onChange={(v) => setAnim(an.key, { enabled: v, always: a?.always ?? true })} />
-                    </div>
-                    {on && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-                        <span className="font-medium text-slate-500">When</span>
-                        <select value={a?.always === false ? "range" : "always"} onChange={(e) => setAnim(an.key, e.target.value === "always" ? { always: true } : { always: false, startDate: a?.startDate ?? today(), endDate: a?.endDate ?? today() })} className={inp}>
-                          <option value="always">Always</option><option value="range">Dates</option>
-                        </select>
-                        {a?.always === false && <>
-                          <input type="date" value={a?.startDate ?? ""} onChange={(e) => setAnim(an.key, { startDate: e.target.value })} className={inp} />
-                          <span>→</span>
-                          <input type="date" value={a?.endDate ?? ""} onChange={(e) => setAnim(an.key, { endDate: e.target.value })} className={inp} />
-                        </>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </section>
       </div>
     </main>
