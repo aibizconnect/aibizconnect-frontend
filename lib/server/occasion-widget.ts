@@ -63,9 +63,14 @@ function buildWelcomeEmail(domain: string, snippet: string, manageUrl: string): 
     <p style="color:#475569;font-size:14px;line-height:1.5;margin:0 0 18px">Festive occasions are ready for <b style="color:${NAVY}">${esc(domain)}</b>. Add them to your site in one step:</p>
     <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">1 · Copy this snippet and paste it just before <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">&lt;/head&gt;</code> on your website:</p>
     <div style="background:#0f172a;color:#e2e8f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:14px 16px;border-radius:10px;word-break:break-all;margin:0 0 18px">${esc(snippet)}</div>
-    <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">2 · Choose your holidays, sales banners, and animations:</p>
-    <p style="margin:0 0 22px"><a href="${manageUrl}" style="display:inline-block;background:${NAVY};color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:10px">Open my Occasions settings →</a></p>
-    <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0">Holidays and seasonal animations appear automatically on the right dates — only on your registered site. Keep this email: the settings link above is your private access to customise the widget any time.</p>
+    <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">2 · Manage your occasions — choose holidays, sales banners, and animations:</p>
+    <p style="margin:0 0 10px"><a href="${manageUrl}" style="display:inline-block;background:${NAVY};color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:10px">Open my Occasions control panel →</a></p>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:13px 16px;margin:0 0 18px">
+      <p style="color:#1e3a8a;font-size:13px;font-weight:700;margin:0 0 5px">🔖 Bookmark this — it's your private control panel</p>
+      <p style="color:#1e40af;font-size:12px;line-height:1.5;margin:0 0 7px">This is your permanent link to manage your occasions any time — next week, next month, any holiday. <b>Bookmark it now, and keep this email handy</b> so you can always get back in:</p>
+      <div style="background:#ffffff;border:1px solid #dbeafe;border-radius:7px;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#1e3a8a;word-break:break-all"><a href="${manageUrl}" style="color:#1e3a8a;text-decoration:none">${esc(manageUrl)}</a></div>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0">Holidays and seasonal animations appear automatically on the right dates — only on your registered site.</p>
     <hr style="margin:22px 0;border:none;border-top:1px solid #e2e8f0"/>
     <p style="color:#94a3b8;font-size:11px;margin:0">You're receiving this because you registered ${esc(domain)} for the free AIBizConnect Occasions widget.</p>
   </div>`;
@@ -75,10 +80,12 @@ function buildWelcomeEmail(domain: string, snippet: string, manageUrl: string): 
 
 ${snippet}
 
-2) Choose your holidays, sales banners, and animations here:
+2) Manage your occasions — choose holidays, sales banners, and animations — at your control panel:
 ${manageUrl}
 
-Holidays and seasonal animations appear automatically on the right dates — only on your registered site. Keep the settings link above to customise the widget any time.
+🔖 BOOKMARK THAT LINK. It's your private control panel and your permanent access to manage your occasions any time — next week, next month, any holiday. Bookmark it now and keep this email handy so you can always get back in.
+
+Holidays and seasonal animations appear automatically on the right dates — only on your registered site.
 
 You're receiving this because you registered ${domain} for the free AIBizConnect Occasions widget.`;
   return { subject, html, text };
