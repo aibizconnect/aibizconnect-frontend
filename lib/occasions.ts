@@ -205,14 +205,22 @@ export function resolveActive(cfg: OccasionsConfig | undefined, today: Date): Ac
     let win = occ.window(y);
     if (occ.variable && b.date) win = around(new Date(b.date + "T00:00:00"), 1, 1);
     // D-405: an explicit start/end show-window overrides the catalog window entirely.
-    if (b.startDate) win = { start: new Date(b.startDate + "T00:00:00"), end: new Date((b.endDate || b.startDate) + "T23:59:59") };
+    // End time: start of next day (exclusive) so today's 23:59:59 is still within range.
+    if (b.startDate) {
+      const s = new Date(b.startDate + "T00:00:00");
+      const e = new Date((b.endDate || b.startDate) + "T00:00:00");
+      e.setDate(e.getDate() + 1); // Move to start of next day (end is exclusive)
+      win = { start: s, end: e };
+    }
     if (within(today, win.start, win.end)) {
       banners.push({ id: occ.id, name: occ.name, fly: b.fly, banner: { ...style, ...(b.style ?? {}), message: b.message || occ.welcome } });
     }
   }
   for (const c of cfg?.custom ?? []) {
     if (!c.enabled) continue;
-    const s = new Date(c.startDate + "T00:00:00"), e = new Date((c.endDate || c.startDate) + "T23:59:59");
+    const s = new Date(c.startDate + "T00:00:00");
+    const e = new Date((c.endDate || c.startDate) + "T00:00:00");
+    e.setDate(e.getDate() + 1); // Move to start of next day (end is exclusive)
     if (within(today, s, e)) banners.push({ id: c.id, name: c.name, fly: c.fly, banner: { ...style, ...(c.style ?? {}), message: c.message || c.name } });
   }
   return { animation, settings: cfg?.settings, banners };
