@@ -49,15 +49,67 @@ export function defaultOccasionsConfig(today = new Date()): OccasionsConfig {
 
 export interface RegisterResult { ok: boolean; key?: string; domain?: string; snippet?: string; manageUrl?: string; error?: string }
 
+const NAVY = "#1e3a8a";
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** The welcome email that carries the embed snippet + settings link. This is the ONLY place the
+ *  snippet is delivered to a registrant (the thank-you page no longer shows it), so a working email
+ *  address is required to use the widget. */
+function buildWelcomeEmail(domain: string, snippet: string, manageUrl: string): { subject: string; html: string; text: string } {
+  const subject = `Your Occasions widget for ${domain} 🎉`;
+  const html = `
+  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:560px;margin:0 auto">
+    <h1 style="font-size:20px;margin:0 0 6px">You're all set 🎉</h1>
+    <p style="color:#475569;font-size:14px;line-height:1.5;margin:0 0 18px">Festive occasions are ready for <b style="color:${NAVY}">${esc(domain)}</b>. Add them to your site in one step:</p>
+    <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">1 · Copy this snippet and paste it just before <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">&lt;/head&gt;</code> on your website:</p>
+    <div style="background:#0f172a;color:#e2e8f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:14px 16px;border-radius:10px;word-break:break-all;margin:0 0 18px">${esc(snippet)}</div>
+    <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">2 · Choose your holidays, sales banners, and animations:</p>
+    <p style="margin:0 0 22px"><a href="${manageUrl}" style="display:inline-block;background:${NAVY};color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:10px">Open my Occasions settings →</a></p>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0">Holidays and seasonal animations appear automatically on the right dates — only on your registered site. Keep this email: the settings link above is your private access to customise the widget any time.</p>
+    <hr style="margin:22px 0;border:none;border-top:1px solid #e2e8f0"/>
+    <p style="color:#94a3b8;font-size:11px;margin:0">You're receiving this because you registered ${esc(domain)} for the free AIBizConnect Occasions widget.</p>
+  </div>`;
+  const text = `You're all set! Festive occasions are ready for ${domain}.
+
+1) Copy this snippet and paste it just before </head> on your website:
+
+${snippet}
+
+2) Choose your holidays, sales banners, and animations here:
+${manageUrl}
+
+Holidays and seasonal animations appear automatically on the right dates — only on your registered site. Keep the settings link above to customise the widget any time.
+
+You're receiving this because you registered ${domain} for the free AIBizConnect Occasions widget.`;
+  return { subject, html, text };
+}
+
+/** Send the welcome email (snippet + settings link) to a registrant. Best-effort; never throws. */
+async function sendWelcomeEmail(email: string, domain: string, key: string): Promise<boolean> {
+  try {
+    if (!email || !/.+@.+\..+/.test(email)) return false;
+    const { sendEmail } = await import("./email-send");
+    const { subject, html, text } = buildWelcomeEmail(domain, snippetFor(key), manageUrlFor(key));
+    const res = await sendEmail(PLATFORM_TENANT, { to: email, subject, html, text, footer: "none" });
+    if (!res.ok) console.error("[occasions-widget] welcome email failed:", res.error);
+    return res.ok;
+  } catch (e: any) {
+    console.error("[occasions-widget] welcome email threw:", e?.message ?? e);
+    return false;
+  }
+}
+
 /** Create (or return the existing) widget registration for a domain, and mirror the lead to CRM. */
 export async function registerWidgetSite(input: { name?: string; email?: string; domain: string; source?: string }): Promise<RegisterResult> {
   const domain = normalizeDomain(input.domain);
   if (!domain || !domain.includes(".")) return { ok: false, error: "A valid website domain is required." };
   const db = sb();
 
-  // One registration per domain — return the existing key if it's already registered.
+  // One registration per domain — return the existing key if it's already registered. Re-send the
+  // welcome email so a re-submit (e.g. they lost the first email / fixed a typo) gets the snippet again.
   const { data: existing } = await db.from("occasion_widget_sites").select("key, domain").eq("domain", domain).maybeSingle();
   if (existing?.key) {
+    if (input.email) await sendWelcomeEmail(input.email.trim().toLowerCase(), domain, existing.key);
     return { ok: true, key: existing.key, domain, snippet: snippetFor(existing.key), manageUrl: manageUrlFor(existing.key) };
   }
 
@@ -80,6 +132,9 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
     const { createContact } = await import("@/lib/crm");
     await createContact(PLATFORM_TENANT, { name: input.name || domain, email: input.email, source: "occasions_widget", tags: ["Occasions Widget Lead"], company: domain });
   } catch { /* CRM mirror is best-effort */ }
+
+  // Deliver the snippet + settings link by email (the only delivery channel — see snippet page).
+  if (input.email) await sendWelcomeEmail(input.email.trim().toLowerCase(), domain, key);
 
   return { ok: true, key, domain, snippet: snippetFor(key), manageUrl: manageUrlFor(key) };
 }
