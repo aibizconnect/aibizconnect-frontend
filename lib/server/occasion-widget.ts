@@ -130,7 +130,7 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
   // Mirror the lead into our platform CRM (Gemini D-399) — best-effort.
   try {
     const { createContact } = await import("@/lib/crm");
-    await createContact(PLATFORM_TENANT, { name: input.name || domain, email: input.email, source: "occasions_widget", tags: ["Occasions Widget Lead"], company: domain });
+    await createContact(PLATFORM_TENANT, { name: input.name || domain, email: input.email, source: "occasions_widget", tags: ["Occasions Widget Lead", "occasions"], company: domain });
   } catch { /* CRM mirror is best-effort */ }
 
   // Deliver the snippet + settings link by email (the only delivery channel — see snippet page).
