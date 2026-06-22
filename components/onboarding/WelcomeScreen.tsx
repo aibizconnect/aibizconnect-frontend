@@ -30,20 +30,29 @@ export default function WelcomeScreen({ authed }: { authed: boolean }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "radial-gradient(120% 80% at 50% -10%, var(--blue-50) 0%, var(--surface-page) 55%)" }}>
+      {/* Responsive rules (inline styles can't do media queries): on phones, tighten the bar and
+          hide the secondary section links so the menu never overlaps the logo. Sign in stays. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .abc-start-topbar { padding: 14px 16px !important; gap: 12px; }
+          .abc-start-nav { gap: 16px !important; }
+          .abc-start-navlink { display: none !important; }
+        }
+      `}</style>
       {/* Top bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 32px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="abc-start-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "22px 32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/abc/app-icon.png" alt="AIBizConnect" style={{ width: 34, height: 34, display: "block" }} />
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 20, letterSpacing: "-0.02em", color: "var(--navy-900)" }}>
+          <img src="/abc/app-icon.png" alt="AIBizConnect" style={{ width: 34, height: 34, display: "block", flexShrink: 0 }} />
+          <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 20, letterSpacing: "-0.02em", color: "var(--navy-900)", whiteSpace: "nowrap" }}>
             AIBiz<span style={{ color: "var(--color-primary)" }}>Connect</span>
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 22, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" as unknown as number, color: "var(--gray-600)" }}>
-          <a href="/#how" style={{ ...navLink, color: "inherit" }}>Features</a>
-          <a href="/#pricing" style={{ ...navLink, color: "inherit" }}>Pricing</a>
-          <a href="/#industries" style={{ ...navLink, color: "inherit" }}>Examples</a>
-          <a href="/login" style={{ color: "var(--color-primary)", cursor: "pointer" }}>Sign in</a>
+        <div className="abc-start-nav" style={{ display: "flex", alignItems: "center", gap: 22, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" as unknown as number, color: "var(--gray-600)" }}>
+          <a href="/#how" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Features</a>
+          <a href="/#pricing" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Pricing</a>
+          <a href="/#industries" className="abc-start-navlink" style={{ ...navLink, color: "inherit" }}>Examples</a>
+          <a href="/login" style={{ color: "var(--color-primary)", cursor: "pointer", whiteSpace: "nowrap" }}>Sign in</a>
         </div>
       </div>
 
