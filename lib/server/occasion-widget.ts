@@ -148,12 +148,16 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
 
 /** The active occasions for an embed key — ONLY if registered, active, and the page host matches the
  *  registered domain. Otherwise empty (nothing renders). This is the gate. */
-export async function getActiveForKey(key: string, host: string): Promise<ActiveState | null> {
+export async function getActiveForKey(key: string, host: string, localDate?: string): Promise<ActiveState | null> {
   if (!key) return null;
   const { data } = await sb().from("occasion_widget_sites").select("domain, occasions, active").eq("key", key).maybeSingle();
   if (!data || data.active === false) return null;
   if (!hostMatches(String(data.domain), host)) return null;
-  return resolveActive((data.occasions ?? {}) as OccasionsConfig, new Date());
+  // Resolve "today" from the VISITOR'S local calendar date (sent by the embed) so a single-day
+  // occasion (start==end) is active for the whole of that day in the viewer's timezone — not the
+  // server's UTC day. Use noon of the local date so it can't roll over at the UTC boundary.
+  const today = localDate && /^\d{4}-\d{2}-\d{2}$/.test(localDate) ? new Date(localDate + "T12:00:00") : new Date();
+  return resolveActive((data.occasions ?? {}) as OccasionsConfig, today);
 }
 
 /** Look up a registered domain → its embed snippet + manage URL (for the thank-you page). */

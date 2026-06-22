@@ -184,7 +184,8 @@ function buildScript(key: string): string {
   }
   function go(){
     try{
-      var url=ACTIVE+"?k="+encodeURIComponent(KEY)+"&host="+encodeURIComponent(location.hostname);
+      var dt=new Date(); var ld=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+      var url=ACTIVE+"?k="+encodeURIComponent(KEY)+"&host="+encodeURIComponent(location.hostname)+"&d="+ld;
       fetch(url,{mode:"cors"}).then(function(r){return r.json();}).then(render).catch(function(){});
     }catch(e){}
   }

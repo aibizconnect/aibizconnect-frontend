@@ -18,8 +18,9 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const key = url.searchParams.get("k") || "";
   const host = url.searchParams.get("host") || "";
+  const localDate = url.searchParams.get("d") || ""; // visitor's local calendar date (YYYY-MM-DD)
   let active: any = null;
-  try { active = await getActiveForKey(key, host); } catch { active = null; }
+  try { active = await getActiveForKey(key, host, localDate); } catch { active = null; }
   // Empty (not just null) so the client always gets a valid shape.
   const payload = active ?? { banners: [] };
   return NextResponse.json(payload, { headers: CORS });
