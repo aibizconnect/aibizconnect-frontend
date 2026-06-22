@@ -29,9 +29,15 @@ export default async function OccasionsSnippetPage({ searchParams }: { searchPar
 
       <div className="mx-auto max-w-3xl px-6 py-10">
         {!reg ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
-            <h1 className="text-xl font-semibold">We couldn’t find that website</h1>
-            <p className="mt-2 text-sm">{d ? <>No registration found for <b>{d}</b>.</> : "No website was provided."} Please register your website first, then come back to this page.</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-2xl">✓</div>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Thanks for submitting!</h1>
+            <p className="mx-auto mt-2 max-w-md text-slate-500">
+              {d ? <>We’re setting up festive occasions for <b style={{ color: NAVY }}>{d}</b>.</> : "We’re setting up your festive occasions."} Please <b>check your email</b> — we’ve sent your one-line snippet and simple steps to add it to your website.
+            </p>
+            <p className="mx-auto mt-4 max-w-md text-xs text-slate-400">
+              Don’t see it within a minute or two? Check your spam folder, or it may still be on its way.
+            </p>
           </div>
         ) : (
           <>
