@@ -26,11 +26,13 @@ function buildScript(key: string): string {
     s.textContent="@keyframes abcFall{0%{transform:translateY(-10vh) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(110vh) rotate(360deg);opacity:.9}}"
       +"@keyframes abcRise{0%{transform:translateY(10vh) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(-110vh) rotate(40deg);opacity:.9}}"
       +"@keyframes abcFly{0%{transform:translateX(-40vw)}100%{transform:translateX(140vw)}}"
+      +"@keyframes abcBob{0%{transform:translateY(0) rotate(0deg)}100%{transform:translateY(-5px) rotate(2deg)}}"
       +"@keyframes abcPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}"
       +".abc-occ-part{position:fixed;top:0;left:0;pointer-events:none;z-index:2147483000;will-change:transform}"
       +".abc-occ-banner{position:fixed;z-index:2147483400;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-weight:700;border-radius:10px;padding:9px 16px;box-shadow:0 6px 22px rgba(0,0,0,.18);display:inline-flex;align-items:center;gap:10px;max-width:92vw}"
       +".abc-occ-x{cursor:pointer;opacity:.7;font-weight:700;margin-left:4px}"
-      +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear infinite}"
+      +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear forwards;will-change:transform}"
+      +".abc-occ-plane{display:block;animation:abcBob .7s ease-in-out infinite alternate}"
       +"@keyframes abcFw{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.35);opacity:0}}"
       +".abc-occ-fw{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:2147483000;will-change:transform,opacity}";
     document.head.appendChild(s);
@@ -121,16 +123,21 @@ function buildScript(key: string): string {
     if(!flyBanners.length) return;
     var rnd=(fx.randomness!=null?fx.randomness:60)/100;
     var baseDur=Math.max(7,22-(fx.speed||5));
-    var interval=Math.max(4000,baseDur*1000*1.5);
+    var interval=Math.max(5000,baseDur*1000*0.85); // new plane ~each flight-length (santa-style cadence)
     function launchOne(){
       if(document.hidden) return;
       var b=flyBanners[Math.floor(Math.random()*flyBanners.length)];
-      var baseTop=14+Math.random()*40; var topVar=baseTop*(Math.random()*2-1)*0.3*rnd; var top=Math.max(5,Math.min(85,baseTop+topVar));
+      // Fresh random entrance height EVERY pass (single-pass flight, so it never repeats the same spot).
+      var top=Math.max(5,Math.min(82,(rnd>0? (5+Math.random()*77) : 14))); // randomness 0 = always ~top; else 5%-82%
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly"; wrap.style.top=top.toFixed(1)+"%";
-      var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd); wrap.style.animationDuration=Math.max(4,dur).toFixed(2)+"s";
+      var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd); dur=Math.max(4,dur); wrap.style.animationDuration=dur.toFixed(2)+"s";
       var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b.banner));
-      bn.textContent=b.banner.message||b.name||""; wrap.appendChild(bn); wrap.insertAdjacentHTML("beforeend",PLANE); document.body.appendChild(wrap);
-      var d=Math.max(4,dur).toFixed(2); setTimeout(function(){wrap.remove();},Number(d)*1000+200);
+      bn.textContent=b.banner.message||b.name||""; wrap.appendChild(bn);
+      // Plane in its own bobbing element (santa-style gallop) so the wobble doesn't fight the cross-screen transform.
+      var plane=document.createElement("div"); plane.className="abc-occ-plane"; plane.innerHTML=PLANE; wrap.appendChild(plane);
+      document.body.appendChild(wrap);
+      wrap.addEventListener("animationend",function(){wrap.remove();});
+      setTimeout(function(){if(wrap.parentNode) wrap.remove();},dur*1000+1500); // safety cleanup
     }
     launchOne(); var timer=setInterval(launchOne,interval);
     window.addEventListener("pagehide",function(){clearInterval(timer);});
