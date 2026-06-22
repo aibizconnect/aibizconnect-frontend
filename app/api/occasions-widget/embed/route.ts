@@ -20,6 +20,8 @@ function buildScript(key: string): string {
   var GLYPH={snow:"\\u2744\\uFE0F",hearts:"\\u2764\\uFE0F",confetti:"\\uD83C\\uDF8A",lanterns:"\\uD83C\\uDFEE",leaves:"\\uD83C\\uDF42",butterflies:"\\uD83E\\uDD8B",petals:"\\uD83C\\uDF38",shamrocks:"\\u2618\\uFE0F",pumpkins:"\\uD83C\\uDF83"};
   var RISE={hearts:1,lanterns:1,butterflies:1};
   var PLANE='<svg viewBox="0 0 16 16" width="34" height="34" style="display:block"><g transform="rotate(90 8 8)"><path fill="#1e3a8a" d="M6.428 1.151C6.708.591 7.213 0 8 0s1.292.592 1.572 1.151C9.861 1.73 10 2.431 10 3v3.691l5.17 2.585a1.5 1.5 0 0 1 .83 1.342V12a.5.5 0 0 1-.582.493l-5.507-.918-.375 2.253 1.318 1.318A.5.5 0 0 1 10.5 16h-5a.5.5 0 0 1-.354-.854l1.319-1.318-.376-2.253-5.507.918A.5.5 0 0 1 0 12v-1.382a1.5 1.5 0 0 1 .83-1.342L6 6.691V3c0-.568.14-1.271.428-1.849Z"/></g></svg>';
+  // Ali's Santa sleigh sprite (same artwork as the in-app Occasions sprite engine).
+  var SANTA='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 150" style="width:100%;height:auto;filter:drop-shadow(0 4px 4px rgba(0,0,0,0.3));"><g><g transform="translate(220,60)"><path fill="#8B4513" d="M0,20 Q10,0 30,10 L50,30 L30,40 L10,30 Z"/><circle cx="50" cy="15" r="8" fill="#8B4513"/><path stroke="#5C3317" stroke-width="3" d="M50,15 L55,-5 M48,10 L40,0"/><circle cx="58" cy="15" r="3" fill="red"/><path fill="#8B4513" d="M-60,20 Q-50,0 -30,10 L-10,30 L-30,40 L-50,30 Z"/><circle cx="-10" cy="15" r="8" fill="#8B4513"/><path stroke="#5C3317" stroke-width="3" d="M-10,15 L-5,-5 M-12,10 L-20,0"/></g><path stroke="#FFD700" stroke-width="1" fill="none" d="M110,60 L240,70"/><g transform="translate(10,50)"><path fill="#C21807" d="M20,60 C20,60 100,60 110,40 L100,20 L30,20 C10,20 20,60 20,60 Z"/><path stroke="#A9A9A9" stroke-width="3" fill="none" d="M10,65 C10,65 50,75 120,65"/><circle cx="70" cy="20" r="15" fill="#C21807"/><circle cx="70" cy="10" r="10" fill="#FFCCBC"/><path fill="#FFF" d="M60,10 Q70,25 80,10"/><path fill="#C21807" d="M60,5 Q70,-15 80,5 Z"/><circle cx="80" cy="5" r="3" fill="#FFF"/><rect x="30" y="20" width="20" height="20" fill="#228B22"/></g></g></svg>';
   function injectCSS(){
     if (document.getElementById("abc-occ-css")) return;
     var s=document.createElement("style"); s.id="abc-occ-css";
@@ -142,6 +144,33 @@ function buildScript(key: string): string {
     launchOne(); var timer=setInterval(launchOne,interval);
     window.addEventListener("pagehide",function(){clearInterval(timer);});
   }
+  // SPRITE ENGINE — vanilla port of the in-app runSpriteEngine (Ali's Santa). One sleigh flies
+  // across (random direction + height band), hides, waits a random gap, then flies again.
+  function startSanta(fx){
+    var s=fx||{}; var size=s.size||22; var speed=s.speed||5; var rnd=(s.randomness!=null?s.randomness:60)/100; var loc=s.location||"full";
+    var width=Math.round(size*7);
+    var sprite=document.createElement("div");
+    sprite.style.cssText="position:fixed;top:0;left:0;width:"+width+"px;z-index:2147483646;pointer-events:none;display:none;";
+    sprite.innerHTML=SANTA; document.body.appendChild(sprite);
+    var speedMs=(16-speed)*800;
+    var waitMin=1500+(1-rnd)*2000, waitMax=4000+rnd*9000;
+    function yBand(){ var h=window.innerHeight, r=Math.random();
+      if(loc==="top") return r*h*0.3;
+      if(loc==="middle"||loc==="center") return h*0.3+r*h*0.3;
+      if(loc==="bottom") return h*0.6+r*h*0.3;
+      return r*h*0.7; }
+    var stopped=false, anim=null, to=null;
+    function fly(){
+      if(stopped||document.hidden){ to=setTimeout(fly,1200); return; }
+      var w=window.innerWidth, fromLeft=Math.random()>0.5;
+      var startX=fromLeft?-width:w, endX=fromLeft?w:-width, flip=fromLeft?"scaleX(1)":"scaleX(-1)";
+      sprite.style.display="block";
+      anim=sprite.animate([{transform:"translate("+startX+"px,"+yBand()+"px) "+flip},{transform:"translate("+endX+"px,"+yBand()+"px) "+flip}],{duration:speedMs,easing:"linear",fill:"forwards"});
+      anim.onfinish=function(){ sprite.style.display="none"; if(!stopped) to=setTimeout(fly,Math.random()*(waitMax-waitMin)+waitMin); };
+    }
+    to=setTimeout(fly,600);
+    window.addEventListener("pagehide",function(){ stopped=true; if(to) clearTimeout(to); try{anim&&anim.cancel();}catch(e){} });
+  }
   function render(state){
     if(!state) return;
     injectCSS();
@@ -149,7 +178,8 @@ function buildScript(key: string): string {
     var staticBanners=(state.banners||[]).filter(function(b){return !b.fly;});
     staticBanners.forEach(function(b){renderBanner(b,fx);});
     if(state.banners) startAirplanes(state.banners,fx);
-    if(state.animation==="fireworks") startFireworks(fx);
+    if(state.animation==="santa") startSanta(fx);
+    else if(state.animation==="fireworks") startFireworks(fx);
     else if(state.animation) startParticles(state.animation,fx);
   }
   function go(){

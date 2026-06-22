@@ -16,8 +16,8 @@ import {
  */
 const NAVY = "#1e3a8a";
 const ANIM_GLYPH: Record<string, string> = Object.fromEntries(ANIMATIONS.map((a) => [a.key, a.glyph ?? (a.key === "santa" ? "🎅" : a.key === "fireworks" ? "🎆" : a.key === "sunrays" ? "☀" : "✨")]));
-// Animations the vanilla embed renderer supports (emoji particles + fireworks). santa/sunrays = Phase 2.
-const V1_ANIMS = new Set(["snow", "fireworks", "hearts", "confetti", "lanterns", "leaves", "butterflies", "petals", "shamrocks", "pumpkins"]);
+// Animations the vanilla embed renderer supports (emoji particles + fireworks + santa sprite). sunrays = Phase 2.
+const V1_ANIMS = new Set(["snow", "santa", "fireworks", "hearts", "confetti", "lanterns", "leaves", "butterflies", "petals", "shamrocks", "pumpkins"]);
 const today = () => new Date().toISOString().slice(0, 10);
 const inp = "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-[#1e3a8a] focus:outline-none focus:ring-1 focus:ring-[#1e3a8a]";
 
