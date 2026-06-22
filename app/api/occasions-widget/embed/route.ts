@@ -128,7 +128,9 @@ export async function GET(req: Request) {
     status: 200,
     headers: {
       "Content-Type": "text/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=600",
+      // Short cache so renderer fixes / config changes propagate to embedded sites within ~1 min
+      // (stale-while-revalidate keeps it instant for repeat visitors while it refreshes in the bg).
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=60",
       "Access-Control-Allow-Origin": "*",
     },
   });
