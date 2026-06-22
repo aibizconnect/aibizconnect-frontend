@@ -286,6 +286,15 @@ export default function OccasionsPanel({ tenantId, websiteId }: { tenantId: stri
                 <button onClick={() => delCustom(c.id)} className="rounded-lg p-1.5 text-red-500 hover:bg-red-50" title="Delete">🗑</button>
               </div>
               <input value={c.message ?? ""} onChange={(e) => setCustom(c.id, { message: e.target.value })} placeholder="Banner text" className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm" />
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="url" value={c.linkUrl ?? ""} onChange={(e) => setCustom(c.id, { linkUrl: e.target.value || undefined })} placeholder="Link URL (optional) — https://…" className="min-w-[180px] flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm" />
+                <label className="flex items-center gap-1 text-xs text-slate-600">Open in
+                  <select value={c.linkTarget ?? "_self"} onChange={(e) => setCustom(c.id, { linkTarget: e.target.value as "_self" | "_blank" })} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                    <option value="_self">Same tab</option>
+                    <option value="_blank">New window</option>
+                  </select>
+                </label>
+              </div>
               <DateRange from={c.startDate} to={c.endDate ?? ""} onFrom={(v) => setCustom(c.id, { startDate: v })} onTo={(v) => setCustom(c.id, { endDate: v || null })} />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <ShowAs fly={c.fly} onChange={(fly) => setCustom(c.id, { fly })} />

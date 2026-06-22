@@ -210,7 +210,7 @@ export default function SiteOccasions({ config, preview }: { config?: OccasionsC
 /** Airplane towing a banner — SAME pattern as Ali's Santa script: one smooth fly-across
  *  (Web Animations API), then hide, wait a random gap, fly again at a new random height.
  *  Enters left, exits right. Speed + wait come from the shared controls. */
-function FlyingBanner({ text, bg, color, set }: { text: string; bg?: string; color?: string; set: ReturnType<typeof resolveSettings> }) {
+function FlyingBanner({ text, bg, color, set, linkUrl, linkTarget }: { text: string; bg?: string; color?: string; set: ReturnType<typeof resolveSettings>; linkUrl?: string; linkTarget?: "_self" | "_blank" }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -237,7 +237,7 @@ function FlyingBanner({ text, bg, color, set }: { text: string; bg?: string; col
         {/* trailing cloth banner (to the LEFT of the plane) */}
         <div style={{ display: "flex", alignItems: "center", padding: "8px 18px", color: color || "#fff", fontWeight: 700, fontSize: 15, whiteSpace: "nowrap",
           background: bg ?? "linear-gradient(90deg,#1e3a8a,#3b5fc0)", borderRadius: 4, boxShadow: "0 4px 14px rgba(0,0,0,.2)", animation: "abc-occ-wave 2.4s ease-in-out infinite" }}>
-          {text}
+          {linkUrl ? <a href={linkUrl} target={linkTarget || "_self"} rel={(linkTarget || "_self") === "_blank" ? "noopener noreferrer" : undefined} style={{ color: "inherit", textDecoration: "none", pointerEvents: "auto", cursor: "pointer" }}>{text}</a> : text}
         </div>
         {/* tow rope */}
         <div style={{ width: 26, height: 2, background: "rgba(100,116,139,.7)" }} />
@@ -263,7 +263,7 @@ function placeBanner(pos: string): React.CSSProperties {
 function BannerLayer({ b, settings, onClose }: { b: ActiveBanner; settings?: EffectSettings; onClose: () => void }) {
   const s = b.banner;
   const text = s.message || `🎉 ${b.name}`;
-  if (b.fly) return <FlyingBanner text={text} bg={s.bg} color={s.textColor} set={resolveSettings(settings)} />;
+  if (b.fly) return <FlyingBanner text={text} bg={s.bg} color={s.textColor} set={resolveSettings(settings)} linkUrl={s.linkUrl} linkTarget={s.linkTarget} />;
   const bg = s.bg || undefined;
   const pos = s.position ?? "top-center";
   const vertical = pos === "middle-left" || pos === "middle-right"; // run the text vertically
@@ -286,7 +286,7 @@ function BannerLayer({ b, settings, onClose }: { b: ActiveBanner; settings?: Eff
     s.pattern === "neon" ? { boxShadow: "0 0 12px #3b82f6, 0 0 24px #8b5cf6", border: "1px solid #93c5fd" } : {};
   return (
     <div style={{ ...box, ...pat }}>
-      {text}
+      {s.linkUrl ? <a href={s.linkUrl} target={s.linkTarget || "_self"} rel={(s.linkTarget || "_self") === "_blank" ? "noopener noreferrer" : undefined} style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}>{text}</a> : text}
       {s.dismissible !== false && (
         // X sits OUTSIDE the box, at the top-right corner.
         <button onClick={onClose} aria-label="Dismiss" style={{ position: "absolute", top: -10, right: -10, display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", background: "#0f172a", border: "2px solid #fff", color: "#fff", cursor: "pointer", fontSize: 12, lineHeight: 1, boxShadow: "0 1px 4px rgba(0,0,0,.3)" }}>✕</button>

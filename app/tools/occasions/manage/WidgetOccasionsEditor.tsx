@@ -218,6 +218,15 @@ export default function WidgetOccasionsEditor({ widgetKey, domain, snippet, init
                   <label className="flex items-center gap-1">From <input type="date" value={c.startDate} onChange={(e) => setCustom(c.id, { startDate: e.target.value })} className={inp} /></label>
                   <label className="flex items-center gap-1">To <input type="date" value={c.endDate ?? ""} onChange={(e) => setCustom(c.id, { endDate: e.target.value || null })} className={inp} /></label>
                 </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <input type="url" value={c.linkUrl ?? ""} onChange={(e) => setCustom(c.id, { linkUrl: e.target.value || undefined })} placeholder="Link URL (optional) — https://…" className={`${inp} min-w-[200px] flex-1`} />
+                  <label className="flex items-center gap-1">Open in
+                    <select value={c.linkTarget ?? "_self"} onChange={(e) => setCustom(c.id, { linkTarget: e.target.value as "_self" | "_blank" })} className={inp}>
+                      <option value="_self">Same tab</option>
+                      <option value="_blank">New window</option>
+                    </select>
+                  </label>
+                </div>
               </div>
             ))}
           </div>

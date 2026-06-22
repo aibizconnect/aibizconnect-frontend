@@ -75,8 +75,11 @@ function buildScript(key: string): string {
     // Middle-left and middle-right banners are vertical (rotated 90°)
     if(b.position==="middle-left" || b.position==="middle-right") posStr+=";transform:rotate(-90deg);transform-origin:center";
     el.setAttribute("style",posStr);
-    var span=document.createElement("span"); span.textContent=b.message||item.name||""; el.appendChild(span);
-    if(b.dismissible!==false){ var x=document.createElement("span"); x.className="abc-occ-x"; x.textContent="\\u00D7"; x.onclick=function(){el.remove();}; el.appendChild(x); }
+    var span;
+    if(b.linkUrl){ span=document.createElement("a"); span.href=b.linkUrl; span.target=b.linkTarget||"_self"; if((b.linkTarget||"_self")==="_blank") span.rel="noopener noreferrer"; span.style.cssText="color:inherit;text-decoration:none;cursor:pointer"; }
+    else { span=document.createElement("span"); }
+    span.textContent=b.message||item.name||""; el.appendChild(span);
+    if(b.dismissible!==false){ var x=document.createElement("span"); x.className="abc-occ-x"; x.textContent="\\u00D7"; x.onclick=function(e){e.preventDefault();e.stopPropagation();el.remove();}; el.appendChild(x); }
     document.body.appendChild(el);
   }
   function startParticles(kind,settings){
@@ -134,7 +137,10 @@ function buildScript(key: string): string {
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly"; wrap.style.top=top.toFixed(1)+"%";
       var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd); dur=Math.max(4,dur); wrap.style.animationDuration=dur.toFixed(2)+"s";
       var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b.banner));
-      bn.textContent=b.banner.message||b.name||""; wrap.appendChild(bn);
+      var bMsg=b.banner.message||b.name||"";
+      if(b.banner.linkUrl){ var ba=document.createElement("a"); ba.href=b.banner.linkUrl; ba.target=b.banner.linkTarget||"_self"; if((b.banner.linkTarget||"_self")==="_blank") ba.rel="noopener noreferrer"; ba.textContent=bMsg; ba.style.cssText="color:inherit;text-decoration:none;pointer-events:auto;cursor:pointer"; bn.appendChild(ba); }
+      else { bn.textContent=bMsg; }
+      wrap.appendChild(bn);
       // Plane in its own bobbing element (santa-style gallop) so the wobble doesn't fight the cross-screen transform.
       var plane=document.createElement("div"); plane.className="abc-occ-plane"; plane.innerHTML=PLANE; wrap.appendChild(plane);
       document.body.appendChild(wrap);

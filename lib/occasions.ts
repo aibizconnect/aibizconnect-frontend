@@ -68,6 +68,8 @@ export interface BannerSettings {
   textColor?: string;      // text colour (hex)
   dismissible?: boolean;
   pattern?: "solid" | "glow" | "pulse" | "dashed" | "neon";
+  linkUrl?: string;                  // optional: clicking the banner opens this URL
+  linkTarget?: "_self" | "_blank";   // same tab (_self, default) or new window (_blank)
 }
 export const BANNER_POSITIONS: BannerPosition[] = [
   "top-left", "top-center", "top-right", "middle-left", "center", "middle-right", "bottom-left", "bottom-center", "bottom-right",
@@ -81,7 +83,7 @@ export const BANNER_POSITIONS: BannerPosition[] = [
 export interface BannerEntry { enabled?: boolean; message?: string; date?: string | null; fly?: boolean; style?: BannerSettings; startDate?: string | null; endDate?: string | null; }
 
 /** Custom dated banner occasion. */
-export interface CustomBanner { id: string; name: string; startDate: string; endDate?: string | null; enabled: boolean; message?: string; fly?: boolean; style?: BannerSettings; }
+export interface CustomBanner { id: string; name: string; startDate: string; endDate?: string | null; enabled: boolean; message?: string; fly?: boolean; style?: BannerSettings; linkUrl?: string; linkTarget?: "_self" | "_blank"; }
 
 /** Persisted shape on theme.site.occasions. */
 export interface OccasionsConfig {
@@ -221,7 +223,7 @@ export function resolveActive(cfg: OccasionsConfig | undefined, today: Date): Ac
     const s = new Date(c.startDate + "T00:00:00");
     const e = new Date((c.endDate || c.startDate) + "T00:00:00");
     e.setDate(e.getDate() + 1); // Move to start of next day (end is exclusive)
-    if (within(today, s, e)) banners.push({ id: c.id, name: c.name, fly: c.fly, banner: { ...style, ...(c.style ?? {}), message: c.message || c.name } });
+    if (within(today, s, e)) banners.push({ id: c.id, name: c.name, fly: c.fly, banner: { ...style, ...(c.style ?? {}), message: c.message || c.name, linkUrl: c.linkUrl || undefined, linkTarget: c.linkTarget || undefined } });
   }
   return { animation, settings: cfg?.settings, banners };
 }
