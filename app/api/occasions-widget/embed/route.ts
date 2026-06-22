@@ -49,8 +49,13 @@ function buildScript(key: string): string {
     var b=item.banner||{}; var fly=item.fly; fx=fx||{};
     if(fly){
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly";
-      // Apply randomness to flight duration (like particles do)
+      // Randomize entrance height (10% to 60% from top) based on randomness setting
       var rnd=(fx.randomness!=null?fx.randomness:60)/100;
+      var baseTop=14+Math.random()*40; // 14% to 54%
+      var topVar=baseTop*(Math.random()*2-1)*0.3*rnd; // ±30% variation by randomness
+      var top=Math.max(5,Math.min(85,baseTop+topVar));
+      wrap.style.top=top.toFixed(1)+"%";
+      // Apply randomness to flight duration (like particles do)
       var baseDur=Math.max(7,22-(fx.speed||5));
       var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd);
       wrap.style.animationDuration=Math.max(4,dur).toFixed(2)+"s";
