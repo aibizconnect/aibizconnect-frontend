@@ -67,7 +67,10 @@ function buildScript(key: string): string {
       return;
     }
     var el=document.createElement("div"); el.className="abc-occ-banner";
-    el.setAttribute("style",(POS[b.position]||POS["top-center"])+";"+styleStr(b));
+    var posStr=(POS[b.position]||POS["top-center"])+";"+styleStr(b);
+    // Middle-left and middle-right banners are vertical (rotated 90°)
+    if(b.position==="middle-left" || b.position==="middle-right") posStr+=";transform:rotate(-90deg);transform-origin:center";
+    el.setAttribute("style",posStr);
     var span=document.createElement("span"); span.textContent=b.message||item.name||""; el.appendChild(span);
     if(b.dismissible!==false){ var x=document.createElement("span"); x.className="abc-occ-x"; x.textContent="\\u00D7"; x.onclick=function(){el.remove();}; el.appendChild(x); }
     document.body.appendChild(el);
