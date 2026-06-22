@@ -49,7 +49,11 @@ function buildScript(key: string): string {
     var b=item.banner||{}; var fly=item.fly; fx=fx||{};
     if(fly){
       var wrap=document.createElement("div"); wrap.className="abc-occ-fly";
-      wrap.style.animationDuration=Math.max(7,22-(fx.speed||5))+"s";
+      // Apply randomness to flight duration (like particles do)
+      var rnd=(fx.randomness!=null?fx.randomness:60)/100;
+      var baseDur=Math.max(7,22-(fx.speed||5));
+      var dur=baseDur*(1+(Math.random()*2-1)*0.5*rnd);
+      wrap.style.animationDuration=Math.max(4,dur).toFixed(2)+"s";
       // banner first (trails behind), plane last (leads / nose-right) so the plane PULLS the banner.
       var bn=document.createElement("div"); bn.className="abc-occ-banner"; bn.style.position="static"; bn.setAttribute("style","position:static;"+styleStr(b)); bn.textContent=b.message||item.name||"";
       wrap.appendChild(bn);
