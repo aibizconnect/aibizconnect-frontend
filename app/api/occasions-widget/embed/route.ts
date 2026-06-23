@@ -73,9 +73,14 @@ function buildScript(key: string): string {
       return;
     }
     var el=document.createElement("div"); el.className="abc-occ-banner";
-    var posStr=(POS[b.position]||POS["top-center"])+";"+styleStr(b);
-    // Middle-left and middle-right banners are vertical (rotated 90°)
-    if(b.position==="middle-left" || b.position==="middle-right") posStr+=";transform:rotate(-90deg);transform-origin:center";
+    var posStr;
+    // Middle-left/right banners are VERTICAL and flush to the page edge. Use writing-mode (not a
+    // rotate) so they hug left:0 / right:0 regardless of text length and never clip off-screen.
+    if(b.position==="middle-left" || b.position==="middle-right"){
+      posStr="top:50%;"+(b.position==="middle-left"?"left:0;":"right:0;")+"transform:translateY(-50%);writing-mode:vertical-rl;"+styleStr(b);
+    } else {
+      posStr=(POS[b.position]||POS["top-center"])+";"+styleStr(b);
+    }
     el.setAttribute("style",posStr);
     var span;
     if(b.linkUrl){ span=document.createElement("a"); span.href=b.linkUrl; span.target=b.linkTarget||"_self"; if((b.linkTarget||"_self")==="_blank") span.rel="noopener noreferrer"; span.style.cssText="color:inherit;text-decoration:none;cursor:pointer"; }

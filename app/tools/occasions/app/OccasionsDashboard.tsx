@@ -467,7 +467,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
         </div>
 
         <div style={{ position: "relative", height: 150, borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "repeating-linear-gradient(45deg,var(--gray-50),var(--gray-50) 10px,var(--gray-100) 10px,var(--gray-100) 20px)", overflow: "hidden", display: "flex", padding: 14, alignItems: vh.v === "top" ? "flex-start" : vh.v === "bottom" ? "flex-end" : "center", justifyContent: vh.h === "left" ? "flex-start" : vh.h === "right" ? "flex-end" : "center", marginBottom: 24 }}>
-          <div style={{ background: bannerColor, color: "#fff", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: 13, fontWeight: 600, boxShadow: "var(--shadow-md)", transform: vertical ? "rotate(-90deg)" : undefined, transformOrigin: "center", whiteSpace: "nowrap" }}>{cfg.banners ? "Happy holidays — 20% off this week" : "Your banner"}</div>
+          <div style={{ background: bannerColor, color: "#fff", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: 13, fontWeight: 600, boxShadow: "var(--shadow-md)", writingMode: vertical ? "vertical-rl" : undefined, whiteSpace: "nowrap" }}>{cfg.banners ? "Happy holidays — 20% off this week" : "Your banner"}</div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
@@ -653,7 +653,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             <div style={{ padding: 24 }}>
               <div className="occ-disp" style={{ fontSize: 18, marginBottom: 14 }}>Preview</div>
               <div style={{ position: "relative", height: 170, borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "repeating-linear-gradient(45deg,var(--gray-50),var(--gray-50) 10px,var(--gray-100) 10px,var(--gray-100) 20px)", overflow: "hidden", display: "flex", alignItems: vh.v === "top" ? "flex-start" : vh.v === "bottom" ? "flex-end" : "center", justifyContent: vh.h === "left" ? "flex-start" : vh.h === "right" ? "flex-end" : "center", padding: 14 }}>
-                <div style={{ background: bannerColor, color: "#fff", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: 13, fontWeight: 600, boxShadow: "var(--shadow-md)", transform: vertical ? "rotate(-90deg)" : undefined, transformOrigin: "center", whiteSpace: "nowrap" }}>Happy holidays — 20% off this week</div>
+                <div style={{ background: bannerColor, color: "#fff", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: 13, fontWeight: 600, boxShadow: "var(--shadow-md)", writingMode: vertical ? "vertical-rl" : undefined, whiteSpace: "nowrap" }}>Happy holidays — 20% off this week</div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><button className="occ-btn" onClick={close}>Close</button></div>
             </div>
