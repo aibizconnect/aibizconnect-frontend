@@ -36,7 +36,9 @@ function buildScript(key: string): string {
       +".abc-occ-fly{position:fixed;top:14%;left:0;z-index:2147483400;pointer-events:none;display:flex;align-items:center;gap:8px;animation:abcFly linear forwards;will-change:transform}"
       +".abc-occ-plane{display:block;animation:abcBob .7s ease-in-out infinite alternate}"
       +"@keyframes abcFw{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.35);opacity:0}}"
-      +".abc-occ-fw{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:2147483000;will-change:transform,opacity}";
+      +".abc-occ-fw{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:2147483000;will-change:transform,opacity}"
+      +".abc-occ-badge{position:fixed;bottom:10px;right:10px;z-index:2147483300;display:inline-flex;align-items:center;gap:6px;background:#fff;color:#3A3D55;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:11px;font-weight:600;text-decoration:none;padding:5px 9px;border-radius:999px;box-shadow:0 2px 10px rgba(9,9,40,.18);border:1px solid rgba(9,9,64,.08);opacity:.92}"
+      +".abc-occ-badge:hover{opacity:1}";
     document.head.appendChild(s);
   }
   var POS={"top-left":"top:14px;left:14px","top-center":"top:14px;left:50%;transform:translateX(-50%)","top-right":"top:14px;right:14px","middle-left":"top:50%;left:14px;transform:translateY(-50%)","center":"top:50%;left:50%;transform:translate(-50%,-50%)","middle-right":"top:50%;right:14px;transform:translateY(-50%)","bottom-left":"bottom:14px;left:14px","bottom-center":"bottom:14px;left:50%;transform:translateX(-50%)","bottom-right":"bottom:14px;right:14px"};
@@ -177,6 +179,16 @@ function buildScript(key: string): string {
     to=setTimeout(fly,600);
     window.addEventListener("pagehide",function(){ stopped=true; if(to) clearTimeout(to); try{anim&&anim.cancel();}catch(e){} });
   }
+  // "Powered by AIBizConnect" pill — shown alongside active festive content. Paid sites can hide it
+  // (state.badge===false); free/public sites always keep it (lead-gen branding).
+  function renderBadge(state){
+    if(state.badge===false) return;
+    if(document.getElementById("abc-occ-badge")) return;
+    var a=document.createElement("a"); a.id="abc-occ-badge"; a.className="abc-occ-badge";
+    a.href="https://aibizconnect.app/?utm_source=occasions_widget"; a.target="_blank"; a.rel="noopener noreferrer";
+    a.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="#3D49C4"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Powered by AIBizConnect';
+    document.body.appendChild(a);
+  }
   function render(state){
     if(!state) return;
     injectCSS();
@@ -187,6 +199,7 @@ function buildScript(key: string): string {
     if(state.animation==="santa") startSanta(fx);
     else if(state.animation==="fireworks") startFireworks(fx);
     else if(state.animation) startParticles(state.animation,fx);
+    if((state.banners&&state.banners.length)||state.animation) renderBadge(state);
   }
   function go(){
     try{

@@ -59,12 +59,13 @@ function buildWelcomeEmail(domain: string, snippet: string, manageUrl: string): 
   const subject = `Your Occasions widget for ${domain} 🎉`;
   const html = `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:560px;margin:0 auto">
-    <h1 style="font-size:20px;margin:0 0 6px">You're all set 🎉</h1>
+    <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2F399D,#555FC4);text-align:center;line-height:34px;color:#fff;font-weight:700;font-size:14px;margin:0 0 14px">▶</div>
+    <h1 style="font-size:20px;color:#12123A;margin:0 0 6px">You're all set 👋</h1>
     <p style="color:#475569;font-size:14px;line-height:1.5;margin:0 0 18px">Festive occasions are ready for <b style="color:${NAVY}">${esc(domain)}</b>. Add them to your site in one step:</p>
     <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">1 · Copy this snippet and paste it just before <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">&lt;/head&gt;</code> on your website:</p>
-    <div style="background:#0f172a;color:#e2e8f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:14px 16px;border-radius:10px;word-break:break-all;margin:0 0 18px">${esc(snippet)}</div>
+    <div style="background:#090966;color:#C9CEF5;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:14px 16px;border-radius:10px;word-break:break-all;margin:0 0 18px">${esc(snippet)}</div>
     <p style="color:#0f172a;font-size:13px;font-weight:600;margin:0 0 8px">2 · Manage your occasions — choose holidays, sales banners, and animations:</p>
-    <p style="margin:0 0 10px"><a href="${manageUrl}" style="display:inline-block;background:${NAVY};color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:10px">Open my Occasions control panel →</a></p>
+    <p style="margin:0 0 10px"><a href="${manageUrl}" style="display:inline-block;background:#3D49C4;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:10px">Open my Occasions control panel →</a></p>
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:13px 16px;margin:0 0 18px">
       <p style="color:#1e3a8a;font-size:13px;font-weight:700;margin:0 0 5px">🔖 Bookmark this — it's your private control panel</p>
       <p style="color:#1e40af;font-size:12px;line-height:1.5;margin:0 0 7px">This is your permanent link to manage your occasions any time — next week, next month, any holiday. <b>Bookmark it now, and keep this email handy</b> so you can always get back in:</p>
@@ -159,16 +160,18 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
 
 /** The active occasions for an embed key — ONLY if registered, active, and the page host matches the
  *  registered domain. Otherwise empty (nothing renders). This is the gate. */
-export async function getActiveForKey(key: string, host: string, localDate?: string): Promise<ActiveState | null> {
+export async function getActiveForKey(key: string, host: string, localDate?: string): Promise<(ActiveState & { badge?: boolean }) | null> {
   if (!key) return null;
-  const { data } = await sb().from("occasion_widget_sites").select("domain, occasions, active").eq("key", key).maybeSingle();
+  const { data } = await sb().from("occasion_widget_sites").select("domain, occasions, active, badge").eq("key", key).maybeSingle();
   if (!data || data.active === false) return null;
   if (!hostMatches(String(data.domain), host)) return null;
   // Resolve "today" from the VISITOR'S local calendar date (sent by the embed) so a single-day
   // occasion (start==end) is active for the whole of that day in the viewer's timezone — not the
   // server's UTC day. Use noon of the local date so it can't roll over at the UTC boundary.
   const today = localDate && /^\d{4}-\d{2}-\d{2}$/.test(localDate) ? new Date(localDate + "T12:00:00") : new Date();
-  return resolveActive((data.occasions ?? {}) as OccasionsConfig, today);
+  // `badge` (D-406): false on a paid site that turned off the "Powered by AIBizConnect" pill;
+  // defaults true (column default) so every public/free site stays branded.
+  return { ...resolveActive((data.occasions ?? {}) as OccasionsConfig, today), badge: (data as { badge?: boolean }).badge !== false };
 }
 
 /** Look up a registered domain → its embed snippet + manage URL (for the thank-you page). */
