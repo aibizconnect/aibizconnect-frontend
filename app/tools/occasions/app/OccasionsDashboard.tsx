@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  OCCASION_CATALOG, ANIM_BY_KEY, resolveActive,
-  type OccasionsConfig, type AnimationKind, type BannerPosition, type CustomBanner,
+  OCCASION_CATALOG, ANIM_BY_KEY, resolveActive, DEFAULT_EFFECT_SETTINGS,
+  type OccasionsConfig, type AnimationKind, type BannerPosition, type CustomBanner, type EffectSettings,
 } from "@/lib/occasions";
 import { REGION_CHIPS, regionOf, REGION_META, type WidgetRegion } from "@/lib/occasions-regions";
 import {
@@ -96,9 +96,24 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
   const [openInfo, setOpenInfo] = useState<string | null>(null);
   const [faqOpen, setFaqOpen] = useState<string | null>("when");
   const [custom, setCustom] = useState({ name: "", start: "", end: "", message: "", link: "", newTab: true });
+  const [gMove, setGMove] = useState<"banner" | "airplane">("banner");
+  const [gStart, setGStart] = useState("");
+  const [gEnd, setGEnd] = useState("");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const sel = sites.find((s) => s.key === selectedKey) || sites[0] || null;
+
+  // Derive the shared movement + show-window from the selected site's enabled occasions, so the
+  // Appearance controls reflect what's set. Re-runs only when the site changes (not on every edit).
+  useEffect(() => {
+    if (!sel) return;
+    const c = sel.occasions || {};
+    const ids = OCCASION_CATALOG.filter((o) => c.banners?.[o.id]?.enabled).map((o) => o.id);
+    const fe = ids.length ? c.banners![ids[0]] : (c.custom ?? []).find((x) => x.enabled);
+    setGMove(fe?.fly ? "airplane" : "banner");
+    setGStart(fe?.startDate || "");
+    setGEnd(fe?.endDate || "");
+  }, [sel?.key]);
 
   // ── persistence ────────────────────────────────────────────────────────────
   function scheduleSave(key: string, cfg: OccasionsConfig) {
@@ -147,7 +162,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     if (!sel || !custom.name.trim()) { setModal(null); return; }
     const c: CustomBanner = {
       id: `c${Date.now()}`, name: custom.name.trim(), startDate: custom.start || new Date().toISOString().slice(0, 10),
-      endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(),
+      endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(), fly: gMove === "airplane",
       linkUrl: custom.link || undefined, linkTarget: custom.newTab ? "_blank" : "_self",
     };
     patchOcc(sel.key, (cfg) => ({ ...cfg, custom: [...(cfg.custom ?? []), c] }));
@@ -157,14 +172,30 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
 
   // ── occasions / appearance editing (on the selected site) ───────────────────
   const cfg = sel?.occasions ?? {};
+  const fx = { ...DEFAULT_EFFECT_SETTINGS, ...(cfg.settings ?? {}) };
+  // Enabling a holiday inherits the shared movement + show-window set in Appearance.
   const setBanner = (id: string, enabled: boolean) => sel && patchOcc(sel.key, (c) => {
     const occ = OCCASION_CATALOG.find((o) => o.id === id);
-    return { ...c, banners: { ...(c.banners ?? {}), [id]: { ...(c.banners?.[id] ?? {}), enabled, message: c.banners?.[id]?.message || occ?.welcome } } };
+    const prev = c.banners?.[id] ?? {};
+    const next = enabled
+      ? { ...prev, enabled: true, message: prev.message || occ?.welcome, fly: gMove === "airplane", startDate: gStart || null, endDate: gEnd || null }
+      : { ...prev, enabled: false };
+    return { ...c, banners: { ...(c.banners ?? {}), [id]: next } };
   });
   const setCustomEnabled = (id: string, enabled: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, enabled } : x)) }));
-  const setFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, banners: { ...(c.banners ?? {}), [id]: { ...(c.banners?.[id] ?? {}), fly } } }));
-  const setCustomFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, fly } : x)) }));
   const setStyle = (p: Partial<NonNullable<OccasionsConfig["bannerStyle"]>>) => sel && patchOcc(sel.key, (c) => ({ ...c, bannerStyle: { ...(c.bannerStyle ?? {}), ...p } }));
+  const setSettings = (p: Partial<EffectSettings>) => sel && patchOcc(sel.key, (c) => ({ ...c, settings: { ...(c.settings ?? {}), ...p } }));
+  const applyMovement = (airplane: boolean) => sel && patchOcc(sel.key, (c) => ({
+    ...c,
+    banners: Object.fromEntries(Object.entries(c.banners ?? {}).map(([id, e]) => [id, e && e.enabled ? { ...e, fly: airplane } : e])),
+    custom: (c.custom ?? []).map((x) => (x.enabled ? { ...x, fly: airplane } : x)),
+  }));
+  const applyWindow = (start: string, end: string) => sel && patchOcc(sel.key, (c) => ({
+    ...c,
+    banners: Object.fromEntries(Object.entries(c.banners ?? {}).map(([id, e]) => [id, e && e.enabled ? { ...e, startDate: start || null, endDate: end || null } : e])),
+  }));
+  const changeMovement = (airplane: boolean) => { setGMove(airplane ? "airplane" : "banner"); applyMovement(airplane); };
+  const changeWindow = (start: string, end: string) => { setGStart(start); setGEnd(end); applyWindow(start, end); };
   const setAnim = (k: AnimationKind | "none") => sel && patchOcc(sel.key, (c) => ({ ...c, animations: (k === "none" ? {} : { [k]: { enabled: true, always: true } }) as OccasionsConfig["animations"] }));
   const curAnim: AnimationKind | "none" = (Object.entries(cfg.animations ?? {}).find(([, v]) => v?.enabled)?.[0] as AnimationKind) || "none";
 
@@ -392,34 +423,28 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             const meta = REGION_META[regionOf(o.id)];
             const on = !!cfg.banners?.[o.id]?.enabled;
             return (
-              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: on ? 11 : 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
-                      {badge(meta.tone, meta.label)}
-                    </div>
+              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
+                    {badge(meta.tone, meta.label)}
                   </div>
-                  <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
                 </div>
-                {on && <FlyChip fly={!!cfg.banners?.[o.id]?.fly} onChange={(v) => setFly(o.id, v)} />}
+                <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
               </div>
             );
           })}
           {showCustom && (cfg.custom ?? []).map((c) => (
-            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: c.enabled ? 11 : 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
-                    {badge("warning", "My custom")}
-                  </div>
+            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
+                  {badge("warning", "My custom")}
                 </div>
-                <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
               </div>
-              {c.enabled && <FlyChip fly={!!c.fly} onChange={(v) => setCustomFly(c.id, v)} />}
+              <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
             </div>
           ))}
           <button onClick={() => setModal("custom")} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 72, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit", fontWeight: 600, fontSize: 14 }}>
@@ -475,6 +500,30 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             ))}
           </div>
           {curAnim !== "none" && <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>{ANIM_BY_KEY[curAnim as AnimationKind]?.label} runs ambiently on the site.</p>}
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          <div className="occ-eyebrow" style={{ marginBottom: 10 }}>Movement</div>
+          <FlyChip fly={gMove === "airplane"} onChange={changeMovement} />
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          <div className="occ-eyebrow" style={{ marginBottom: 12 }}>Animation &amp; flight controls — shared by all effects</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 18 }}>
+            <Slider label="Speed" value={fx.speed} min={1} max={12} hint="how fast they move" onChange={(v) => setSettings({ speed: v })} />
+            <Slider label="Density" value={fx.density} min={5} max={100} hint="how many on screen" onChange={(v) => setSettings({ density: v })} />
+            <Slider label="Size" value={fx.size} min={10} max={48} hint="how big each one is" onChange={(v) => setSettings({ size: v })} />
+            <Slider label="Randomness" value={fx.randomness} min={0} max={100} hint="how varied they look" onChange={(v) => setSettings({ randomness: v })} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          <div className="occ-eyebrow" style={{ marginBottom: 10 }}>Show window</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Field label="Show from" style={{ flex: 1, minWidth: 150 }}><input className="occ-input" type="date" value={gStart} onChange={(e) => changeWindow(e.target.value, gEnd)} /></Field>
+            <Field label="Show to" style={{ flex: 1, minWidth: 150 }}><input className="occ-input" type="date" value={gEnd} onChange={(e) => changeWindow(gStart, e.target.value)} /></Field>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>Applies to every occasion you&apos;ve turned on — set a window that includes today to see it live now. Leave blank to use each holiday&apos;s normal dates.</p>
         </div>
 
         <div className="occ-card" style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 14, padding: 18 }}>
@@ -648,6 +697,18 @@ function FlyChip({ fly, onChange }: { fly: boolean; onChange: (v: boolean) => vo
         <button type="button" onClick={() => onChange(true)} style={opt(fly)}><Ico name="plane" size={13} /> Airplane</button>
       </div>
     </div>
+  );
+}
+
+function Slider({ label, value, min, max, hint, onChange }: { label: string; value: number; min: number; max: number; hint?: string; onChange: (v: number) => void }) {
+  return (
+    <label style={{ display: "block" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+        <span>{label}</span><span style={{ color: "var(--text-strong)" }}>{value}</span>
+      </div>
+      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--c-primary)", marginTop: 6 }} />
+      {hint && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{hint}</span>}
+    </label>
   );
 }
 
