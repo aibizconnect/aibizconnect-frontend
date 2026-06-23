@@ -12,7 +12,7 @@ import OccasionsDashboard from "./OccasionsDashboard";
  *   3) ?loc=<locationId>(&name=…) — Option A custom menu link: GHL server-substitutes
  *      {{location.id}}, so we trust it and bootstrap the account on first open (low-sensitivity
  *      data + unguessable ids; use Option B / SSO for hardened paid rollout).
- * See docs/occasions-GHL-menu-setup.md.
+ * See docs/occasions-service/GHL-MENU-SETUP.md.
  */
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Occasions — AIBizConnect", robots: { index: false } };
