@@ -35,8 +35,8 @@ the welcome-email pipeline, the embed renderer, or any registered site.
 ### Option A — Custom Menu Link (fastest, no app review)
 GHL Agency → **Settings → Custom Menu Links → + Add**:
 - **Name:** Occasions
-- **URL:** `https://app.aibizconnect.app/tools/occasions/app?loc={{location.id}}`
-  *(GHL substitutes the real sub-account id.)*
+- **URL:** `https://app.aibizconnect.app/tools/occasions/app?loc={{location.id}}&name={{location.name}}`
+  *(GHL substitutes the real sub-account id + name; the account bootstraps on first open.)*
 - **Open mode:** Iframe
 - **Show on:** all sub-accounts (and/or agency)
 

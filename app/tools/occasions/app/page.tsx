@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  getAccount, upsertAccount, listSitesForLocation, signLocationToken, verifyLocationToken, decodeGhlSso,
+  upsertAccount, listSitesForLocation, signLocationToken, verifyLocationToken, decodeGhlSso,
 } from "@/lib/server/occasion-widget-accounts";
 import OccasionsDashboard from "./OccasionsDashboard";
 
@@ -9,7 +9,9 @@ import OccasionsDashboard from "./OccasionsDashboard";
  * Marketplace custom page). Identity is resolved server-side from, in order:
  *   1) a GHL SSO blob (?ssoData=…) — the real GHL menu path (dormant until the app is registered),
  *   2) a signed session token (?t=…) we minted — for testing / direct links,
- *   3) ?loc=<locationId> — only if that account already exists (so it can't open a stranger's data).
+ *   3) ?loc=<locationId>(&name=…) — Option A custom menu link: GHL server-substitutes
+ *      {{location.id}}, so we trust it and bootstrap the account on first open (low-sensitivity
+ *      data + unguessable ids; use Option B / SSO for hardened paid rollout).
  * See docs/occasions-GHL-menu-setup.md.
  */
 export const dynamic = "force-dynamic";
@@ -27,7 +29,7 @@ function NotConnected() {
   );
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ t?: string; loc?: string; ssoData?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ t?: string; loc?: string; name?: string; ssoData?: string }> }) {
   const sp = await searchParams;
 
   let locationId: string | null = null;
@@ -43,8 +45,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     if (v) locationId = v.locationId;
   }
   if (!locationId && sp.loc) {
-    const acct = await getAccount(sp.loc);
-    if (acct) locationId = acct.ghlLocationId;
+    locationId = sp.loc;
+    if (sp.name) name = sp.name;
   }
 
   if (!locationId) return <NotConnected />;
