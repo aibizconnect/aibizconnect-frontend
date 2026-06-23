@@ -120,6 +120,17 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
     return { ok: true, key: existing.key, domain, snippet: snippetFor(existing.key), manageUrl: manageUrlFor(existing.key) };
   }
 
+  // Public free tier = ONE domain per email address (Ali, 2026-06-23). A second domain on the
+  // same email is the paid upgrade path — unlimited domains live in the GHL account dashboard
+  // (lib/server/occasion-widget-accounts.ts). GHL-owned sites have email=null so never count here.
+  const email = (input.email ?? "").trim().toLowerCase();
+  if (email) {
+    const { count } = await db.from("occasion_widget_sites").select("key", { count: "exact", head: true }).eq("email", email);
+    if ((count ?? 0) >= 1) {
+      return { ok: false, error: "This email already has a free Occasions site. Upgrade your plan for unlimited sites." };
+    }
+  }
+
   const key = `ocw_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   const { error } = await db.from("occasion_widget_sites").insert({
     key, name: input.name ?? null, email: (input.email ?? "").trim().toLowerCase() || null, domain,
