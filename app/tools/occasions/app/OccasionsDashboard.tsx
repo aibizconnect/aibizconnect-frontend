@@ -74,6 +74,7 @@ const ICON: Record<string, React.ReactNode> = {
   info: <><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></>,
   chevron: <path d="m6 9 6 6 6-6" />,
   check: <path d="M20 6 9 17l-5-5" />,
+  plane: <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />,
 };
 function Ico({ name, size = 16, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{ICON[name]}</svg>;
@@ -161,6 +162,8 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     return { ...c, banners: { ...(c.banners ?? {}), [id]: { ...(c.banners?.[id] ?? {}), enabled, message: c.banners?.[id]?.message || occ?.welcome } } };
   });
   const setCustomEnabled = (id: string, enabled: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, enabled } : x)) }));
+  const setFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, banners: { ...(c.banners ?? {}), [id]: { ...(c.banners?.[id] ?? {}), fly } } }));
+  const setCustomFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, fly } : x)) }));
   const setStyle = (p: Partial<NonNullable<OccasionsConfig["bannerStyle"]>>) => sel && patchOcc(sel.key, (c) => ({ ...c, bannerStyle: { ...(c.bannerStyle ?? {}), ...p } }));
   const setAnim = (k: AnimationKind | "none") => sel && patchOcc(sel.key, (c) => ({ ...c, animations: (k === "none" ? {} : { [k]: { enabled: true, always: true } }) as OccasionsConfig["animations"] }));
   const curAnim: AnimationKind | "none" = (Object.entries(cfg.animations ?? {}).find(([, v]) => v?.enabled)?.[0] as AnimationKind) || "none";
@@ -277,21 +280,21 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
                 <button className="occ-btn pri" onClick={() => setModal(isPaid ? "add-site" : "upgrade")}>Add a site</button>
               </div>
             ) : screen === "sites" ? (
-              <Sites />
+              Sites()
             ) : screen === "occasions" ? (
-              <Occasions />
+              Occasions()
             ) : screen === "appearance" ? (
-              <Appearance />
+              Appearance()
             ) : screen === "install" ? (
-              <Install />
+              Install()
             ) : (
-              <Help />
+              Help()
             )}
           </div>
         </div>
       </div>
 
-      {modal && <Modals />}
+      {modal && Modals()}
     </div>
   );
 
@@ -388,28 +391,34 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             const meta = REGION_META[regionOf(o.id)];
             const on = !!cfg.banners?.[o.id]?.enabled;
             return (
-              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
-                    {badge(meta.tone, meta.label)}
+              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: on ? 11 : 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
+                      {badge(meta.tone, meta.label)}
+                    </div>
                   </div>
+                  <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
                 </div>
-                <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
+                {on && <FlyChip fly={!!cfg.banners?.[o.id]?.fly} onChange={(v) => setFly(o.id, v)} />}
               </div>
             );
           })}
           {showCustom && (cfg.custom ?? []).map((c) => (
-            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
-                  {badge("warning", "My custom")}
+            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: c.enabled ? 11 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
+                    {badge("warning", "My custom")}
+                  </div>
                 </div>
+                <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
               </div>
-              <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
+              {c.enabled && <FlyChip fly={!!c.fly} onChange={(v) => setCustomFly(c.id, v)} />}
             </div>
           ))}
           <button onClick={() => setModal("custom")} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 72, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit", fontWeight: 600, fontSize: 14 }}>
@@ -626,6 +635,19 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
       </div>
     );
   }
+}
+
+function FlyChip({ fly, onChange }: { fly: boolean; onChange: (v: boolean) => void }) {
+  const opt = (active: boolean): React.CSSProperties => ({ height: 26, padding: "0 10px", borderRadius: 7, border: "none", background: active ? "var(--c-primary)" : "transparent", color: active ? "#fff" : "var(--text-muted)", font: "inherit", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Show as</span>
+      <div style={{ display: "inline-flex", padding: 2, borderRadius: 9, border: "1px solid var(--border-default)", background: "var(--gray-50)" }}>
+        <button type="button" onClick={() => onChange(false)} style={opt(!fly)}>Banner</button>
+        <button type="button" onClick={() => onChange(true)} style={opt(fly)}><Ico name="plane" size={13} /> Airplane</button>
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
