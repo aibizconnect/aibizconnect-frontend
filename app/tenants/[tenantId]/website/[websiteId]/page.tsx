@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listSitePages, getSiteSettings, ensureWebsiteWired } from "../actions";
 import { listWebsites } from "../website-actions";
+import { getPlatformRole } from "@/lib/auth/platform-admin";
 import WebsiteWorkspace from "./WebsiteWorkspace";
 
 /**
@@ -20,8 +21,10 @@ export default async function WebsiteByIdPage({
   await ensureWebsiteWired(tenantId, websiteId).catch(() => {});
   const [pages, websites, settings] = await Promise.all([listSitePages(tenantId, websiteId), listWebsites(tenantId), getSiteSettings(tenantId)]);
   const site = websites.find((w) => w.id === websiteId) ?? websites[0];
-  // The tenant's connected/paid domain — the SEO & GEO analyzer is locked to this.
+  // The tenant's connected/paid domain — the SEO & GEO analyzer is locked to this for tenant users.
   const paidDomain = site?.primary_domain || settings?.customDomain || null;
+  // ABC platform team (staff/admin/superadmin) get the analyzer UNLOCKED — analyze any domain.
+  const isStaff = !!(await getPlatformRole().catch(() => null));
 
   return (
     <div className="w-full px-2">
@@ -42,7 +45,7 @@ export default async function WebsiteByIdPage({
 
       <WebsiteWorkspace tenantId={tenantId} websiteId={websiteId} pages={pages} websiteName={site?.name}
         subdomain={site?.subdomain ?? site?.slug ?? null} isPrimary={!!site?.is_primary} websiteCount={websites.length}
-        paidDomain={paidDomain} />
+        paidDomain={paidDomain} isStaff={isStaff} />
     </div>
   );
 }

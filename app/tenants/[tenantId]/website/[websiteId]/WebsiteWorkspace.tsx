@@ -13,7 +13,7 @@ type Tab = (typeof TABS)[number];
 const LIVE: Tab[] = ["Pages", "SEO & GEO", "Occasions", "Settings"];
 
 export default function WebsiteWorkspace({
-  tenantId, websiteId, pages, websiteName, subdomain, isPrimary, websiteCount, paidDomain,
+  tenantId, websiteId, pages, websiteName, subdomain, isPrimary, websiteCount, paidDomain, isStaff,
 }: {
   tenantId: string;
   websiteId: string;
@@ -23,8 +23,16 @@ export default function WebsiteWorkspace({
   isPrimary?: boolean;
   websiteCount?: number;
   paidDomain?: string | null;
+  isStaff?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("Pages");
+  // ABC staff/admins can analyze ANY domain — the analyzer runs UNLOCKED (same as /platform/seo-tools).
+  // Tenant users stay locked to their own connected (paid) domain.
+  const seoUrl = isStaff
+    ? "/tools/seo-geo-analyzer.html"
+    : paidDomain
+      ? `/tools/seo-geo-analyzer.html?url=${encodeURIComponent(paidDomain)}&lock=1`
+      : "/tools/seo-geo-analyzer.html";
 
   return (
     <>
@@ -60,13 +68,17 @@ export default function WebsiteWorkspace({
         </>
       )}
       {tab === "SEO & GEO" && (
-        paidDomain ? (
+        (paidDomain || isStaff) ? (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">SEO + GEO (AI/answer-engine) readiness for your connected domain <b className="text-slate-700">{paidDomain}</b>, with a prioritized task list.</p>
-              <a href={`/tools/seo-geo-analyzer.html?url=${encodeURIComponent(paidDomain)}&lock=1`} target="_blank" rel="noreferrer" className="text-xs font-medium text-[#1e3a8a] hover:underline">Open full screen ↗</a>
+              {isStaff ? (
+                <p className="text-xs text-slate-500">Staff mode — analyze <b className="text-slate-700">any</b> domain (a prospect, a competitor, or any tenant site) for SEO + GEO readiness. Past analyses are kept under the analyzer&apos;s Tracker.</p>
+              ) : (
+                <p className="text-xs text-slate-500">SEO + GEO (AI/answer-engine) readiness for your connected domain <b className="text-slate-700">{paidDomain}</b>, with a prioritized task list.</p>
+              )}
+              <a href={seoUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-[#1e3a8a] hover:underline">Open full screen ↗</a>
             </div>
-            <iframe src={`/tools/seo-geo-analyzer.html?url=${encodeURIComponent(paidDomain)}&lock=1`} title="SEO & GEO Analyzer"
+            <iframe src={seoUrl} title="SEO & GEO Analyzer"
               className="w-full rounded-xl border border-slate-200 bg-white" style={{ height: "calc(100vh - 220px)", minHeight: 640 }} />
           </div>
         ) : (
