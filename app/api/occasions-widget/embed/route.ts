@@ -134,8 +134,9 @@ function buildScript(key: string): string {
     var flyBanners=banners.filter(function(b){return b.fly;});
     if(!flyBanners.length) return;
     var rnd=(fx.randomness!=null?fx.randomness:60)/100;
+    var dens=(fx.density!=null?fx.density:40), scale=Math.max(0.5,Math.min(2.5,(fx.size||22)/22)); // Size scales the plane
     var baseDur=Math.max(7,22-(fx.speed||5));
-    var interval=Math.max(5000,baseDur*1000*0.85); // new plane ~each flight-length (santa-style cadence)
+    var interval=Math.max(1800,baseDur*1000*0.9*(40/(dens||40))); // Density = how often a new plane launches
     function launchOne(){
       if(document.hidden) return;
       var b=flyBanners[Math.floor(Math.random()*flyBanners.length)];
@@ -149,7 +150,7 @@ function buildScript(key: string): string {
       else { bn.textContent=bMsg; }
       wrap.appendChild(bn);
       // Plane in its own bobbing element (santa-style gallop) so the wobble doesn't fight the cross-screen transform.
-      var plane=document.createElement("div"); plane.className="abc-occ-plane"; plane.innerHTML=PLANE; wrap.appendChild(plane);
+      var plane=document.createElement("div"); plane.className="abc-occ-plane"; plane.innerHTML=PLANE; var psvg=plane.querySelector("svg"); if(psvg){var pw=Math.round(34*scale);psvg.setAttribute("width",pw);psvg.setAttribute("height",pw);} wrap.appendChild(plane);
       document.body.appendChild(wrap);
       wrap.addEventListener("animationend",function(){wrap.remove();});
       setTimeout(function(){if(wrap.parentNode) wrap.remove();},dur*1000+1500); // safety cleanup
@@ -166,7 +167,8 @@ function buildScript(key: string): string {
     sprite.style.cssText="position:fixed;top:0;left:0;width:"+width+"px;z-index:2147483646;pointer-events:none;display:none;";
     sprite.innerHTML=SANTA; document.body.appendChild(sprite);
     var speedMs=(16-speed)*800;
-    var waitMin=1500+(1-rnd)*2000, waitMax=4000+rnd*9000;
+    var dens=s.density||40, densF=Math.max(0.25,40/dens); // Density = how often Santa reappears
+    var waitMin=(1500+(1-rnd)*2000)*densF, waitMax=(4000+rnd*9000)*densF;
     function yBand(){ var h=window.innerHeight, r=Math.random();
       if(loc==="top") return r*h*0.3;
       if(loc==="middle"||loc==="center") return h*0.3+r*h*0.3;

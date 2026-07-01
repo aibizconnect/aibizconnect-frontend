@@ -96,7 +96,6 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
   const [openInfo, setOpenInfo] = useState<string | null>(null);
   const [faqOpen, setFaqOpen] = useState<string | null>("when");
   const [custom, setCustom] = useState({ name: "", start: "", end: "", message: "", link: "", newTab: true });
-  const [gMove, setGMove] = useState<"banner" | "airplane">("banner");
   const [gStart, setGStart] = useState("");
   const [gEnd, setGEnd] = useState("");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -115,7 +114,6 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     const c = sel.occasions || {};
     const ids = OCCASION_CATALOG.filter((o) => c.banners?.[o.id]?.enabled).map((o) => o.id);
     const fe = ids.length ? c.banners![ids[0]] : (c.custom ?? []).find((x) => x.enabled);
-    setGMove(fe?.fly ? "airplane" : "banner");
     setGStart(fe?.startDate || "");
     setGEnd(fe?.endDate || "");
   }, [sel?.key]);
@@ -167,7 +165,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     if (!sel || !custom.name.trim()) { setModal(null); return; }
     const c: CustomBanner = {
       id: `c${Date.now()}`, name: custom.name.trim(), startDate: custom.start || new Date().toISOString().slice(0, 10),
-      endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(), fly: gMove === "airplane",
+      endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(), fly: false,
       linkUrl: custom.link || undefined, linkTarget: custom.newTab ? "_blank" : "_self",
     };
     patchOcc(sel.key, (cfg) => ({ ...cfg, custom: [...(cfg.custom ?? []), c] }));
@@ -183,23 +181,20 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     const occ = OCCASION_CATALOG.find((o) => o.id === id);
     const prev = c.banners?.[id] ?? {};
     const next = enabled
-      ? { ...prev, enabled: true, message: prev.message || occ?.welcome, fly: gMove === "airplane", startDate: gStart || null, endDate: gEnd || null }
+      ? { ...prev, enabled: true, message: prev.message || occ?.welcome, startDate: gStart || null, endDate: gEnd || null }
       : { ...prev, enabled: false };
     return { ...c, banners: { ...(c.banners ?? {}), [id]: next } };
   });
   const setCustomEnabled = (id: string, enabled: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, enabled } : x)) }));
+  // Movement (banner vs airplane) is PER occasion, so two occasions can run at once (one banner, one airplane).
+  const setFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, banners: { ...(c.banners ?? {}), [id]: { ...(c.banners?.[id] ?? {}), fly } } }));
+  const setCustomFly = (id: string, fly: boolean) => sel && patchOcc(sel.key, (c) => ({ ...c, custom: (c.custom ?? []).map((x) => (x.id === id ? { ...x, fly } : x)) }));
   const setStyle = (p: Partial<NonNullable<OccasionsConfig["bannerStyle"]>>) => sel && patchOcc(sel.key, (c) => ({ ...c, bannerStyle: { ...(c.bannerStyle ?? {}), ...p } }));
   const setSettings = (p: Partial<EffectSettings>) => sel && patchOcc(sel.key, (c) => ({ ...c, settings: { ...(c.settings ?? {}), ...p } }));
-  const applyMovement = (airplane: boolean) => sel && patchOcc(sel.key, (c) => ({
-    ...c,
-    banners: Object.fromEntries(Object.entries(c.banners ?? {}).map(([id, e]) => [id, e && e.enabled ? { ...e, fly: airplane } : e])),
-    custom: (c.custom ?? []).map((x) => (x.enabled ? { ...x, fly: airplane } : x)),
-  }));
   const applyWindow = (start: string, end: string) => sel && patchOcc(sel.key, (c) => ({
     ...c,
     banners: Object.fromEntries(Object.entries(c.banners ?? {}).map(([id, e]) => [id, e && e.enabled ? { ...e, startDate: start || null, endDate: end || null } : e])),
   }));
-  const changeMovement = (airplane: boolean) => { setGMove(airplane ? "airplane" : "banner"); applyMovement(airplane); };
   const changeWindow = (start: string, end: string) => { setGStart(start); setGEnd(end); applyWindow(start, end); };
   const setAnim = (k: AnimationKind | "none") => sel && patchOcc(sel.key, (c) => ({ ...c, animations: (k === "none" ? {} : { [k]: { enabled: true, always: true } }) as OccasionsConfig["animations"] }));
   const curAnim: AnimationKind | "none" = (Object.entries(cfg.animations ?? {}).find(([, v]) => v?.enabled)?.[0] as AnimationKind) || "none";
@@ -434,28 +429,34 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             const meta = REGION_META[regionOf(o.id)];
             const on = !!cfg.banners?.[o.id]?.enabled;
             return (
-              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
-                    {badge(meta.tone, meta.label)}
+              <div key={o.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: on ? 11 : 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Next · {nextDate(o.id)}</span>
+                      {badge(meta.tone, meta.label)}
+                    </div>
                   </div>
+                  <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
                 </div>
-                <Switch on={on} onChange={(v) => setBanner(o.id, v)} />
+                {on && <FlyChip fly={!!cfg.banners?.[o.id]?.fly} onChange={(v) => setFly(o.id, v)} />}
               </div>
             );
           })}
           {showCustom && (cfg.custom ?? []).map((c) => (
-            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
-                  {badge("warning", "My custom")}
+            <div key={c.id} className="occ-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: c.enabled ? 11 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.startDate}{c.endDate ? `–${c.endDate}` : ""}</span>
+                    {badge("warning", "My custom")}
+                  </div>
                 </div>
+                <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
               </div>
-              <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
+              {c.enabled && <FlyChip fly={!!c.fly} onChange={(v) => setCustomFly(c.id, v)} />}
             </div>
           ))}
           <button onClick={() => setModal("custom")} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 72, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit", fontWeight: 600, fontSize: 14 }}>
@@ -511,11 +512,6 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             ))}
           </div>
           {curAnim !== "none" && <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>{ANIM_BY_KEY[curAnim as AnimationKind]?.label} runs ambiently on the site.</p>}
-        </div>
-
-        <div style={{ marginTop: 24 }}>
-          <div className="occ-eyebrow" style={{ marginBottom: 10 }}>Movement</div>
-          <FlyChip fly={gMove === "airplane"} onChange={changeMovement} />
         </div>
 
         <div style={{ marginTop: 24 }}>
