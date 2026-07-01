@@ -190,7 +190,10 @@ function buildScript(key: string): string {
     if(state.badge===false) return;
     if(document.getElementById("abc-occ-badge")) return;
     var a=document.createElement("a"); a.id="abc-occ-badge"; a.className="abc-occ-badge";
-    a.href="https://aibizconnect.app/?utm_source=occasions_widget"; a.target="_blank"; a.rel="noopener noreferrer";
+    // Link to the LEAD-CAPTURE tool funnel (name/email/domain + required consent), not the marketing
+    // site — every site running the free widget becomes a consented lead funnel. ref = the host site.
+    a.href="https://aibizconnect.ca/occasions?utm_source=occasions_widget&utm_medium=badge&ref="+encodeURIComponent(location.hostname);
+    a.target="_blank"; a.rel="noopener noreferrer"; a.title="Add free festive banners to your site";
     a.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="#3D49C4"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Powered by AIBizConnect';
     document.body.appendChild(a);
   }
