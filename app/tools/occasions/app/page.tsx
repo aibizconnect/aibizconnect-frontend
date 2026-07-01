@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  upsertAccount, listSitesForLocation, signLocationToken, verifyLocationToken, decodeGhlSso,
+  upsertAccount, listSitesForLocation, signLocationToken, verifyLocationToken, decodeGhlSso, siteCapFor,
 } from "@/lib/server/occasion-widget-accounts";
 import OccasionsDashboard from "./OccasionsDashboard";
 
@@ -55,6 +55,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const token = signLocationToken(locationId);
   const sites = await listSitesForLocation(locationId);
   const appBase = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
+  const cap = siteCapFor(locationId, account.plan);
+  const unlimited = !Number.isFinite(cap);
 
-  return <OccasionsDashboard token={token} account={account} initialSites={sites} appBase={appBase} />;
+  return <OccasionsDashboard token={token} account={account} initialSites={sites} appBase={appBase} siteCap={unlimited ? undefined : cap} unlimited={unlimited} />;
 }

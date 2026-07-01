@@ -80,8 +80,8 @@ function Ico({ name, size = 16, color = "currentColor" }: { name: string; size?:
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{ICON[name]}</svg>;
 }
 
-export default function OccasionsDashboard({ token, account, initialSites, appBase }: { token: string; account: WidgetAccount; initialSites: AccountSite[]; appBase: string }) {
-  const isPaid = account.plan === "paid";
+export default function OccasionsDashboard({ token, account, initialSites, appBase, siteCap, unlimited }: { token: string; account: WidgetAccount; initialSites: AccountSite[]; appBase: string; siteCap?: number; unlimited?: boolean }) {
+  const isPaid = account.plan === "paid" || !!unlimited;
   const year = useMemo(() => new Date().getFullYear(), []);
   const [sites, setSites] = useState<AccountSite[]>(initialSites);
   const [screen, setScreen] = useState<"sites" | "occasions" | "appearance" | "install" | "help">("sites");
@@ -102,6 +102,11 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const sel = sites.find((s) => s.key === selectedKey) || sites[0] || null;
+
+  // Per-account site cap: free = 1, paid sub-account = 5, our own AI Biz Connect location = unlimited.
+  const cap = unlimited ? Infinity : (siteCap ?? 1);
+  const canAdd = sites.length < cap;
+  const openAdd = () => setModal(canAdd ? "add-site" : "upgrade");
 
   // Derive the shared movement + show-window from the selected site's enabled occasions, so the
   // Appearance controls reflect what's set. Re-runs only when the site changes (not on every edit).
@@ -294,7 +299,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{account.accountName || "Your account"}</div>
               </div>
               <div style={{ flex: 1 }} />
-              {badge(isPaid ? "success" : "neutral", isPaid ? "Included" : "Free plan", isPaid)}
+              {badge(isPaid ? "success" : "neutral", unlimited ? "Unlimited" : isPaid ? `${sites.length} / ${siteCap ?? 5} sites` : "Free · 1 site", isPaid)}
             </div>
             <div style={{ display: "flex", gap: 2, padding: "8px 10px", overflowX: "auto", background: "var(--gray-50)" }}>
               {NAV.map((t) => (
@@ -309,7 +314,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
               <div className="occ-card" style={{ padding: "40px 28px", textAlign: "center", borderStyle: "dashed", borderColor: "var(--border-default)" }}>
                 <div className="occ-disp" style={{ fontSize: 18, marginBottom: 6 }}>Add a site first</div>
                 <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 18 }}>You need at least one site before choosing occasions.</div>
-                <button className="occ-btn pri" onClick={() => setModal(isPaid ? "add-site" : "upgrade")}>Add a site</button>
+                <button className="occ-btn pri" onClick={openAdd}>Add a site</button>
               </div>
             ) : screen === "sites" ? (
               Sites()
@@ -332,7 +337,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
 
   // ───────────────────────── screens ─────────────────────────
   function Sites() {
-    const list = isPaid ? sites : sites.slice(0, 1);
+    const list = sites;
     return (
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
@@ -340,7 +345,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
             <div className="occ-disp" style={{ fontSize: 20 }}>Your sites</div>
             <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>Manage where the Occasions banner runs.</div>
           </div>
-          <button className="occ-btn pri sm" onClick={() => setModal(isPaid ? "add-site" : "upgrade")}>Add a site</button>
+          <button className="occ-btn pri sm" onClick={openAdd}>Add a site</button>
         </div>
 
         {list.length === 0 ? (
@@ -378,15 +383,21 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
               );
             })}
 
-            {isPaid ? (
+            {canAdd ? (
               <button onClick={() => setModal("add-site")} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 150, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit" }}>
                 <Ico name="plus" size={26} /><span style={{ fontWeight: 600, fontSize: 14 }}>Add a site</span>
               </button>
             ) : (
               <button onClick={() => setModal("upgrade")} style={{ background: "var(--gray-50)", border: "1px dashed var(--border-default)", borderRadius: "var(--radius-lg)", minHeight: 150, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", textAlign: "center", padding: 16, font: "inherit", color: "var(--text-muted)" }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-body)", maxWidth: 180 }}>Unlimited sites, included with a paid plan.</span>
-                <span style={{ fontSize: 12, color: "var(--c-primary)", fontWeight: 600 }}>Upgrade →</span>
+                {(siteCap ?? 1) <= 1 ? (
+                  <>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-body)", maxWidth: 180 }}>Your plan includes 1 site.</span>
+                    <span style={{ fontSize: 12, color: "var(--c-primary)", fontWeight: 600 }}>Upgrade for more →</span>
+                  </>
+                ) : (
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-body)", maxWidth: 180 }}>You&apos;ve reached your {siteCap}-site limit.</span>
+                )}
               </button>
             )}
           </div>
@@ -663,11 +674,20 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
               <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--grad-brand)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
               </div>
-              <div className="occ-disp" style={{ fontSize: 19, marginBottom: 8 }}>Unlimited sites, included</div>
-              <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 20 }}>Upgrade your plan to add unlimited sites, apply occasions everywhere, and remove the AIBizConnect badge.</div>
+              {(siteCap ?? 1) <= 1 ? (
+                <>
+                  <div className="occ-disp" style={{ fontSize: 19, marginBottom: 8 }}>Add more sites</div>
+                  <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 20 }}>Upgrade your plan to run Occasions on up to 5 sites and remove the AIBizConnect badge.</div>
+                </>
+              ) : (
+                <>
+                  <div className="occ-disp" style={{ fontSize: 19, marginBottom: 8 }}>You&apos;ve hit your {siteCap}-site limit</div>
+                  <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 20 }}>Your plan includes up to {siteCap} Occasions sites. Remove one to add a different site, or reach out if you need more.</div>
+                </>
+              )}
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button className="occ-btn ghost" onClick={close}>Not now</button>
-                <button className="occ-btn pri" onClick={close}>See plans</button>
+                <button className="occ-btn pri" onClick={close}>{(siteCap ?? 1) <= 1 ? "See plans" : "Got it"}</button>
               </div>
             </div>
           )}

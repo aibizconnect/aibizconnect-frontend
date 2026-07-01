@@ -59,6 +59,16 @@ export async function listSitesForLocation(locationId: string): Promise<AccountS
   }));
 }
 
+/** AI Biz Connect's OWN GHL sub-account (location id) → UNLIMITED Occasions sites. Env-overridable. */
+export const OWNER_LOCATION_ID = process.env.OCCASIONS_OWNER_LOCATION_ID || "yDwou55cNKwHB5cg0Frs";
+/** Sub-account holders on a paid plan get up to this many sites (our own location is unlimited; free = 1). */
+export const PAID_SITE_CAP = 5;
+/** How many Occasions sites a GHL location may create. Infinity = unlimited (our own location). */
+export function siteCapFor(locationId: string, plan: WidgetPlan): number {
+  if (locationId === OWNER_LOCATION_ID) return Infinity;
+  return plan === "paid" ? PAID_SITE_CAP : 1;
+}
+
 export interface CreateSiteResult { ok: boolean; key?: string; error?: string }
 export async function createSiteForLocation(input: { locationId: string; domain: string; accountName?: string }): Promise<CreateSiteResult> {
   const domain = normalizeDomain(input.domain);
@@ -73,10 +83,15 @@ export async function createSiteForLocation(input: { locationId: string; domain:
     if ((existing as Record<string, unknown>).ghl_location_id === input.locationId) return { ok: true, key: String((existing as Record<string, unknown>).key) };
     return { ok: false, error: "That domain is already registered." };
   }
-  // Free plan = 1 site per location; paid = unlimited.
-  if (plan === "free") {
+  // Per-location cap: free = 1, paid sub-account = 5, our own AI Biz Connect location = unlimited.
+  const cap = siteCapFor(input.locationId, plan);
+  if (Number.isFinite(cap)) {
     const { count } = await db.from("occasion_widget_sites").select("key", { count: "exact", head: true }).eq("ghl_location_id", input.locationId);
-    if ((count ?? 0) >= 1) return { ok: false, error: "Free includes 1 site. Upgrade for unlimited sites." };
+    if ((count ?? 0) >= cap) {
+      return { ok: false, error: cap <= 1
+        ? "Your plan includes 1 site — upgrade to add more."
+        : `Your plan includes up to ${cap} sites; you've reached the limit.` };
+    }
   }
 
   const key = `ocw_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
