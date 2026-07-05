@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeadLoop — Never lose another real estate lead</title>
+<!--
+  LeadLoop feature landing page — real-estate beachhead.
+  Self-contained: inline CSS + JS, no external assets. Drop into WordPress as a
+  Custom HTML block / full-width page, or host standalone.
+  Replace TODO markers: calendar/booking link, pricing, phone, brand logo.
+  Lead form posts nowhere by default — wire the <form> action to your GHL
+  inbound webhook (or a WordPress form plugin) where marked.
+-->
+<style>
+  :root{
+    --brand:#3D49C4; --brand-strong:#2F399D; --brand-ink:#090966; --accent:#555FC4;
+    --page:#FFFFFF; --alt:#F5F6FD; --sunken:#F2F3F7;
+    --ink:#0F1030; --body:#44454E; --muted:#7C7D86;
+    --border:#E6E7F2; --good:#1F9D6B; --good-bg:#E0F4EC; --amber:#E0A115;
+    --grad:linear-gradient(135deg,#2F399D 0%,#555FC4 100%);
+    --grad-hero:linear-gradient(160deg,#090966 0%,#262E82 55%,#3D49C4 120%);
+    --shadow:0 18px 50px rgba(18,22,74,.16); --shadow-sm:0 6px 20px rgba(18,22,74,.08);
+    --radius:16px; --pill:999px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--page);color:var(--body);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  h1,h2,h3{color:var(--ink);letter-spacing:-.022em;line-height:1.1;margin:0}
+  h2{font-size:32px;margin-bottom:10px}
+  h3{font-size:19px}
+  p{margin:0 0 14px}
+  .eyebrow{font-size:12.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
+  a{color:var(--brand);text-decoration:none}
+  .btn{display:inline-block;cursor:pointer;border:none;border-radius:12px;font-weight:700;
+    padding:15px 26px;font-size:16px;transition:.16s;text-align:center}
+  .btn.primary{background:var(--brand);color:#fff;box-shadow:0 12px 30px rgba(61,73,196,.35)}
+  .btn.primary:hover{background:var(--brand-strong);transform:translateY(-1px)}
+  .btn.ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45)}
+  .btn.ghost:hover{background:rgba(255,255,255,.1)}
+  .btn.light{background:#fff;color:var(--brand)}
+  .btn.big{padding:17px 34px;font-size:17px}
+  section{padding:76px 0}
+  .center{text-align:center;max-width:680px;margin:0 auto}
+  /* ---------- nav ---------- */
+  nav{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.02em}
+  .logo b{color:var(--brand)}
+  nav .btn{padding:10px 18px;font-size:14px}
+  nav .links{display:flex;gap:26px;align-items:center}
+  nav .links a{color:var(--body);font-weight:600;font-size:14.5px}
+  @media(max-width:720px){nav .links a{display:none}}
+  /* ---------- hero ---------- */
+  .hero{background:var(--grad-hero);color:#fff;padding:82px 0 90px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-160px;top:-160px;width:520px;height:520px;
+    background:radial-gradient(circle,rgba(124,132,214,.45),transparent 62%);pointer-events:none}
+  .hero .wrap{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center}
+  @media(max-width:860px){.hero .wrap{grid-template-columns:1fr;gap:30px}}
+  .hero .eyebrow{color:#B4B9EC}
+  .hero h1{color:#fff;font-size:47px;line-height:1.04;margin:14px 0 16px}
+  @media(max-width:860px){.hero h1{font-size:36px}}
+  .hero p.lede{color:#DDE0F4;font-size:19px;margin-bottom:26px;max-width:540px}
+  .hero .cta{display:flex;gap:14px;flex-wrap:wrap}
+  .hero .micro{color:#AEB2DC;font-size:13.5px;margin-top:16px}
+  /* phone mock */
+  .phone{background:#0d0e24;border:1px solid rgba(255,255,255,.14);border-radius:26px;padding:16px 14px 20px;
+    box-shadow:var(--shadow);max-width:330px;margin:0 auto;width:100%}
+  .phone .top{display:flex;align-items:center;gap:8px;color:#AEB2DC;font-size:12px;margin-bottom:12px;padding:0 6px}
+  .phone .top .dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+  .msg{padding:11px 14px;border-radius:14px;margin:8px 0;font-size:13.5px;line-height:1.45;max-width:82%}
+  .msg.them{background:#23244a;color:#e8e9ff;border-bottom-left-radius:4px}
+  .msg.you{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+  .msg .lbl{display:block;font-size:10.5px;opacity:.7;margin-bottom:3px;font-weight:700;letter-spacing:.03em}
+  .msg.auto .lbl{color:#B4F0D6}
+  .tstamp{text-align:center;color:#6f719c;font-size:11px;margin:6px 0}
+  /* ---------- trust strip ---------- */
+  .strip{background:var(--brand-ink);color:#fff;padding:26px 0}
+  .strip .wrap{display:flex;gap:20px;justify-content:space-between;flex-wrap:wrap;text-align:center}
+  .strip .item{flex:1;min-width:150px}
+  .strip b{display:block;font-size:26px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .strip span{color:#B4B9EC;font-size:13px}
+  /* ---------- cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:38px}
+  @media(max-width:820px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--page);border:1px solid var(--border);border-radius:var(--radius);
+    padding:26px 24px;box-shadow:var(--shadow-sm)}
+  .card .ic{width:46px;height:46px;border-radius:12px;background:var(--alt);display:flex;align-items:center;
+    justify-content:center;font-size:22px;margin-bottom:16px}
+  .card h3{margin-bottom:8px}
+  .card p{margin:0;font-size:15px;color:var(--body)}
+  .alt-bg{background:var(--alt)}
+  /* ---------- steps ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:40px;counter-reset:s}
+  @media(max-width:820px){.steps{grid-template-columns:1fr}}
+  .step{position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    padding:28px 24px 24px;box-shadow:var(--shadow-sm)}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;top:-16px;left:24px;
+    width:38px;height:38px;border-radius:50%;background:var(--grad);color:#fff;font-weight:800;
+    display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 8px 20px rgba(61,73,196,.4)}
+  .step h3{margin:10px 0 8px}
+  .step p{margin:0;font-size:15px}
+  /* ---------- calculator ---------- */
+  .calc{background:var(--grad-hero);color:#fff;border-radius:22px;padding:40px;box-shadow:var(--shadow);
+    display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+  @media(max-width:820px){.calc{grid-template-columns:1fr;padding:28px;gap:26px}}
+  .calc h2{color:#fff}
+  .calc .eyebrow{color:#B4B9EC}
+  .calc label{display:block;color:#DDE0F4;font-size:14px;font-weight:600;margin:20px 0 6px;
+    display:flex;justify-content:space-between}
+  .calc label b{color:#fff;font-weight:800;font-variant-numeric:tabular-nums}
+  .calc input[type=range]{width:100%;accent-color:#B4B9EC;height:6px}
+  .result{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:16px;
+    padding:26px;text-align:center}
+  .result .big{font-size:46px;font-weight:800;color:#fff;letter-spacing:-.02em;line-height:1;margin:6px 0}
+  .result .big.good{color:#8FE9C1}
+  .result .cap{color:#B4B9EC;font-size:13.5px}
+  .result hr{border:none;border-top:1px solid rgba(255,255,255,.14);margin:18px 0}
+  .result .sub{color:#DDE0F4;font-size:14px}
+  .result .sub b{color:#8FE9C1}
+  /* ---------- feature list ---------- */
+  .feat{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 34px;margin-top:34px}
+  @media(max-width:820px){.feat{grid-template-columns:1fr}}
+  .feat .f{display:flex;gap:14px;align-items:flex-start}
+  .feat .chk{flex:none;width:26px;height:26px;border-radius:8px;background:var(--good-bg);color:var(--good);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;margin-top:2px}
+  .feat .f b{color:var(--ink)}
+  .feat .f span{font-size:14.5px}
+  /* ---------- pricing ---------- */
+  .price{max-width:440px;margin:38px auto 0;background:#fff;border:2px solid var(--brand);
+    border-radius:20px;padding:34px;text-align:center;box-shadow:var(--shadow);position:relative}
+  .price .tag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--brand);
+    color:#fff;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    padding:5px 16px;border-radius:var(--pill)}
+  .price .amt{font-size:52px;font-weight:800;color:var(--ink);letter-spacing:-.03em;line-height:1}
+  .price .amt small{font-size:18px;font-weight:600;color:var(--muted)}
+  .price .setup{color:var(--body);margin:8px 0 20px}
+  .price ul{list-style:none;padding:0;margin:0 0 24px;text-align:left}
+  .price li{padding:8px 0 8px 30px;position:relative;font-size:15px;color:var(--body)}
+  .price li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:800}
+  .price .btn{width:100%}
+  .price .fine{color:var(--muted);font-size:12.5px;margin-top:14px}
+  /* ---------- faq ---------- */
+  .faq{max-width:760px;margin:34px auto 0}
+  details.q{border:1px solid var(--border);border-radius:12px;padding:2px 20px;margin-bottom:12px;background:#fff}
+  details.q summary{cursor:pointer;font-weight:700;color:var(--ink);padding:16px 0;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;font-size:16px}
+  details.q summary::-webkit-details-marker{display:none}
+  details.q summary::after{content:"+";color:var(--brand);font-size:24px;font-weight:400;line-height:1}
+  details.q[open] summary::after{content:"–"}
+  details.q p{padding:0 0 18px;margin:0;font-size:15px}
+  /* ---------- final cta + form ---------- */
+  .final{background:var(--grad-hero);color:#fff;border-radius:24px;padding:52px 40px;text-align:center;
+    box-shadow:var(--shadow)}
+  .final h2{color:#fff;font-size:34px}
+  .final p{color:#DDE0F4;max-width:520px;margin:0 auto 26px;font-size:17px}
+  .leadform{display:flex;gap:10px;max-width:520px;margin:0 auto;flex-wrap:wrap}
+  .leadform input{flex:1;min-width:180px;border:none;border-radius:12px;padding:15px 16px;font-size:15px;
+    background:#fff;color:var(--ink)}
+  .leadform input:focus{outline:3px solid rgba(180,185,236,.6)}
+  .leadform .btn{flex:none}
+  .final .micro{color:#AEB2DC;font-size:13px;margin-top:14px}
+  /* ---------- footer ---------- */
+  footer{padding:38px 0;text-align:center;color:var(--muted);font-size:13.5px}
+  footer .logo{font-size:16px;margin-bottom:8px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(120px);
+    background:var(--ink);color:#fff;padding:14px 22px;border-radius:12px;box-shadow:var(--shadow);
+    font-size:14.5px;font-weight:600;transition:.35s;z-index:60}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">Lead<b>Loop</b></div>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#calc">ROI calculator</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#start" class="btn primary">Book free setup</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">For real estate agents &amp; teams</span>
+      <h1>Never lose another lead to a slow reply.</h1>
+      <p class="lede">LeadLoop answers every new lead in <b style="color:#fff">60 seconds</b> and keeps following up until they book — automatically, even when you're at a showing.</p>
+      <div class="cta">
+        <a href="#start" class="btn primary big">Book your free setup</a>
+        <a href="#how" class="btn ghost big">See how it works</a>
+      </div>
+      <p class="micro">✓ No app to install &nbsp; ✓ Works with your website, Zillow &amp; portal leads &nbsp; ✓ Live in 48 hours</p>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="top"><span class="dot"></span> New lead · Maple Ave listing</div>
+        <div class="tstamp">2:14 PM — lead comes in</div>
+        <div class="msg them"><span class="lbl">JORDAN (buyer)</span>Hi, is the condo on Maple Ave still available?</div>
+        <div class="tstamp">2:14 PM — 38 seconds later</div>
+        <div class="msg you auto"><span class="lbl">LEADLOOP · AUTO-REPLY</span>Hi Jordan! Yes it is 🙂 I'd love to show you. Are you free Thursday 5pm or Saturday 11am? Book here: [your calendar]</div>
+        <div class="msg them"><span class="lbl">JORDAN</span>Saturday works!</div>
+        <div class="tstamp">You were at another showing the whole time.</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- TRUST STRIP -->
+<div class="strip">
+  <div class="wrap">
+    <div class="item"><b>&lt;60 sec</b><span>Every lead gets a reply</span></div>
+    <div class="item"><b>Up to 10×</b><span>More likely to connect when you reply in 5 min vs 30</span></div>
+    <div class="item"><b>5–7 touches</b><span>Automatic follow-up until they answer</span></div>
+    <div class="item"><b>24/7</b><span>Nights, weekends, while you're showing</span></div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section>
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">The real reason deals slip away</span>
+      <h2>Your leads aren't the problem. The wait is.</h2>
+      <p style="font-size:18px;color:var(--body)">Buyers and sellers contact the agent who replies <em>first</em> — usually within minutes. But you're on a showing, in a closing, or asleep. By the time you get back to them, they've moved on. It's not effort. It's timing.</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="ic">⏳</div>
+        <h3>Slow first response</h3>
+        <p>The average agent takes hours to reply to a new lead. Most buyers have already contacted someone else by then.</p>
+      </div>
+      <div class="card">
+        <div class="ic">📵</div>
+        <h3>Missed calls = lost deals</h3>
+        <p>You can't answer while you're with a client. A missed call with no follow-up is a lead handed to your competition.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🕸️</div>
+        <h3>Follow-up fizzles out</h3>
+        <p>Most leads need 5+ touches to convert, but almost nobody sends more than one. The commissions are in the follow-up you never send.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="alt-bg">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">How LeadLoop works</span>
+      <h2>Set it up once. It closes the gap forever.</h2>
+      <p style="font-size:18px">Three things happen automatically the moment a lead reaches you — from any source.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <h3>Capture every lead</h3>
+        <p>Website forms, Zillow &amp; portal leads, DMs, even <b>missed calls</b> — all flow into one place. Nothing to install; we connect to what you already use.</p>
+      </div>
+      <div class="step">
+        <h3>Reply in 60 seconds</h3>
+        <p>LeadLoop instantly texts a warm, personalized reply and offers times from <b>your calendar</b> — so you're the first agent they hear from, every time.</p>
+      </div>
+      <div class="step">
+        <h3>Follow up until they book</h3>
+        <p>If they go quiet, LeadLoop keeps nudging — in your voice — over the next days and weeks, then hands you a booked appointment. You just show up.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALCULATOR -->
+<section id="calc">
+  <div class="wrap">
+    <div class="calc">
+      <div>
+        <span class="eyebrow">Reality check</span>
+        <h2>How much are cold leads costing you?</h2>
+        <p style="color:#DDE0F4">Slide to match your business. This estimates the commission you could recover by being first to respond and following up on every lead.</p>
+        <label>Leads per month <b><span id="vLeads">30</span></b></label>
+        <input type="range" id="leads" min="5" max="150" step="5" value="30">
+        <label>Average commission per deal <b>$<span id="vComm">12,000</span></b></label>
+        <input type="range" id="comm" min="3000" max="40000" step="1000" value="12000">
+        <label>Leads that currently go cold with no real follow-up <b><span id="vCold">40</span>%</b></label>
+        <input type="range" id="cold" min="10" max="70" step="5" value="40">
+      </div>
+      <div class="result">
+        <div class="cap">Estimated recoverable commission / year</div>
+        <div class="big good">$<span id="out">0</span></div>
+        <hr>
+        <div class="sub">That's about <b><span id="deals">0</span> extra deals a year</b> from leads you already paid for — just by replying first and following up automatically.</div>
+        <div class="cap" style="margin-top:14px;font-size:12px;opacity:.75">Illustrative estimate: recovers a conservative share of cold leads at a modest conversion lift. Your numbers will vary.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="alt-bg">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">What's included</span>
+      <h2>Everything to win the first-response race</h2>
+    </div>
+    <div class="feat">
+      <div class="f"><div class="chk">✓</div><div><b>Instant speed-to-lead auto-reply</b> — <span>every new lead gets a personal text in under a minute, day or night.</span></div></div>
+      <div class="f"><div class="chk">✓</div><div><b>Missed-call text-back</b> — <span>can't pick up? LeadLoop texts them right away so the lead never goes cold.</span></div></div>
+      <div class="f"><div class="chk">✓</div><div><b>AI follow-up in your voice</b> — <span>smart, polite nudges over days and weeks — not robotic templates.</span></div></div>
+      <div class="f"><div class="chk">✓</div><div><b>Books straight to your calendar</b> — <span>leads pick a time; you get a confirmed appointment.</span></div></div>
+      <div class="f"><div class="chk">✓</div><div><b>Works with your leads today</b> — <span>website, Zillow, Realtor.com, Facebook, referrals — all in one inbox.</span></div></div>
+      <div class="f"><div class="chk">✓</div><div><b>Database reactivation</b> — <span>we can re-wake old leads in your list and turn forgotten contacts into appointments.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">Simple pricing</span>
+      <h2>Costs less than one lost deal.</h2>
+      <p style="font-size:18px">One booked appointment usually pays for a year. <!-- TODO: adjust copy to your real numbers --></p>
+    </div>
+    <div class="price">
+      <div class="tag">Done-for-you setup</div>
+      <div class="amt">$197<small>/mo</small></div>
+      <div class="setup">+ one-time $497 setup &amp; onboarding <!-- TODO: your pricing --></div>
+      <ul>
+        <li>Speed-to-lead auto-reply + missed-call text-back</li>
+        <li>Automated multi-touch follow-up in your voice</li>
+        <li>Calendar booking + all your lead sources connected</li>
+        <li>We build and launch it for you in 48 hours</li>
+        <li>Cancel anytime — no lock-in</li>
+      </ul>
+      <a href="#start" class="btn primary">Book your free setup call</a>
+      <div class="fine">14-day money-back guarantee. Prices in CAD. <!-- TODO --></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="alt-bg">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
+    <div class="faq">
+      <details class="q"><summary>Do I need to install or learn any software?</summary><p>No. LeadLoop runs in the background and talks to your leads by text. You just get booked appointments on your calendar — no new app to live in, no dashboard to babysit.</p></details>
+      <details class="q"><summary>Will it work with my Zillow / Realtor.com / website leads?</summary><p>Yes. We connect the lead sources you already use into one place, so every inquiry — no matter where it comes from — gets an instant reply and follow-up.</p></details>
+      <details class="q"><summary>How fast can I start?</summary><p>Most agents are live within 48 hours of the setup call. We build the whole thing for you and tune the messages to sound like you.</p></details>
+      <details class="q"><summary>Won't the auto-replies sound robotic?</summary><p>No. We write them in your voice and personalize each one to the lead and the property. Most people can't tell it's automated — they just feel like you answered fast.</p></details>
+      <details class="q"><summary>What if a lead wants to talk to me directly?</summary><p>They can, any time. LeadLoop hands the conversation to you the moment it matters — it never gets between you and a serious buyer or seller.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA / LEAD FORM -->
+<section id="start">
+  <div class="wrap">
+    <div class="final">
+      <h2>Be the first agent they hear from — every time.</h2>
+      <p>Book a free 15-minute setup call. We'll connect your leads, tune LeadLoop to your voice, and have it live within 48 hours.</p>
+      <!-- TODO: point action= to your GHL inbound webhook or WP form handler; or replace whole form with a calendar embed (Calendly/GHL) -->
+      <form class="leadform" id="leadform" onsubmit="return submitLead(event)">
+        <input type="text" name="name" placeholder="Your name" required>
+        <input type="tel" name="phone" placeholder="Mobile number" required>
+        <button type="submit" class="btn light big">Book my free setup →</button>
+      </form>
+      <p class="micro">No pressure, no contracts. See it work on your own leads first.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="logo">Lead<b style="color:var(--brand)">Loop</b></div>
+  <div>Powered by AIBizConnect · Turn every lead into a conversation.</div>
+  <div style="margin-top:8px;opacity:.7">© <span id="yr">2026</span> AIBizConnect. <!-- TODO: contact / privacy links --></div>
+</footer>
+
+<div class="toast" id="toast">Thanks! We'll text you shortly to book your setup.</div>
+
+<script>
+  // ---- ROI calculator ----
+  const $=id=>document.getElementById(id);
+  const fmt=n=>n.toLocaleString('en-US');
+  function calc(){
+    const leads=+$('leads').value, comm=+$('comm').value, cold=+$('cold').value/100;
+    $('vLeads').textContent=leads;
+    $('vComm').textContent=fmt(comm);
+    $('vCold').textContent=Math.round(cold*100);
+    // conservative model: of the cold leads, recovering first-response + follow-up
+    // converts a modest share into deals. 8% incremental close on recovered cold leads.
+    const CONVERT=0.08;
+    const dealsYr=leads*12*cold*CONVERT;
+    const revenue=Math.round(dealsYr*comm);
+    $('out').textContent=fmt(revenue);
+    $('deals').textContent=dealsYr.toFixed(dealsYr<10?1:0);
+  }
+  ['leads','comm','cold'].forEach(id=>$(id).addEventListener('input',calc));
+  calc();
+
+  // ---- lead form (demo handler; wire to GHL/WP) ----
+  function submitLead(e){
+    e.preventDefault();
+    const t=$('toast'); t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),4200);
+    e.target.reset();
+    return false;
+  }
+  // current year
+  $('yr').textContent = document.currentScript ? new Date().getFullYear() : 2026;
+</script>
+</body>
+</html>
