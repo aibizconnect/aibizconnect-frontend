@@ -58,3 +58,6 @@ design-imports/
 
 # Pulled Claude Design sources are local working artifacts (regenerate via scripts/claude-design-pull.mjs)
 design-handoffs/**/*.dc.html
+
+# Personal Claude Code overrides (not committed)
+.claude/settings.local.json
