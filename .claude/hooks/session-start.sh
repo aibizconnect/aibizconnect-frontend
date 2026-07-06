@@ -14,6 +14,9 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}"
 # remote image (PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers).
 export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
-# Install exactly what's in package-lock.json. `npm install` (not `npm ci`)
-# is used so a warm/cached node_modules is reused across sessions.
-npm install --no-audit --no-fund
+# Install exactly what's in package-lock.json. Use `npm ci`: it installs
+# strictly from the lockfile and, unlike `npm install`, never rewrites it —
+# the container's npm would otherwise strip `libc` hints from optional deps
+# on every run, leaving the tree dirty. Fall back to `npm install` only if
+# the lockfile is genuinely out of sync (e.g. deps changed on a branch).
+npm ci --no-audit --no-fund || npm install --no-audit --no-fund
