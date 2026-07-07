@@ -1,13 +1,23 @@
 # LeadLoop — Client Intake Form
 
-**What this is:** the onboarding questionnaire you send each new customer after
-they say yes on the strategy call. A completed form lets you build their LeadLoop
-from the saved Snapshot in ~30 minutes and submit A2P the same day.
+**What this is:** the onboarding questionnaire every new customer fills out. A
+completed form lets you build their LeadLoop from the saved Snapshot in ~30
+minutes and submit A2P the same day.
+
+**When it's sent — depends on the entry path** (see the runbook's two-path model):
+- **Path A — "Enroll Now" (self-serve):** the customer **already paid** at
+  `/enroll`, and this form is **sent to them automatically the moment payment
+  clears** — it's their first real step. Section 9 "Payment" is **already
+  satisfied** (pre-check it).
+- **Path B — "Complimentary Strategy Session":** you send this after they say yes
+  on the call. They pay at/after the call via the enroll link, so Section 9 is
+  completed when they enroll.
 
 **How to use it:** paste it into an email, a shared doc, or (later) turn it into a
 GHL form. It's grouped so the customer can fill it in one pass. The six 🔴 fields
 are **blocking** — you can't provision or start the A2P clock without them, so if
-the form is slow to come back, get those on the phone.
+the form is slow to come back, get those on the phone (Path B) or in a quick
+welcome email (Path A).
 
 > Sender line (yours): from **support@aibizconnect.ca**. Every question is about
 > *their* business — nothing here references anyone's personal business.
@@ -159,7 +169,9 @@ Check all that apply and give the detail we'll need to wire each one.
 ## Section 9 — Sign-offs  *(the two gates before we build/go-live)*
 
 - 9.1 — **Payment:** setup fee ($497) paid and $197/mo subscription started via
-  the Stripe link we sent. ☐ Done
+  the enroll link (Stripe Payment Link). ☐ Done
+  *(Enrolled via `/enroll`? This is already done — pre-checked. Booked a strategy
+  session? You'll complete this when you enroll at/after the call.)*
 - 9.2 — **SMS consent language approved:** you've reviewed and approve the opt-out
   ("Reply STOP to opt out") and consent handling described in the service
   agreement, and (insurance/legal) your compliance officer / bar counsel will

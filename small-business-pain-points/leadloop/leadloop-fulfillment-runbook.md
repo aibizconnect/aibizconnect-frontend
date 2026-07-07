@@ -1,7 +1,8 @@
 # LeadLoop — Customer Fulfillment & Onboarding Runbook
 
 **What this is:** the operational SOP for what *you* do from the moment someone
-books a strategy session until their LeadLoop is live and handed off. It's the
+becomes a customer — whether they **self-enroll** or **book a strategy session**
+first — until their LeadLoop is live and handed off. It's the
 **per-customer repeatable process** — the [`leadloop-ghl-launch-playbook.md`](./leadloop-ghl-launch-playbook.md)
 tells you how to *build* the engine once (architecture §1, GHL workflows §2,
 message library §3, offer/pricing §5); this runbook tells you how to *stamp out
@@ -20,31 +21,82 @@ pole in every onboarding — treat it that way.
 - Support email: **support@aibizconnect.ca**
 - Shared build line: **+1 365-363-7111** (for your own testing/demo only — each
   customer gets *their own* local number provisioned in their sub-account).
-- Booking link every CTA points at: **https://aibizconnect.ca/initial-strategy-session**
+- Self-serve enroll page: **`/enroll`** (the "Enroll Now" CTA — Path A).
+- Strategy-session booking: **https://aibizconnect.ca/initial-strategy-session** (the secondary CTA — Path B).
 - Payments: **Stripe** (setup fee + subscription). ID/KYC via **Stripe Identity** only if a customer needs verification.
+
+**The single external dependency — the Stripe Payment Link.** One reusable
+Stripe Payment Link covers **$497 setup + $197/mo subscription**. You create it
+**once** and reuse it for every customer, both paths — the self-serve `/enroll`
+page points at it, and you paste the same link into the enroll-follow-up copy for
+session prospects. Referenced throughout as the **enroll link**
+(`{{custom_values.enroll_link}}` in GHL).
 
 **Legend:** ⏱ = rough time · 🔴 = start-and-wait, do as early as possible ·
 Owner "You" = the operator · "Auto" = fires automatically · "Customer" = they do it.
 
 ---
 
-## The order path (how someone becomes a customer now)
+## The two entry paths (how someone becomes a customer)
 
-The live site (**lead-loop.co**) no longer has a lead form. **Every CTA sends
-visitors to book a free strategy session** at `https://aibizconnect.ca/initial-strategy-session`.
-So for fulfillment purposes:
+The live site (**lead-loop.co**) offers **two calls to action**:
+- **Primary — "Enroll Now"** → the self-serve `/enroll` page (pay and go).
+- **Secondary — "Complimentary Strategy Session"** → book a call first.
 
-> **"An order" = a strategy session booking lands** (and the sale closes on or
-> shortly after that call). This runbook starts there.
+That gives you two ways an order arrives. **The whole runbook branches on one
+question at the top — did they self-enroll, or book a session? — and then
+converges: once money is in, Stages 4–10 (intake → provision → A2P → customize →
+QA → handoff → month 1) are *identical* for both paths.**
 
-There is no self-serve checkout to babysit — the sale is a conversation. That's
-deliberate: it lets you qualify the vertical, set expectations, and collect SMS
-consent *before* you spend build time.
+### Path A — "Enroll Now" (self-serve, ready-to-buy)
+Visitor clicks **Enroll Now** → pays via the Stripe Payment Link (**$497 setup +
+$197/mo**) → is immediately sent the intake form → you provision + submit A2P.
+**No sales call required** (you offer an *optional* 15-min welcome call).
+
+> **For Path A, "an order" = the Stripe payment succeeds.** Payment happens
+> **before** intake, so **Stage 1 (the close call) is skipped** — it collapses
+> into a short welcome touch (Stage 1A).
+
+### Path B — "Complimentary Strategy Session" (talk-first)
+Session booked → you qualify + close on/after the call → then you send the
+**enroll link** (the same Stripe Payment Link) to pay.
+
+> **For Path B, "an order" = they pay via the enroll link** (on the call or
+> shortly after). If they **don't** enroll on the call, they drop into the
+> **nurture-to-enroll campaign** (Workflow G, below) that keeps sending the
+> enroll link until they buy or opt out.
+
+**Which is which at a glance:**
+
+| | **Path A — Enroll Now** | **Path B — Strategy Session** |
+|---|---|---|
+| Trigger | Stripe payment succeeds | Session booked/attended |
+| Sales call | Optional 15-min welcome | Full qualify + close call |
+| Money timing | **Before** intake | At/after the call (enroll link) |
+| If they don't buy | n/a (already paid) | → Workflow G nurture-to-enroll |
+| Stages 4–10 | **Identical** | **Identical** |
 
 ---
 
-## Stage 0 — Booking lands *(Auto + You · ⏱10 min prep)*
+## Stage 0 — Order lands *(Auto + You)* — **branch here**
 
+**First question: did they self-enroll (Path A) or book a session (Path B)?**
+The notification tells you which. Then follow the matching branch below. After
+Stage 1/1A, both paths run the same.
+
+### Path A — Stripe payment succeeded *(Auto + You · ⏱5 min)*
+**What auto-happens the instant they pay** (wire this in GHL/Stripe):
+- Stripe receipt to the customer; payment event lands in GHL as a new contact/
+  opportunity tagged **`enrolled — self-serve`**.
+- The **intake form is sent automatically** (email/SMS) — Path A skips the call,
+  so intake is the customer's first real step.
+- You get an internal "new self-serve enrollment" notification.
+
+**Your bit (⏱5 min):** confirm the payment cleared in Stripe, note name/business/
+vertical, and (optional) send a one-line welcome offering the 15-min call. Then
+go straight to **Stage 1A**.
+
+### Path B — Strategy session booked *(Auto + You · ⏱10 min prep)*
 **What auto-happens the instant they book** (already wired in your own GHL — this
 is LeadLoop selling LeadLoop):
 - Booking confirmation SMS + email to the prospect with the session time.
@@ -57,16 +109,35 @@ is LeadLoop selling LeadLoop):
 1. Open the booking notification — note **name, business, phone, and any note**
    they left (vertical is often obvious from the business name).
 2. Have these tabs open: **GHL agency dashboard** (ready to create a sub-account),
-   **Stripe dashboard** (payment link ready), the **playbook §5 offer wording**,
+   **Stripe dashboard** (the enroll link ready), the **playbook §5 offer wording**,
    and this runbook.
 3. Do a 60-second look at their business (website / Google listing) so you can
    name their exact situation on the call.
 
-✅ **Done when:** you know who's calling, roughly what vertical, and you have GHL + Stripe + the offer open.
+✅ **Done when:** you know which path this is, who the customer is, roughly what vertical, and (Path B) you have GHL + Stripe + the offer open.
 
 ---
 
-## Stage 1 — The strategy / close call *(You · ⏱20–40 min)*
+## Stage 1A — Welcome touch *(Path A only · You · ⏱5–15 min, optional call)*
+
+Path A already paid, so there's no selling to do — just a warm start.
+1. **Optional 15-min welcome call** — offer it, don't require it. Use it to
+   confirm their vertical, answer questions, and set the A2P-wait expectation.
+   If they skip it, everything proceeds by email/form.
+2. **Confirm the vertical** from the intake form (or the call) — it drives the
+   message pack, A2P use-case, and compliance path just like Path B.
+3. Set the expectation (in the welcome email or call): *"Texting goes live after
+   carrier approval, 1–5 business days — I submit that as soon as your intake is
+   in. Email and your booking calendar work immediately."*
+
+Then continue at **Stage 2** (agreement/consent — payment is already done) and on
+through the shared stages.
+
+✅ **Done when:** vertical confirmed, welcome sent (call optional), A2P-wait expectation set. → Stage 2.
+
+---
+
+## Stage 1 — The strategy / close call *(Path B only · You · ⏱20–40 min)*
 
 This is the sale. Keep it consultative — you're diagnosing a leak (slow lead
 response), not pitching software.
@@ -97,38 +168,49 @@ premium/fees; $197/mo is a rounding error against a single recovered lead.
 
 ### 1c. Close — what a "yes" triggers (⏱5 min)
 The moment they say yes, tell them the next two things that happen *today*:
-1. You'll send a **Stripe payment link + a short service agreement / SMS-consent
-   acknowledgement** to sign (Stage 2).
+1. You'll send the **enroll link** (the same Stripe Payment Link — $497 setup +
+   $197/mo) **plus a short service agreement / SMS-consent acknowledgement** to
+   sign (Stage 2). They can pay right on the call or from the link after.
 2. You'll send a **short intake form** (Stage 4 → [`leadloop-client-intake-form.md`](./leadloop-client-intake-form.md))
    — 5 minutes of their time so you can build everything from one place.
 
 Set the expectation out loud: *"Texting goes live after carrier approval, which
-is 1–5 business days — I submit that today so the clock starts. Email and your
-booking calendar work immediately."*
+is 1–5 business days — I submit that as soon as you're enrolled and your intake
+is in. Email and your booking calendar work immediately."*
 
-✅ **Done when:** they've said yes, you know their vertical, and they know payment + intake + the A2P wait are coming today.
+**If they DON'T enroll on the call:** don't chase manually. Tag them
+**`session — not yet enrolled`** and they drop into **Workflow G — Prospect
+Nurture (session → enroll)** (spec'd below), which keeps sending the enroll link
+on a warm cadence until they buy or opt out. Your close call isn't the only shot.
+
+✅ **Done when:** they've said yes (or entered nurture), you know their vertical, and they know the enroll link + intake + the A2P wait are coming today.
 
 ---
 
 ## Stage 2 — Payment + agreement *(You + Customer · ⏱10 min)*
 
-1. **Stripe (⏱5 min):** send/charge the **$497 setup fee** and start the
-   **$197/mo subscription**. Use a Stripe Payment Link or invoice — no new tool;
-   Stripe is already in the stack.
+1. **Payment (⏱5 min) — timing differs by path:**
+   - **Path A:** *already paid* at `/enroll` before intake. Just confirm the
+     Stripe payment cleared and the subscription is active — nothing to charge.
+   - **Path B:** send/charge via the **enroll link** (the reusable Stripe Payment
+     Link — **$497 setup + $197/mo**). No new tool; Stripe is already in the stack.
 2. **Service agreement + SMS-consent terms (⏱5 min):** send the short agreement
-   covering scope (setup + ongoing), the 14-day guarantee wording, and the
-   **customer's acknowledgement that they will only load LeadLoop with contacts
-   who have consented to be texted** (this is what makes the A2P use-case true —
-   "customers opt in by submitting an inquiry form or contacting the business").
-   For legal/insurance, the agreement also notes that **the customer is
-   responsible for compliance sign-off on message copy** (see per-vertical table).
+   covering **scope + boundaries** (see the "Scope & boundaries" section — put
+   these terms *in the agreement* so they're contractual, not verbal), the 14-day
+   guarantee wording, and the **customer's acknowledgement that they will only
+   load LeadLoop with contacts who have consented to be texted** (this is what
+   makes the A2P use-case true — "customers opt in by submitting an inquiry form
+   or contacting the business"). For legal/insurance, the agreement also notes
+   that **the customer is responsible for compliance sign-off on message copy**
+   (see per-vertical table).
 3. **ID/KYC (only if needed):** if a customer or their payment needs
    verification, run **Stripe Identity** — skip otherwise.
 
-**Collect before you build (minimum):** paid setup fee (or an agreed
-deposit), signed agreement, and confirmation they'll return the intake form.
+**Collect before you build (minimum):** payment confirmed (Path A: already done;
+Path B: setup fee paid or agreed deposit), signed agreement, and confirmation
+they'll return the intake form.
 
-✅ **Done when:** setup fee paid, subscription active, agreement signed, SMS-consent acknowledged.
+✅ **Done when:** payment confirmed + subscription active, agreement signed (scope + SMS-consent), SMS-consent acknowledged.
 
 ---
 
@@ -147,6 +229,13 @@ Send **[`leadloop-client-intake-form.md`](./leadloop-client-intake-form.md)** �
 the onboarding questionnaire. It's copy-pasteable (email it, or turn it into a
 GHL form later). It's structured so that a completed form lets you build from the
 Snapshot in ~30 minutes.
+
+> **Payment timing note (path-dependent):** for **Path A** the intake form is
+> sent automatically the instant they pay, and the form's Section 9 "Payment"
+> is **already satisfied** (they paid at `/enroll` before intake) — pre-check it.
+> For **Path B** the customer pays at/after the call via the enroll link, so
+> Section 9 is completed when they enroll (Stage 2), which may be the same time
+> as intake or shortly after.
 
 **The minimum data you MUST have before you can provision + submit A2P:**
 - **Legal business name** (exactly as registered — A2P Brand needs this)
@@ -340,20 +429,28 @@ jump in — that's your job, the machine hands it to you warm."
 ## Per-order timeline (Day 0 → live)
 
 Mirrors the playbook §7, but per *customer* (not per initial build). The Snapshot
-means the build itself is fast — **A2P is what sets the calendar.**
+means the build itself is fast — **A2P is what sets the calendar.** Day 0 differs
+by path; everything from Day 0–1 on is identical.
 
-| Day | What happens | Owner |
-|---|---|---|
-| **0** | Strategy call → close → Stripe paid + agreement signed → intake sent → **sub-account provisioned from Snapshot → A2P submitted** | You |
-| **0–1** | Customize to the customer while A2P pends: message pack, calendar connect, merge fields, branding, compliance disclaimer, lead sources | You |
-| **0–1** | Customer returns full intake (assets, calendar login, compliance wording) | Customer |
-| **1–5** | **A2P approval lands** → SMS goes live → full end-to-end QA test | You + carrier |
-| **After approval** | Go-live gate passes → flip out of demo mode → **handoff + training call** | You + Customer |
-| **Day 14** | Guarantee check-in → reactivation-sprint upsell | You |
+| Day | Path A — Enroll Now (self-serve) | Path B — Strategy Session | Owner |
+|---|---|---|---|
+| **0** | **Pay at `/enroll`** → intake auto-sent → agreement/consent signed → **provision from Snapshot → A2P submitted** (optional welcome call) | Strategy call → close → **enroll link paid** + agreement signed → intake sent → **provision from Snapshot → A2P submitted** | You |
+| **0–1** | Customize while A2P pends: message pack, calendar connect, merge fields, branding, compliance disclaimer, lead sources | *(same)* | You |
+| **0–1** | Customer returns full intake (assets, calendar login, compliance wording) | *(same)* | Customer |
+| **1–5** | **A2P approval lands** → SMS goes live → full end-to-end QA test | *(same)* | You + carrier |
+| **After approval** | Go-live gate passes → flip out of demo mode → **handoff + training** | *(same)* | You + Customer |
+| **Day 14** | Guarantee check-in → reactivation-sprint upsell | *(same)* | You |
 
-> **Fast path:** if a customer arrives with clean business details on the call,
-> you can provision + submit A2P the same day and the *only* thing you're waiting
-> on is the carrier. Best case is live in ~2 business days; plan for up to 5.
+> **Path A collapses Day 0:** payment → intake → provision → A2P with no sales
+> call in the critical path. If the customer fills intake quickly, you can
+> provision + submit A2P the same hour they enroll.
+>
+> **Fast path (both):** clean business details in hand → provision + submit A2P
+> same day and the *only* thing you're waiting on is the carrier. Best case live
+> in ~2 business days; plan for up to 5 (see the SLA in Scope & boundaries).
+>
+> **Path B, no-buy-on-call:** they enter Workflow G nurture; their "Day 0" starts
+> whenever they enroll off the nurture link.
 
 ---
 
@@ -377,6 +474,120 @@ vertical is this?" as a branch at Stage 1 and carry it through.**
 
 ---
 
+## Scope & boundaries (how we keep done-for-you profitable)
+
+Done-for-you is the promise — **but LeadLoop is a proven system we configure to
+you, not a from-scratch custom build.** That distinction is what keeps it fast
+*and* affordable. Say it out loud, warmly, on the call and in the agreement:
+
+> *"LeadLoop is a proven system we configure to your business — that's exactly
+> why it goes live in days and costs a fraction of custom software. We tune it to
+> you beautifully; we don't rebuild it from scratch for each client."*
+
+Set these boundaries kindly and up front, so nobody's surprised and setup doesn't
+turn into an open-ended project.
+
+### ✅ Included in setup ($497) + monthly ($197/mo)
+- **One business sub-account** stood up from the LeadLoop Snapshot.
+- **Connect up to 3 lead sources** (e.g. website form, a portal, Facebook/IG, missed-call).
+- **1 calendar** connected for booking.
+- **The vertical message pack tuned to your voice** — sender name, business name,
+  tone, words to avoid — with **one round of copy revisions**.
+- **A2P submission** and the go-live QA test.
+- **30-minute training / handoff.**
+- **Ongoing light management** + a **monthly booked-appointments report**.
+
+### 🚫 Not included → quoted separately as a change order
+- Building or redesigning **their website**.
+- **Custom software or new features.**
+- **Unlimited copy rewrites** beyond the one included revision round.
+- **Paid-ad management** (running/optimizing Meta/Google ad spend).
+- **Non-standard / bespoke integrations** (anything beyond the standard connectors).
+- **Migrating unrelated data** (old CRMs, spreadsheets not tied to lead flow).
+
+### ⏱ Turnaround SLA (both directions)
+- **We go live ~2–5 business days after intake + A2P** (A2P is the long pole).
+- **The customer responds within ~2 business days** when we need something from
+  them (calendar connect, an asset, a sign-off). **If they don't, the clock
+  pauses** — their timeline extends by whatever they owe us. Say this gently but
+  keep it: it protects your throughput.
+
+### 🔧 Change requests after go-live
+- **Minor copy tweaks within reason are fine** — part of taking care of the customer.
+- **Structural changes** (new workflows, extra lead sources beyond 3, new
+  verticals, bespoke integrations) = **a change order at an hourly or flat quote**,
+  agreed before work starts.
+
+> **Put it in writing.** These boundaries belong in the **service agreement
+> (Stage 2)** — included scope, the "not included → change order" list, the
+> two-direction SLA, and the change-request principle — so they're **contractual,
+> not just a verbal understanding.** That one page is what keeps "done-for-you"
+> from becoming "do-everything-forever."
+
+---
+
+## Workflow G — Prospect Nurture (session → enroll)
+
+**Purpose:** Path B prospects who attended (or booked) a strategy session but
+**haven't enrolled yet**. Keeps the enroll link in front of them on a warm,
+human cadence until they buy or opt out — so a "not right now" on the call isn't
+a lost sale. Build this in GHL alongside the playbook's Workflows A–F; reference
+it from the message-library structure (§3) as the client-acquisition counterpart
+to the product's follow-up loop.
+
+- **Trigger:** contact tagged **`session — not yet enrolled`** (session attended
+  or booked, no enrollment on file).
+- **Exit the instant they enroll or opt out** — set "enrolled" (payment received)
+  and STOP as goal/removal conditions, exactly like Workflow C. Never nurture a
+  paying customer.
+- **Merge field:** every message carries the enroll link — `{{custom_values.enroll_link}}`
+  (the reusable Stripe Payment Link).
+
+**Cadence & paste-ready copy** (same warm/human tone as playbook §3; first
+message of the sequence carries the opt-out line):
+
+**a · Day 0 — recap + enroll link (SMS)**
+```
+Great talking today, {{contact.first_name}}! Quick recap: LeadLoop texts every
+new lead back in under 60 seconds and follows up till they book — done for you.
+Ready when you are, here's the enroll link: {{custom_values.enroll_link}}
+(Reply STOP to opt out.)
+```
+
+**b · Day 2 — proof / value point + enroll link (SMS)**
+```
+{{contact.first_name}}, the reason speed matters: most leads go with whoever
+replies first, and it's usually not the agent who's busy at a showing. LeadLoop
+is that instant reply, every time. Want me to get you set up? {{custom_values.enroll_link}}
+```
+
+**c · Day 5 — the 14-day-guarantee reminder (SMS)**
+```
+No-risk reminder, {{contact.first_name}}: if LeadLoop doesn't book you at least
+one appointment in the first 14 days, you don't pay the monthly. Setup's flat and
+you're live in days. Here whenever you're ready: {{custom_values.enroll_link}}
+```
+
+**d · Day 10 — soft last-nudge (SMS)**
+```
+{{contact.first_name}}, I'll ease off so I'm not filling your phone 🙂 — but the
+enroll link's right here whenever the timing's right, and I can have you live in a
+few days: {{custom_values.enroll_link}}. Just reply if you have any questions.
+```
+
+**e · Monthly — low-frequency "still here" loop (SMS, recurring)**
+```
+Hi {{contact.first_name}}, still happy to get LeadLoop working for you whenever
+you're ready — instant lead reply + follow-up, done for you. Enroll anytime:
+{{custom_values.enroll_link}}. Or just reply and I'll answer any questions.
+```
+
+> **Email variant (optional):** mirror b/c/e as email touches on the off-days if
+> you want more surface area — same value point, same enroll link, same exit
+> conditions. Keep SMS as the primary channel; it's the one that converts.
+
+---
+
 ## Quick failure stories (what to do when a hop breaks)
 
 Same discipline as the rest of the suite — every integration gets a failure story.
@@ -395,6 +606,14 @@ Same discipline as the rest of the suite — every integration gets a failure st
 - **Customer replies aren't stopping the loop** → verify the "reply/booked/STOP"
   goal condition on Workflow C. This is the one that nags booked clients if it's
   wrong — fix it before it embarrasses the customer.
+- **A paid customer is still getting nurture texts** → Workflow G's "enrolled"
+  exit condition didn't fire. Confirm the Stripe payment event tags the contact
+  as enrolled and removes them from Workflow G. Nurturing someone who already
+  paid is the embarrassing failure here — check it whenever you touch Workflow G.
+- **Path A customer paid but nothing happened** → confirm the Stripe payment
+  event is wired to (a) create/tag the GHL contact and (b) auto-send the intake
+  form. If intake never went out, the whole self-serve flow stalls silently —
+  the money's in but you don't know to build.
 
 ---
 
