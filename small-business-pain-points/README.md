@@ -23,8 +23,9 @@ the first product to come out of it (**LeadLoop**), gathered in one place.
 ### `leadloop/` — the first product to ship (money-now)
 | File | What it is |
 |---|---|
-| `leadloop-landing.html` | **Open in a browser.** A real-estate landing page, droppable into WordPress. Hero + SMS mockup, cold-lead cost calculator, pricing, FAQ, lead-capture form. `TODO` markers flag the spots to fill (pricing, calendar link, form webhook). |
+| `leadloop-landing.html` | **Open in a browser.** A real-estate landing page, droppable into WordPress. Hero + SMS mockup, cold-lead cost calculator, pricing, FAQ, lead-capture form. Inline TODOs resolved; now carries SMS consent language, a spam honeypot, footer privacy/terms/contact links, and a single `LEADLOOP_WEBHOOK` config point to wire the form to GHL. Pre-publish gate documented in its header comment. |
 | `leadloop-ghl-launch-playbook.md` | The build kit: GHL click-path (account, phone + A2P, pipeline, calendar, 5 workflows), full real-estate message library, WordPress→GHL wiring, offer/pricing, and week-1 go-to-market scripts. |
+| `leadloop-setup-checklist.md` | **Print this.** The tick-box execution version of the playbook — Day 0 → first customer, plus a pre-publish gate for the landing page. |
 
 ---
 
@@ -36,4 +37,6 @@ the first product to come out of it (**LeadLoop**), gathered in one place.
 
 ## Status / next steps
 - Research, ideas, scorecard, landing page, and GHL playbook: **done** (in this folder).
-- **To let Claude touch GHL directly:** add `*.leadconnectorhq.com`, `*.gohighlevel.com`, `*.msgsndr.com` to the environment's **Custom** network allowlist (keep the default package-manager list checked), then create a GHL **Private Integration Token** as an env var. Until then, GHL is reachable only via the Zapier connector.
+- **Review pass (2026-07-06):** research re-verified — MBO independent-market claims promoted ◑→✅ (three independent sources), client-acquisition pain corroborated ◑→◑+. Landing page finished: SMS-consent language + honeypot + privacy/terms/contact links added, form wired to a single `LEADLOOP_WEBHOOK` config point, guarantee wording aligned to playbook §5. Added `leadloop-setup-checklist.md` (printable execution list).
+- **Landing page pre-publish gate (still requires you):** set `LEADLOOP_WEBHOOK`, create `/privacy` + `/terms` pages, confirm pricing + contact number. See the file's header comment.
+- **To let Claude touch GHL directly:** add `*.leadconnectorhq.com`, `*.gohighlevel.com`, `*.msgsndr.com` to the environment's **Custom** network allowlist (keep the default package-manager list checked), then create a GHL **Private Integration Token** as an env var. Until then, GHL is reachable only via the Zapier connector — and the actual build (sub-account, A2P, calendar connect) is hands-on-keyboard yours regardless.

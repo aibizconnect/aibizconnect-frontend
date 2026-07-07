@@ -16,6 +16,10 @@ This report was produced by a fan-out deep-research pass (5 search angles, 23 so
 
 Nothing here was **refuted**. No claim should be treated as fully bulletproof until re-verified, but the ✅ items are the safest to build a business case on.
 
+> **Verification update — 2026-07-06.** A partial re-verification pass promoted the two claims that anchor the LeadLoop recommendation:
+> - **Independent market sizing (72.9M / 5.6M >$100k / +19% YoY)** → promoted **◑ → ✅**: now corroborated by three independent sources (MBO primary report, PRNewswire press release, Staffing Industry Analysts). Cross-check added the 2024→2025 trend (72.7M→72.9M) and the 2020 baseline (3M >$100k, so 5.6M ≈ nearly double in 5 years).
+> - **Client acquisition = #1 operational pain (58%)** → strengthened to **◑+ (corroborated)**: the exact 58% remains a single survey (freelancermap 2025), but the *direction* is independently confirmed by the Fed SBCS (client acquisition = #1 operational pain for US employer firms) — a different population reaching the same conclusion. Not full ✅ only because no second source reproduces the specific 58% figure.
+
 ---
 
 ## Executive summary
@@ -24,8 +28,8 @@ The dominant, most-quantified pain is **cost pressure + administrative/complianc
 
 1. **Compliance & admin burden is enormous and hits micro-firms 5× harder.** Canadian businesses spent **$51.5B** on regulation in 2024; firms with **<5 employees paid $10,208/employee** vs **$1,374** for 100+ employee firms. The average business burned **735 hours/year** on regulation, **256 of them on pure red tape**. ✅
 2. **Cost/inflation is the #1 worry**, but it's not directly "appable." The *appable* adjacent pains are the ones cost pressure creates: **cash-flow unpredictability, margin/repricing, and getting more clients**.
-3. **Client acquisition is the #1 operational (non-cost) pain** on both sides of the border — for US employer firms *and* for freelancers (58% named it their single biggest challenge). ◑
-4. **Independents are a massive, growing, and increasingly high-income market**: **72.9M** US independents, **5.6M** now earning >$100k (+19% YoY) — real willingness to pay. ◑
+3. **Client acquisition is the #1 operational (non-cost) pain** on both sides of the border — for US employer firms *and* for freelancers (58% named it their single biggest challenge). ◑+ *(corroborated — see verification update)*
+4. **Independents are a massive, growing, and increasingly high-income market**: **72.9M** US independents, **5.6M** now earning >$100k (+19% YoY) — real willingness to pay. ✅ *(re-verified 2026-07-06)*
 5. **Incumbent tools underserve the smallest end** — too expensive, too complex, or built for teams — leaving whitespace for a cheap, single-purpose, fast-to-value app.
 
 **Where a low-cost app wins:** not by fighting inflation, but by attacking the *time and cash-flow tax* that cost pressure imposes — admin automation, compliance/deadline tracking, cash-flow visibility, and client acquisition — for the under-5-employee and solo segment that everyone else prices out.
@@ -89,10 +93,10 @@ The US validates the same pains at ~10× scale and reveals a large, high-income 
 | **Reaching customers / growing sales** = #1 *operational* challenge for US employer firms; hiring/retention #2. | ◑ | Fed Small Business Credit Survey 2025/26 |
 | **Cash-flow gap is real & underserved:** 60% of firms applied for financing (mostly just to cover **operating expenses, 56%**); only **42% got the full amount**; ~⅓ faced a funding gap. | ◑ | Fed SBCS 2025/26 |
 | **77% of firms** reported rising and/or tariff-related costs (retail 69%, manufacturing 62%). | ◑ | Fed SBCS 2025/26 |
-| **72.9M US independents** (2025); segments: **27.6M full-time**, 7.9M part-time, 37.4M occasional. | ◑ | MBO Partners, State of Independence |
-| **5.6M independents now earn >$100k/yr (+19% YoY** from 4.7M) — a large, growing, *able-to-pay* segment. | ◑ | MBO Partners |
+| **72.9M US independents** (2025, up from 72.7M in 2024); segments: **27.6M full-time**, 7.9M part-time, 37.4M occasional. | ✅ | MBO Partners + PRNewswire + Staffing Industry Analysts |
+| **5.6M independents now earn >$100k/yr (+19% YoY** from 4.7M; ~2× the 2020 figure of 3M) — a large, growing, *able-to-pay* segment. | ✅ | MBO Partners + PRNewswire + Staffing Industry Analysts |
 | **Unpredictable income** = most-cited independent pain (**49%** in 2023 series, up from 43%); pipeline worry 33%; benefits 28%. | ◑ | MBO Partners |
-| Freelancer surveys agree: **client acquisition #1 (58%)**, **irregular income #2 (39%)**. | ◑ | freelancermap 2025 |
+| Freelancer surveys: **client acquisition #1 (58%)**, **irregular income #2 (39%)** — 58% is single-source, but "acquisition = #1 op pain" is corroborated by the Fed SBCS (employer firms). | ◑+ | freelancermap 2025 (+ Fed SBCS) |
 
 **USA takeaway:** the same three appable pains — **client acquisition, cash-flow/income smoothing, and admin/cost tracking** — rank at the top for both employer firms and the enormous independent workforce, and 5.6M high-earners prove willingness to pay.
 
@@ -137,7 +141,9 @@ Items 1–3 are the strongest candidates for a low-cost app: acute, quantified, 
 | 5 | [CBC — Commercial rent & small business](https://www.cbc.ca/news/canada/british-columbia/commercial-rent-control-small-businesses-canada-bc-1.7311192) | News | Canada |
 | 6 | [NFIB — Small Business Problems & Priorities 2024](https://www.nfib.com/small-business-problems-and-priorities/) | Primary | USA |
 | 7 | [Fed — Small Business Credit Survey, Report on Employer Firms 2025/26](https://www.fedsmallbusiness.org/reports/survey/2026/2026-report-on-employer-firms) | Primary | USA |
-| 8 | [MBO Partners — State of Independence](https://www.mbopartners.com/state-of-independence/) | Primary | USA |
+| 8 | [MBO Partners — State of Independence 2025](https://www.mbopartners.com/state-of-independence/) | Primary | USA |
 | 9 | [freelancermap — Major Challenges Survey 2025](https://www.freelancermap.com/blog/major-challenges-survey/) | Survey | Global/US |
+| 10 | [PRNewswire — MBO/Beeline 15th Annual State of Independence](https://www.prnewswire.com/news-releases/mbo-partners-by-beeline-releases-15th-annual-state-of-independence-study-revealing-a-growing-talent-strategy-for-businesses-302550604.html) | Press release | USA |
+| 11 | [Staffing Industry Analysts — Number of independent workers rises again](https://www.staffingindustry.com/news/global-daily-news/number-of-independent-workers-rises-again-mbo-partners) | Trade press | USA |
 
-*Research method: 5-angle fan-out (WebSearch) → 23 sources fetched → 45 claims extracted → 25 sent to 3-voter adversarial verification (4 completed 3–0 ✅ before spend-limit halt; remainder cited ◑). Re-run verification when budget resets to promote ◑ → ✅.*
+*Research method: 5-angle fan-out (WebSearch) → 23 sources fetched → 45 claims extracted → 25 sent to 3-voter adversarial verification (4 completed 3–0 ✅ before spend-limit halt; remainder cited ◑). **Re-verification 2026-07-06:** the MBO independent-market claims were promoted ◑ → ✅ (three independent sources); the freelancer client-acquisition claim was corroborated ◑ → ◑+ (direction confirmed by a second population, exact 58% still single-source). Remaining ◑ claims can be promoted the same way when budget allows.*

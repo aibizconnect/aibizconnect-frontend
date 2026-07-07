@@ -6,7 +6,7 @@
 > covers the need. If a need isn't covered here, flag it explicitly before
 > adding cost. Update this file whenever an account is added or dropped.
 >
-> _Last updated: 2026-07-05. Maintained by the team; loaded into every session via `CLAUDE.md`._
+> _Last updated: 2026-07-06. Maintained by the team; loaded into every session via `CLAUDE.md`._
 
 ---
 
@@ -45,7 +45,7 @@
 ## 2. Domains & DNS
 - **OpenSRS** — domain **reseller** account (use for registering/reselling tenant domains).
 - **Cloudflare** — DNS management + per-tenant custom domains (see `docs/DOMAIN-SWITCH-RUNBOOK.md`).
-- Known domains: **aibizconnect.app** (product), **aibizconnect.ca** (corp), **ali.realtor** (owner).
+- Known domains: **aibizconnect.app** (product), **aibizconnect.ca** (corp), **ali.realtor** (owner), **lead-loop.co** (LeadLoop product landing/booking — registered 2026-07).
 
 ## 3. Data & backend
 - **Supabase** — primary DB, auth, storage, RLS. Core of the app. `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, publishable/anon keys.
