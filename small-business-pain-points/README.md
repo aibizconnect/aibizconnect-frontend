@@ -26,6 +26,8 @@ the first product to come out of it (**LeadLoop**), gathered in one place.
 | `leadloop-landing.html` | **Open in a browser.** A real-estate landing page, droppable into WordPress. Hero + SMS mockup, cold-lead cost calculator, pricing, FAQ, lead-capture form. Inline TODOs resolved; now carries SMS consent language, a spam honeypot, footer privacy/terms/contact links, and a single `LEADLOOP_WEBHOOK` config point to wire the form to GHL. Pre-publish gate documented in its header comment. |
 | `leadloop-ghl-launch-playbook.md` | The build kit: GHL click-path (account, phone + A2P, pipeline, calendar, 5 workflows), full real-estate message library, WordPress→GHL wiring, offer/pricing, and week-1 go-to-market scripts. |
 | `leadloop-setup-checklist.md` | **Print this.** The tick-box execution version of the playbook — Day 0 → first customer, plus a pre-publish gate for the landing page. |
+| `leadloop-fulfillment-runbook.md` | **The ops SOP.** What you do from "a strategy session booking lands" → live customer: qualify/close call, Stripe + agreement, intake, provision from Snapshot, A2P submit (the clock), per-customer customization, QA go-live gate, handoff, and month-1. Per-order timeline + per-vertical (real estate / insurance / legal) differences table. |
+| `leadloop-client-intake-form.md` | **Send to each new customer.** The copy-pasteable onboarding questionnaire (business identity, vertical, brand voice, lead sources, calendar, phone, compliance, assets, sign-offs) so setup from the Snapshot takes ~30 min. Six 🔴 fields are blocking (needed to provision + start A2P). |
 
 ---
 
