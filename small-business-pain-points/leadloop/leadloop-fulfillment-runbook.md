@@ -524,6 +524,106 @@ turn into an open-ended project.
 > not just a verbal understanding.** That one page is what keeps "done-for-you"
 > from becoming "do-everything-forever."
 
+> **Capacity note (early phase):** on GHL **Starter ($97/mo)** you can run
+> **~2 paying customers** (one of your three sub-account slots is your own
+> demo/sales account). Upgrade to **$297/mo Unlimited at customer #3**. Treat the
+> cap as *helpful*, not limiting: a small, well-vetted client set is exactly how
+> you de-risk consent/compliance (below) before any scale — vet the first couple
+> of customers' lists and use-cases carefully, then grow.
+
+---
+
+## Compliance & liability posture (how we send texts without owning our customers' TCPA risk)
+
+LeadLoop sends SMS **on behalf of** small businesses and professionals across
+every segment — trades, clinics, salons, agencies, real estate, insurance,
+legal, and more (the vertical packs are *segments*, not the whole market). Sending
+text on someone's behalf is where consent/TCPA liability lives. This section is
+the operating posture that keeps that liability **on the customer, where it
+belongs**, not on us. It's firm on purpose — read it before onboarding a paying
+customer.
+
+### 1. Core principle — the customer is the "sender of record," not us
+Each customer's **sub-account registers its OWN A2P 10DLC Brand** under **their**
+legal business name + EIN/BN, with **their own** phone number. We are the
+**platform / done-for-you setup provider** — we configure the system; we are
+**not the sending party**. This is exactly what Stage 6 (A2P submit) does: it
+uses the *customer's* business details, not ours.
+
+> **⚠️ Do NOT do the bad version.** Registering **one** A2P Brand — *ours* — and
+> routing every customer's messages through it makes **us the sender of record**
+> and inherits **every customer's consent liability**. Never do this. One
+> Brand/number **per customer sub-account**, always.
+
+GHL registers A2P **per sub-account** precisely so this works — it's the
+industry-standard agency structure, and it is **the single biggest liability
+shield we have.** Protect it: it's the reason a consent problem on a customer's
+list is *their* regulatory exposure under *their* Brand, not ours.
+
+### 2. The contract does the heavy lifting *(Stage 2 service agreement)*
+The service agreement (Stage 2) is where the liability boundary becomes
+enforceable. It must include:
+- **(a) Consent warranty** — the customer *represents and warrants* that **every
+  contact they load has consented** to be texted (inbound inquiry, form
+  submission, or prior express consent on file). This is the same claim the A2P
+  use-case makes (Stage 6) — the contract binds the customer to it.
+- **(b) Indemnification clause** — claims arising from **the customer's contact
+  list or their message content** are the **customer's** responsibility, and the
+  customer indemnifies us against them.
+
+> **Have a lawyer review the agreement before the first paid customer** — the
+> consent warranty, the indemnity, and the consent/opt-out language especially,
+> and doubly so given regulated segments (legal/insurance/health/finance). This
+> is how compliant done-for-you shops structure it; **it is not legal advice** (see
+> the note at the end).
+
+### 3. Consent-first by construction
+We only message **opted-in** contacts — the posture, not just a promise:
+- The A2P use-case already claims opt-in (inquiry/form/contact) — we don't
+  contradict it in practice.
+- **STOP/opt-out and quiet-hours stay ON automatically** (GHL/Twilio enforce
+  them at the platform level — don't disable them, ever).
+- **No importing cold or purchased lists.** If a customer wants to blast a list
+  they bought or scraped, that's a hard no — it breaks the consent warranty and
+  the A2P use-case in one move.
+
+### 4. Reactivation (Workflow E) is the highest-risk feature — gate it hard
+Texting a customer's **old/dead list** (playbook Workflow E) is exactly where
+documented consent is most often **missing** — the contacts are old, the opt-in
+trail is cold, and it's outbound-initiated. So:
+- **Require a written attestation from the customer that the list is consented**
+  *before* you run it — not a verbal "yeah they're fine." Or hold the feature
+  until you're comfortable with that customer.
+- This stacks on top of the **extra-caution notes already in the per-vertical
+  table**: insurance = confirm prior consent; **legal = highest scrutiny +
+  bar-counsel sign-off + state solicitation rules before the first send.** Don't
+  run reactivation for a regulated-segment customer without those cleared.
+
+### 5. Regulated-segment sign-off pushes content liability to the licensed pro
+For any regulated field — legal, insurance, health, financial, and others — the
+customer's **compliance officer / licensed principal / bar counsel signs off on
+the message copy before go-live**. This is **already a hard gate in Stage 8**, and
+it's restated here on purpose: it's a **deliberate liability boundary**, not a
+formality. The licensed professional owns whether the wording is compliant for
+their field — we own that the system sends what they approved.
+
+### 6. Operate through the corporation, and check insurance specifically
+- **Run LeadLoop under the business entity** (the **aibizconnect.ca** corporation)
+  — contracts, Stripe, GHL agency account, everything. **Never personally.** The
+  corporate structure is part of the liability shield.
+- **Verify SMS/TCPA insurance coverage with the broker — don't assume it.**
+  Standard business liability and even E&O policies **frequently EXCLUDE TCPA
+  claims**. Ask the insurance broker, in writing, whether SMS/TCPA exposure is
+  covered under the current policy, and what it would take to add it. (Check the
+  `treebranches:api-inventory` / Quinn before assuming any existing policy applies.)
+
+### Not legal advice — an internal note
+This section is **operational posture**, not legal advice. The **service
+agreement wording, the consent warranty, the indemnification clause, and the
+consumer-facing consent/opt-out language must be finalized by counsel before
+onboarding paying customers.** When in doubt, slow down and get the agreement
+reviewed — one TCPA claim costs far more than a lawyer's afternoon.
+
 ---
 
 ## Workflow G — Prospect Nurture (session → enroll)
