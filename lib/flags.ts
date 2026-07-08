@@ -22,3 +22,14 @@ export function idxEnabled(): boolean {
   const v = (process.env.IDX_ENABLED ?? process.env.NEXT_PUBLIC_IDX_ENABLED ?? "").toLowerCase();
   return v === "on" || v === "true";
 }
+
+/**
+ * Marketplace paid gating. DEFAULT OFF — the marketplace ships dark. While off, existing
+ * Tools behavior is unchanged (Pro tools stay open for unseeded/demo tenants). Set
+ * MARKETPLACE_ENFORCE=true to actually require an active add-on purchase for paid features
+ * (e.g. AI Tools Pro), once platform Stripe is wired and the 0085 migration is applied.
+ */
+export function marketplaceEnforce(): boolean {
+  const v = (process.env.MARKETPLACE_ENFORCE ?? process.env.NEXT_PUBLIC_MARKETPLACE_ENFORCE ?? "").toLowerCase();
+  return v === "on" || v === "true";
+}

@@ -3,6 +3,8 @@ import { getBrandMemory, brandContextForPrompt } from "../design/brand-memory";
 import { resolveEntitlement } from "../entitlements";
 import { llm } from "../agent/llm";
 import { getTool, EMPTY_PROFILE, type ToolProfile } from "./registry";
+import { marketplaceEnforce } from "../flags";
+import { hasActiveAddon } from "../marketplace/entitlements";
 
 /**
  * Tools runner — the brand-aware, draft-only, entitlement-gated execution seam for the
@@ -49,7 +51,15 @@ export async function runTool(args: {
   // Entitlement gate. Real gating once tenant policies are seeded; but if NO policy row
   // exists yet (source "none"), allow basic/pro so unseeded tenants aren't bricked.
   const ent = await resolveEntitlement(args.tenantId, args.userId ?? null, tool.tier);
-  const allowed = ent.enabled || (ent.source === "none" && tool.tier !== "tools_media");
+  let allowed = ent.enabled || (ent.source === "none" && tool.tier !== "tools_media");
+  // Marketplace paid gating (ships dark behind MARKETPLACE_ENFORCE). When on, Pro tools
+  // require an active "AI Tools Pro" add-on purchase unless an explicit entitlement grants it.
+  if (marketplaceEnforce() && tool.tier === "tools_pro" && !ent.enabled) {
+    allowed = await hasActiveAddon(args.tenantId, "tools_pro");
+    if (!allowed) {
+      return { ok: false, status: "draft", output: "", source: "blocked", error: "AI Tools Pro is an add-on. Add it in the App Marketplace to unlock this tool." };
+    }
+  }
   if (!allowed) {
     return { ok: false, status: "draft", output: "", source: "blocked", error: `This tool is on a higher plan (${tool.tier}). Upgrade to unlock.` };
   }

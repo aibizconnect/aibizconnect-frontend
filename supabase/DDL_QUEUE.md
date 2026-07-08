@@ -20,6 +20,39 @@ Pending database DDL (schema changes, RLS, constraints, indexes, RPCs) that has 
 ## Pending
 
 
+### ⏳ PENDING — Marketplace add-on purchases (0085_marketplace.sql)
+Generated for the in-app App Marketplace ("buy an add-on → manage it in the dashboard").
+File: `supabase/migrations/0085_marketplace.sql`. **NOT applied.** The marketplace code
+(`lib/marketplace/*`, `app/tenants/[tenantId]/marketplace/*`, the Stripe webhook) degrades
+gracefully until this lands: catalog + checkout render, reads return empty, writes no-op.
+
+```sql
+create table if not exists public.marketplace_purchases (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  item_key text not null,
+  status text not null default 'active',      -- active | canceled | past_due | incomplete
+  billing_interval text,
+  amount_cents integer not null default 0,
+  currency text not null default 'USD',
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_session_id text unique,
+  current_period_end timestamptz,
+  canceled_at timestamptz,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (tenant_id, item_key)
+);
+create index if not exists idx_marketplace_purchases_tenant on public.marketplace_purchases (tenant_id);
+create index if not exists idx_marketplace_purchases_sub on public.marketplace_purchases (stripe_subscription_id) where stripe_subscription_id is not null;
+alter table public.marketplace_purchases enable row level security;
+create policy marketplace_purchases_interim_open on public.marketplace_purchases for all using (true) with check (true);
+```
+
+_Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
+
 ### ⏳ PENDING — Cycle 7: tenant-scoped RLS tightening
 Generated: Cycle 7 (design in `docs/cycle7-rls-design.md`). **NOT applied.**
 **Prerequisite (must exist first):** a verifiable `tenant_id` claim reaching Postgres
