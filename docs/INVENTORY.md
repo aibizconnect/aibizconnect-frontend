@@ -6,7 +6,7 @@
 > covers the need. If a need isn't covered here, flag it explicitly before
 > adding cost. Update this file whenever an account is added or dropped.
 >
-> _Last updated: 2026-07-06. Maintained by the team; loaded into every session via `CLAUDE.md`._
+> _Last updated: 2026-07-09. Maintained by the team; loaded into every session via `CLAUDE.md`._
 
 ---
 
@@ -53,7 +53,7 @@
 - **Custom secret vault** — `ai-agent/config/loadVault.ts` (`VAULT_PASSWORD`) for agent secrets.
 
 ## 4. Payments & identity
-- **Stripe** — payments/billing (`STRIPE_SECRET_KEY`) + tenant billing (`docs/tenant-model-and-billing.md`).
+- **Stripe** — payments/billing (`STRIPE_SECRET_KEY`) + tenant billing (`docs/tenant-model-and-billing.md`). **Account operates in CAD** — charges/subscriptions are in **Canadian dollars** by default (don't ask/assume USD). Marketplace add-ons (e.g. AI Tools Pro $199 CAD/mo) charge in CAD.
 - **Stripe Identity** — KYC/identity verification (`STRIPE_IDENTITY_SECRET_KEY`, `STRIPE_IDENTITY_WEBHOOK_SECRET`).
 
 ## 5. Email & communications
