@@ -1,0 +1,81 @@
+/* ── AIBizConnect · Color tokens ────────────────────────────────────
+   Sampled from brand logos:
+   royal blue gradient #2F399D → #555FC4, wordmark navy #090966,
+   periwinkle #4C4CB4, neutral grays #909094 / #BFC0C1.
+*/
+:root {
+  /* ---- Brand blue scale (primary) ---- */
+  --blue-900: #12164A;
+  --blue-800: #1B2173;
+  --blue-700: #262E82;
+  --blue-600: #2F399D;   /* logo dark stop */
+  --blue-500: #3D49C4;   /* PRIMARY */
+  --blue-400: #555FC4;   /* logo light stop */
+  --blue-300: #7C84D6;
+  --blue-200: #B4B9EC;
+  --blue-100: #E2E4FA;
+  --blue-50:  #F1F2FE;
+
+  /* ---- Navy ink (deep brand) ---- */
+  --navy-900: #090966;   /* wordmark navy */
+  --navy-700: #15173F;
+
+  /* ---- Neutral gray scale ---- */
+  --gray-900: #181920;
+  --gray-800: #2B2C34;
+  --gray-700: #44454E;
+  --gray-600: #62636D;
+  --gray-500: #909094;   /* brand gray */
+  --gray-400: #B6B7BD;
+  --gray-300: #D6D7DE;
+  --gray-200: #E8E9EF;
+  --gray-100: #F2F3F7;
+  --gray-50:  #F8F9FC;
+  --white:    #FFFFFF;
+
+  /* ---- Semantic hues ---- */
+  --green-600: #168A5E;
+  --green-500: #1F9D6B;
+  --green-100: #E0F4EC;
+  --amber-600: #C8870B;
+  --amber-500: #E0A115;
+  --amber-100: #FBF0D6;
+  --red-600:   #C9303A;
+  --red-500:   #DC4040;
+  --red-100:   #FBE3E4;
+
+  /* ── Semantic aliases ───────────────────────────────────────────── */
+  --color-primary:           var(--blue-500);
+  --color-primary-hover:     var(--blue-600);
+  --color-primary-active:    var(--blue-700);
+  --color-primary-subtle:    var(--blue-50);
+  --color-primary-contrast:  var(--white);
+  --color-accent:            var(--blue-400);
+
+  --text-strong:   var(--navy-900);
+  --text-heading:  var(--gray-900);
+  --text-body:     var(--gray-700);
+  --text-muted:    var(--gray-500);
+  --text-on-brand: var(--white);
+  --text-link:     var(--blue-500);
+
+  --surface-page:         var(--gray-50);
+  --surface-card:         var(--white);
+  --surface-sunken:       var(--gray-100);
+  --surface-brand:        var(--blue-600);
+  --surface-brand-strong: var(--navy-900);
+  --surface-brand-subtle: var(--blue-50);
+
+  --border-subtle:  var(--gray-200);
+  --border-default: var(--gray-300);
+  --border-strong:  var(--gray-400);
+  --border-brand:   var(--blue-500);
+  --border-focus:   var(--blue-400);
+
+  --success: var(--green-500);
+  --warning: var(--amber-500);
+  --danger:  var(--red-500);
+
+  /* gradient lifted straight from the play-button mark */
+  --gradient-brand: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-400) 100%);
+}

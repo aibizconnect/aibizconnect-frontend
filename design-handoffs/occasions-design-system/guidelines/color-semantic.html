@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Semantic & status" subtitle="Success, warning, danger — and their tints" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:20px;background:var(--surface-card);font-family:var(--font-sans);display:flex;gap:14px}
+  .grp{flex:1;display:flex;flex-direction:column;gap:8px}
+  .pair{display:flex;gap:6px}
+  .chip{height:48px;flex:1;border-radius:var(--radius-md);box-shadow:var(--shadow-xs);display:flex;align-items:flex-end;padding:6px 8px}
+  .lbl{font-size:10px;font-weight:700;color:var(--white)}
+  .lbld{font-size:10px;font-weight:700;color:var(--text-heading)}
+  .name{font-size:11px;font-weight:600;color:var(--text-heading)}
+  .hex{font-family:var(--font-mono);font-size:10px;color:var(--text-muted)}
+</style></head><body>
+  <div class="grp"><div class="name">Success</div>
+    <div class="pair"><div class="chip" style="background:var(--green-500)"><span class="lbl">500</span></div><div class="chip" style="background:var(--green-100)"><span class="lbld">100</span></div></div>
+    <div class="hex">#1F9D6B · #E0F4EC</div></div>
+  <div class="grp"><div class="name">Warning</div>
+    <div class="pair"><div class="chip" style="background:var(--amber-500)"><span class="lbl">500</span></div><div class="chip" style="background:var(--amber-100)"><span class="lbld">100</span></div></div>
+    <div class="hex">#E0A115 · #FBF0D6</div></div>
+  <div class="grp"><div class="name">Danger</div>
+    <div class="pair"><div class="chip" style="background:var(--red-500)"><span class="lbl">500</span></div><div class="chip" style="background:var(--red-100)"><span class="lbld">100</span></div></div>
+    <div class="hex">#DC4040 · #FBE3E4</div></div>
+  <div class="grp"><div class="name">Info / Brand</div>
+    <div class="pair"><div class="chip" style="background:var(--blue-500)"><span class="lbl">500</span></div><div class="chip" style="background:var(--blue-50)"><span class="lbld">50</span></div></div>
+    <div class="hex">#3D49C4 · #F1F2FE</div></div>
+</body></html>

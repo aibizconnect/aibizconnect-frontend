@@ -1,0 +1,44 @@
+<!-- @dsCard group="Components" viewport="700x380" name="Data & feedback — Stat, Tabs, Alert" subtitle="KPI blocks, segmented tabs & banners" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;padding:24px;background:var(--surface-page);font-family:var(--font-sans)}
+  .sec{margin-bottom:20px}
+  .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .panel{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px}
+  .stack{display:flex;flex-direction:column;gap:10px}
+</style></head><body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Stat, Tabs, Alert } = window.AIBizConnectDesignSystem_d948fa;
+  const Dollar = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  function Demo(){
+    const [v,setV]=React.useState('all');
+    return (
+      <div>
+        <div className="sec statgrid">
+          <div className="panel"><Stat label="Pipeline value" value="$48,920" delta="12.4%" icon={<Dollar/>}/></div>
+          <div className="panel"><Stat label="New leads" value="327" delta="8.1%"/></div>
+          <div className="panel"><Stat label="No-shows" value="3" delta="-5%"/></div>
+        </div>
+        <div className="sec">
+          <Tabs value={v} onChange={setV} tabs={[
+            {value:'all',label:'All',count:248},
+            {value:'new',label:'New',count:12},
+            {value:'won',label:'Won'},
+          ]}/>
+        </div>
+        <div className="stack">
+          <Alert tone="success" title="Campaign sent" onClose={()=>{}}>Your newsletter reached 1,204 contacts.</Alert>
+          <Alert tone="warning" title="Payment method expiring soon">Update your card before Jul 1 to avoid interruption.</Alert>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body></html>
