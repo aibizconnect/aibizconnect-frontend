@@ -80,7 +80,7 @@ export default async function ManageAddonsPage({
                     <div>
                       <div className="font-semibold text-slate-900">{item?.name ?? p.itemKey}{label && <span className="ml-2 text-sm font-normal text-slate-400">· {label}</span>}</div>
                       <div className="text-sm text-slate-500">
-                        {p.amountCents > 0 ? `$${(p.amountCents / 100).toFixed(0)}/${p.billingInterval ?? "mo"}` : "—"}
+                        {p.amountCents > 0 ? `$${(p.amountCents / 100).toFixed(0)} ${p.currency}/${p.billingInterval ?? "mo"}` : "—"}
                         {p.status === "active" && p.currentPeriodEnd ? ` · renews ${fmtDate(p.currentPeriodEnd)}` : ""}
                         {p.status === "canceled" ? " · canceled" : ""}
                       </div>

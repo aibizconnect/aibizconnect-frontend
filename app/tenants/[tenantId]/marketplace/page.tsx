@@ -27,7 +27,7 @@ export default async function MarketplacePage({ params }: { params: Promise<{ te
   const activeKeys = new Set(purchases.filter((p) => p.status === "active").map((p) => p.itemKey));
   const checkoutReady = platformStripeReady();
 
-  const price = (i: MarketplaceItem) => (i.priceCents > 0 ? `$${(i.priceCents / 100).toFixed(0)}/mo` : "");
+  const price = (i: MarketplaceItem) => (i.priceCents > 0 ? `$${(i.priceCents / 100).toFixed(0)} ${i.currency}/mo` : "");
 
   return (
     <div className="mx-auto max-w-6xl">

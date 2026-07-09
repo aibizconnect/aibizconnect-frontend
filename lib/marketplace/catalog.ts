@@ -17,8 +17,10 @@ export interface MarketplaceItem {
   name: string;
   category: string;
   blurb: string;
-  /** Monthly price in cents. Ignored for `soon` items. TODO: confirm final prices. */
+  /** Monthly price in cents. Ignored for `soon` items. */
   priceCents: number;
+  /** ISO currency code (e.g. "CAD", "USD"). Drives the Stripe charge + the displayed label. */
+  currency: string;
   interval: "month";
   status: MarketplaceStatus;
   icon: string; // emoji — cheap, self-contained
@@ -33,7 +35,8 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     name: "AI Tools Pro",
     category: "AI & Content",
     blurb: "Unlock the full Pro suite — business plans, VSL scripts, ebooks, decks, hiring kits, coaching, and more. Brand-aware, drafts only.",
-    priceCents: 2900, // $29/mo — TODO: confirm final price
+    priceCents: 19900, // $199 CAD/mo
+    currency: "CAD",
     interval: "month",
     status: "available",
     icon: "🧰",
@@ -47,6 +50,7 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     category: "Marketing",
     blurb: "See exactly where you rank locally and nationally, with a plain-English action list to climb. Powered by tools we already run.",
     priceCents: 0,
+    currency: "CAD",
     interval: "month",
     status: "soon",
     icon: "🔎",
@@ -58,6 +62,7 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     category: "Marketing",
     blurb: "Find the searches your customers actually type, with volume, difficulty, and monthly tracking.",
     priceCents: 0,
+    currency: "CAD",
     interval: "month",
     status: "soon",
     icon: "📈",
@@ -69,6 +74,7 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     category: "Marketing",
     blurb: "Plan and schedule a month of posts across Facebook & Instagram from one calendar.",
     priceCents: 0,
+    currency: "CAD",
     interval: "month",
     status: "soon",
     icon: "🗓️",
@@ -80,6 +86,7 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     category: "Advertising",
     blurb: "Launch and manage Google Search campaigns with guardrails, without touching the Ads console.",
     priceCents: 0,
+    currency: "CAD",
     interval: "month",
     status: "soon",
     icon: "🎯",
@@ -91,6 +98,7 @@ export const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     category: "Advertising",
     blurb: "Run Facebook & Instagram ad campaigns with simple budgets and creative from your post library.",
     priceCents: 0,
+    currency: "CAD",
     interval: "month",
     status: "soon",
     icon: "📣",

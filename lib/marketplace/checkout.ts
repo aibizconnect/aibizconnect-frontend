@@ -30,7 +30,7 @@ export async function startAddonCheckout(tenantId: string, itemKey: string): Pro
   params.set("subscription_data[metadata][tenant_id]", tenantId);
   params.set("subscription_data[metadata][item_key]", itemKey);
   params.set("line_items[0][quantity]", "1");
-  params.set("line_items[0][price_data][currency]", "usd");
+  params.set("line_items[0][price_data][currency]", (item.currency || "USD").toLowerCase());
   params.set("line_items[0][price_data][unit_amount]", String(item.priceCents));
   params.set("line_items[0][price_data][recurring][interval]", item.interval);
   params.set("line_items[0][price_data][product_data][name]", item.name);
@@ -78,7 +78,7 @@ export async function confirmAddonPurchase(tenantId: string, sessionId: string):
       status: "active",
       billing_interval: item.interval,
       amount_cents: typeof s?.amount_total === "number" ? s.amount_total : item.priceCents,
-      currency: (s?.currency || "usd").toUpperCase(),
+      currency: (s?.currency || item.currency || "USD").toUpperCase(),
       stripe_customer_id: (typeof s?.customer === "string" ? s.customer : null),
       stripe_subscription_id: (typeof s?.subscription === "string" ? s.subscription : null),
       stripe_session_id: sessionId,
