@@ -269,3 +269,33 @@ LeadLoop's positioning (per `leadloop/leadloop-ghl-launch-playbook.md` and `lead
 | 39 | `C:\Users\User\.claude\skills\portfolio-map` — WT Listings CREA DDF integration status | Internal (team skill) | 2026-07-04 |
 
 *Research method: multi-angle WebSearch fan-out (~30+ queries across Reddit/industry-forum/regulatory/vendor-pricing/classifieds angles) + targeted WebFetch verification on primary sources where fetchable. Reddit direct-fetch and several review-site fetches (G2, Capterra, Real Estate Magazine, royalcanadianrealty.com) were blocked in this environment (403/fetch-refused) — those claims are flagged ◑ (secondary/aggregated) rather than promoted to ✅, per the verification-level key in §0. No adversarial 3-voter verification pass was run in this session (timeboxed single-pass research); a follow-up verification pass would strengthen the ◑ claims, particularly the TRREB 89.3% figure, the FSBO-classifieds detection signals (§4a), and the Reddit-sourced quotes. §4a (FSBO classifieds deep-dive) was added 2026-07-23 per an owner-weighted priority request mid-task.*
+
+
+---
+
+## Appendix A - Primary Reddit voices (pulled live via logged-in browser, 2026-07-09)
+
+*Method: read directly in a browser on old.reddit.com after automated fetching was 403-blocked during the main research. Quotes are <=15 words and attributed; everything else is paraphrased. Note: r/realtors is US-dominated (that is where agent lead-gen talk lives), while r/TorontoRealEstate is consumer/market-dominated - a finding in itself: Canadian **agent-side** lead-gen peer discussion is thin on Reddit.*
+
+### A1. Agent-side (r/realtors) - validates the pain points
+
+- **Buyer-lead quality is the #1 gripe.** u/CallCastroRealtor's 1,200-pt marketing writeup: portal/Facebook buyer leads were "almost all hot garbage," mostly "just curious" and hung up on contact. Confirms: volume != quality.
+- **Portal-lead economics collapse over time.** u/cman8tor ($0->$25M writeup): portal leads rose from ~$50 to ~$1,200 each; "the portal business model wasn't sustainable." He escaped into dollar-productive activities (expireds, FSBOs, sphere, circle prospecting).
+- **Speed-to-lead is the discipline that separates winners.** Same agent answered every new-lead call "no matter what I was doing" (excusing himself from dinners) for a ~10:1 ROI. CallCastro on internet leads: "call and follow up IMMEDIATELY."
+- **FSBO is often an agent, not an owner** (validates the filter). CallCastro: "FSBOS largely connect you to an agent who is screening calls." u/ReallyPhilStahrRealtor (67 pts) documents the deceptive scripts agents are coached to use on FSBOs ("I have a buyer") - and that FSBOs now recognize them. A clean genuine-owner list is the scarce asset.
+- **FSBO conversion is a long nurture, not a cold close.** u/AlphaMan29 courted one FSBO "with calls, texts, and mail" for two years before he answered.
+- **Cold outreach barely converts.** CallCastro, after thousands of attempts: "never successfully closed a door knock or cold call."
+
+### A2. Demand-side (r/TorontoRealEstate) - how GTA consumers see agents (this shapes messaging)
+
+- **Baseline distrust.** Top posts are anti-agent: "Why are realtors so deceptive?" (835 pts); agents mocked as low-value. One buyer documented a listing agent claiming 5 offers when RECO later confirmed only 1.
+- **Responsiveness is the loudest, most fixable complaint - and a GTA agent said it.** u/lardimi's "Confessions of a realtor" (442 pts): "It's disturbing how many realtors don't even call back," including realtor.ca leads and other agents. This is the exact gap LeadLoop closes.
+- **2026 market distress is real** (supports the saturation point): pre-construction condo appraisal losses, agents quitting, power-of-sale creep, and commission-compression threads (NAR settlement -> "will it happen here?").
+- **Appetite for transparency/tech** - e.g., a burned buyer building OpenBids.ca to fight blind bidding.
+
+### A3. What this means for AI Biz Connect / LeadLoop
+
+1. **The GTA opening is trust + speed, not more leads.** Consumers already distrust agents and complain most about not being called back. LeadLoop's sub-60-second, human, honest text-back is a direct answer to the #1 stated complaint - position it as *responsiveness and transparency*, never the sleazy "I have a buyer" scripts Reddit openly mocks.
+2. **The FSBO-filter thesis is confirmed by agents themselves** - a large share of "private" sellers are screening agents/wholesalers; a clean genuine-owner list is the scarce, valuable asset (supports the FSBO Finder concept).
+3. **Speed-to-lead + disciplined follow-up are the durable edges** - both sides confirm most realtors are slow and inconsistent; that is the gap the product monetizes.
+4. **Do NOT import US cold-outreach tactics** - the FSBO cold-call / "I have a buyer" playbook is both CASL/DNCL-risky in Canada and actively resented by the very people you would contact. Compliant, value-first first-touch only.
