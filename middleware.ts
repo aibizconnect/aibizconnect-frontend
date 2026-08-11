@@ -101,7 +101,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  const isInfraPath = path.startsWith("/_next") || path.startsWith("/api") || path.startsWith("/sites") || path.startsWith("/auth") || path.startsWith("/login") || path.includes(".");
+  const isInfraPath = path.startsWith("/_next") || path.startsWith("/api") || path.startsWith("/sites") || path.startsWith("/embed") || path.startsWith("/auth") || path.startsWith("/login") || path.includes(".");
   if (!isInfraPath) {
     const sub = tenantSubdomain(host);
     const isPlatform = PLATFORM_HOSTS.has(host) || PLATFORM_HOSTS.has(host.split(":")[0].toLowerCase());
