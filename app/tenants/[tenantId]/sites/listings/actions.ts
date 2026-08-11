@@ -5,6 +5,8 @@ import { getFeed, saveFeed, getFeedRuntime, type FeedView } from "@/lib/server/i
 import { createDdfAdapter } from "@/lib/server/idx/ddf";
 import { runTenantSync } from "@/lib/server/idx/sync";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { listBlockDomains, upsertBlockDomain, deleteBlockDomain, type BlockDomain } from "@/lib/server/idx/block-domains";
+import type { BlockFilter } from "@/lib/idx/block-config";
 
 /** IDX feed admin actions (G4). Credentials are encrypted server-side and never returned. */
 
@@ -29,6 +31,44 @@ export async function testSyncAction(tenantId: string): Promise<{ ok: boolean; e
   const feed = await getFeed(tenantId);
   if (feed?.status === "active") { const counts = await runTenantSync(tenantId); return { ok: true, sample: v.sample, counts }; }
   return { ok: true, sample: v.sample };
+}
+
+/** Listings-block domain layer (D-361): which hostnames may embed the block, and their scope. */
+export async function listBlockDomainsAction(tenantId: string): Promise<BlockDomain[]> {
+  await requireTenantAccess(tenantId);
+  return listBlockDomains(tenantId).catch(() => []);
+}
+
+export async function saveBlockDomainAction(
+  tenantId: string,
+  input: { id?: string; domain: string; label?: string | null; filter?: BlockFilter; active?: boolean },
+): Promise<{ ok: boolean; error?: string; domains: BlockDomain[] }> {
+  await requireTenantAccess(tenantId);
+  const r = await upsertBlockDomain(tenantId, input);
+  return { ...r, domains: await listBlockDomains(tenantId).catch(() => []) };
+}
+
+export async function deleteBlockDomainAction(tenantId: string, id: string): Promise<{ ok: boolean; error?: string; domains: BlockDomain[] }> {
+  await requireTenantAccess(tenantId);
+  const r = await deleteBlockDomain(tenantId, id);
+  return { ...r, domains: await listBlockDomains(tenantId).catch(() => []) };
+}
+
+/**
+ * Testing mode: keep the block rendering on unregistered domains (as a labelled preview) while an
+ * agent wires up their GHL test site. Stored on the feed config so it needs no extra DDL.
+ */
+export async function getBlockTestModeAction(tenantId: string): Promise<boolean> {
+  await requireTenantAccess(tenantId);
+  const feed = await getFeed(tenantId).catch(() => null);
+  return !!(feed?.config as { blockTestMode?: boolean } | undefined)?.blockTestMode;
+}
+
+export async function setBlockTestModeAction(tenantId: string, on: boolean): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAccess(tenantId);
+  const feed = await getFeed(tenantId).catch(() => null);
+  if (!feed) return { ok: false, error: "Configure the feed first." };
+  return saveFeed(tenantId, { config: { ...feed.config, blockTestMode: on } });
 }
 
 export async function getSyncHealthAction(tenantId: string): Promise<{ lastRunAt: string | null; status: string | null; counts: unknown; listingCount: number }> {

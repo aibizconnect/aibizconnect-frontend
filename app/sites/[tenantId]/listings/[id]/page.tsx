@@ -5,6 +5,7 @@ import { getListing } from "@/lib/server/idx/store";
 import { getFeed } from "@/lib/server/idx/feeds";
 import { getBlogBrand } from "@/lib/server/blog";
 import ListingInquiry from "@/components/idx/ListingInquiry";
+import MortgagePayment from "@/components/idx/MortgagePayment";
 
 const price = (n: any, ccy: string) => (n == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: ccy || "CAD", maximumFractionDigits: 0 }).format(Number(n)));
 
@@ -26,6 +27,16 @@ export default async function ListingDetail({ params }: { params: Promise<{ tena
   const l = r.listing;
   const ref = l.mls_number ? `MLS® ${l.mls_number}` : [l.address_street, l.address_city].filter(Boolean).join(", ");
   const addr = [l.address_street, l.address_unit && `#${l.address_unit}`, l.address_city, l.address_province, l.address_postal_code].filter(Boolean).join(", ");
+  const facts: [string, string][] = [
+    ["Type", l.property_type ?? "—"],
+    ["Beds", l.bedrooms != null ? String(l.bedrooms) : "—"],
+    ["Baths", l.bathrooms != null ? String(Number(l.bathrooms)) : "—"],
+    ["Interior", l.sqft_total ? `${Number(l.sqft_total).toLocaleString()} sqft` : "—"],
+    ["Lot", l.lot_size_sqft ? `${Number(l.lot_size_sqft).toLocaleString()} sqft` : "—"],
+    ["Built", l.year_built ? String(l.year_built) : "—"],
+    ["Parking", l.parking_total != null ? String(l.parking_total) : "—"],
+    ["Condo fee", l.association_fee ? price(l.association_fee, l.currency) : "—"],
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -45,6 +56,14 @@ export default async function ListingDetail({ params }: { params: Promise<{ tena
             <div className="mt-1 text-slate-600">{[l.bedrooms && `${l.bedrooms} beds`, l.bathrooms && `${Number(l.bathrooms)} baths`, l.sqft_total && `${Number(l.sqft_total)} sqft`, l.year_built && `built ${l.year_built}`].filter(Boolean).join(" · ")}</div>
             <div className="mt-1 text-slate-500">{addr}</div>
             {l.status && <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{l.status}</span>}
+            <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-slate-200 p-4 text-sm sm:grid-cols-4">
+              {facts.map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-[11px] uppercase tracking-wide text-slate-400">{k}</dt>
+                  <dd className="font-medium text-slate-700">{v}</dd>
+                </div>
+              ))}
+            </dl>
             {l.public_remarks && <p className="mt-5 whitespace-pre-wrap leading-relaxed text-slate-700">{l.public_remarks}</p>}
             <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4 text-xs text-slate-400">
               <a href="https://www.realtor.ca/en" target="_blank" rel="noreferrer" aria-label="Powered by REALTOR.ca">
@@ -54,7 +73,10 @@ export default async function ListingDetail({ params }: { params: Promise<{ tena
               <span>{ref}{l.listing_brokerage_name ? ` · Listed by ${l.listing_brokerage_name}` : ""}. Data provided by CREA DDF®; deemed reliable but not guaranteed. Last updated {new Date(l.modification_timestamp).toLocaleDateString()}.</span>
             </div>
           </div>
-          <div><ListingInquiry tenantId={tenantId} listingRef={ref} accent={brand.accent} /></div>
+          <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <ListingInquiry tenantId={tenantId} listingRef={ref} accent={brand.accent} />
+            <MortgagePayment price={l.list_price != null ? Number(l.list_price) : null} accent={brand.accent} currency={l.currency ?? "CAD"} />
+          </div>
         </div>
       </div>
     </div>
