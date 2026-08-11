@@ -14,6 +14,7 @@ const CLASSES = ["", "Residential", "Condo & Other", "Commercial"];
 
 export default function ListingsBlockStudio({ appBase, initialTenantId }: { appBase: string; initialTenantId: string }) {
   const [tenantId, setTenantId] = useState(initialTenantId);
+  const [host, setHost] = useState("");
   const [filter, setFilter] = useState<BlockFilter>({});
   const [options, setOptions] = useState<BlockOptions>(DEFAULT_OPTIONS);
   const [copied, setCopied] = useState(false);
@@ -27,7 +28,14 @@ export default function ListingsBlockStudio({ appBase, initialTenantId }: { appB
     return () => clearTimeout(t);
   }, [query]);
 
-  const previewSrc = tenantId ? `/embed/listings/${encodeURIComponent(tenantId)}${previewQuery ? `?${previewQuery}` : ""}` : "";
+  // The preview carries the host the block will live on, so the domain layer (allowlist + domain
+  // scope) shows up here exactly as it will on the published page.
+  const previewSrc = useMemo(() => {
+    if (!tenantId) return "";
+    const q = new URLSearchParams(previewQuery);
+    if (host.trim()) q.set("host", host.trim());
+    return `/embed/listings/${encodeURIComponent(tenantId)}${q.toString() ? `?${q}` : ""}`;
+  }, [tenantId, previewQuery, host]);
 
   const snippet = useMemo(() => {
     if (!tenantId) return "";
@@ -68,6 +76,12 @@ export default function ListingsBlockStudio({ appBase, initialTenantId }: { appB
           </label>
           <p className="mt-2 text-[11px] leading-snug text-slate-400">
             Each agent embeds their OWN tenant ID, so the block renders only listings synced from that agent’s CREA DDF credentials.
+          </p>
+          <label className={`${lbl} mt-3`}>Domain this block will live on
+            <input value={host} onChange={(e) => setHost(e.target.value.trim())} placeholder="listings.example.com" className={inp} />
+          </label>
+          <p className="mt-2 text-[11px] leading-snug text-slate-400">
+            Registered domains (Sites → Listings → Block domains) carry their own saved search; the filters below can only narrow it.
           </p>
         </div>
 

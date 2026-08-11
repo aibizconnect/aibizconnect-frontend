@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ListingCard } from "@/lib/server/idx/store";
-import type { BlockFilter, BlockOptions } from "@/lib/idx/block-config";
+import { narrowFilter, type BlockFilter, type BlockOptions } from "@/lib/idx/block-config";
 import ListingInquiry from "@/components/idx/ListingInquiry";
 import MortgagePayment from "@/components/idx/MortgagePayment";
 
@@ -55,9 +55,12 @@ function useHeightReporter(dep: unknown) {
   return ref;
 }
 
-export default function EmbedListings({ tenantId, initialFilter, options, brandAccent, businessName }: {
-  tenantId: string; initialFilter: BlockFilter; options: BlockOptions; brandAccent: string; businessName: string;
+export default function EmbedListings({ tenantId, initialFilter, scopeFilter, options, brandAccent, businessName }: {
+  tenantId: string; initialFilter: BlockFilter; scopeFilter?: BlockFilter; options: BlockOptions; brandAccent: string; businessName: string;
 }) {
+  // Layer 2 floor: whatever the visitor types in the filter bar still gets narrowed into the
+  // domain's slice, so a block on a Toronto-condos domain can't be searched out of that market.
+  const scope = scopeFilter ?? {};
   const accent = options.accent || brandAccent;
   const [filter, setFilter] = useState<BlockFilter>(initialFilter);
   const [draft, setDraft] = useState<BlockFilter>(initialFilter);
@@ -129,7 +132,7 @@ export default function EmbedListings({ tenantId, initialFilter, options, brandA
 
   const num = (v: number | undefined) => (v == null ? "" : String(v));
   const setDraftNum = (k: keyof BlockFilter, raw: string) => setDraft((p) => ({ ...p, [k]: raw === "" ? undefined : Number(raw) }));
-  const apply = () => { setFilter(draft); setPage(0); setOpenId(null); };
+  const apply = () => { setFilter(narrowFilter(scope, draft)); setPage(0); setOpenId(null); };
   const reset = () => { setDraft(initialFilter); setFilter(initialFilter); setPage(0); setOpenId(null); };
 
   const inp = "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none";

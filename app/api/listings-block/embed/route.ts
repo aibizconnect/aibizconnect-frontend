@@ -11,6 +11,9 @@ import { NextResponse } from "next/server";
  * results instead of scrolling inside a fixed box. Filters can also be passed in the script's own
  * query string, which is what the config page's "copy snippet" emits when the host builder strips
  * data-* attributes.
+ *
+ * The loader also reports the embedding page's hostname (`host=`), which the embed page checks
+ * against the agent's registered block domains (layer 2) before rendering anything.
  */
 export const runtime = "nodejs";
 
@@ -36,6 +39,9 @@ function buildScript(tenantId: string, presetQuery: string): string {
       var v=me.getAttribute("data-"+KEYS[i]);
       if(v!==null&&v!=="") q.set(KEYS[i],v);
     }
+    // Layer 2: the domain this block is embedded on. Advisory (a hostile page can spoof it) —
+    // it decides which of the agent's registered domain scopes applies, not data access.
+    try{ q.set("host",location.hostname); }catch(err){}
     return q.toString();
   }
 

@@ -479,6 +479,30 @@ NOTIFY pgrst, 'reload schema';
 
 _Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
 
+### ⏳ PENDING — Listings block: domain layer (0087)
+Layer 2 of the embeddable listings block (D-361): which hostnames may render an agent's
+block, and which slice of their feed is relevant on each one. No rows = unrestricted, so
+existing embeds keep working until the first domain is added. **NOT applied.**
+
+```sql
+create table if not exists public.idx_block_domains (
+  id          uuid primary key default gen_random_uuid(),
+  tenant_id   uuid not null,
+  domain      text not null,
+  label       text,
+  filter      jsonb not null default '{}'::jsonb,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (tenant_id, domain)
+);
+create index if not exists idx_block_domains_tenant on public.idx_block_domains (tenant_id);
+create index if not exists idx_block_domains_domain on public.idx_block_domains (domain);
+NOTIFY pgrst, 'reload schema';
+```
+
+_Status: ⏳ PENDING — awaiting Ali "Check in" then "Done"._
+
 ## Applied
 
 - **2026-06-13 — tenant team + franchise organizations (0056)** (Ali:

@@ -5,6 +5,8 @@ import { getFeed, saveFeed, getFeedRuntime, type FeedView } from "@/lib/server/i
 import { createDdfAdapter } from "@/lib/server/idx/ddf";
 import { runTenantSync } from "@/lib/server/idx/sync";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { listBlockDomains, upsertBlockDomain, deleteBlockDomain, type BlockDomain } from "@/lib/server/idx/block-domains";
+import type { BlockFilter } from "@/lib/idx/block-config";
 
 /** IDX feed admin actions (G4). Credentials are encrypted server-side and never returned. */
 
@@ -29,6 +31,27 @@ export async function testSyncAction(tenantId: string): Promise<{ ok: boolean; e
   const feed = await getFeed(tenantId);
   if (feed?.status === "active") { const counts = await runTenantSync(tenantId); return { ok: true, sample: v.sample, counts }; }
   return { ok: true, sample: v.sample };
+}
+
+/** Listings-block domain layer (D-361): which hostnames may embed the block, and their scope. */
+export async function listBlockDomainsAction(tenantId: string): Promise<BlockDomain[]> {
+  await requireTenantAccess(tenantId);
+  return listBlockDomains(tenantId).catch(() => []);
+}
+
+export async function saveBlockDomainAction(
+  tenantId: string,
+  input: { id?: string; domain: string; label?: string | null; filter?: BlockFilter; active?: boolean },
+): Promise<{ ok: boolean; error?: string; domains: BlockDomain[] }> {
+  await requireTenantAccess(tenantId);
+  const r = await upsertBlockDomain(tenantId, input);
+  return { ...r, domains: await listBlockDomains(tenantId).catch(() => []) };
+}
+
+export async function deleteBlockDomainAction(tenantId: string, id: string): Promise<{ ok: boolean; error?: string; domains: BlockDomain[] }> {
+  await requireTenantAccess(tenantId);
+  const r = await deleteBlockDomain(tenantId, id);
+  return { ...r, domains: await listBlockDomains(tenantId).catch(() => []) };
 }
 
 export async function getSyncHealthAction(tenantId: string): Promise<{ lastRunAt: string | null; status: string | null; counts: unknown; listingCount: number }> {

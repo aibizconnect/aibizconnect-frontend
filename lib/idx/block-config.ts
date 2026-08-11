@@ -83,6 +83,27 @@ export function parseBlockConfig(get: (key: string) => string | undefined): { fi
   return { filter, options };
 }
 
+/**
+ * Layer 2 → layer 3 merge: a page's filter may only NARROW its domain's scope, never widen it.
+ * Text keys the domain pins (city, class, …) are final; range keys tighten toward the domain's slice.
+ *
+ *   narrowFilter({ city: "Toronto", max: 900_000 }, { city: "Ottawa", max: 600_000, beds: 3 })
+ *     → { city: "Toronto", max: 600_000, beds: 3 }
+ */
+export function narrowFilter(scope: BlockFilter, page: BlockFilter): BlockFilter {
+  const out: BlockFilter = { ...scope };
+  for (const k of ["class", "t", "city", "municipality", "community", "use"] as const) {
+    if (scope[k] == null && page[k] != null) out[k] = page[k];
+  }
+  // Floors: the stricter (higher) of the two wins.
+  for (const k of ["min", "beds", "baths", "sqft"] as const) {
+    if (page[k] != null) out[k] = scope[k] != null ? Math.max(scope[k]!, page[k]!) : page[k];
+  }
+  // Ceiling: the stricter (lower) of the two wins.
+  if (page.max != null) out.max = scope.max != null ? Math.min(scope.max, page.max) : page.max;
+  return out;
+}
+
 /** Serialize a config back to the embed query string (only non-default values travel). */
 export function blockConfigToQuery(filter: BlockFilter, options: Partial<BlockOptions>): URLSearchParams {
   const q = new URLSearchParams();
