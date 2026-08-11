@@ -54,6 +54,23 @@ export async function deleteBlockDomainAction(tenantId: string, id: string): Pro
   return { ...r, domains: await listBlockDomains(tenantId).catch(() => []) };
 }
 
+/**
+ * Testing mode: keep the block rendering on unregistered domains (as a labelled preview) while an
+ * agent wires up their GHL test site. Stored on the feed config so it needs no extra DDL.
+ */
+export async function getBlockTestModeAction(tenantId: string): Promise<boolean> {
+  await requireTenantAccess(tenantId);
+  const feed = await getFeed(tenantId).catch(() => null);
+  return !!(feed?.config as { blockTestMode?: boolean } | undefined)?.blockTestMode;
+}
+
+export async function setBlockTestModeAction(tenantId: string, on: boolean): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAccess(tenantId);
+  const feed = await getFeed(tenantId).catch(() => null);
+  if (!feed) return { ok: false, error: "Configure the feed first." };
+  return saveFeed(tenantId, { config: { ...feed.config, blockTestMode: on } });
+}
+
 export async function getSyncHealthAction(tenantId: string): Promise<{ lastRunAt: string | null; status: string | null; counts: unknown; listingCount: number }> {
   await requireTenantAccess(tenantId);
   const sb = createSupabaseServiceClient();

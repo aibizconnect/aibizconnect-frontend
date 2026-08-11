@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listBlockDomainsAction, saveBlockDomainAction, deleteBlockDomainAction } from "@/app/tenants/[tenantId]/sites/listings/actions";
+import { listBlockDomainsAction, saveBlockDomainAction, deleteBlockDomainAction, getBlockTestModeAction, setBlockTestModeAction } from "@/app/tenants/[tenantId]/sites/listings/actions";
 import type { BlockDomain } from "@/lib/server/idx/block-domains";
 import type { BlockFilter } from "@/lib/idx/block-config";
 
@@ -22,11 +22,23 @@ const scopeSummary = (f: BlockFilter): string => {
 
 export default function BlockDomainsAdmin({ tenantId }: { tenantId: string }) {
   const [domains, setDomains] = useState<BlockDomain[] | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const [form, setForm] = useState<{ id?: string; domain: string; label: string; filter: BlockFilter }>({ domain: "", label: "", filter: {} });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => { listBlockDomainsAction(tenantId).then(setDomains).catch(() => setDomains([])); }, [tenantId]);
+  useEffect(() => {
+    listBlockDomainsAction(tenantId).then(setDomains).catch(() => setDomains([]));
+    getBlockTestModeAction(tenantId).then(setTestMode).catch(() => {});
+  }, [tenantId]);
+
+  async function toggleTestMode() {
+    const next = !testMode;
+    setTestMode(next); setBusy(true); setMsg(null);
+    const r = await setBlockTestModeAction(tenantId, next);
+    setBusy(false);
+    if (!r.ok) { setTestMode(!next); setMsg(r.error ?? "Could not save."); }
+  }
 
   const setF = (k: keyof BlockFilter, v: string) => setForm((p) => ({ ...p, filter: { ...p.filter, [k]: v === "" ? undefined : v } }));
   const setN = (k: keyof BlockFilter, v: string) => setForm((p) => ({ ...p, filter: { ...p.filter, [k]: v === "" ? undefined : Number(v) } }));
@@ -82,10 +94,20 @@ export default function BlockDomainsAdmin({ tenantId }: { tenantId: string }) {
         </ul>
       )}
 
+      <label className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+        <input type="checkbox" checked={testMode} disabled={busy} onChange={toggleTestMode} className="mt-0.5" />
+        <span>
+          Testing mode
+          <span className="block text-xs text-slate-500">
+            Keep the block working on domains that aren’t registered yet — a GHL test site, or a domain you haven’t chosen. Those pages show the whole feed with a “Preview” notice. GHL builder and preview URLs always work, with or without this.
+          </span>
+        </span>
+      </label>
+
       <div className="mt-5 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{form.id ? "Edit domain" : "Add a domain"}</div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div><label className={lbl}>Domain</label><input value={form.domain} onChange={(e) => setForm((p) => ({ ...p, domain: e.target.value }))} placeholder="listings.example.com" className={inp} /></div>
+          <div><label className={lbl}>Domain</label><input value={form.domain} onChange={(e) => setForm((p) => ({ ...p, domain: e.target.value }))} placeholder="listings.example.com or *.example.com" className={inp} /></div>
           <div><label className={lbl}>Label (optional)</label><input value={form.label} onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))} placeholder="Downtown condos site" className={inp} /></div>
           <div><label className={lbl}>Property class</label>
             <select value={form.filter.class ?? ""} onChange={(e) => setF("class", e.target.value)} className={inp}>
