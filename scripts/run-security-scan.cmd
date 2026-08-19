@@ -7,7 +7,7 @@ REM   2. traffic-anomaly-scan.mjs -- volume floods / single-country surges (adde
 REM      after a 6-day, 804k-request surge from SG went unnoticed because markup never changed)
 REM On any flag/error it writes an ALERT file so a failure is impossible to miss.
 
-set "REPO=C:\server\projects\aibizconnect-frontend"
+set "REPO=C:\server\projects\aibizconnect-app-workspace\aibizconnect-frontend"
 set "LOGDIR=C:\server\logs"
 set "LOG=%LOGDIR%\domain-security-scan.log"
 set "ALERT=%LOGDIR%\DOMAIN-SCAN-ALERT.txt"

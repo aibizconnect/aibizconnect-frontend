@@ -3,4 +3,4 @@
 ' flashes a console every run.
 Dim shell
 Set shell = CreateObject("WScript.Shell")
-shell.Run """C:\server\projects\aibizconnect-frontend\scripts\run-security-scan.cmd""", 0, False
+shell.Run """C:\server\projects\aibizconnect-app-workspace\aibizconnect-frontend\scripts\run-security-scan.cmd""", 0, False
