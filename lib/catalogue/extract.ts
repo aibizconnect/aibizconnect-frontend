@@ -137,7 +137,7 @@ export function catalogueFromJsonLd(graph: AnyNode[], siteUrl?: string): Partial
   if (faqPage && Array.isArray(faqPage.mainEntity)) {
     const faqs = faqPage.mainEntity
       .map((q: any) => ({ q: txt(q?.name), a: txt(q?.acceptedAnswer?.text) }))
-      .filter((f: any) => f.q && f.a);
+      .filter((f): f is { q: string; a: string } => Boolean(f.q && f.a));
     if (faqs.length) draft.faqs = faqs.slice(0, 20);
   }
   return draft;
