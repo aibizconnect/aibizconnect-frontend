@@ -162,9 +162,21 @@ export async function registerWidgetSite(input: { name?: string; email?: string;
  *  registered domain. Otherwise empty (nothing renders). This is the gate. */
 export async function getActiveForKey(key: string, host: string, localDate?: string): Promise<(ActiveState & { badge?: boolean }) | null> {
   if (!key) return null;
-  const { data } = await sb().from("occasion_widget_sites").select("domain, occasions, active, badge").eq("key", key).maybeSingle();
+  const { data } = await sb().from("occasion_widget_sites").select("domain, occasions, active, badge, last_seen_at, install_count").eq("key", key).maybeSingle();
   if (!data || data.active === false) return null;
   if (!hostMatches(String(data.domain), host)) return null;
+  // Install heartbeat (0087): a host-matched feed hit means the snippet is REALLY live on the
+  // registered domain, so stamp last_seen_at. Throttle to ~hourly so we don't write per pageview,
+  // and never let telemetry block or fail the feed. This is what powers "installed on domains".
+  const lastSeen = (data as { last_seen_at?: string | null }).last_seen_at;
+  const lastSeenMs = lastSeen ? new Date(lastSeen).getTime() : 0;
+  if (Date.now() - lastSeenMs > 60 * 60 * 1000) {
+    try {
+      await sb().from("occasion_widget_sites")
+        .update({ last_seen_at: new Date().toISOString(), install_count: Number((data as { install_count?: number }).install_count ?? 0) + 1 })
+        .eq("key", key);
+    } catch { /* telemetry is best-effort */ }
+  }
   // Resolve "today" from the VISITOR'S local calendar date (sent by the embed) so a single-day
   // occasion (start==end) is active for the whole of that day in the viewer's timezone — not the
   // server's UTC day. Use noon of the local date so it can't roll over at the UTC boundary.

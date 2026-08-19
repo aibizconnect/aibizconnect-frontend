@@ -19,7 +19,22 @@ import {
 
 type WidgetPlan = "free" | "paid";
 interface WidgetAccount { ghlLocationId: string; accountName?: string | null; plan: WidgetPlan }
-interface AccountSite { key: string; domain: string; active: boolean; badge: boolean; plan: WidgetPlan; occasions: OccasionsConfig }
+interface AccountSite { key: string; domain: string; active: boolean; badge: boolean; plan: WidgetPlan; occasions: OccasionsConfig; lastSeenAt?: string | null }
+
+// A site is "installed" if its widget phoned home from the live domain in the last 7 days.
+const INSTALLED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+function installedFrom(lastSeenAt?: string | null): boolean {
+  return !!lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() < INSTALLED_WINDOW_MS;
+}
+function sinceLabel(iso?: string | null): string {
+  if (!iso) return "";
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 3600) return "just now";
+  const hrs = Math.floor(secs / 3600);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmt = (dt: Date) => `${MON[dt.getMonth()]} ${dt.getDate()}`;
@@ -87,7 +102,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
   const [screen, setScreen] = useState<"sites" | "occasions" | "appearance" | "install" | "help">("sites");
   const [selectedKey, setSelectedKey] = useState<string | null>(initialSites[0]?.key ?? null);
   const [regions, setRegions] = useState<(WidgetRegion | "all")[]>(["all"]);
-  const [modal, setModal] = useState<null | "add-site" | "custom" | "install" | "preview" | "upgrade" | "remove">(null);
+  const [modal, setModal] = useState<null | "add-site" | "custom" | "install" | "preview" | "upgrade" | "remove" | "custom-remove">(null);
   const [modalKey, setModalKey] = useState<string | null>(null);
   const [addDomain, setAddDomain] = useState("");
   const [busy, setBusy] = useState(false);
@@ -96,6 +111,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
   const [openInfo, setOpenInfo] = useState<string | null>(null);
   const [faqOpen, setFaqOpen] = useState<string | null>("when");
   const [custom, setCustom] = useState({ name: "", start: "", end: "", message: "", link: "", newTab: true });
+  const [editCustomId, setEditCustomId] = useState<string | null>(null); // null = creating a new custom occasion; else editing this id
   const [gStart, setGStart] = useState("");
   const [gEnd, setGEnd] = useState("");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -161,16 +177,42 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
     setSites((prev) => prev.map((s) => (s.key === sel.key ? { ...s, badge: on } : s)));
     setBadgeAction(token, sel.key, on).catch(() => {});
   }
-  function addCustomOccasion() {
-    if (!sel || !custom.name.trim()) { setModal(null); return; }
-    const c: CustomBanner = {
-      id: `c${Date.now()}`, name: custom.name.trim(), startDate: custom.start || new Date().toISOString().slice(0, 10),
-      endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(), fly: false,
-      linkUrl: custom.link || undefined, linkTarget: custom.newTab ? "_blank" : "_self",
-    };
-    patchOcc(sel.key, (cfg) => ({ ...cfg, custom: [...(cfg.custom ?? []), c] }));
-    setCustom({ name: "", start: "", end: "", message: "", link: "", newTab: true });
-    setModal(null);
+  const emptyCustom = { name: "", start: "", end: "", message: "", link: "", newTab: true };
+  // Open the custom modal in "create" mode (blank form).
+  function openCreateCustom() { setEditCustomId(null); setCustom(emptyCustom); setModal("custom"); }
+  // Open the custom modal in "edit" mode, pre-filled from an existing custom occasion.
+  function openEditCustom(c: CustomBanner) {
+    setEditCustomId(c.id);
+    setCustom({ name: c.name, start: c.startDate || "", end: c.endDate || "", message: c.message || "", link: c.linkUrl || "", newTab: c.linkTarget !== "_self" });
+    setModal("custom");
+  }
+  // Save the custom modal — updates the existing occasion when editing, otherwise appends a new one.
+  // Editing preserves the occasion's enabled/fly state (only the details from the form change).
+  function saveCustomOccasion() {
+    if (!sel || !custom.name.trim()) { setModal(null); setEditCustomId(null); return; }
+    if (editCustomId) {
+      patchOcc(sel.key, (cfg) => ({
+        ...cfg,
+        custom: (cfg.custom ?? []).map((x) => x.id === editCustomId ? {
+          ...x, name: custom.name.trim(), startDate: custom.start || x.startDate, endDate: custom.end || null,
+          message: custom.message || custom.name.trim(), linkUrl: custom.link || undefined, linkTarget: custom.newTab ? "_blank" : "_self",
+        } : x),
+      }));
+    } else {
+      const c: CustomBanner = {
+        id: `c${Date.now()}`, name: custom.name.trim(), startDate: custom.start || new Date().toISOString().slice(0, 10),
+        endDate: custom.end || null, enabled: true, message: custom.message || custom.name.trim(), fly: false,
+        linkUrl: custom.link || undefined, linkTarget: custom.newTab ? "_blank" : "_self",
+      };
+      patchOcc(sel.key, (cfg) => ({ ...cfg, custom: [...(cfg.custom ?? []), c] }));
+    }
+    setCustom(emptyCustom); setEditCustomId(null); setModal(null);
+  }
+  // Delete a custom occasion outright (built-in holidays can't be deleted, only toggled).
+  function deleteCustomOccasion(id: string) {
+    if (!sel) return;
+    patchOcc(sel.key, (cfg) => ({ ...cfg, custom: (cfg.custom ?? []).filter((x) => x.id !== id) }));
+    setModal(null); setModalKey(null);
   }
 
   // ── occasions / appearance editing (on the selected site) ───────────────────
@@ -364,6 +406,10 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
                     {badge(s.active ? "success" : "neutral", s.active ? "Live" : "Paused", true)}
                   </div>
                   <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{s.active ? `${live} occasion${live === 1 ? "" : "s"} live now` : "Paused — nothing showing"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: installedFrom(s.lastSeenAt) ? "var(--green)" : "var(--text-muted)" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: installedFrom(s.lastSeenAt) ? "var(--green)" : "var(--gray-400)" }} />
+                    {installedFrom(s.lastSeenAt) ? `Snippet installed · seen ${sinceLabel(s.lastSeenAt)}` : "Snippet not detected yet"}
+                  </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}>
                     <button className="occ-btn sm" style={{ flex: 1, minWidth: 60, height: 32, padding: "0 8px", fontSize: 12 }} onClick={() => { setSelectedKey(s.key); setScreen("occasions"); }}>Edit</button>
                     <button className="occ-btn sm" style={{ flex: 1, minWidth: 60, height: 32, padding: "0 8px", fontSize: 12 }} onClick={() => { setSelectedKey(s.key); setModal("preview"); }}>Preview</button>
@@ -457,9 +503,13 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
                 <Switch on={!!c.enabled} onChange={(v) => setCustomEnabled(c.id, v)} />
               </div>
               {c.enabled && <FlyChip fly={!!c.fly} onChange={(v) => setCustomFly(c.id, v)} />}
+              <div style={{ display: "flex", gap: 6, borderTop: "1px solid var(--border-subtle)", paddingTop: 10, marginTop: c.enabled ? 0 : 4 }}>
+                <button className="occ-btn sm" style={{ flex: 1, height: 30, fontSize: 12 }} onClick={() => openEditCustom(c)}>Edit</button>
+                <button className="occ-btn sm" style={{ height: 30, padding: "0 10px", fontSize: 12, color: "var(--red)" }} aria-label="Delete custom occasion" onClick={() => { setModalKey(c.id); setModal("custom-remove"); }}><Ico name="trash" size={13} /></button>
+              </div>
             </div>
           ))}
-          <button onClick={() => setModal("custom")} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 72, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit", fontWeight: 600, fontSize: 14 }}>
+          <button onClick={openCreateCustom} style={{ background: "var(--blue-50)", border: "1px dashed var(--border-brand)", borderRadius: "var(--radius-lg)", minHeight: 72, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "var(--c-primary)", font: "inherit", fontWeight: 600, fontSize: 14 }}>
             <Ico name="plus" size={20} /> Create custom occasion
           </button>
         </div>
@@ -608,7 +658,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
 
   // ───────────────────────── modals ─────────────────────────
   function Modals() {
-    const close = () => { setModal(null); setErr(""); };
+    const close = () => { setModal(null); setErr(""); setEditCustomId(null); };
     return (
       <div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(9,9,40,.42)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div className="occ-ds" onClick={(e) => e.stopPropagation()} style={{ minHeight: 0, background: "var(--surface-card)", borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-xl)", width: "100%", maxWidth: 440, maxHeight: "88vh", overflow: "auto", animation: "occ-pop .14s ease-out" }}>
@@ -626,7 +676,7 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
           )}
           {modal === "custom" && (
             <div style={{ padding: 24 }}>
-              <div className="occ-disp" style={{ fontSize: 18, marginBottom: 18 }}>Create custom occasion</div>
+              <div className="occ-disp" style={{ fontSize: 18, marginBottom: 18 }}>{editCustomId ? "Edit custom occasion" : "Create custom occasion"}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <Field label="Name"><input className="occ-input" placeholder="Summer sale" value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })} /></Field>
                 <div style={{ display: "flex", gap: 12 }}>
@@ -642,7 +692,17 @@ export default function OccasionsDashboard({ token, account, initialSites, appBa
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 22 }}>
                 <button className="occ-btn ghost" onClick={close}>Cancel</button>
-                <button className="occ-btn pri" onClick={addCustomOccasion}>Save occasion</button>
+                <button className="occ-btn pri" onClick={saveCustomOccasion}>{editCustomId ? "Save changes" : "Save occasion"}</button>
+              </div>
+            </div>
+          )}
+          {modal === "custom-remove" && (
+            <div style={{ padding: 24 }}>
+              <div className="occ-disp" style={{ fontSize: 18, marginBottom: 8 }}>Delete this custom occasion?</div>
+              <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 22 }}>This removes it from this site for good. Built-in holidays aren&apos;t affected.</div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button className="occ-btn ghost" onClick={close}>Cancel</button>
+                <button className="occ-btn danger" onClick={() => modalKey && deleteCustomOccasion(modalKey)}>Delete</button>
               </div>
             </div>
           )}
