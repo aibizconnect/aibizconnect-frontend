@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Roboto, Geist_Mono } from "next/font/google";
 import ThemeWrapper from "@/components/ThemeWrapper";
 import "./globals.css";
@@ -64,6 +65,10 @@ export default function RootLayout({
         <ThemeWrapper>
           {children}
         </ThemeWrapper>
+        {/* Occasions festive widget — served by the standalone service on oc.aibizconnect.ca.
+            Host-gated: only renders on the registered domain (aibizconnect.app); a harmless no-op
+            on any other host. Equivalent to the <script async> snippet. */}
+        <Script src="https://oc.aibizconnect.ca/api/occasions-widget/embed?k=ocw_bfa5f769bfad485fab6d" strategy="afterInteractive" />
       </body>
     </html>
   );
