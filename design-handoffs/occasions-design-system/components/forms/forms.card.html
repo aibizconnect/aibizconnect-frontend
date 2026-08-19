@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Forms — Input, Select, Checkbox, Switch" subtitle="Labelled fields, validation & toggles" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;padding:24px;background:var(--surface-page);font-family:var(--font-sans)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;max-width:640px}
+  .stack{display:flex;flex-direction:column;gap:14px}
+</style></head><body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Input, Select, Checkbox, Switch } = window.AIBizConnectDesignSystem_d948fa;
+  const Mail = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7l9 6 9-6M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  function Demo(){
+    return (
+      <div className="grid">
+        <div className="stack">
+          <Input label="Work email" placeholder="you@firm.com" leftIcon={<Mail/>} defaultValue="dana@ruizlaw.com"/>
+          <Input label="Phone" hint="Used for appointment reminders" placeholder="(555) 010-2233"/>
+          <Input label="Email" error="Enter a valid email address" defaultValue="dana@"/>
+        </div>
+        <div className="stack">
+          <Select label="Lead stage" defaultValue="qualified">
+            <option value="new">New</option>
+            <option value="qualified">Qualified</option>
+            <option value="won">Closed — Won</option>
+          </Select>
+          <div className="stack" style={{gap:10,marginTop:4}}>
+            <Checkbox label="Email me lead alerts" defaultChecked/>
+            <Checkbox label="SMS reminders" description="Standard message rates apply"/>
+            <Switch label="Auto follow-up sequence" defaultChecked/>
+            <Switch label="Public booking page" description="Let clients self-schedule"/>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body></html>

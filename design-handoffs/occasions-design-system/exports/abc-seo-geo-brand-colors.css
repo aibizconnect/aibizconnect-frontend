@@ -1,0 +1,53 @@
+/* ════════════════════════════════════════════════════════════════════
+   ABC SEO/GEO — Brand Colors for GoHighLevel
+   Paste into  Settings → Company → Custom CSS  (agency or sub-account).
+   Core idea:  BLUE = classic SEO   ·   VIOLET = AI / GEO
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Core */
+  --abc-primary:        #2563EB;  /* SEO blue */
+  --abc-primary-deep:   #1A3FA0;
+  --abc-accent:         #7C3AED;  /* GEO / AI violet */
+  --abc-navy:           #0D1B5E;  /* sidebar / dark surfaces */
+
+  /* Blue scale */
+  --abc-blue-700:#1A3FA0; --abc-blue-600:#1E50C8; --abc-blue-500:#2563EB;
+  --abc-blue-400:#5B8DEF; --abc-blue-100:#DCE7FB; --abc-blue-50:#EFF4FE;
+
+  /* Violet scale */
+  --abc-violet-700:#6D28D9; --abc-violet-600:#7C3AED; --abc-violet-500:#8B5CF6;
+  --abc-violet-100:#ECE2FD; --abc-violet-50:#F6F1FE;
+
+  /* Navy scale */
+  --abc-navy-900:#0D1B5E; --abc-navy-800:#142468; --abc-navy-700:#1C2F7E;
+
+  /* Semantic */
+  --abc-success:#16A34A; --abc-warning:#F59E0B; --abc-danger:#DC2626;
+
+  /* Neutrals */
+  --abc-page:#F1F5F9; --abc-card:#FFFFFF; --abc-sunken:#F8FAFC;
+  --abc-text:#1E293B; --abc-text-2:#64748B; --abc-text-3:#94A3B8;
+  --abc-border:#E2E8F0; --abc-border-strong:#CBD5E1;
+
+  /* Gradients */
+  --abc-grad-brand:  linear-gradient(135deg, #1A3FA0 0%, #2563EB 100%);
+  --abc-grad-navy:   linear-gradient(176deg, #0D1B5E 0%, #142468 60%, #1C2F7E 100%);
+  --abc-grad-violet: linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%);
+}
+
+/* ── Optional: tint common GoHighLevel chrome to the brand ──────────────
+   GHL class names change over time — verify in your account's inspector
+   and adjust selectors as needed. */
+.btn--primary,
+.hl_header--primary,
+.hl-btn.primary {
+  background: var(--abc-grad-brand) !important;
+  border-color: var(--abc-primary) !important;
+  color: #fff !important;
+}
+.sidebar-v2,
+.hl_nav-header,
+#sidebar-v2 {
+  background: var(--abc-navy) !important;
+}
+a, .text-primary { color: var(--abc-primary); }

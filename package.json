@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "agent:server": "ts-node ai-agent/server.ts"
+    "agent:server": "ts-node ai-agent/server.ts",
+    "check:catalogue": "tsx scripts/check-catalogue.mts"
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",
@@ -32,6 +33,7 @@
     "eslint-config-next": "16.2.6",
     "playwright-core": "^1.60.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.0",
     "typescript": "^5"
   }
 }

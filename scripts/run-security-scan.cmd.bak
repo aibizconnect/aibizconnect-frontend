@@ -1,0 +1,37 @@
+@echo off
+setlocal
+REM Daily domain security scan wrapper -- invoked by Task Scheduler at 06:00.
+REM Appends a timestamped result to the log. On any flag/error it also writes
+REM an ALERT file so a failure is impossible to miss.
+
+set "REPO=C:\server\projects\aibizconnect-frontend"
+set "LOGDIR=C:\server\logs"
+set "LOG=%LOGDIR%\domain-security-scan.log"
+set "ALERT=%LOGDIR%\DOMAIN-SCAN-ALERT.txt"
+
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+
+cd /d "%REPO%" || (
+  echo [%date% %time%] FATAL: repo not found at %REPO% >> "%LOG%"
+  echo Repo not found at %REPO% > "%ALERT%"
+  exit /b 2
+)
+
+echo. >> "%LOG%"
+echo ======================================================== >> "%LOG%"
+echo [%date% %time%] starting domain security scan >> "%LOG%"
+
+"C:\Program Files\nodejs\node.exe" scripts\security-scan.mjs >> "%LOG%" 2>&1
+set "RC=%ERRORLEVEL%"
+
+if "%RC%"=="0" (
+  echo [%date% %time%] RESULT: all clean ^(exit 0^) >> "%LOG%"
+  if exist "%ALERT%" del "%ALERT%"
+) else (
+  echo [%date% %time%] RESULT: FLAGGED or ERROR ^(exit %RC%^) >> "%LOG%"
+  echo Domain security scan FLAGGED something on %date% %time% ^(exit %RC%^). > "%ALERT%"
+  echo See %LOG% for the per-domain detail. >> "%ALERT%"
+  echo Do NOT auto-fix -- review the finding first. >> "%ALERT%"
+)
+
+exit /b %RC%

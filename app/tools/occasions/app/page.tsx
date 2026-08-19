@@ -29,6 +29,18 @@ function NotConnected() {
   );
 }
 
+function Suspended() {
+  return (
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F8F9FC", padding: "24px", fontFamily: "system-ui,-apple-system,Segoe UI,Roboto,sans-serif" }}>
+      <div style={{ maxWidth: 440, textAlign: "center", background: "#fff", border: "1px solid #ECEEF4", borderRadius: 16, padding: "36px 28px", boxShadow: "0 1px 3px rgba(18,22,74,.06)" }}>
+        <div style={{ width: 44, height: 44, borderRadius: 11, background: "#FBF0D6", display: "grid", placeItems: "center", margin: "0 auto 16px", color: "#7a5800", fontWeight: 700 }}>⏸</div>
+        <h1 style={{ fontSize: 19, color: "#12123A", margin: "0 0 8px" }}>Occasions is paused for this account</h1>
+        <p style={{ fontSize: 14, lineHeight: 1.6, color: "#75788C", margin: 0 }}>Your Occasions access is currently paused. Please contact AI Biz Connect to reactivate it — your sites and settings are kept safe in the meantime.</p>
+      </div>
+    </main>
+  );
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ t?: string; loc?: string; name?: string; ssoData?: string }> }) {
   const sp = await searchParams;
 
@@ -52,10 +64,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   if (!locationId) return <NotConnected />;
 
   const account = await upsertAccount({ locationId, companyId, name });
+  if (!account.active) return <Suspended />;
   const token = signLocationToken(locationId);
   const sites = await listSitesForLocation(locationId);
   const appBase = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://app.aibizconnect.app").replace(/\/+$/, "");
-  const cap = siteCapFor(locationId, account.plan);
+  const cap = siteCapFor(locationId, account.plan, account.siteCap);
   const unlimited = !Number.isFinite(cap);
 
   return <OccasionsDashboard token={token} account={account} initialSites={sites} appBase={appBase} siteCap={unlimited ? undefined : cap} unlimited={unlimited} />;

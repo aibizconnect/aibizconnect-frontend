@@ -1,0 +1,94 @@
+/* ════════════════════════════════════════════════════════════════════
+   ABC SEO/GEO — self-contained design tokens for the SEO + GEO Suite.
+   A sibling sub-system to ABC SalesMaster. Own palette + type; the CRM
+   tokens are untouched. All vars prefixed --sg- to avoid collisions.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Brand wordmark font — the actual MontserratAlt1 SemiBold provided by AIBizConnect.
+   Used for every "ABC SEO/GEO" logo lockup via --sg-font-logo. */
+@font-face {
+  font-family: 'MontserratAlt1';
+  src: url('../../assets/fonts/MontserratAlt1-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ── Brand blue (classic SEO) ── */
+  --sg-blue-700: #1A3FA0;   /* deep */
+  --sg-blue-600: #1E50C8;
+  --sg-blue-500: #2563EB;   /* PRIMARY / bright */
+  --sg-blue-400: #5B8DEF;
+  --sg-blue-200: #B8CCF7;
+  --sg-blue-100: #DCE7FB;
+  --sg-blue-50:  #EFF4FE;
+
+  /* ── Navy (sidebar + hero gradients) ── */
+  --sg-navy-900: #0D1B5E;
+  --sg-navy-800: #142468;
+  --sg-navy-700: #1C2F7E;
+
+  /* ── GEO / AI accent (violet) — used for every AI-visibility feature ── */
+  --sg-violet-700: #6D28D9;
+  --sg-violet-600: #7C3AED;   /* GEO ACCENT */
+  --sg-violet-500: #8B5CF6;
+  --sg-violet-200: #DCCBFA;
+  --sg-violet-100: #ECE2FD;
+  --sg-violet-50:  #F6F1FE;
+
+  /* ── Semantic ── */
+  --sg-green:   #16A34A;  --sg-green-50: #E7F6EC;
+  --sg-amber:   #F59E0B;  --sg-amber-50: #FEF4DD;
+  --sg-red:     #DC2626;  --sg-red-50:   #FBE7E7;
+
+  /* ── Neutrals ── */
+  --sg-page:    #F1F5F9;
+  --sg-card:    #FFFFFF;
+  --sg-sunken:  #F8FAFC;
+  --sg-text:    #1E293B;   /* primary text */
+  --sg-text-2:  #64748B;   /* secondary text */
+  --sg-text-3:  #94A3B8;   /* tertiary / muted */
+  --sg-border:  #E2E8F0;
+  --sg-border-2:#CBD5E1;
+
+  /* ── Gradients ── */
+  --sg-grad-brand:  linear-gradient(135deg, #1A3FA0 0%, #2563EB 100%);
+  --sg-grad-navy:   linear-gradient(176deg, #0D1B5E 0%, #142468 60%, #1C2F7E 100%);
+  --sg-grad-violet: linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%);
+
+  /* ── Type ── */
+  --sg-font-display: 'Montserrat Alternates', system-ui, sans-serif;
+  --sg-font-sans:    'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sg-font-logo:    'MontserratAlt1', 'Montserrat Alternates', system-ui, sans-serif;
+
+  /* ── Shape ── */
+  --sg-radius-sm:  8px;
+  --sg-radius-md:  12px;
+  --sg-radius-lg:  16px;   /* cards */
+  --sg-radius-xl:  20px;
+  --sg-radius-pill: 999px;
+
+  /* ── Elevation ── */
+  --sg-shadow:    0 2px 14px rgba(15, 23, 42, 0.07);
+  --sg-shadow-lg: 0 14px 36px rgba(15, 23, 42, 0.12), 0 4px 10px rgba(15, 23, 42, 0.05);
+  --sg-ring:      0 0 0 3px rgba(37, 99, 235, 0.28);
+
+  /* ── Motion ── */
+  --sg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--sg-page);
+  font-family: var(--sg-font-sans);
+  color: var(--sg-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.sg-tnum { font-variant-numeric: tabular-nums; }
+
+@keyframes sg-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes sg-rise { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes sg-grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }

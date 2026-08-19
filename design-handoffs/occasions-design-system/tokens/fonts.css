@@ -1,0 +1,17 @@
+/* ── AIBizConnect webfonts ───────────────────────────────────────────
+   Display: MontserratAlt1 SemiBold — the brand's provided wordmark font.
+   Body:    Montserrat (Google Fonts) — only SemiBold of Alt1 was supplied,
+            so regular/medium/bold body weights use standard Montserrat.
+            ⚠ SUBSTITUTION — see readme.md "Typography".
+   Mono:    Roboto Mono (Google Fonts) — for numeric/data UI.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Roboto+Mono:wght@400;500&display=swap');
+
+@font-face {
+  font-family: 'MontserratAlt1';
+  src: url('../assets/fonts/MontserratAlt1-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

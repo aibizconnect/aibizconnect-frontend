@@ -62,7 +62,7 @@ const GROUP_2: Item[] = [
   { label: "Media Storage", key: "media", route: "media" },
   { label: "Reputation", key: "reputation", route: "reputation" },
   { label: "Reporting", key: "reporting", route: "reporting" },
-  { label: "App Marketplace", key: "market", soon: true },
+  { label: "App Marketplace", key: "market", route: "marketplace" },
 ];
 
 function Icon({ k }: { k: string }) {

@@ -1,0 +1,66 @@
+{
+  "name": "ABC SEO/GEO — Brand Colors",
+  "product": "AI Biz Connect · SEO + GEO Suite",
+  "version": "1.0",
+  "notes": "Brand palette for GoHighLevel white-label / theme setup. Core idea: BLUE = classic SEO, VIOLET = AI/GEO. Paste the hex values into the matching GHL fields (see gohighlevel_field_mapping), or drop the companion brand-colors.css into Settings → Company → Custom CSS.",
+
+  "gohighlevel_field_mapping": {
+    "Primary color": "#2563EB",
+    "Secondary / accent color": "#7C3AED",
+    "Sidebar / navigation background": "#0D1B5E",
+    "Button text / on-primary": "#FFFFFF",
+    "Background": "#F1F5F9",
+    "Body text": "#1E293B"
+  },
+
+  "core": {
+    "primary_seo_blue": "#2563EB",
+    "primary_seo_blue_deep": "#1A3FA0",
+    "geo_ai_violet": "#7C3AED",
+    "navy_dark": "#0D1B5E"
+  },
+
+  "blue_scale": {
+    "700": "#1A3FA0",
+    "600": "#1E50C8",
+    "500": "#2563EB",
+    "400": "#5B8DEF",
+    "100": "#DCE7FB",
+    "50":  "#EFF4FE"
+  },
+  "violet_scale": {
+    "700": "#6D28D9",
+    "600": "#7C3AED",
+    "500": "#8B5CF6",
+    "100": "#ECE2FD",
+    "50":  "#F6F1FE"
+  },
+  "navy_scale": {
+    "900": "#0D1B5E",
+    "800": "#142468",
+    "700": "#1C2F7E"
+  },
+
+  "semantic": {
+    "success_up":   "#16A34A",
+    "warning_med":  "#F59E0B",
+    "danger_down":  "#DC2626"
+  },
+
+  "neutrals": {
+    "page_background": "#F1F5F9",
+    "card_surface":    "#FFFFFF",
+    "sunken_surface":  "#F8FAFC",
+    "text_primary":    "#1E293B",
+    "text_secondary":  "#64748B",
+    "text_tertiary":   "#94A3B8",
+    "border":          "#E2E8F0",
+    "border_strong":   "#CBD5E1"
+  },
+
+  "gradients": {
+    "brand":  "linear-gradient(135deg, #1A3FA0 0%, #2563EB 100%)",
+    "navy":   "linear-gradient(176deg, #0D1B5E 0%, #142468 60%, #1C2F7E 100%)",
+    "violet": "linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%)"
+  }
+}

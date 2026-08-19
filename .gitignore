@@ -61,3 +61,11 @@ design-handoffs/**/*.dc.html
 
 # Personal Claude Code overrides (not committed)
 .claude/settings.local.json
+
+# AI architect/copilot working logs — local design conversations, not project source.
+# Closes finding M1 in docs/SECURITY-AUDIT-2026-06.md (these were tracked in git).
+# NOTE: adding them here stops FUTURE additions; the already-tracked files still need
+#   git rm -r --cached .architect .copilot
+# once the current feature branch's work is committed.
+.architect/
+.copilot/

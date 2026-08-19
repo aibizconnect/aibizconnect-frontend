@@ -86,16 +86,26 @@ export async function middleware(req: NextRequest) {
   const host = req.headers.get("host") ?? "";
   const path = req.nextUrl.pathname;
 
-  // Per-tenant SEO files: on a tenant host, serve the tenant's OWN robots/sitemap/llms. These
-  // contain a ".", so without this they'd fall through to the platform's root versions. Platform
-  // hosts (and unresolved hosts) keep the root app/robots.ts · app/sitemap.ts · public/llms.txt.
-  if (path === "/robots.txt" || path === "/sitemap.xml" || path === "/llms.txt") {
+  // Per-tenant SEO / agent files: on a tenant host, serve the tenant's OWN
+  // robots/sitemap/llms and the Knowledge Catalogue A2A files. These contain a ".", so
+  // without this they'd fall through to the platform's root versions. The two /.well-known/*
+  // paths map to app folders WITHOUT the leading dot (`well-known`) so Next's file scanner
+  // indexes them reliably. Platform/unresolved hosts keep the root versions.
+  const TENANT_FILE_REWRITES: Record<string, string> = {
+    "/robots.txt": "/robots.txt",
+    "/sitemap.xml": "/sitemap.xml",
+    "/llms.txt": "/llms.txt",
+    "/.well-known/agent-card.json": "/well-known/agent-card.json",
+    "/.well-known/catalogue.json": "/well-known/catalogue.json",
+  };
+  const rewriteTarget = TENANT_FILE_REWRITES[path];
+  if (rewriteTarget) {
     const isPlatformHost = PLATFORM_HOSTS.has(host) || PLATFORM_HOSTS.has(host.split(":")[0].toLowerCase());
     if (!isPlatformHost) {
       const tenantId = await resolveTenant(host, tenantSubdomain(host));
       if (tenantId) {
         const url = req.nextUrl.clone();
-        url.pathname = `/sites/${tenantId}${path}`;
+        url.pathname = `/sites/${tenantId}${rewriteTarget}`;
         return NextResponse.rewrite(url);
       }
     }
